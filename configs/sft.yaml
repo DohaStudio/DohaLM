@@ -1,1 +1,14 @@
-# Supervised fine-tuning configuration.
+seed: null
+device: null
+precision: fp16
+micro_batch: null
+gradient_accumulation: null
+learning_rate: null
+warmup: null
+weight_decay: null
+max_steps: null
+token_budget: null
+checkpoint_interval: null
+evaluation_interval: null
+output_directory: null
+resume_checkpoint: null

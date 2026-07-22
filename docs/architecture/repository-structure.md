@@ -12,7 +12,7 @@
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] 현재 `src/`, `server/`, `configs/`, `scripts/`의 파일은 구현 전 스캐폴드이며, `frontend/`에는 안내 문서만 있다.
+- [확정] `src/config/`, `src/runtime/`, `src/cli/`와 Phase 0 테스트는 구현됐고, 그 밖의 `src/`, `server/`, `scripts/` 기능 파일은 스캐폴드이며 `frontend/`에는 안내 문서만 있다.
 
 ## 2. 구조 운영 원칙
 
@@ -25,7 +25,7 @@
 
 ## 3. 현재 실제 구조
 
-아래 트리는 2026-07-23 작업 시작 시 확인한 구조를 요약한다. `.git/`과 파일 단위의 세부 목록은 생략했다.
+아래 트리는 2026-07-23 Phase 0 구현 후 구조를 요약한다. `.git/`과 파일 단위의 세부 목록은 생략했다.
 
 ```text
 DohaLM/
@@ -43,23 +43,29 @@ DohaLM/
 ├── scripts/
 ├── server/
 ├── src/
+│   ├── cli/
+│   ├── config/
 │   ├── data/
 │   ├── evaluation/
 │   ├── inference/
 │   ├── model/
+│   ├── runtime/
 │   ├── tokenizer/
 │   └── training/
 ├── tests/
 ├── AGENTS.md
 ├── README.md
+├── requirements-dev.txt
 ├── pyproject.toml
-└── requirements.txt
+├── requirements.txt
+└── .editorconfig
 ```
 
 - [확정] `data/`의 하위 디렉터리와 `checkpoints/`는 자리 유지를 위한 파일만 포함하며 데이터나 체크포인트가 생성된 상태가 아니다.
 - [확정] `experiments/`와 `artifacts/`는 현재 존재하지 않는다.
 - [확정] `frontend/`에는 현재 Next.js 애플리케이션이 구현돼 있지 않다.
 - [확정] `server/` 파일이 존재하지만 FastAPI 서비스가 구현 완료된 상태는 아니다.
+- [확정] `logs/`, `artifacts/`, `experiments/`는 경로 정책과 Git 제외 규칙만 정의하며 필요 시점 전에는 만들지 않는다.
 
 ## 4. 계획 구조 후보
 
@@ -86,6 +92,9 @@ DohaLM/
 |---|---|---|---|---|---|---|
 | `configs/` | 실행 설정의 단일 기준 제공 | 모델·학습·평가 설정 | 비밀값, 체크포인트, 데이터 | 설정 파일은 추적 | 현재 없음, 필요 시 검토 | 실제 설정 구현 단계 |
 | `docs/` | 기준 문서와 결정 이력 | 설계, 정책, ADR | 실행 산출물 | 추적 | 존재 | 기능 구현 전 |
+| `src/config/` | YAML 설정 로딩·검증·병합 | schema, Tiny 불변 조건, CLI override | 모델·학습 구현 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
+| `src/runtime/` | 환경·경로·로깅 기반 제공 | 환경 진단, 저장소 경로, 기본 로깅 | 학습 metric logger | 소스만 추적 | 현재 없음 | Phase 0 구현 |
+| `src/cli/` | Phase 0 진단 진입점 | 환경·설정·resolved config·경로 명령 | 학습·추론 명령 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
 | `src/data/` | 정제·중복 제거·데이터셋 구성 | 데이터 처리 소스 | 실제 대용량 데이터 | 소스만 추적 | 존재 | 데이터 정책 승인 후 |
 | `src/model/` | Decoder-only Transformer | 직접 구현 모델 소스 | 완성형 외부 GPT 모델 | 소스만 추적 | 존재 | 모델 설계 승인 후 |

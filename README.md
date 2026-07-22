@@ -61,12 +61,12 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 ## 저장소 구조
 
 ```text
-configs/       설정 스캐폴드
+configs/       검증 가능한 모델·실행 설정
 data/          원본·정제·토큰화·SFT 데이터 경로
 docs/          프로젝트 기준 문서와 ADR
 scripts/       실행 스크립트 스캐폴드
 server/        FastAPI 서버 스캐폴드
-src/           토크나이저·데이터·모델·학습·평가·추론 스캐폴드
+src/           Phase 0 설정·환경·경로·CLI와 후속 구현 스캐폴드
 frontend/      Frontend 안내 스캐폴드
 tests/         테스트 경로
 checkpoints/   로컬 체크포인트 경로
@@ -84,14 +84,54 @@ checkpoints/   로컬 체크포인트 경로
 ## 환경 요구사항
 
 - 단일 NVIDIA `RTX 3060 Ti 8GB`
-- Python, PyTorch, CUDA 호환 환경
+- Python 3.10 이상 3.13 미만(현재 검증: 3.12.5)
+- PyTorch 2.7 계열 선택 GPU 의존성(현재 검증: 2.7.1+cu118)
 - Windows PowerShell을 포함한 로컬 개발 환경
 
-정확한 Python·PyTorch·CUDA·NVIDIA Driver 버전과 의존성 고정 방식은 [검증 필요]이며 Phase 0에서 호환성을 확인한 뒤 기록합니다.
+[검증 필요] Linux와 다른 PyTorch·CUDA 조합은 해당 환경에서 별도 검증해야 합니다. PyTorch 설치 방식은 플랫폼별 공식 설치 안내를 따릅니다.
+
+현재 로컬 검증 snapshot은 다음과 같습니다. 프로젝트의 영구 고정값이 아니라 Gate 1 검토 근거입니다.
+
+- Windows 11, Python 3.12.5
+- PyTorch 2.7.1+cu118, PyTorch CUDA build 11.8, cuDNN 90100
+- NVIDIA GeForce RTX 3060 Ti, 8,192 MiB, Driver 610.62
+- CUDA 사용 가능, 단일 CUDA tensor 생성·해제 성공
+- [검증 필요] CUDA toolkit compiler(`nvcc`)는 현재 PATH에서 확인되지 않음
+- [확정] 전역 환경의 프로젝트 외 패키지 충돌과 분리된 `.venv`에서 `pip check`, editable 설치, 전체 테스트와 CPU·CUDA smoke를 통과함
 
 ## 빠른 시작
 
-현재는 구현 전 문서 검토 단계이므로 학습·추론 실행 명령을 제공하지 않습니다. Phase 0~6 구현과 검증 이후 실제 재현 명령을 추가할 예정입니다.
+Phase 0 도구는 다음과 같이 실행합니다. 학습·추론 명령은 아직 제공하지 않습니다.
+
+Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+python -m pip install -e . --no-deps
+```
+
+Linux 후보 환경:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m pip install -e . --no-deps
+```
+
+GPU용 PyTorch는 운영체제와 CUDA 조합에 맞춰 [PyTorch 공식 설치 안내](https://pytorch.org/get-started/locally/)에서 먼저 설치한 뒤 `python -m pip install -e ".[gpu]"`로 나머지 GPU 선택 의존성을 설치합니다.
+
+```powershell
+python -m src.cli.main environment --cuda-smoke
+python -m src.cli.main config validate
+python -m src.cli.main config resolve --run configs/pretrain.yaml --allow-incomplete
+python -m src.cli.main paths
+python -m pytest -q
+```
+
+`pretrain.yaml`과 `sft.yaml`의 미결정값은 실행 전에 확정해야 하며, `--allow-incomplete`는 상태 점검용 출력에만 사용합니다.
 
 ## 구현 예정 순서
 

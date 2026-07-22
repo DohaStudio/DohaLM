@@ -18,10 +18,10 @@
 
 | ID | 대상 | 점검 내용 | 테스트 수준 | 필수 여부 | 예상 결과 | 실패 시 조치 | 자동화 가능 | 현재 상태 |
 |---|---|---|---|---|---|---|---|---|
-| REPO-001 | 저장소 구조 | 기준 경로와 실제 경로, 불필요한 신규 디렉터리 확인 | Static validation | 예 | 승인 구조와 일치 | 구조 문서·경로 수정 | 예 | `planned` |
-| REPO-002 | Git 변경 | 데이터·checkpoint·비밀·범위 밖 파일 미포함 | Static validation | 예 | 금지 파일 0개 | stage/commit 금지, 원인 보고 | 예 | `planned` |
-| CFG-001 | 설정 | schema·필수 field·unknown key 처리 | Unit test | 예 | 유효 설정 통과, 오류 설정 명시 실패 | loader/schema 수정 | 예 | `planned` |
-| CFG-002 | 설정 | resolved config와 CLI override 기록 | Integration test | 예 | 실제 적용값 snapshot 일치 | 우선순위·기록 수정 | 예 | `planned` |
+| REPO-001 | 저장소 구조 | 기준 경로와 실제 경로, 불필요한 신규 디렉터리 확인 | Static validation | 예 | 승인 구조와 일치 | 구조 문서·경로 수정 | 예 | `passed` (Phase 0) |
+| REPO-002 | Git 변경 | 데이터·checkpoint·비밀·범위 밖 파일 미포함 | Static validation | 예 | 금지 파일 0개 | stage/commit 금지, 원인 보고 | 예 | `passed` (Phase 0) |
+| CFG-001 | 설정 | schema·필수 field·unknown key 처리 | Unit test | 예 | 유효 설정 통과, 오류 설정 명시 실패 | loader/schema 수정 | 예 | `passed` (Phase 0) |
+| CFG-002 | 설정 | resolved config와 CLI override 기록 | Integration test | 예 | 실제 적용값 snapshot 일치 | 우선순위·기록 수정 | 예 | `passed` (Phase 0) |
 | DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `planned` |
 | DATA-002 | 데이터 | deterministic split·exact/near 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 일부 | `planned` |
 | DATA-003 | 데이터 | 개인정보·유해성·라이선스 차단 상태 | Manual evaluation/Static | 예 | 미승인·고위험 입력 사용 금지 | 격리·승인 재검토 | 일부 | `planned` |
@@ -50,12 +50,12 @@
 | API-002 | API | model lifecycle·streaming 중단 | Integration/Performance test | 후순위 필수 | load 1회·정상 stream·오류 정리 | lifecycle·stream 수정 | 일부 | `planned` |
 | UI-001 | Frontend | 입력·loading·응답·오류 상태 | Component test | 후순위 필수 | 명세와 화면 상태 일치 | UI state 수정 | 예 | `planned` |
 | UI-002 | Frontend | API 통합·stream rendering | Integration test | 후순위 필수 | 순서·중단·오류 표시 정상 | API/UI 계약 수정 | 일부 | `planned` |
-| DEP-001 | 배포 | clean 환경 설치·로컬 smoke | Smoke test | 후순위 필수 | 문서 명령으로 실행 | dependency·문서 수정 | 일부 | `planned` |
+| DEP-001 | 배포 | clean 환경 설치·로컬 smoke | Smoke test | 후순위 필수 | 문서 명령으로 실행 | dependency·문서 수정 | 일부 | `passed` (Phase 0 로컬 `.venv`) |
 | DEP-002 | 배포 | artifact hash·모델 카드·비밀 분리 | Static/Integration test | 후순위 필수 | hash·출처·제한·secret 검사 통과 | package·card 수정 | 일부 | `planned` |
 | DOC-001 | 문서 | 필수 목차·상태·인덱스·ADR 동기화 | Static validation | 예 | 누락·허위 완료 0건 | 문서 수정 | 예 | `planned` |
 | DOC-002 | 문서 | 상대 링크와 예정 파일 코드 표기 | Static validation | 예 | 깨진 상대 링크 0개 | 링크·표기 수정 | 예 | `planned` |
 | SEC-001 | 보안 | secret·credential·개인 절대경로 검사 | Static validation | 예 | 노출 0건 | 변경 중단·secret 폐기/회전 보고 | 일부 | `planned` |
-| SEC-002 | 보안 | path traversal·비승인 파일 접근 | Unit/Integration test | 예 | 경계 밖 접근 명시 실패 | validation·권한 수정 | 예 | `planned` |
+| SEC-002 | 보안 | path traversal·비승인 파일 접근 | Unit/Integration test | 예 | 경계 밖 접근 명시 실패 | validation·권한 수정 | 예 | `passed` (Phase 0 경로 정책) |
 | REP-001 | 재현성 | Git·config·환경·data/tokenizer fingerprint 기록 | Static/Integration test | 예 | 필수 metadata 완전 | 실행 invalid·기록 수정 | 예 | `planned` |
 | REP-002 | 재현성 | 같은 seed 재실행과 허용 차이 | Regression test | 예 | 기준 허용 범위 내 | 비결정 원인·환경 분석 | 일부 | `planned` |
 
@@ -65,10 +65,13 @@
 - [확정] `not_run`과 `blocked`를 `pass`로 집계하지 않는다.
 - [확정] GPU test를 CPU 결과로 대체하지 않으며 GPU 미실행 사유를 명시한다.
 - [확정] `not_applicable`에는 해당하지 않는 이유와 승인 범위를 기록한다.
-- [검증 필요] 실제 test 파일·명령·CI mapping은 구현 단계에서 정한다.
+- [확정] Phase 0 test 파일은 `tests/test_config.py`, `tests/test_environment.py`, `tests/test_paths.py`, `tests/test_logging.py`, `tests/test_cli.py`이며 `python -m pytest -q`로 실행한다.
+- [검증 필요] 후속 구현 test와 CI mapping은 해당 단계에서 정한다.
 
 ## 4. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 격리 `.venv` editable 설치·의존성 무결성·CLI·CPU/CUDA smoke 검증 반영 |
+| 2026-07-23 | [확정] Phase 0 설정·환경·경로·로깅·CLI 자동 테스트와 실행 명령 반영 |
 | 2026-07-23 | [확정] 저장소부터 재현성까지 16개 범주의 계획 test와 실패 조치 정의 |
