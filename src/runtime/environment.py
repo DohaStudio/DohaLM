@@ -12,9 +12,32 @@ from typing import Any, Callable
 from .paths import repository_root
 
 
+def _to_primitive(value: Any, *, field: str = "value") -> Any:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return str(value)
+    if isinstance(value, bool):
+        return bool(value)
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float):
+        return float(value)
+    if isinstance(value, list):
+        return [_to_primitive(item, field=f"{field}[]") for item in value]
+    if isinstance(value, dict):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise TypeError(f"{field}: dict key는 str이어야 합니다.")
+            normalized[str(key)] = _to_primitive(item, field=f"{field}.{key}")
+        return normalized
+    raise TypeError(f"{field}: 지원하지 않는 환경 값 타입 {type(value).__name__}")
+
+
 def _field(probe: Callable[[], Any]) -> dict[str, Any]:
     try:
-        return {"value": probe(), "error": None}
+        return {"value": _to_primitive(probe()), "error": None}
     except Exception as exc:  # 개별 진단 실패가 전체 보고를 막지 않게 한다.
         return {"value": None, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -45,8 +68,10 @@ def collect_environment(root: str | Path | None = None) -> dict[str, dict[str, A
         "os": platform.platform,
         "machine": platform.machine,
         "python_version": platform.python_version,
-        "pytorch_version": lambda: _torch().__version__,
-        "pytorch_cuda_build": lambda: _torch().version.cuda,
+        "pytorch_version": lambda: str(_torch().__version__),
+        "pytorch_cuda_build": lambda: (
+            str(_torch().version.cuda) if _torch().version.cuda is not None else None
+        ),
         "cuda_available": lambda: _torch().cuda.is_available(),
         "cuda_device_count": lambda: _torch().cuda.device_count(),
         "gpu_name": lambda: _torch().cuda.get_device_name(0),

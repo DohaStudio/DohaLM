@@ -21,10 +21,14 @@ def _default_config(name: str) -> str:
 
 
 def _print(value: Any, *, as_json: bool = False) -> None:
-    if as_json:
-        print(json.dumps(value, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(yaml.safe_dump(value, allow_unicode=True, sort_keys=False).rstrip())
+    try:
+        if as_json:
+            rendered = json.dumps(value, ensure_ascii=False, indent=2)
+        else:
+            rendered = yaml.safe_dump(value, allow_unicode=True, sort_keys=False).rstrip()
+    except (TypeError, ValueError, yaml.YAMLError) as exc:
+        raise RuntimeError("출력 데이터를 YAML 또는 JSON으로 직렬화할 수 없습니다.") from exc
+    print(rendered)
 
 
 def _build_parser() -> argparse.ArgumentParser:
