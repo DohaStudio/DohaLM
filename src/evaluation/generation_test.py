@@ -1,0 +1,1 @@
+"""Generation quality smoke tests."""

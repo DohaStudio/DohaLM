@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/raw/*
+data/cleaned/*
+data/tokenized/*
+data/sft/*
+checkpoints/*
+!data/raw/.gitkeep
+!data/cleaned/.gitkeep
+!data/tokenized/.gitkeep
+!data/sft/.gitkeep
+!checkpoints/.gitkeep
