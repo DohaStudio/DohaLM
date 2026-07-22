@@ -1,5 +1,8 @@
 # DohaLM SFT 계획
 
+- 문서 상태: `draft`
+- 마지막 검토일: 2026-07-23
+
 ## 1. 목적과 전제
 
 - [확정] 질문·답변 데이터로 사전학습 모델을 supervised fine-tuning한다.

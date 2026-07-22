@@ -56,61 +56,20 @@
 - [확정] 문서 상태와 본문의 `[확정]`, `[가정]`, `[검증 필요]`, `[후순위]`, `[제외]` 태그는 서로 다른 축이다.
 - [확정] 상태의 단일 기준과 전체 선후 관계는 [문서 인덱스](./index.md)를 따른다.
 
-## 4. 문서 지도
+## 4. 범주별 안내
 
-아래 표에는 현재 실제 파일이 존재하는 기준 문서만 포함한다. 상태는 [문서 인덱스](./index.md)의 2026-07-23 기준값이다.
+이 문서는 범주별 진입점만 제공한다. 모든 기준 문서의 상태·선행·후속·필수 여부·미결정 사항은 [문서 인덱스](./index.md)를 단일 기준으로 사용한다.
 
-### 4.1 프로젝트·개발 운영
-
-| 문서 | 목적 | 상태 | 주요 독자 | 선행 문서 |
-|---|---|---|---|---|
-| [프로젝트 개요](./project/overview.md) | 프로젝트 목적과 완료 조건 | `review` | 전체 | 없음 |
-| [범위와 목표](./project/scope-and-goals.md) | MVP와 Tiny·Small 범위 | `review` | 전체 | `00` |
-| [개발 규칙](./governance/development-rules.md) | 개발·Git·재현성·테스트 원칙 | `review` | 개발자·Codex 사용자 | `00`, `01`, ADR-002 |
-| [문서 인덱스](./index.md) | 문서 상태와 선후 관계 | `review` | 전체 | `00`, `01`, `02` |
-| [개발 로드맵](./quality/development-roadmap.md) | Phase 0~10과 Gate 0~11 | `review` | 전체 | 핵심 설계·ADR-006 |
-| [Definition of Ready](./governance/definition-of-ready.md) | 작업 시작 조건 | `review` | 개발자·Codex 사용자 | `02`, `17`, ADR-006 |
-| [Definition of Done](./governance/definition-of-done.md) | 검증 기반 완료 조건 | `review` | 개발자·검토자 | `17`, `31`, `33`, ADR-006 |
-| [테스트 전략](./quality/test-strategy.md) | 테스트 수준과 CPU·GPU 경계 | `review` | 개발자·검토자 | `02`, `10`, `17`, `31`, `32` |
-| [위험 등록부](./governance/risk-register.md) | 위험 예방·대응 관리 | `review` | 전체 | 핵심 설계·`17`, `33` |
-| [버전 계획](./project/version-plan.md) | 권장 버전 이정표 | `review` | 프로젝트 검토자 | `17`, `32`, `33`, `34` |
-| [Codex 작업 절차](./governance/codex-workflow.md) | Codex 작업 전·중·후 절차 | `review` | Codex 사용자 | AGENTS·`31`, `32`, `33` |
-
-### 4.2 시스템·모델·저장소
-
-| 문서 | 목적 | 상태 | 주요 독자 | 선행 문서 |
-|---|---|---|---|---|
-| [시스템 아키텍처](./architecture/system-architecture.md) | 데이터부터 UI까지 시스템 경계 | `review` | 설계 검토자·개발자 | `00`, `01`, `02`, ADR-001 |
-| [모델 아키텍처](./architecture/model-architecture.md) | Tiny 구조·shape·파라미터 산식 | `review` | 모델 개발자 | `01`, ADR-001·002 |
-| [토크나이저 설계](./training/tokenizer-design.md) | SentencePiece 어휘·특수 토큰 정책 | `review` | 모델·데이터 개발자 | `01`, ADR-003 |
-| [GPU 메모리 전략](./training/gpu-memory-strategy.md) | RTX 3060 Ti 8GB 측정·OOM 대응 | `draft` | 모델·학습 담당자 | `04`, ADR-001·002 |
-| [저장소 구조](./architecture/repository-structure.md) | 현재·계획 경로와 책임 | `review` | 개발자·Codex 사용자 | `02`, `03` |
-| [산출물·설정 정책](./governance/artifact-and-configuration-policy.md) | 설정 우선순위와 산출물 계보 | `review` | 개발자·학습 담당자 | `02`, `03`, `21` |
-
-### 4.3 데이터
-
-| 문서 | 목적 | 상태 | 주요 독자 | 선행 문서 |
-|---|---|---|---|---|
-| [데이터 전략](./data/data-strategy.md) | 데이터 후보·승인·규모 원칙 | `review` | 데이터 담당자 | `01`, `02`, `05`, ADR-004 |
-| [데이터 전처리](./data/preprocessing.md) | 정제·중복·분할·packing 명세 | `review` | 데이터 담당자 | `05`, `06`, `23`, `24` |
-| [데이터셋 레지스트리](./data/dataset-registry.md) | 데이터 등록 필드와 승인 절차 | `review` | 데이터 담당자 | `06`, ADR-004 |
-| [데이터 라이선스 정책](./data/data-license-policy.md) | 이용 조건과 공개 가능성 검토 | `review` | 데이터·검토 담당자 | `02`, `06`, `23`, ADR-004 |
-| [데이터 품질 체크리스트](./data/data-quality-checklist.md) | 품질 검사·조치·기록 기준 | `review` | 데이터·평가 담당자 | `06`, `07`, `24`, `26` |
-| [데이터 분할 및 누수 방지](./data/data-split-and-leakage-policy.md) | split과 평가 오염 방지 | `review` | 데이터·평가 담당자 | `06`, `07`, `23`, ADR-004 |
-
-### 4.4 학습·평가·실험
-
-| 문서 | 목적 | 상태 | 주요 독자 | 선행 문서 |
-|---|---|---|---|---|
-| [사전학습 계획](./training/pretraining-plan.md) | 사전학습 절차·자원·복원 계획 | `draft` | 학습 담당자 | `04`, `05`, `07`, `16` |
-| [SFT 계획](./training/sft-plan.md) | 대화 형식과 SFT loss 정책 | `draft` | 학습 담당자 | `05`, `07`, `08` |
-| [평가 계획](./evaluation/evaluation-plan.md) | 학습·생성·자원 평가 계약 | `review` | 학습·평가 담당자 | `04`, `05`, `08`, `09`, `26` |
-| [실험 관리](./training/experiment-management.md) | 실험 ID·상태·산출물 계보 | `review` | 학습·평가 담당자 | `02`, `08`, `10`, `22` |
-| [테스트 체크리스트](./quality/testing-checklist.md) | 구현별 테스트와 실패 조치 | `review` | 전체 개발자 | `17`, `31`, `32`, `33` |
-| [Benchmark 정책](./evaluation/benchmark-policy.md) | Benchmark 채택·누수·보고 원칙 | `review` | 평가 담당자 | `10`, `24`, `26`, ADR-005 |
-| [생성 평가](./evaluation/generation-evaluation.md) | 고정 prompt와 생성 품질 평가 | `review` | 평가·추론 담당자 | `05`, `09`, `10`, `26` |
-| [재현성 정책](./quality/reproducibility-policy.md) | 환경·seed·계보·실패 처리 | `review` | 학습·평가 담당자 | `02`, `10`, `15`, `22` |
-| [실험 템플릿](./training/experiment-template.md) | 실험 계획·결과 기록 양식 | `review` | 학습·평가 담당자 | `10`, `15`, `29` |
+| 범주 | 설명 | 우선 진입 문서 |
+|---|---|---|
+| 프로젝트 | 목적, 범위와 버전 방향 | [프로젝트 개요](./project/overview.md), [범위와 목표](./project/scope-and-goals.md) |
+| 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
+| 아키텍처 | 시스템·모델·저장소 구조 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [저장소 구조](./architecture/repository-structure.md) |
+| 데이터 | 데이터 승인, 전처리, 라이선스와 품질 | [데이터 전략](./data/data-strategy.md), [데이터 전처리](./data/preprocessing.md), [데이터셋 레지스트리](./data/dataset-registry.md) |
+| 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
+| 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
+| 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
+| 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
 
 ## 5. ADR 안내
 
@@ -140,10 +99,9 @@
 - [확정] 다음 예정 단계는 문서 검토와 Gate 0 승인 이후 Phase 0 저장소·환경 기반 구현이다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
-기존 `01-project-plan.md`, `02-model-architecture.md`, `03-data-policy.md`, `04-training-plan.md`, `05-evaluation-plan.md`, `06-deployment-plan.md`은 제목만 있는 스캐폴드이며 현재 기준 문서가 아니다.
-
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 범주별 진입점과 문서 생명주기 인덱스의 역할을 분리함 |
 | 2026-07-23 | [확정] 독자별 읽기 순서, 문서 지도, ADR 안내와 실제 저장소 상태를 반영한 문서 안내서 작성 |
