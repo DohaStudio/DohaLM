@@ -65,20 +65,22 @@
 
 ## 5. 환경 기록 명령 계획
 
-실험 시작·종료 시 다음 정보를 기록하되 이번 문서화 단계에서는 명령을 실행하지 않는다.
+실험 시작·종료 시 다음 정보를 기록한다. Phase 0에서는 읽기 전용 환경 수집 CLI를 구현했다.
 
 | 정보 | 명령·수집 방식 후보 | 저장 원칙 |
 |---|---|---|
 | Python 버전 | `python --version` | stdout·exit code·실행 시각 |
 | Python package | `pip freeze` | 전체 snapshot, 민감 URL·token 정제 |
 | GPU·Driver | `nvidia-smi` | GPU 이름·VRAM·driver·process 상태 |
-| PyTorch CUDA 상태 | Python에서 PyTorch·CUDA·cuDNN·device 정보 조회 [구현 예정] | 조회 코드 version과 결과 |
+| PyTorch CUDA 상태 | `python -m src.cli.main environment --cuda-smoke` | 필드별 값·오류와 CUDA smoke 결과 |
 | Git commit | `git rev-parse HEAD` 후보 | 전체 SHA |
 | Git 상태 | `git status --porcelain` 후보 | clean 여부, dirty면 안전한 diff 참조 |
 
 - [확정] 명령 문자열, stdout/stderr, exit code와 실행 시각을 연결한다.
 - [확정] 환경 기록에 API key, credential, 사용자 토큰과 불필요한 개인 경로를 포함하지 않는다.
-- [검증 필요] 정확한 수집 script와 `environment.txt` schema는 구현 전에 확정한다.
+- [확정] Phase 0 CLI는 OS·Python·PyTorch·CUDA build·GPU·Driver·cuDNN·Git 상태를 필드별로 수집하고 비밀·사용자명·호스트명·불필요한 전체 경로를 제외한다.
+- [확정] Windows 격리 `.venv`에서 PyTorch 2.7.1+cu118과 GPU 선택 의존성의 `pip check`, editable 설치, CPU·CUDA smoke를 검증했다.
+- [검증 필요] 장기 보존용 environment snapshot 파일 형식과 package lock 전략은 후속 단계에서 확정한다.
 
 ## 6. 재현 수준
 

@@ -18,7 +18,7 @@
 
 | Phase | 목적 | 선행 조건 | 작업 항목 | 결과물 | 필수 테스트 | 진입 조건 | 통과 조건 | 실패 시 복귀 | 현재 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 0. 저장소와 환경 기반 | 재현 가능한 구현 기반 마련 | 기준 문서·ADR 확인 | 구조 확정, Python 기준, CUDA·PyTorch 호환 검토, 의존성·설정 구조, 기본 테스트 환경, 로그·산출물 경로 | 환경 기준, 설정 계약, 테스트 진입점 | 설정 parse, CPU smoke, CUDA 가용성 후보, 경로·Git 제외 검사 | Gate 0 통과 | Gate 1 통과와 환경 snapshot 가능 | Gate 0 문서 보완 | [검증 필요] 미구현 |
+| 0. 저장소와 환경 기반 | 재현 가능한 구현 기반 마련 | 기준 문서·ADR 확인 | 구조 확정, Python 기준, CUDA·PyTorch 호환 검토, 의존성·설정 구조, 기본 테스트 환경, 로그·산출물 경로 | 환경 기준, 설정 계약, 테스트 진입점 | 설정 parse, CPU smoke, CUDA 가용성 후보, 경로·Git 제외 검사 | Gate 0 통과 | Gate 1 통과와 환경 snapshot 가능 | Gate 0 문서 보완 | [검증 필요] 구현·자동 테스트 완료, Gate 1 승인 전 |
 | 1. 데이터 최소 파이프라인 | 안전한 최소 입출력·계보 검증 | Phase 0, 데이터 정책 | 가상/극소량 로컬 sample, 형식 검증, 정제 흐름, manifest, checksum, split 검증 | 소형 fixture 처리 결과·manifest | 원본 불변, checksum, deterministic split, 누수 fixture | Gate 1 통과·허용 fixture 준비 | Gate 2 통과 | Phase 0 설정·경로 | [검증 필요] 미구현 |
 | 2. 토크나이저 | 한국어 token 계약 확정 | Phase 1, 승인 corpus 정책 | corpus 승인, SentencePiece 학습, 특수 token, encode/decode, fingerprint, 한국어 분할 품질 | `.model`·`.vocab` 후보, mapping, 평가 보고 | vocab 16,000, ID 0~7, round-trip, fingerprint, token 통계 | Gate 2 통과·corpus approved | Gate 3 통과 | Phase 1 데이터·정규화 | [검증 필요] 미구현 |
 | 3. 모델 구성요소 | 핵심 layer를 독립 검증 | Phase 0, ADR-002 | Config, token/position embedding, causal self-attention, MHA, FFN, Pre-LN, block, LM Head, weight tying | 직접 구현 모듈·단위 테스트 | shape, causal mask, backward, dtype/device, error, tying alias | Gate 1·모델 문서 승인 | Gate 4 통과 | 해당 구성요소·Config | [검증 필요] 미구현 |
@@ -41,7 +41,7 @@
 | Gate | 필수 문서 | 필수 구현 | 필수 테스트 | 필수 산출물 | 통과 기준 | 실패 조건 | 승인 주체 | 상태 |
 |---|---|---|---|---|---|---|---|---|
 | Gate 0: 문서 승인 | 프로젝트·범위·개발 규칙, ADR-001~006, 관련 설계 | 없음 | 링크·수치·상태 검토 | 승인/검토 기록 | 구현 대상·제외·테스트·미결정 사항 명확 | 확정 사양 충돌·필수 문서 누락 | 사용자 검토 | `approved` |
-| Gate 1: 환경 검증 | 저장소·산출물·재현성·Ready | 환경 확인·설정 loader 최소 후보 | Python/PyTorch/CUDA·CPU smoke·경로 검사 | environment snapshot·resolved config | 기준 환경에서 최소 명령 성공, 비밀·경로 문제 없음 | 의존성 충돌·CUDA 불가·재현 정보 누락 | 사용자 검토 또는 [검증 필요] | `planned` |
+| Gate 1: 환경 검증 | 저장소·산출물·재현성·Ready | 환경 확인·설정 loader 최소 후보 | Python/PyTorch/CUDA·CPU smoke·경로 검사 | environment snapshot·resolved config | 기준 환경에서 최소 명령 성공, 비밀·경로 문제 없음 | 의존성 충돌·CUDA 불가·재현 정보 누락 | 사용자 검토 또는 [검증 필요] | `review` |
 | Gate 2: 데이터 파이프라인 검증 | [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 등록부](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 품질 체크리스트](../data/data-quality-checklist.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), ADR-004 | 최소 read-only 전처리·manifest·split | checksum, 원본 불변, 정제, deterministic split, 누수 fixture | 소형 manifest·통계 | 승인 fixture의 단계 연결·재실행 일치 | 원본 변경·계보 유실·split 누수 | 사용자 검토 | `planned` |
 | Gate 3: 토크나이저 검증 | [토크나이저 설계](../training/tokenizer-design.md), ADR-003, 데이터 정책 | SentencePiece 학습·wrapper | vocab/ID, encode/decode, unknown·분할 통계 | tokenizer artifact·fingerprint | 16,000 vocab, special ID, round-trip·품질 검토 | ID 불일치·권리 문제·의미 손상 | 사용자 검토 | `planned` |
 | Gate 4: 모델 단위 구성요소 검증 | [모델 아키텍처](../architecture/model-architecture.md), ADR-002, [테스트 전략](./test-strategy.md) | 각 모델 component | shape, mask, forward/backward, dtype/device, error | 단위 테스트 결과 | 모든 필수 component test pass | 필수 실패·외부 완성 model 대체 | 사용자 검토 | `planned` |

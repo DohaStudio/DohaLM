@@ -1,1 +1,3 @@
-# Small model configuration.
+config_status: disabled
+model_name: DohaLM-Small
+reason: "상세 구조가 승인되지 않아 실행 설정으로 사용할 수 없습니다."

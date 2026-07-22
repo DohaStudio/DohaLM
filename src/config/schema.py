@@ -1,0 +1,56 @@
+"""Phase 0 설정 스키마 정의."""
+
+MODEL_SCHEMA = {
+    "model_type": (str, False),
+    "num_layers": (int, False),
+    "hidden_size": (int, False),
+    "num_attention_heads": (int, False),
+    "head_dim": (int, False),
+    "ffn_size": (int, False),
+    "context_length": (int, False),
+    "vocab_size": (int, False),
+    "norm_type": (str, False),
+    "position_embedding_type": (str, False),
+    "linear_bias": (bool, False),
+    "lm_head_bias": (bool, False),
+    "weight_tying": (bool, False),
+    "compute_dtype": (str, False),
+    "expected_parameter_count": (int, False),
+    "dropout": ((int, float), True),
+    "initialization": (str, True),
+}
+
+RUN_SCHEMA = {
+    "seed": (int, True),
+    "device": (str, True),
+    "precision": (str, True),
+    "micro_batch": (int, True),
+    "gradient_accumulation": (int, True),
+    "learning_rate": ((int, float), True),
+    "warmup": ((int, float), True),
+    "weight_decay": ((int, float), True),
+    "max_steps": (int, True),
+    "token_budget": (int, True),
+    "checkpoint_interval": (int, True),
+    "evaluation_interval": (int, True),
+    "output_directory": (str, True),
+    "resume_checkpoint": (str, True),
+}
+
+TINY_INVARIANTS = {
+    "model_type": "decoder_only",
+    "num_layers": 6,
+    "hidden_size": 384,
+    "num_attention_heads": 6,
+    "head_dim": 64,
+    "ffn_size": 1536,
+    "context_length": 256,
+    "vocab_size": 16000,
+    "norm_type": "pre_layernorm",
+    "position_embedding_type": "learned_absolute",
+    "linear_bias": True,
+    "lm_head_bias": False,
+    "weight_tying": True,
+    "compute_dtype": "fp16",
+    "expected_parameter_count": 16_889_856,
+}

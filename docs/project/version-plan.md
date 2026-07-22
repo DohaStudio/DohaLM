@@ -32,6 +32,8 @@
 | `v1.2` | 채팅 UI | Next.js 채팅 화면과 API 연결 | 공개 배포 보장 | Gate 10의 UI 조건 통과 | `12-api-specification.md`, `13-frontend-specification.md`, `19-deployment-plan.md` | UI 흐름, 오류 표시, API 통합 검사 | 로컬 채팅 애플리케이션 릴리스 후보 |
 | `v1.3` | 벤치마크·모델 카드 | 벤치마크 결과 정리, 모델 카드, 제출 가능성 검토 | 제출 자체와 성능 보장 | Gate 11 사용자 승인 및 정책 확인 | `20-leaderboard-strategy.md`, [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), `19-deployment-plan.md` | benchmark 재현성, 라이선스·공개 범위 검사 | 모델 카드와 벤치마크 보고서 |
 
+- [검증 필요] `v0.1`의 Phase 0 구현과 자동 검증은 완료됐으나 Gate 1은 사용자 승인 전이므로 통과 또는 릴리스 완료로 보지 않는다.
+
 ## 3. 버전 승격 규칙
 
 - [확정] 이전 버전의 필수 게이트가 실패한 상태에서 다음 버전을 완료 처리하지 않는다.

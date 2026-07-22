@@ -1,1 +1,17 @@
-# Tiny model configuration.
+model_type: decoder_only
+num_layers: 6
+hidden_size: 384
+num_attention_heads: 6
+head_dim: 64
+ffn_size: 1536
+context_length: 256
+vocab_size: 16000
+norm_type: pre_layernorm
+position_embedding_type: learned_absolute
+linear_bias: true
+lm_head_bias: false
+weight_tying: true
+compute_dtype: fp16
+expected_parameter_count: 16889856
+dropout: null
+initialization: null
