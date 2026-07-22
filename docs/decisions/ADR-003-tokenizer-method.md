@@ -3,7 +3,7 @@
 - 문서 상태: `approved`
 - 결정일: 2026-07-23
 - 구현 상태: [검증 필요] 미구현
-- 기준 설계: [DohaLM 토크나이저 설계](../05-tokenizer-design.md)
+- 기준 설계: [DohaLM 토크나이저 설계](../training/tokenizer-design.md)
 - 관련 모델 결정: [ADR-002: DohaLM-Tiny 모델 아키텍처](./ADR-002-tiny-model-architecture.md)
 
 ## 결정 배경

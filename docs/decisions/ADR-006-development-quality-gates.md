@@ -3,7 +3,7 @@
 - 상태: `approved`
 - 결정일: 2026-07-23
 - 구현 상태: `[검증 필요]` 미구현
-- 관련 문서: [개발 로드맵](../17-development-roadmap.md), [테스트 체크리스트](../18-testing-checklist.md), [Definition of Ready](../31-definition-of-ready.md), [Definition of Done](../32-definition-of-done.md), [테스트 전략](../33-test-strategy.md), [위험 등록부](../34-risk-register.md), [Codex 작업 절차](../36-codex-workflow.md)
+- 관련 문서: [개발 로드맵](../quality/development-roadmap.md), [테스트 체크리스트](../quality/testing-checklist.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md), [Codex 작업 절차](../governance/codex-workflow.md)
 
 ## 1. 결정 배경
 
@@ -28,19 +28,19 @@
 
 ## 3. 결정
 
-- [확정] [개발 로드맵](../17-development-roadmap.md)의 Phase 0~10과 Gate 0~11을 공식 개발 순서와 품질 관문으로 채택한다.
-- [확정] 작업 착수 전에는 [Definition of Ready](../31-definition-of-ready.md)를, 완료 선언 전에는 [Definition of Done](../32-definition-of-done.md)을 적용한다.
+- [확정] [개발 로드맵](../quality/development-roadmap.md)의 Phase 0~10과 Gate 0~11을 공식 개발 순서와 품질 관문으로 채택한다.
+- [확정] 작업 착수 전에는 [Definition of Ready](../governance/definition-of-ready.md)를, 완료 선언 전에는 [Definition of Done](../governance/definition-of-done.md)을 적용한다.
 - [확정] 필수 테스트가 실패하거나 실행되지 않은 작업은 완료 처리하지 않는다. 미실행은 사유와 차단 영향을 기록한다.
 - [확정] 문서와 ADR을 구현보다 먼저 동기화하며, 문서 상태 `approved`와 구현 상태 `implemented`를 구분한다.
 - [확정] 작은 단위 테스트, 통합 smoke, Tiny overfit을 통과한 뒤에만 장시간 DohaLM-Tiny 사전학습을 제안한다.
 - [확정] 장시간 학습, 서비스 단계 진입, 배포와 외부 제출은 해당 게이트 외에 사용자의 명시적 승인을 요구한다.
-- [확정] Codex 작업에는 [Codex 작업 절차](../36-codex-workflow.md)의 범위 확인, 검증, 완료 보고, Git 안전 규칙을 적용한다.
+- [확정] Codex 작업에는 [Codex 작업 절차](../governance/codex-workflow.md)의 범위 확인, 검증, 완료 보고, Git 안전 규칙을 적용한다.
 
 ## 4. 실패와 롤백 원칙
 
 - [확정] 게이트 실패 시 다음 단계로 진행하지 않고 마지막으로 통과한 게이트의 산출물을 기준점으로 삼는다.
 - [확정] 실패 원인, 재현 입력, 환경, 로그, 영향 범위와 대응 결과를 실험 기록 또는 작업 보고에 남긴다.
-- [확정] OOM은 [GPU 메모리 전략](../16-gpu-memory-strategy.md)의 조정 순서를 적용하고, 데이터·평가 문제는 해당 거버넌스 문서로 되돌아간다.
+- [확정] OOM은 [GPU 메모리 전략](../training/gpu-memory-strategy.md)의 조정 순서를 적용하고, 데이터·평가 문제는 해당 거버넌스 문서로 되돌아간다.
 - [확정] 변경을 되돌릴 때 사용자 작업을 덮어쓰거나 Git 이력을 강제로 재작성하지 않는다.
 
 ## 5. 장점

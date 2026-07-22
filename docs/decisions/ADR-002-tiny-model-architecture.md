@@ -4,7 +4,7 @@
 - 결정일: 2026-07-23
 - 구현 상태: [검증 필요] 미구현
 - 선행 결정: [ADR-001: 초기 모델 범위](./ADR-001-initial-model-scope.md)
-- 기준 설계: [DohaLM 모델 아키텍처](../04-model-architecture.md)
+- 기준 설계: [DohaLM 모델 아키텍처](../architecture/model-architecture.md)
 
 ## 결정 배경
 
@@ -70,7 +70,7 @@ ADR-001은 전체 파이프라인 검증을 위해 `DohaLM-Tiny`를 먼저 개�
 | **합계** | **16,889,856** |
 
 - [확정] 약 `16.89M`으로 목표 약 15M~25M 범위 안에 있다.
-- [확정] 정확한 공통 산식과 bias 포함 범위는 [모델 아키텍처의 파라미터 수 산식](../04-model-architecture.md#4-파라미터-수-산식)을 단일 기준으로 사용한다.
+- [확정] 정확한 공통 산식과 bias 포함 범위는 [모델 아키텍처의 파라미터 수 산식](../architecture/model-architecture.md#4-파라미터-수-산식)을 단일 기준으로 사용한다.
 - [검증 필요] 문서 산식은 구현 결과를 대신하지 않으며 `sum(p.numel())`로 검증해야 한다.
 
 ## Weight tying을 채택한 이유

@@ -28,7 +28,7 @@
 7. 관련 설계 문서를 읽는다.
 8. 관련 ADR을 읽는다.
 9. 기존 구현과 테스트를 검색한다.
-10. [Definition of Ready](docs/31-definition-of-ready.md)를 확인한다.
+10. [Definition of Ready](./docs/governance/definition-of-ready.md)를 확인한다.
 11. 작업 범위와 제외 범위, 생성·수정·금지 파일을 정리한다.
 
 ## 3. Clean worktree 정책
@@ -98,8 +98,8 @@
 - 문서 작업은 Markdown 상대 링크, 코드 블록 균형, 후행 공백, 수치·상태·상대경로 및 `git diff --check`를 검증한다.
 - 코드 작업은 변경과 직접 관련된 unit·smoke·regression 테스트를 실행한다.
 - 학습 작업은 단일 배치·극소량 데이터 overfit, checkpoint 저장·복원과 resume 검증을 장시간 학습보다 먼저 수행한다.
-- 테스트 기준은 [테스트 전략](docs/33-test-strategy.md)과 [테스트 체크리스트](docs/18-testing-checklist.md)를 따른다.
-- 완료 보고 전에 [Definition of Done](docs/32-definition-of-done.md)을 확인하고 미충족 항목을 숨기지 않는다.
+- 테스트 기준은 [테스트 전략](./docs/quality/test-strategy.md)과 [테스트 체크리스트](./docs/quality/testing-checklist.md)를 따른다.
+- 완료 보고 전에 [Definition of Done](./docs/governance/definition-of-done.md)을 확인하고 미충족 항목을 숨기지 않는다.
 
 ## 9. Git 쓰기 정책
 

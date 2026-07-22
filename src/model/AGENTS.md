@@ -1,6 +1,6 @@
 # 모델 영역 작업 규칙
 
-루트 `AGENTS.md`, [모델 아키텍처](../../docs/04-model-architecture.md), ADR-002를 함께 적용한다.
+루트 `AGENTS.md`, [모델 아키텍처](../../docs/architecture/model-architecture.md), ADR-002를 함께 적용한다.
 
 ## DohaLM-Tiny 승인 사양
 

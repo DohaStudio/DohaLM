@@ -3,7 +3,7 @@
 - 문서 상태: `approved`
 - 결정일: 2026-07-23
 - 구현 상태: [검증 필요] 미구현
-- 관련 문서: [평가 계획](../10-evaluation-plan.md), [실험 관리](../15-experiment-management.md), [Benchmark 정책](../27-benchmark-policy.md), [생성 평가](../28-generation-evaluation.md), [재현성 정책](../29-reproducibility-policy.md), [실험 템플릿](../30-experiment-template.md)
+- 관련 문서: [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), [재현성 정책](../quality/reproducibility-policy.md), [실험 템플릿](../training/experiment-template.md)
 
 ## 결정 배경
 

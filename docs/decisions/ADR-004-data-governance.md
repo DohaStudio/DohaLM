@@ -3,7 +3,7 @@
 - 문서 상태: `approved`
 - 결정일: 2026-07-23
 - 구현 상태: [검증 필요] 미구현
-- 관련 문서: [데이터 전략](../06-data-strategy.md), [데이터 전처리](../07-data-preprocessing.md), [데이터셋 레지스트리](../23-dataset-registry.md), [데이터 라이선스 정책](../24-data-license-policy.md), [데이터 분할 및 누수 방지](../26-data-split-and-leakage-policy.md)
+- 관련 문서: [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 레지스트리](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 분할 및 누수 방지](../data/data-split-and-leakage-policy.md)
 
 ## 결정 배경
 

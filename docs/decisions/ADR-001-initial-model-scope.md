@@ -3,7 +3,7 @@
 - 상태: [확정] 채택
 - 결정일: [확정] 2026-07-23
 - 적용 대상: [확정] DohaLM 초기 모델·학습 파이프라인
-- 관련 문서: [프로젝트 개요](../00-project-overview.md), [범위와 목표](../01-scope-and-goals.md), [개발 규칙](../02-development-rules.md)
+- 관련 문서: [프로젝트 개요](../project/overview.md), [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md)
 
 ## 결정 배경
 
