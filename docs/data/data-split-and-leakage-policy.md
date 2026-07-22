@@ -6,12 +6,13 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
+| 선행 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [데이터 품질 체크리스트](./data-quality-checklist.md), [평가 계획](../evaluation/evaluation-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 현재 split 또는 실제 평가 데이터는 없다.
 - [확정] 분할은 데이터 비율을 만드는 절차이고 누수 검사는 분할 간 내용·출처·정답 관계를 검증하는 별도 절차다.
+- [확정] 이 문서는 전체 누수 방지 정책을 다룬다. Phase 1의 SHA-256 group 배정과 직접 leakage 검사 계약은 [Phase 1 데이터 계약](./phase1-data-contract.md)을 따른다. near·semantic 검사는 Phase 1에서 제외되지만 후속 정책 요구로 유지한다.
 
 ## 2. 기본 분할 원칙
 
@@ -135,4 +136,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 상위 누수 정책과 Phase 1 exact-only 해시 배정 계약의 적용 경계를 명시함 |
 | 2026-07-23 | [확정] 문서·그룹 단위 분할, 누수 수준, 목적별 오염 방지와 split 재생성 기준 정의 |

@@ -193,11 +193,11 @@
 | 영역·목적 | 데이터: 승인된 입력을 원본 불변·계보·누수 방지 조건으로 정제·분할 |
 | Phase / Gate | Phase 1 / Gate 2 |
 | 선행 조건 | Gate 1, ADR-004, registry 목적별 승인 또는 아래 synthetic fixture |
-| 설정 항목 | parser·normalization·dedup·split·risk policy version; 수치·알고리즘은 [검증 필요] |
+| 설정 항목 | parser·normalization·dedup·split·risk policy version; 구체 계약은 [Phase 1 데이터 계약](../data/phase1-data-contract.md), 미결정 설정값은 해당 문서 참조 |
 | 산출물 | versioned manifest·checksum·cleaned record·split·통계·격리 기록; 실제 본체 Git 제외 |
 | 보안·라이선스 | 미승인·PII·민감정보 차단, 제한 원문 로그 최소화, 원본 read-only |
 | 현재 상태 | `review` — 구현·fixture 없음 |
-| 관련 문서 | [데이터 전략](../data/data-strategy.md), [전처리](../data/preprocessing.md), [분할·누수](../data/data-split-and-leakage-policy.md), ADR-004 |
+| 관련 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터 전략](../data/data-strategy.md), [전처리](../data/preprocessing.md), [분할·누수](../data/data-split-and-leakage-policy.md), ADR-004 |
 
 ### 7.2 최소 허용 fixture
 
@@ -205,24 +205,26 @@
 - [확정] 10~100 record, 개인정보·민감정보·실제 credential·제3자 저작물 없음, Git에서 검토 가능한 소형 크기여야 한다.
 - [확정] fixture에는 정상·빈 문서·잘못된 schema·exact duplicate·split 누수 후보와 명시적 기대 결과를 포함할 수 있다.
 - [확정] fixture를 토크나이저 품질 판단이나 모델 학습 데이터로 사용하지 않는다. Phase 6 overfit fixture는 별도 승인·계보를 갖는다.
-- [검증 필요] fixture 파일명·schema·정확한 byte 상한은 실제 테스트 구현 전에 확정한다.
+- [확정] fixture의 schema·크기·금지 정보와 필수 검증 사례는 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 따른다. 실제 fixture 파일명은 구현 전에 확정한다.
 
 ### 7.3 기능별 계약
+
+아래 DATA-001~016 각 기능의 concrete schema, checksum, artifact, 오류와 Gate 2 검증 기준은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 공통으로 적용한다. 기능 상태는 구현·테스트 전까지 `review`다.
 
 | 기능 ID | 기능명 | 입력 | 출력 | 처리 규칙·오류 조건 | 필수 테스트 | 완료 기준 |
 |---|---|---|---|---|---|---|
 | DATA-001 | 입력 파일 탐색 | 승인 root·registry | 정렬된 상대경로 목록 | root 이탈·접근 실패·미승인 경로 차단 | CWD·traversal fixture | 허용 파일만 결정론적 열거 |
-| DATA-002 | 지원 입력 형식 판별 | file bytes·경로 | format·parser 결과 | Phase 1 fixture는 UTF-8 text·JSONL; 손상·미지원 명시 실패 | text/JSONL/error | 확장자만 신뢰하지 않음 |
+| DATA-002 | 지원 입력 형식 판별 | file bytes·경로 | format·parser 결과 | `.txt`·`.jsonl`만 허용; 확장자와 parse 모두 검사, 자동 추정 금지 | text/JSONL/error | 두 형식만 처리하고 손상·미지원 명시 실패 |
 | DATA-003 | 원본 불변 검사 | 처리 전후 원본 metadata | 불변 결과 | byte·mtime 후보와 checksum 비교; 원본 쓰기 금지 | read-only fixture | 원본 checksum 불변 |
-| DATA-004 | checksum 생성 | file/record bytes | algorithm-tagged digest | 알고리즘 [검증 필요]; 읽기 실패·불일치 차단 | 반복·변경 fixture | 같은 bytes 같은 digest |
-| DATA-005 | source manifest 생성 | registry·파일 목록·checksum | versioned source manifest | 필수 계보 누락 시 실패; schema [검증 필요] | schema validation | 모든 입력 역추적 가능 |
+| DATA-004 | checksum 생성 | file/record bytes | `sha256:<hex>` file/raw/normalized digest | SHA-256; file checksum은 decode·정규화 전 raw bytes; 읽기 실패·불일치 차단 | 반복·변경 fixture | 같은 bytes·canonical record는 같은 digest |
+| DATA-005 | source manifest 생성 | registry·파일 목록·checksum | versioned `source-manifest.json` | [Phase 1 데이터 계약](../data/phase1-data-contract.md)의 필수 schema·상대 POSIX 경로·count 검사 | schema validation | 모든 입력·산출물 역추적 가능 |
 | DATA-006 | record schema validation | parsed record | canonical record 또는 오류 | ID·text·source 등 승인 schema 검사; unknown 정책 명시 | 정상·누락·타입 | 잘못된 record가 조용히 통과하지 않음 |
-| DATA-007 | 텍스트 정규화 | 원문 text·rule version | normalized text·변환 metadata | Unicode·공백 rule 미정; 의미 손상 표본이면 차단 | golden fixture | 같은 rule로 결정론적이며 원문 연결 |
+| DATA-007 | 텍스트 정규화 | 원문 text·rule version | normalized text·변환 metadata | UTF-8 BOM 제거, LF, NFC, 줄 끝 공백·말단 빈 줄 처리의 고정 순서 | golden fixture | 같은 rule로 결정론적이며 원문 연결 |
 | DATA-008 | 빈 문서 제거 | canonical record | 유지/제외와 사유 | 정규화 후 빈 text 제외; ID·통계 보존 | 공백·빈 fixture | 빈 문서 0, 제외 계보 존재 |
-| DATA-009 | 중복 탐지 | normalized records | duplicate group·대표 후보 | exact 우선; near 알고리즘·임계치는 [검증 필요] | exact·near 후보 | 그룹과 원본 ID 보존 |
+| DATA-009 | 중복 탐지 | file/raw/normalized checksums | exact duplicate mapping·대표 | Phase 1은 file/raw/normalized exact 중복만 처리; near 제외 | exact duplicate fixture | 결정론적 대표와 모든 중복 mapping 보존 |
 | DATA-010 | 문서 그룹 ID 생성 | source·parent·duplicate 정보 | 안정 group ID | 같은 문서 파생본을 같은 그룹; 규칙 version 기록 | chunk/thread fixture | split 경계를 넘지 않는 안정 ID |
-| DATA-011 | deterministic split | group records·seed·policy | split manifest | 그룹 단위 배정; 비율·seed [검증 필요], 기존 덮어쓰기 금지 | 같은 seed·변경 seed | 같은 입력·설정 동일 결과 |
-| DATA-012 | split leakage 검사 | split manifest·fingerprints | pass/fail·후보 보고 | exact·near·source·금지 목록 교차; semantic 후보 별도 | 누수 fixture | 직접 누수 0 또는 명시 실패 |
+| DATA-011 | deterministic split | group records·seed·ratio policy | `train`·`validation`·`test` records | SHA-256 group 배정; 비율·seed 값은 설정, 기존 version 덮어쓰기 금지 | 같은 seed·입력 순서 변경 | 같은 입력·설정 동일 결과 |
+| DATA-012 | split leakage 검사 | split mapping·fingerprints | pass/fail 보고 | group ID·normalized checksum·record ID·source record 교차; near·semantic은 Phase 1 제외 | 직접 누수 fixture | 직접 누수 0, 발견 시 전체 실패 |
 | DATA-013 | 정제 통계 생성 | 단계별 결과 | count·length·exclusion 통계 | 분모·단위·version 기록; 원문 노출 금지 | 집계 test | 단계 합계와 제외 사유 일치 |
 | DATA-014 | 처리 계보 기록 | input/output/config/code IDs | lineage manifest | source→clean→split 연결; 필드 누락 실패 | round-trip lookup | output에서 source 역추적 가능 |
 | DATA-015 | 승인되지 않은 데이터 차단 | dataset ID·version·purpose status | 허용 또는 `DATA_ERROR` | 특정 version·목적이 `approved`가 아니면 실제 처리 금지; synthetic fixture는 test-only 명시 | status matrix | 미승인 실제 데이터 소비 0 |
@@ -578,7 +580,7 @@ flowchart LR
 
 ## 19. 미결정 사항
 
-- [검증 필요] 데이터 manifest·registry schema, checksum 알고리즘, normalization·dedup·split 방식과 모든 품질 임계값
+- [검증 필요] 데이터 최대 text 길이·metadata 깊이, split 기본 비율·허용 오차·validation/test 0 허용 여부, 실제 config schema·구현 symbol과 후속 near dedup·PII 탐지 방식; Phase 1의 SHA-256·NFC·exact dedup·group split schema는 [Phase 1 데이터 계약](../data/phase1-data-contract.md) 참조
 - [검증 필요] tokenizer character coverage, normalization rule, byte fallback, corpus 규모·sampling과 artifact 보존 위치
 - [검증 필요] Dropout, 초기화, padding mask dtype·broadcast와 loss shift의 최종 책임 위치
 - [검증 필요] micro-batch, accumulation, checkpointing 기본값, LR, warmup, weight decay, clipping, token budget과 interval
@@ -602,4 +604,5 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] DATA-001~016을 Phase 1 데이터 계약에 연결하고 SHA-256·NFC·exact-only·group split 범위를 동기화함; 기능 상태는 `review` 유지 |
 | 2026-07-23 | [확정] Phase 0 실제 기능과 Phase 1~6·최소 추론·실험의 입력·출력·오류·테스트·Done 계약 159개 작성 |

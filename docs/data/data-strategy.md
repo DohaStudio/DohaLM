@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [토크나이저 설계](../training/tokenizer-design.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서 | [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 품질 체크리스트](./data-quality-checklist.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md), [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md) |
+| 후속 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 품질 체크리스트](./data-quality-checklist.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md), [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 현재 승인·다운로드·처리된 실제 데이터셋은 없다.
@@ -22,6 +22,7 @@
 - [확정] 토크나이저, 사전학습, SFT와 평가는 목적 및 허용 누수 범위가 다르므로 논리적으로 분리한다.
 - [확정] 승인 상태는 데이터셋 전체의 추상적 평판이 아니라 특정 버전·라이선스·사용 목적 조합에 부여한다.
 - [확정] 실제 학습 전 개인정보, 민감정보, 유해 콘텐츠, 저작권과 평가 오염 위험을 기록한다.
+- [확정] Phase 1 구현에 직접 적용할 입력·schema·checksum·manifest·정규화·exact dedup·split 계약은 [Phase 1 데이터 계약](./phase1-data-contract.md)을 단일 기준으로 사용한다.
 
 ## 3. 데이터 목적 구분
 
@@ -115,4 +116,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 전략 문서와 Phase 1 구체 구현 계약의 역할을 분리하고 연결함 |
 | 2026-07-23 | [확정] 데이터 목적, 후보 평가, 승인 상태와 단계별 규모 원칙 초안 작성 |

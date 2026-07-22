@@ -29,7 +29,7 @@
 
 ### 2.3 데이터 작업
 
-[데이터 전략](./data/data-strategy.md) → [데이터 전처리](./data/preprocessing.md) → [데이터셋 레지스트리](./data/dataset-registry.md) → [데이터 라이선스 정책](./data/data-license-policy.md) → [데이터 분할 및 누수 방지](./data/data-split-and-leakage-policy.md)
+[핵심 개발 기능명세서](./architecture/core-development-feature-specification.md) → [Phase 1 데이터 계약](./data/phase1-data-contract.md) → [데이터 전략](./data/data-strategy.md) → [데이터 전처리](./data/preprocessing.md) → [데이터셋 레지스트리](./data/dataset-registry.md) → [데이터 라이선스 정책](./data/data-license-policy.md) → [데이터 품질 체크리스트](./data/data-quality-checklist.md) → [데이터 분할 및 누수 방지](./data/data-split-and-leakage-policy.md) → Phase 1 구현
 
 ### 2.4 학습과 평가
 
@@ -65,7 +65,7 @@
 | 프로젝트 | 목적, 범위와 버전 방향 | [프로젝트 개요](./project/overview.md), [범위와 목표](./project/scope-and-goals.md) |
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
-| 데이터 | 데이터 승인, 전처리, 라이선스와 품질 | [데이터 전략](./data/data-strategy.md), [데이터 전처리](./data/preprocessing.md), [데이터셋 레지스트리](./data/dataset-registry.md) |
+| 데이터 | Phase 1 구현 계약, 데이터 승인, 전처리, 라이선스와 품질 | [Phase 1 데이터 계약](./data/phase1-data-contract.md), [데이터 전략](./data/data-strategy.md), [데이터 전처리](./data/preprocessing.md), [데이터셋 레지스트리](./data/dataset-registry.md) |
 | 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
@@ -103,6 +103,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 데이터 작업 읽기 순서에 Phase 1 데이터 계약과 후속 정책·구현 흐름을 연결함 |
 | 2026-07-23 | [확정] 개발자 읽기 순서에 핵심 개발 기능명세서를 추가하고 Phase 0·Gate 1 실제 상태를 동기화함 |
 | 2026-07-23 | [확정] 범주별 진입점과 문서 생명주기 인덱스의 역할을 분리함 |
 | 2026-07-23 | [확정] 독자별 읽기 순서, 문서 지도, ADR 안내와 실제 저장소 상태를 반영한 문서 안내서 작성 |
