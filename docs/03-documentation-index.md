@@ -26,6 +26,7 @@
 | `01-scope-and-goals.md` | MVP와 Tiny/Small 범위 및 성공 기준 정의 | `00` | `04`, `08`, `09`, `16` | `review` | 예 | 2026-07-23 | 정량 합격선, Small 진행 기준 |
 | `02-development-rules.md` | 개발·재현성·설정·데이터·Git·테스트 규칙 정의 | `00`, `01`, ADR-002 | 모든 구현 문서 | `review` | 예 | 2026-07-23 | 학습 hyperparameter, 실제 VRAM, 데이터 라이선스 |
 | `03-documentation-index.md` | 문서 상태·의존성·작성 순서 관리 | `00`, `01`, `02` | 전체 문서 | `review` | 예 | 2026-07-23 | 계획 문서 작성 일정 |
+| `README.md` | 독자별 읽기 순서·문서 지도·ADR·현재 상태 안내 | `03` | 전체 기준 문서와 작업 안내 | `review` | 예 | 2026-07-23 | 문서 상태와 다음 단계의 지속 동기화 |
 | `decisions/README.md` | ADR 목록과 상태 관리 | ADR 전체 | 후속 ADR | `review` | 예 | 2026-07-23 | 없음 |
 | `decisions/ADR-001-initial-model-scope.md` | Tiny 우선 개발과 모델 규모 범위 결정 | `00`, `01` | ADR-002, `04`, `16` | `approved` | 예 | 2026-07-23 | Tiny 실측과 Small 진행 여부 |
 | `decisions/ADR-002-tiny-model-architecture.md` | DohaLM-Tiny 세부 구조 결정 | ADR-001, `04` | 구현, `08`, `16` | `approved` | 예 | 2026-07-23 | Dropout, 초기화 방식 |
@@ -67,6 +68,20 @@
 | `34-risk-register.md` | 기술·데이터·평가·운영 위험과 예방·대응 관리 | 핵심 설계 문서, `17`, `33`, ADR-006 | 단계별 작업 계획과 게이트 검토 | `review` | 각 단계 계획 전 필수 | 2026-07-23 | 위험 담당자, 정량 임계값, 검토 주기 |
 | `35-version-plan.md` | v0.1~v1.3 권장 이정표와 승격 조건 정의 | `17`, `32`, `33`, `34` | 실제 릴리스 계획 | `review` | 릴리스 계획 전 필수 | 2026-07-23 | 버전 규칙, 호환성 범위, 일정과 보존 정책 |
 | `36-codex-workflow.md` | Codex 작업 전·중·후 절차와 중단·보고 기준 정의 | AGENTS 지침, `31`, `32`, `33` | 개별 Codex 작업 | `review` | Codex 작업 전 필수 | 2026-07-23 | 표준 명령, 자동 보고 범위, 장시간 승인 정책 |
+
+### 2.1 문서 안내와 자동 규칙 위치
+
+아래 파일은 문서 생명주기 상태와 별도로 실제 작업 범위에 따라 적용되는 안내·자동 규칙이다.
+
+| 위치 | 목적 | 적용 범위 | 마지막 검토일 |
+|---|---|---|---|
+| [`docs/README.md`](./README.md) | 독자별 문서 안내와 현재 상태 제공 | 문서를 읽는 모든 사용자 | 2026-07-23 |
+| [`AGENTS.md`](../AGENTS.md) | 규칙 우선순위, Ready·Done, 범위·테스트·Git 쓰기 전역 규칙 | 저장소 전체 | 2026-07-23 |
+| [`docs/AGENTS.md`](./AGENTS.md) | 문서 상태·작성·링크·완료 검증 규칙 | `docs/` | 2026-07-23 |
+| [`src/data/AGENTS.md`](../src/data/AGENTS.md) | 데이터 승인·계보·누수·fixture 규칙 | `src/data/` | 2026-07-23 |
+| [`src/model/AGENTS.md`](../src/model/AGENTS.md) | Tiny 승인 사양과 모델 검증 규칙 | `src/model/` | 2026-07-23 |
+| [`src/training/AGENTS.md`](../src/training/AGENTS.md) | 학습·checkpoint·resume·OOM·실험 기록 규칙 | `src/training/` | 2026-07-23 |
+| [`docs/36-codex-workflow.md`](./36-codex-workflow.md) | Codex 작업 전·중·후 표준 절차 | Codex 작업 | 2026-07-23 |
 
 ## 3. 2단계 문서 상태 판단
 
@@ -111,6 +126,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 문서 안내서와 루트·하위 AGENTS 및 Codex 규칙 위치를 등록함 |
 | 2026-07-23 | [확정] 개발 로드맵·품질 게이트·Ready·Done·테스트·위험·버전·Codex 절차 문서와 ADR-006 상태를 반영함 |
 | 2026-07-23 | [확정] 평가·Benchmark·생성·실험 관리·재현성·템플릿 문서와 ADR-005 상태를 반영함 |
 | 2026-07-23 | [확정] 데이터 전략·전처리·registry·라이선스·품질·누수 문서와 ADR-004 상태를 반영함 |
