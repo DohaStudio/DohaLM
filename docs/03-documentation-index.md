@@ -30,7 +30,7 @@
 | `decisions/ADR-001-initial-model-scope.md` | Tiny 우선 개발과 모델 규모 범위 결정 | `00`, `01` | ADR-002, `04`, `16` | `approved` | 예 | 2026-07-23 | Tiny 실측과 Small 진행 여부 |
 | `decisions/ADR-002-tiny-model-architecture.md` | DohaLM-Tiny 세부 구조 결정 | ADR-001, `04` | 구현, `08`, `16` | `approved` | 예 | 2026-07-23 | Dropout, 초기화 방식 |
 | `decisions/ADR-003-tokenizer-method.md` | SentencePiece Unigram 및 어휘 정책 결정 | `01`, `05` | `06`, `07`, `08`, `09` | `approved` | 예 | 2026-07-23 | character coverage, normalization, byte fallback |
-| `03-system-architecture.md` | 데이터→학습→평가→서버→UI 시스템 경계 정의 | `00`, `01`, `02`, ADR-001 | `04`, `11`, `12` | `planned` | 예 | — | 모듈 경계와 인터페이스 |
+| `03-system-architecture.md` | 데이터→학습→평가→서버→UI 시스템 경계 정의 | `00`, `01`, `02`, ADR-001 | `21`, `22`, `04`, `11`, `12` | `review` | 예 | 2026-07-23 | serialization, 실험 metadata, 서비스 schema |
 | `04-model-architecture.md` | Tiny 계산 구조, shape와 파라미터 산식 정의 | `01`, ADR-001, ADR-002 | `08`, `09`, `11`, `16`, `18` | `review` | 예 | 2026-07-23 | Dropout, 초기화, padding mask 세부 규칙 |
 | `05-tokenizer-design.md` | 한국어 SentencePiece 토크나이저 설계 | `01`, ADR-003 | `06`, `07`, `08`, `09` | `review` | 예 | 2026-07-23 | character coverage, normalization, byte fallback, corpus |
 | `06-data-strategy.md` | 데이터 후보·라이선스·품질·분할 정책 정의 | `01`, `02`, `05` | `07`, `08`, `09` | `planned` | 예 | — | 데이터 후보와 사용 허가 |
@@ -48,6 +48,8 @@
 | `18-testing-checklist.md` | 단위·통합·재현성·성능 검증 기준 정의 | 구현 대상별 설계 문서 | 구현 완료 판정 | `planned` | 각 구현 전 필수 | — | test matrix와 합격 기준 |
 | `19-deployment-plan.md` | 로컬·컨테이너 실행과 배포 계획 정의 | `11`, `12`, `13`, `14`, `18` | `20` | `planned` | 배포 전 필수 | — | 환경, monitoring, rollback |
 | `20-leaderboard-strategy.md` | K-AI Leaderboard 제출 가능성 검토 | `10`, `15`, `19` | 제출 결정 ADR | `planned` | 아니요 | — | 최신 규정, 형식, 라이선스, 성능 격차 |
+| `21-repository-structure.md` | 현재·계획 저장소 구조와 디렉터리 책임 정의 | `02`, `03` | `22`, `15`, 구현 작업 | `review` | 예 | 2026-07-23 | experiments/artifacts 스키마, 추가 AGENTS 범위 |
+| `22-artifact-and-configuration-policy.md` | 설정 우선순위와 산출물 추적·보존·호환성 원칙 정의 | `02`, `03`, `21` | `15`, `19`, 구현 작업 | `review` | 예 | 2026-07-23 | 설정 schema, artifact ID, checkpoint migration |
 
 ## 3. 2단계 문서 상태 판단
 
@@ -64,19 +66,21 @@
 
 ## 4. 권장 작성·승인 순서
 
-1. [확정] 시스템·모델·토크나이저: `03-system-architecture.md` → `04-model-architecture.md` → `05-tokenizer-design.md`
-2. [확정] 데이터: `06-data-strategy.md` → `07-data-preprocessing.md`
-3. [확정] 자원·학습·평가: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `15-experiment-management.md`
-4. [확정] SFT·추론: `09-sft-plan.md` → `11-inference-design.md`
-5. [확정] 실행 계획과 검증: `17-development-roadmap.md` → `18-testing-checklist.md`
-6. [후순위] 서비스: `12-api-specification.md` → `13-frontend-specification.md` → `14-database-design.md` → `19-deployment-plan.md`
-7. [후순위] 외부 제출: `20-leaderboard-strategy.md`
+1. [확정] 시스템·저장소·산출물 기준: `03-system-architecture.md` → `21-repository-structure.md` → `22-artifact-and-configuration-policy.md`
+2. [확정] 모델·토크나이저: `04-model-architecture.md` → `05-tokenizer-design.md`
+3. [확정] 데이터: `06-data-strategy.md` → `07-data-preprocessing.md`
+4. [확정] 자원·학습·평가: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `15-experiment-management.md`
+5. [확정] SFT·추론: `09-sft-plan.md` → `11-inference-design.md`
+6. [확정] 실행 계획과 검증: `17-development-roadmap.md` → `18-testing-checklist.md`
+7. [후순위] 서비스: `12-api-specification.md` → `13-frontend-specification.md` → `14-database-design.md` → `19-deployment-plan.md`
+8. [후순위] 외부 제출: `20-leaderboard-strategy.md`
 
 ## 5. 현재 저장소 문서와의 관계
 
 - [확정] 기존 `01-project-plan.md`, `02-model-architecture.md`, `03-data-policy.md`, `04-training-plan.md`, `05-evaluation-plan.md`, `06-deployment-plan.md`은 영문 제목만 있는 스캐폴드이며 현재 기준 문서가 아니다.
 - [검증 필요] 기존 스캐폴드의 유지·이동·대체 여부는 별도 문서 정리 작업에서 결정한다.
 - [확정] 번호가 같은 `03-documentation-index.md`와 계획 문서 `03-system-architecture.md`는 역할이 다르다.
+- [확정] `21`, `22` 번호는 기존 `00`~`20` 문서 번호를 변경하지 않고 운영 기준 문서를 추가하기 위해 사용한다.
 
 ## 6. 공통 작성 규칙
 
@@ -90,4 +94,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 시스템 아키텍처, 저장소 구조, 산출물·설정 정책 문서 상태와 선후 관계를 반영함 |
 | 2026-07-23 | [확정] 문서 생명주기 상태 체계를 도입하고 2단계 문서 및 ADR 상태를 실제 저장소에 맞게 동기화함 |
