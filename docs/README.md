@@ -23,9 +23,9 @@
 
 [프로젝트 개요](./project/overview.md) → [범위와 목표](./project/scope-and-goals.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
 
-### 2.2 모델 개발
+### 2.2 핵심 구현과 모델 개발
 
-[모델 아키텍처](./architecture/model-architecture.md) → [ADR-002](./decisions/ADR-002-tiny-model-architecture.md) → [GPU 메모리 전략](./training/gpu-memory-strategy.md) → [테스트 체크리스트](./quality/testing-checklist.md)
+[모델 아키텍처](./architecture/model-architecture.md) → [ADR-002](./decisions/ADR-002-tiny-model-architecture.md) → [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md) → [GPU 메모리 전략](./training/gpu-memory-strategy.md) → [테스트 체크리스트](./quality/testing-checklist.md)
 
 ### 2.3 데이터 작업
 
@@ -64,7 +64,7 @@
 |---|---|---|
 | 프로젝트 | 목적, 범위와 버전 방향 | [프로젝트 개요](./project/overview.md), [범위와 목표](./project/scope-and-goals.md) |
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
-| 아키텍처 | 시스템·모델·저장소 구조 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [저장소 구조](./architecture/repository-structure.md) |
+| 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
 | 데이터 | 데이터 승인, 전처리, 라이선스와 품질 | [데이터 전략](./data/data-strategy.md), [데이터 전처리](./data/preprocessing.md), [데이터셋 레지스트리](./data/dataset-registry.md) |
 | 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
@@ -91,17 +91,18 @@
 
 ## 6. 현재 상태
 
-- [확정] 현재는 기준 문서를 정리하고 검토하는 문서화 단계다.
-- [확정] `src/`, `server/`, `configs/`의 파일은 제목 수준의 스캐폴드이며 실행 가능한 모델·학습·평가·서비스 코드는 구현되지 않았다.
+- [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
+- [확정] `src/config/`, `src/runtime/`, `src/cli/` 이외의 모델·학습·평가·서비스 기능은 스캐폴드이며 구현되지 않았다.
 - [검증 필요] 실제 학습 데이터 후보와 목적별 승인·라이선스 검토는 완료되지 않았다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐지만 코드·테스트 반영은 완료되지 않았다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0 문서 승인이 완료되어 다음 단계는 Phase 0 저장소·환경 기반 구현이다. 문서 승인은 구현 완료를 의미하지 않는다.
+- [확정] Gate 0은 `approved`, Gate 1은 `passed`이며 Phase 1 데이터 최소 파이프라인 진입이 허용됐다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 개발자 읽기 순서에 핵심 개발 기능명세서를 추가하고 Phase 0·Gate 1 실제 상태를 동기화함 |
 | 2026-07-23 | [확정] 범주별 진입점과 문서 생명주기 인덱스의 역할을 분리함 |
 | 2026-07-23 | [확정] 독자별 읽기 순서, 문서 지도, ADR 안내와 실제 저장소 상태를 반영한 문서 안내서 작성 |

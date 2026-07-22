@@ -6,7 +6,7 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](../architecture/system-architecture.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
+| 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](../architecture/system-architecture.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](./test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](../project/version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) |
 | 구현 전 필수 여부 | 예 |
 
@@ -31,6 +31,8 @@
 | 10. 배포와 외부 평가 | 재현·공개·외부 비교 가능성 검토 | Phase 7~9, 라이선스·평가 승인 | 로컬 재현, Docker, 모델 카드, Benchmark, Leaderboard 검토 | 재현 bundle·모델 카드·검토 보고 | clean setup smoke, artifact hash, 라이선스·누수·Benchmark 계약 | Gate 11 승인 | 승인된 범위의 재현·보고 완료 | 관련 구현·데이터·평가 Phase | [후순위] 미구현 |
 
 - [확정] Phase 3 모델 구성요소는 Phase 2와 일부 병행 가능하지만 모델 통합은 tokenizer 계약 없이 통과할 수 없다.
+- [확정] [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md)는 Phase 1~6 구현의 입력·출력·오류·설정·산출물·테스트·Done 계약과 Gate 2~7 검증 항목의 공통 참조다.
+- [확정] 이 기능명세서는 최소 로컬 추론까지만 다루며 서비스 API·Frontend·DB 기능명세를 대신하지 않는다.
 - [확정] Phase 9·10은 `DohaLM-Tiny`의 학습·평가 검증 이후 진행하는 후순위다.
 - [검증 필요] 실제 일정, 담당자, 수치 합격선과 `DohaLM-Small` 진입 Phase는 Tiny 실측 후 결정한다.
 
@@ -86,6 +88,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Phase 1~6와 Gate 2~7의 공통 기능 계약으로 핵심 개발 기능명세서를 연결함; Gate 상태는 변경하지 않음 |
 | 2026-07-23 | [확정] 사용자 승인과 검증 revision·43개 테스트·CPU/CUDA smoke 근거에 따라 Gate 1을 `passed`, Phase 0을 구현·검증 완료로 기록함 |
 | 2026-07-23 | [확정] 사용자 승인에 따라 Gate 0을 `approved`로 기록함. 구현 완료 또는 후속 Gate 통과를 의미하지 않음 |
 | 2026-07-23 | [확정] Phase 0~10과 Gate 0~11의 선행 관계·통과·복귀 원칙 정의 |
