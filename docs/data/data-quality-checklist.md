@@ -6,12 +6,13 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md) |
+| 선행 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md) |
 | 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [평가 계획](../evaluation/evaluation-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 현재 실제 데이터 검사 결과는 없다. 이 문서는 검사 양식이다.
 - [확정] 정확한 수치 임계치는 실제 분포와 표본 검토 전 확정하지 않는다.
+- [확정] Gate 2에서는 [Phase 1 데이터 계약](./phase1-data-contract.md)의 `.txt`·`.jsonl`, 원본 불변, SHA-256, exact dedup, group split, 직접 누수·승인·PII 차단과 artifact 정합성을 필수 검사한다. near·semantic 검사는 후속 범위다.
 
 ## 2. 결과 상태
 
@@ -85,4 +86,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Phase 1 계약과 Gate 2 필수 검사 범위를 연결함 |
 | 2026-07-23 | [확정] 20개 품질 범주, 결과 상태, 조치와 기록 기준 정의 |
