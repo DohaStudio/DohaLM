@@ -31,6 +31,7 @@
 | `decisions/ADR-002-tiny-model-architecture.md` | DohaLM-Tiny 세부 구조 결정 | ADR-001, `04` | 구현, `08`, `16` | `approved` | 예 | 2026-07-23 | Dropout, 초기화 방식 |
 | `decisions/ADR-003-tokenizer-method.md` | SentencePiece Unigram 및 어휘 정책 결정 | `01`, `05` | `06`, `07`, `08`, `09` | `approved` | 예 | 2026-07-23 | character coverage, normalization, byte fallback |
 | `decisions/ADR-004-data-governance.md` | 원본 불변·registry·라이선스·계보·누수 방지 결정 | `02`, `03`, `22` | `06`, `07`, `23`, `24`, `25`, `26` | `approved` | 예 | 2026-07-23 | manifest schema, 승인 책임, 실제 데이터 조건 |
+| `decisions/ADR-005-evaluation-and-experiment-policy.md` | 고정 평가 조건·실험 계보·실패 보존 결정 | `02`, `08`, `09`, `22`, `26` | `10`, `15`, `27`, `28`, `29`, `30` | `approved` | 예 | 2026-07-23 | 합격선, 반복 seed, schema, Benchmark 후보 |
 | `03-system-architecture.md` | 데이터→학습→평가→서버→UI 시스템 경계 정의 | `00`, `01`, `02`, ADR-001 | `21`, `22`, `04`, `11`, `12` | `review` | 예 | 2026-07-23 | serialization, 실험 metadata, 서비스 schema |
 | `04-model-architecture.md` | Tiny 계산 구조, shape와 파라미터 산식 정의 | `01`, ADR-001, ADR-002 | `08`, `09`, `11`, `16`, `18` | `review` | 예 | 2026-07-23 | Dropout, 초기화, padding mask 세부 규칙 |
 | `05-tokenizer-design.md` | 한국어 SentencePiece 토크나이저 설계 | `01`, ADR-003 | `06`, `07`, `08`, `09` | `review` | 예 | 2026-07-23 | character coverage, normalization, byte fallback, corpus |
@@ -38,12 +39,12 @@
 | `07-data-preprocessing.md` | 원본 불변·정제·중복 제거·분할·packing·계보 명세 | `05`, `06`, `23`, `24`, ADR-004 | `25`, `26`, `08`, `09`, `18` | `review` | 예 | 2026-07-23 | normalization, 필터·dedup 임계치, packing, manifest schema |
 | `08-pretraining-plan.md` | 사전학습 절차, 자원, 복원 계획 정의 | `04`, `05`, `07`, `16` | `10`, `15`, `17`, `18` | `draft` | 예 | 2026-07-23 | LR, warmup, weight decay, token budget, batch, 저장 주기 |
 | `09-sft-plan.md` | 질문·답변 SFT 형식과 loss 정책 정의 | `05`, `07`, `08` | `10`, `11`, `15`, `18` | `draft` | SFT 전 필수 | 2026-07-23 | 데이터, system 문구, truncation, hyperparameter |
-| `10-evaluation-plan.md` | 공통 정량·정성 평가 기준 정의 | `04`, `05`, `08`, `09` | `11`, `15`, `17`, `20` | `planned` | 학습 전 필수 | — | 지표, 데이터셋, 합격선 |
+| `10-evaluation-plan.md` | 구현·학습·SFT·생성·자원 평가 단계와 비교 계약 정의 | `04`, `05`, `08`, `09`, `26`, ADR-005 | `27`, `28`, `15`, `29`, `11`, `17`, `20` | `review` | 학습 전 필수 | 2026-07-23 | 합격선, 평가 주기, validation/test, 평가 dtype |
 | `11-inference-design.md` | 자기회귀 생성과 모델 로딩 설계 | `04`, `09`, `10`, `16` | `12`, `13`, `19` | `planned` | 추론 구현 전 필수 | — | sampling, KV cache, latency 정책 |
 | `12-api-specification.md` | FastAPI 요청·응답 계약 정의 | `03`, `11` | `13`, `14`, `19` | `planned` | API 구현 전 필수 | — | streaming, 오류, lifecycle |
 | `13-frontend-specification.md` | Next.js 채팅 화면과 상태 흐름 정의 | `12` | `14`, `19` | `planned` | UI 구현 전 필수 | — | 화면·오류·접근성 세부사항 |
 | `14-database-design.md` | 영속화 필요성과 데이터 구조 결정 | `03`, `12`, `13` | `19` | `planned` | 조건부 | — | DB 사용 여부, 보존·삭제 정책 |
-| `15-experiment-management.md` | 실험 ID, 로그, config, checkpoint 관리 | `02`, `08`, `10` | `17`, `18`, `20` | `planned` | 본 학습 전 필수 | — | 저장 경로, 보존 정책, 추적 형식 |
+| `15-experiment-management.md` | 실험 ID·metadata·상태·실패·산출물 계보 관리 | `02`, `08`, `10`, `22`, ADR-005 | `29`, `30`, `17`, `18`, `20` | `review` | 본 학습 전 필수 | 2026-07-23 | ID 발급, schema, 보존 기간, artifact backend |
 | `16-gpu-memory-strategy.md` | 8GB VRAM 산식·측정·OOM 대응 정의 | `04`, ADR-001, ADR-002 | `08`, `11`, `17`, `18` | `draft` | 학습 구현 전 필수 | 2026-07-23 | micro-batch, accumulation, checkpointing, 실측값 |
 | `17-development-roadmap.md` | 단계별 구현 순서와 통과 게이트 정의 | 핵심 설계 문서 | 구현 작업 | `planned` | 본 구현 전 필수 | — | milestone과 중단 시점 |
 | `18-testing-checklist.md` | 단위·통합·재현성·성능 검증 기준 정의 | 구현 대상별 설계 문서 | 구현 완료 판정 | `planned` | 각 구현 전 필수 | — | test matrix와 합격 기준 |
@@ -55,6 +56,10 @@
 | `24-data-license-policy.md` | 데이터 이용조건·변경·삭제·공개 검토 원칙 정의 | `02`, `06`, `23`, ADR-004 | `07`, `25`, 모델 카드 | `review` | 예 | 2026-07-23 | 실제 조건, 법률 검토 절차, 조건 snapshot |
 | `25-data-quality-checklist.md` | 데이터 품질 검사 상태·방법·조치·기록 기준 정의 | `06`, `07`, `24`, `26` | `08`, `09`, `10` | `review` | 예 | 2026-07-23 | 임계치, 탐지 도구, 사람 검토 범위 |
 | `26-data-split-and-leakage-policy.md` | 문서·그룹 단위 분할과 평가 오염 방지 정의 | `06`, `07`, `23`, ADR-004 | `25`, `08`, `09`, `10` | `review` | 예 | 2026-07-23 | split 비율·seed, near/semantic 누수 검사 |
+| `27-benchmark-policy.md` | 내부·외부 평가 구분과 Benchmark 채택·누수·보고 원칙 정의 | `10`, `24`, `26`, ADR-005 | `15`, `29`, `20` | `review` | Benchmark 적용 전 필수 | 2026-07-23 | 후보·version·라이선스, 오염 검사, 공식 규정 |
+| `28-generation-evaluation.md` | 고정 prompt·생성 설정·붕괴 검사·사람 평가 정의 | `05`, `09`, `10`, `26` | `15`, `29`, `11` | `review` | 생성 평가 전 필수 | 2026-07-23 | 실제 prompt, 생성 기준값, 사람 평가 운영 |
+| `29-reproducibility-policy.md` | 환경·seed·계보·재현 수준과 실패 처리 정의 | `02`, `10`, `15`, `22`, ADR-005 | `30`, `18` | `review` | 본 학습 전 필수 | 2026-07-23 | 결정론 설정, 허용 오차, 환경 schema |
+| `30-experiment-template.md` | 새 실험의 목적·변수·환경·평가·결과 기록 양식 제공 | `10`, `15`, `29` | 실제 실험 기록 | `review` | 실험 시작 전 필수 | 2026-07-23 | 실제 운영 feedback과 schema 정합성 |
 
 ## 3. 2단계 문서 상태 판단
 
@@ -74,7 +79,7 @@
 1. [확정] 시스템·저장소·산출물 기준: `03-system-architecture.md` → `21-repository-structure.md` → `22-artifact-and-configuration-policy.md`
 2. [확정] 모델·토크나이저: `04-model-architecture.md` → `05-tokenizer-design.md`
 3. [확정] 데이터: `06-data-strategy.md` → `23-dataset-registry.md` → `24-data-license-policy.md` → `07-data-preprocessing.md` → `26-data-split-and-leakage-policy.md` → `25-data-quality-checklist.md`
-4. [확정] 자원·학습·평가: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `15-experiment-management.md`
+4. [확정] 자원·학습·평가·실험: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `27-benchmark-policy.md`·`28-generation-evaluation.md` → `15-experiment-management.md` → `29-reproducibility-policy.md` → `30-experiment-template.md`
 5. [확정] SFT·추론: `09-sft-plan.md` → `11-inference-design.md`
 6. [확정] 실행 계획과 검증: `17-development-roadmap.md` → `18-testing-checklist.md`
 7. [후순위] 서비스: `12-api-specification.md` → `13-frontend-specification.md` → `14-database-design.md` → `19-deployment-plan.md`
@@ -99,6 +104,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 평가·Benchmark·생성·실험 관리·재현성·템플릿 문서와 ADR-005 상태를 반영함 |
 | 2026-07-23 | [확정] 데이터 전략·전처리·registry·라이선스·품질·누수 문서와 ADR-004 상태를 반영함 |
 | 2026-07-23 | [확정] 시스템 아키텍처, 저장소 구조, 산출물·설정 정책 문서 상태와 선후 관계를 반영함 |
 | 2026-07-23 | [확정] 문서 생명주기 상태 체계를 도입하고 2단계 문서 및 ADR 상태를 실제 저장소에 맞게 동기화함 |
