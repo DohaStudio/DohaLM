@@ -12,7 +12,7 @@
 
 - [확정] 가능성·영향·우선순위는 `low`, `medium`, `high`, `critical`, `unknown`의 정성 등급을 사용한다.
 - [확정] 실제 근거 없이 발생 확률을 숫자로 작성하지 않는다.
-- [확정] 현재 구현·데이터·학습이 없으므로 위험 상태는 대부분 `open` 또는 `monitoring`이다.
+- [확정] Phase 0 기반은 구현·검증됐지만 데이터·모델·학습은 미구현이므로 위험 상태는 대부분 `open` 또는 `monitoring`이다.
 
 ## 2. 위험 상태
 
@@ -40,10 +40,10 @@
 | R-016 | FastAPI·Next.js 조기 개발 | `medium` | `medium` | `medium` | Tiny 학습·추론 미검증 상태 UI 작업 | Gate 10과 후순위 명시 | 서비스 중단·추론/평가 Phase 복귀 | service/project | `monitoring` |
 | R-017 | Small 모델 조기 확정 | `medium` | `high` | `high` | Tiny 실측 전 Layer·batch 확정 | ADR-001·Tiny Gate | 사양 철회·Tiny 실측 후 후속 ADR | model/project | `monitoring` |
 | R-018 | Benchmark 과적합 | `unknown` | `high` | `high` | 반복 prompt 조정·test 점수 기반 학습 | validation/test 분리·사용 기록 | 결과 한계 공개·새 holdout 검토 | evaluation | `open` |
-| R-019 | 대용량 파일 Git commit | `low` | `high` | `high` | status에 data/checkpoint/log | ignore·pre-commit 후보·diff 검토 | commit 중단·안전한 제거·노출 영향 확인 | repository/artifact | `monitoring` |
-| R-020 | 비밀정보 노출 | `unknown` | `critical` | `critical` | `.env`, token, credential, 개인 endpoint | secret 분리·scan·최소 로그 | 즉시 중단·폐기/회전·이력 영향 보고 | security/all | `monitoring` |
-| R-021 | Windows와 Linux의 경로·줄바꿈 차이로 재현 또는 도구 실행 실패 | `unknown` | `medium` | `medium` | OS별 상대경로 해석 차이·혼합 줄바꿈·shell 명령 실패 | 상대경로·플랫폼 중립 경로 API 사용, 텍스트 감사와 OS별 smoke 계획 | 실패 OS에서 재현하고 영향 파일·명령만 최소 교정 | repository/reproducibility | `open` |
-| R-022 | CUDA·PyTorch·NVIDIA Driver 조합의 호환 실패 | `unknown` | `high` | `high` | CUDA 미인식·kernel load 실패·지원되지 않는 compute capability | Phase 0에서 버전 조합과 환경 snapshot 검증 | 호환 행렬을 재검토하고 검증된 조합으로 환경 재구성 | environment/training | `monitoring` (현재 조합 smoke 통과) |
+| R-019 | 대용량 파일 Git commit | `low` | `high` | `high` | status에 data/checkpoint/log | ignore·pre-commit 후보·diff 검토 | commit 중단·안전한 제거·노출 영향 확인 | repository/artifact | `monitoring` (Gate 1 추적 산출물 위반 0건) |
+| R-020 | 비밀정보 노출 | `unknown` | `critical` | `critical` | `.env`, token, credential, 개인 endpoint | secret 분리·scan·최소 로그 | 즉시 중단·폐기/회전·이력 영향 보고 | security/all | `monitoring` (환경 identity 제외·설정/로그 masking 검증) |
+| R-021 | Windows와 Linux의 경로·줄바꿈 차이로 재현 또는 도구 실행 실패 | `unknown` | `medium` | `medium` | OS별 상대경로 해석 차이·혼합 줄바꿈·shell 명령 실패 | 상대경로·플랫폼 중립 경로 API 사용, 텍스트 감사와 OS별 smoke 계획 | 실패 OS에서 재현하고 영향 파일·명령만 최소 교정 | repository/reproducibility | `monitoring` (Windows 경로·UTF-8/LF 검증, Linux 미검증) |
+| R-022 | CUDA·PyTorch·NVIDIA Driver 조합의 호환 실패 | `unknown` | `high` | `high` | CUDA 미인식·kernel load 실패·지원되지 않는 compute capability | Phase 0에서 버전 조합과 환경 snapshot 검증 | 호환 행렬을 재검토하고 검증된 조합으로 환경 재구성 | environment/training | `monitoring` (PyTorch 2.7.1+cu118·Driver 610.62 CUDA smoke 통과, `nvcc` 미확인) |
 | R-023 | SentencePiece 설정 또는 artifact 변경으로 checkpoint 호환성 손상 | `unknown` | `high` | `high` | tokenizer fingerprint·vocab ID·embedding shape 불일치 | tokenizer artifact와 fingerprint를 checkpoint·실험 기록에 고정 | 로드를 차단하고 호환 checkpoint 사용 또는 명시적 migration 검토 | tokenizer/model/artifact | `open` |
 | R-024 | FP16 attention softmax overflow로 NaN/Inf 발생 | `unknown` | `high` | `high` | attention score 급증·softmax 비유한값·skipped step | 안정적 mask 값·AMP 경계·finite 검사를 단위 및 smoke test로 검증 | 즉시 중단하고 dtype·mask·scale·정상 checkpoint를 단계별 진단 | model/training | `open` |
 | R-025 | Weight tying이 checkpoint 저장·복원 과정에서 분리됨 | `unknown` | `high` | `high` | token embedding과 LM Head가 같은 storage를 공유하지 않음 | 저장·복원 round-trip에서 alias와 값 일치를 모두 검사 | checkpoint schema·load 순서를 수정하고 영향 checkpoint 재검증 | model/training/artifact | `open` |
@@ -51,8 +51,9 @@
 | R-027 | 외부 평가 형식 연동 비용이 예상보다 큼 | `unknown` | `medium` | `medium` | 변환 schema·제출 형식·공식 도구 요구가 반복 변경됨 | 내부 평가 계약을 우선 고정하고 외부 형식은 Gate 11에서 snapshot | 외부 연동 범위를 축소하거나 adapter 작업을 후순위로 재계획 | evaluation/project | `open` |
 | R-028 | 문서 과잉으로 핵심 구현 일정이 지연됨 | `medium` | `medium` | `medium` | 같은 결정의 반복 문서화·Gate 문서만 증가·Phase 0 미착수 | 단일 기준 문서와 Ready 최소 요건을 적용하고 중복 설명을 링크로 대체 | 중복 문서를 통합·deprecated 후보로 분류하고 구현 차단 문서만 우선 처리 | governance/project | `monitoring` |
 | R-029 | 전역 Python 환경의 기존 패키지 충돌 | `medium` | `medium` | `medium` | `pip check`에서 프로젝트 외 패키지의 버전 불일치 | 격리된 `.venv`와 최소 의존성만 사용 | clean 가상환경을 재생성하고 공식 PyTorch 설치 조합으로 재검증 | environment | `monitoring` (격리 환경 검증 통과) |
-| R-029 | AI 생성 문서에 중복 또는 과도한 규칙이 누적됨 | `medium` | `medium` | `medium` | 같은 규칙의 표현 차이·우선순위 충돌·검증 불가능한 요구 증가 | AGENTS 우선순위와 인덱스를 기준으로 적대적 감사·중복 검사 | 충돌 규칙을 기준 문서에 맞춰 최소 수정하고 변경 근거 기록 | governance/documentation | `monitoring` |
-| R-030 | 개인 PC 장시간 학습 중 발열·전원 문제·강제 종료 발생 | `unknown` | `high` | `high` | 온도 상승·clock throttling·전원 불안정·비정상 종료 | pilot로 열·전력·저장 주기를 확인하고 충분한 냉각·여유 공간 확보 | 학습 중단·하드웨어 상태 점검·정상 checkpoint 복구·운영 시간 축소 | operations/training | `open` |
+| R-030 | AI 생성 문서에 중복 또는 과도한 규칙이 누적됨 | `medium` | `medium` | `medium` | 같은 규칙의 표현 차이·우선순위 충돌·검증 불가능한 요구 증가 | AGENTS 우선순위와 인덱스를 기준으로 적대적 감사·중복 검사 | 충돌 규칙을 기준 문서에 맞춰 최소 수정하고 변경 근거 기록 | governance/documentation | `monitoring` |
+| R-031 | 개인 PC 장시간 학습 중 발열·전원 문제·강제 종료 발생 | `unknown` | `high` | `high` | 온도 상승·clock throttling·전원 불안정·비정상 종료 | pilot로 열·전력·저장 주기를 확인하고 충분한 냉각·여유 공간 확보 | 학습 중단·하드웨어 상태 점검·정상 checkpoint 복구·운영 시간 축소 | operations/training | `open` |
+| R-032 | 환경 보고 값의 YAML·JSON 직렬화 계약 회귀 | `low` | `medium` | `medium` | `TorchVersion` 등 비표준 객체로 진단 CLI 실패·출력 형식 불일치 | 수집 계층 primitive 정규화와 실제 PyTorch YAML/JSON 회귀 테스트 | Gate 진단 중단·문제 field 식별·직렬화 계약과 테스트 수정 | environment/cli | `monitoring` (revision `10f5f469`에서 회귀 수정·검증) |
 
 ## 4. 운영 원칙
 
@@ -66,6 +67,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Gate 1 근거로 CUDA·경로·비밀·대용량 산출물 위험을 재검토하고 환경 출력 직렬화 회귀 위험 R-032를 등록함 |
+| 2026-07-23 | [확정] 중복 Risk ID를 해소하기 위해 문서 누적 위험을 R-030, 장시간 학습 운영 위험을 R-031로 정정함 |
 | 2026-07-23 | [확정] 격리 `.venv`의 clean 설치·`pip check`·CPU/CUDA smoke 통과로 R-029 완화 확인 |
 | 2026-07-23 | [검증 필요] Phase 0 전역 환경 `pip check` 충돌을 R-029로 등록 |
 | 2026-07-23 | [확정] Phase 0 현재 CUDA 조합 smoke 통과를 R-022 monitoring 근거로 반영 |
