@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](./system-architecture.md) |
-| 후속 문서 | [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
+| 후속 문서 | [핵심 개발 기능명세서](./core-development-feature-specification.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
@@ -91,7 +91,7 @@ DohaLM/
 | 경로 | 목적 | 포함할 항목 | 포함하지 않을 항목 | Git 추적 원칙 | 하위 `AGENTS.md` | 생성 시점/선행 조건 |
 |---|---|---|---|---|---|---|
 | `configs/` | 실행 설정의 단일 기준 제공 | 모델·학습·평가 설정 | 비밀값, 체크포인트, 데이터 | 설정 파일은 추적 | 현재 없음, 필요 시 검토 | 실제 설정 구현 단계 |
-| `docs/` | 기준 문서와 결정 이력 | 설계, 정책, ADR | 실행 산출물 | 추적 | 존재 | 기능 구현 전 |
+| `docs/` | 기준 문서와 결정 이력 | 설계, 기능명세, 정책, ADR | 실행 산출물 | 추적 | 존재 | 기능 구현 전 |
 | `src/config/` | YAML 설정 로딩·검증·병합 | schema, Tiny 불변 조건, CLI override | 모델·학습 구현 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/runtime/` | 환경·경로·로깅 기반 제공 | 환경 진단, 저장소 경로, 기본 로깅 | 학습 metric logger | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/cli/` | Phase 0 진단 진입점 | 환경·설정·resolved config·경로 명령 | 학습·추론 명령 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
@@ -121,6 +121,7 @@ DohaLM/
 | 산출물 | `artifacts/` 후보, `checkpoints/` | 실행으로 생성되며 소비자에게 전달되거나 복원에 사용 | 체크포인트, 모델 카드 |
 
 - [확정] 실행 시 적용된 최종 설정은 체크포인트 또는 실험 manifest와 연결해야 한다.
+- [확정] Phase 1~6 구현의 기능 경계, 입력·출력·오류와 테스트 계약은 [핵심 개발 기능명세서](./core-development-feature-specification.md)를 공통 기준으로 사용한다.
 - [검증 필요] `experiments/`와 `artifacts/` 사이에서 평가 결과와 생성 샘플을 어느 쪽에 둘지는 [실험 관리 정책](../training/experiment-management.md)에 따라 구현 전에 확정한다.
 
 ## 7. `AGENTS.md` 적용 범위
@@ -143,4 +144,5 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] docs 책임과 Phase 1~6 구현 기준에 핵심 개발 기능명세서를 연결함 |
 | 2026-07-23 | [확정] 현재 구조와 계획 구조, 디렉터리 책임, Git 및 `AGENTS.md` 적용 원칙의 초안 작성 |
