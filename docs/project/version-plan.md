@@ -18,7 +18,7 @@
 
 | 버전 | 목적 | 포함 범위 | 제외 범위 | 완료 조건 | 필수 문서 | 필수 테스트 | 예상 릴리스 산출물 |
 |---|---|---|---|---|---|---|---|
-| `v0.1` | 문서·환경 기반 확립 | 프로젝트 기준 문서, 저장소 구조, 개발 규칙, 환경 확인 | 데이터 처리와 모델 구현 | Gate 0과 Gate 1 통과 | [프로젝트 개요](./overview.md), [범위와 목표](./scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [문서 인덱스](../index.md), [ADR 인덱스](../decisions/README.md), [저장소 구조](../architecture/repository-structure.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](./version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) | 저장소·환경 정적 검사 | 승인된 기준 문서와 환경 기록 |
+| `v0.1` | 문서·환경 기반 확립 | 프로젝트 기준 문서, 저장소 구조, 개발 규칙, 환경 진단, 설정 loader·validation, 경로 정책, 기본 logging, CLI | 데이터 처리와 모델 구현 | Gate 0 `approved`, Gate 1 `passed` | [프로젝트 개요](./overview.md), [범위와 목표](./scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [문서 인덱스](../index.md), [ADR 인덱스](../decisions/README.md), [저장소 구조](../architecture/repository-structure.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](./version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) | 자동 테스트 43개, CPU·CUDA smoke, CLI·설정·경로·artifact 검사 | 승인된 기준 문서, 환경 snapshot과 Gate 1 검증 기록 |
 | `v0.2` | 최소 데이터 파이프라인 | registry, 라이선스 판정, 정제·분할 최소 흐름 | 대규모 수집과 전체 말뭉치 | Gate 2 통과 | [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 등록부](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 품질 체크리스트](../data/data-quality-checklist.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), ADR-004 | 데이터 무결성·누수·재현성 검사 | 승인된 소규모 데이터 manifest |
 | `v0.3` | 토크나이저 확립 | SentencePiece Unigram 학습·저장·복원·특수 토큰 | 모델 학습 | Gate 3 통과 | [토크나이저 설계](../training/tokenizer-design.md), ADR-003 | round-trip, ID, OOV·coverage 검사 | 버전 고정 토크나이저와 메타데이터 |
 | `v0.4` | 모델 구성요소 검증 | embedding, attention, FFN, block, normalization | 전체 학습 루프 | Gate 4 통과 | [모델 아키텍처](../architecture/model-architecture.md), ADR-002 | shape, causal mask, 파라미터 구성요소 단위 테스트 | 구성요소 테스트 결과 |
@@ -32,7 +32,7 @@
 | `v1.2` | 채팅 UI | Next.js 채팅 화면과 API 연결 | 공개 배포 보장 | Gate 10의 UI 조건 통과 | `12-api-specification.md`, `13-frontend-specification.md`, `19-deployment-plan.md` | UI 흐름, 오류 표시, API 통합 검사 | 로컬 채팅 애플리케이션 릴리스 후보 |
 | `v1.3` | 벤치마크·모델 카드 | 벤치마크 결과 정리, 모델 카드, 제출 가능성 검토 | 제출 자체와 성능 보장 | Gate 11 사용자 승인 및 정책 확인 | `20-leaderboard-strategy.md`, [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), `19-deployment-plan.md` | benchmark 재현성, 라이선스·공개 범위 검사 | 모델 카드와 벤치마크 보고서 |
 
-- [검증 필요] `v0.1`의 Phase 0 구현과 자동 검증은 완료됐으나 Gate 1은 사용자 승인 전이므로 통과 또는 릴리스 완료로 보지 않는다.
+- [확정] `v0.1` 권장 이정표의 Phase 0 구현·검증과 Gate 0·1 조건은 충족했다. 이는 실제 Git 태그나 릴리스가 생성되었다는 뜻이 아니다.
 
 ## 3. 버전 승격 규칙
 
@@ -53,4 +53,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Gate 1 승인에 따라 v0.1 권장 이정표에 Phase 0 기반·43개 테스트·CPU/CUDA smoke 근거를 반영함 |
 | 2026-07-23 | [확정] 단계별 권장 버전 이정표와 승격 원칙 초안 작성 |
