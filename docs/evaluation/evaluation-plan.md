@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [모델 아키텍처](../architecture/model-architecture.md), [토크나이저 설계](../training/tokenizer-design.md), [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [데이터 분할 및 누수 방지](../data/data-split-and-leakage-policy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
-| 후속 문서 | [실험 관리](../training/experiment-management.md), [Benchmark 정책](./benchmark-policy.md), [생성 평가](./generation-evaluation.md), [재현성 정책](../quality/reproducibility-policy.md), `11-inference-design.md`, `17-development-roadmap.md`, `20-leaderboard-strategy.md` 작성 예정 |
+| 후속 문서 | [실험 관리](../training/experiment-management.md), [Benchmark 정책](./benchmark-policy.md), [생성 평가](./generation-evaluation.md), [재현성 정책](../quality/reproducibility-policy.md), [개발 로드맵](../quality/development-roadmap.md), `11-inference-design.md`, `20-leaderboard-strategy.md` 작성 예정 |
 | 구현 전 필수 여부 | 학습 전 예 |
 
 - [확정] 현재 평가 코드, 평가 데이터, 실행 결과와 합격 기준 실측값은 없다.

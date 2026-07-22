@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [개발 규칙](./development-rules.md), [시스템 아키텍처](../architecture/system-architecture.md), [저장소 구조](../architecture/repository-structure.md) |
-| 후속 문서 | `15-experiment-management.md`, `19-deployment-plan.md` 작성 예정 |
+| 후속 문서 | [실험 관리 정책](../training/experiment-management.md), `19-deployment-plan.md` 작성 예정 |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 설정의 기준 위치와 실행 산출물의 추적·호환성 원칙을 정의한다.

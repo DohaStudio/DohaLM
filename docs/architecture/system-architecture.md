@@ -86,7 +86,7 @@ flowchart LR
 | 구성요소 | 역할 | 입력 | 출력 | 담당 모듈 또는 계획 경로 | 선행 조건 | 현재 상태 | Git 추적 여부 |
 |---|---|---|---|---|---|---|---|
 | 원본 데이터 저장 영역 | 취득한 원문을 변경 없이 보존 | 허가된 외부 데이터 | 원본 파일과 출처 기록 | `data/raw/` | 라이선스·취득 조건 확인 | [검증 필요] 데이터 없음 | 데이터 제외, `.gitkeep`만 추적 |
-| 데이터 검증 영역 | 라이선스, 형식, 개인정보, 품질 검사 | 원본 데이터와 메타데이터 | 승인·제외 결과 | 계획 문서 `06-data-strategy.md`, `src/data/` | 데이터 등록 | [검증 필요] 미구현 | 코드·정책만 추적 |
+| 데이터 검증 영역 | 라이선스, 형식, 개인정보, 품질 검사 | 원본 데이터와 메타데이터 | 승인·제외 결과 | [데이터 전략](../data/data-strategy.md), `src/data/` | 데이터 등록 | [검증 필요] 미구현 | 코드·정책만 추적 |
 | 전처리 영역 | 정제, 필터, 중복 제거, 분할 | 승인 원문 | 정제 데이터와 처리 기록 | `src/data/`, `data/cleaned/` | 검증 규칙 확정 | [검증 필요] 스캐폴드 | 코드 추적, 데이터 제외 |
 | 토크나이저 학습 영역 | SentencePiece Unigram 직접 학습 | 정제 corpus와 설정 | `.model`, `.vocab`, 평가 기록 | `src/tokenizer/` | 데이터 라이선스, [ADR-003](../decisions/ADR-003-tokenizer-method.md) | [검증 필요] 스캐폴드 | 코드 추적, 산출물은 정책 확인 필요 |
 | 토큰화 데이터 생성 영역 | 텍스트를 ID와 context block으로 변환 | 정제 데이터, tokenizer | 토큰화 dataset과 fingerprint | `src/data/build_dataset.py`, `data/tokenized/` | tokenizer 검증 | [검증 필요] 스캐폴드 | 코드 추적, dataset 제외 |
@@ -175,7 +175,7 @@ flowchart LR
 1. [검증 필요] checkpoint, tokenizer와 고정 평가 dataset을 로드한다.
 2. [검증 필요] loss, perplexity, 생성 sample 및 한국어 benchmark를 계산한다.
 3. [확정] config·dataset·checkpoint ID와 결과를 함께 기록한다.
-4. [검증 필요] 정량 합격선은 계획 문서 `10-evaluation-plan.md`에서 확정한다.
+4. [검증 필요] 정량 합격선은 [평가 계획](../evaluation/evaluation-plan.md)에서 확정한다.
 
 ### 5.5 체크포인트 복원 흐름
 
@@ -198,7 +198,7 @@ flowchart LR
 1. [확정] 실행 전 code revision, 환경, 데이터·토크나이저·config ID를 기록한다.
 2. [확정] 실행 중 step, loss, learning rate, 처리량, 시간과 peak GPU memory를 기록한다.
 3. [확정] 실행 후 checkpoint, 평가 결과, 생성 sample과 실패 원인을 experiment ID에 연결한다.
-4. [검증 필요] 실험 metadata schema와 저장 backend는 계획 문서 `15-experiment-management.md`에서 확정한다.
+4. [검증 필요] 실험 metadata schema와 저장 backend는 [실험 관리 정책](../training/experiment-management.md)에서 확정한다.
 
 ## 6. 학습 데이터 흐름도
 

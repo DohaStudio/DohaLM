@@ -1,19 +1,116 @@
 # DohaLM
 
 ## 프로젝트 소개
+
+DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 파이프라인을 PyTorch 기반으로 직접 구현하고 단계적으로 검증하는 교육·연구·포트폴리오 프로젝트입니다. 모든 자원 계획은 단일 `RTX 3060 Ti 8GB` 환경을 기준으로 합니다.
+
+## 현재 상태
+
+현재 저장소는 구현 전 문서 검토 단계입니다.
+
+| 영역 | 상태 |
+|---|---|
+| 문서화 | 진행 및 검토 단계 |
+| 모델 코드 | 스캐폴드만 존재, 미구현 |
+| 데이터 | 후보 및 라이선스 미승인 |
+| 토크나이저 | 미학습 |
+| 사전학습 | 미실행 |
+| SFT | 미실행 |
+| 추론 API | 스캐폴드만 존재, 미구현 |
+| Frontend | 안내 스캐폴드만 존재, 미구현 |
+
 ## 프로젝트 목표
-## 하드웨어 제약
-## 모델 구성
-## 현재 개발 상태
-## 주요 기능
-## 기술 스택
+
+- 한국어 SentencePiece 토크나이저를 직접 학습합니다.
+- Decoder-only Transformer 핵심 구성요소와 학습 루프를 직접 구현합니다.
+- 사전학습, SFT, 평가, 체크포인트 복원과 자기회귀 생성을 재현 가능하게 검증합니다.
+- 핵심 모델 검증 이후 FastAPI 추론 서버와 Next.js 채팅 화면의 연결을 검토합니다.
+- 최종 결과를 바탕으로 AI Hub K-AI Leaderboard 제출 가능성을 검토합니다.
+
+## 비목표
+
+- A100·H100·멀티 GPU·대규모 분산 학습을 전제로 하지 않습니다.
+- 7B 이상 모델을 처음부터 사전학습하지 않습니다.
+- 상용 수준 LLM, ChatGPT 대체 또는 높은 Benchmark 성능을 보장하지 않습니다.
+- DohaLM-Tiny 검증 전에 서비스·배포 개발을 우선하지 않습니다.
+
+## DohaLM-Tiny 핵심 사양
+
+| 항목 | 승인 사양 |
+|---|---|
+| 구조 | Decoder-only Transformer |
+| Transformer Layer | 6 |
+| Hidden Size | 384 |
+| Attention Head / Head Dimension | 6 / 64 |
+| FFN Size | 1,536 |
+| Context Length | 256 |
+| Vocabulary Size | 16,000 |
+| Normalization | Pre-LayerNorm |
+| Position Embedding | 학습형 absolute positional embedding |
+| Token Embedding–LM Head | Weight tying 사용 |
+| Precision | FP16 mixed precision |
+| 예상 파라미터 | 16,889,856 |
+
+- [검증 필요] Dropout 확률과 파라미터 초기화 방식
+- [검증 필요] 구현 후 실제 파라미터 수가 승인 산식과 일치하는지 검증
+
+## 개발 단계
+
+개발은 저장소·환경 기반부터 데이터, 토크나이저, 모델, 학습, 평가, SFT, 서비스 순서로 진행합니다. 각 단계는 문서·구현·테스트 증거를 요구하는 Gate로 관리하며, 현재 Gate 0은 사용자 검토 전 `review` 상태입니다.
+
 ## 저장소 구조
+
+```text
+configs/       설정 스캐폴드
+data/          원본·정제·토큰화·SFT 데이터 경로
+docs/          프로젝트 기준 문서와 ADR
+scripts/       실행 스크립트 스캐폴드
+server/        FastAPI 서버 스캐폴드
+src/           토크나이저·데이터·모델·학습·평가·추론 스캐폴드
+frontend/      Frontend 안내 스캐폴드
+tests/         테스트 경로
+checkpoints/   로컬 체크포인트 경로
+```
+
+## 문서 안내
+
+- [문서 안내서](docs/README.md)
+- [전체 문서 인덱스](docs/index.md)
+- [프로젝트 개요](docs/project/overview.md)
+- [범위와 목표](docs/project/scope-and-goals.md)
+- [개발 로드맵](docs/quality/development-roadmap.md)
+- [개발 규칙](docs/governance/development-rules.md)
+
+## 환경 요구사항
+
+- 단일 NVIDIA `RTX 3060 Ti 8GB`
+- Python, PyTorch, CUDA 호환 환경
+- Windows PowerShell을 포함한 로컬 개발 환경
+
+정확한 Python·PyTorch·CUDA·NVIDIA Driver 버전과 의존성 고정 방식은 [검증 필요]이며 Phase 0에서 호환성을 확인한 뒤 기록합니다.
+
 ## 빠른 시작
-## 학습 실행 방법
-## 추론 실행 방법
-## 테스트 방법
-## [문서 안내](docs/README.md)
-## 개발 로드맵
+
+현재는 구현 전 문서 검토 단계이므로 학습·추론 실행 명령을 제공하지 않습니다. Phase 0~6 구현과 검증 이후 실제 재현 명령을 추가할 예정입니다.
+
+## 구현 예정 순서
+
+1. 저장소·환경·설정 계약 검증
+2. 최소 데이터 파이프라인과 데이터 승인 절차 검증
+3. SentencePiece 토크나이저 학습·복원 검증
+4. DohaLM-Tiny 구성요소와 통합 모델 구현·테스트
+5. 학습 루프·체크포인트·재개 검증
+6. 극소 데이터 과적합과 GPU 메모리 실측
+7. 승인 데이터 기반 사전학습, 평가와 SFT
+8. 검증된 최소 추론 인터페이스 이후 API·Frontend 검토
+
 ## 데이터 및 라이선스
-## 기여 방법
+
+현재 승인된 학습 데이터는 없습니다. 출처, 이용조건, 개인정보·민감정보, 재배포 가능성 및 평가 누수를 확인해 `approved`로 등록된 데이터만 사용하며, 원본 데이터와 대용량 파생 산출물은 Git에 커밋하지 않습니다. 세부 기준은 [데이터 전략](docs/data/data-strategy.md)과 [데이터 라이선스 정책](docs/data/data-license-policy.md)을 따릅니다.
+
 ## 제한 사항
+
+- DohaLM-Tiny의 구조는 승인됐지만 코드 구현, 실제 파라미터 수와 VRAM 사용량은 검증되지 않았습니다.
+- 학습 hyperparameter, 토크나이저 세부 옵션과 정량 평가 합격선은 아직 확정되지 않았습니다.
+- DohaLM-Small 상세 구조, API·Frontend·배포 설계 및 외부 제출은 후순위입니다.
+- 테스트와 재현 증거 없이 구현 또는 학습 완료로 처리하지 않습니다.

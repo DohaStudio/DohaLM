@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [사전학습 계획](./pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
-| 후속 문서 | [재현성 정책](../quality/reproducibility-policy.md), [실험 템플릿](./experiment-template.md), `17-development-roadmap.md`, `18-testing-checklist.md`, `20-leaderboard-strategy.md` 작성 예정 |
+| 후속 문서 | [재현성 정책](../quality/reproducibility-policy.md), [실험 템플릿](./experiment-template.md), [개발 로드맵](../quality/development-roadmap.md), [테스트 체크리스트](../quality/testing-checklist.md), `20-leaderboard-strategy.md` 작성 예정 |
 | 구현 전 필수 여부 | 본 학습 전 예 |
 
 - [확정] 현재 `experiments/` 경로, 실험 metadata 파일, 실행 결과와 schema 구현은 없다.

@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
-| 후속 문서 | [실험 템플릿](../training/experiment-template.md), `18-testing-checklist.md` 작성 예정 |
+| 후속 문서 | [실험 템플릿](../training/experiment-template.md), [테스트 체크리스트](./testing-checklist.md) |
 | 구현 전 필수 여부 | 본 학습 전 예 |
 
 - [확정] 재현 가능성은 같은 근거와 절차로 결과를 검토할 수 있다는 뜻이며 모든 GPU 실행의 bitwise 동일성을 보장하지 않는다.

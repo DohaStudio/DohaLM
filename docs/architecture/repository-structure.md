@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](./system-architecture.md) |
-| 후속 문서 | [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), `15-experiment-management.md` 작성 예정 |
+| 후속 문서 | [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
@@ -112,7 +112,7 @@ DohaLM/
 | 산출물 | `artifacts/` 후보, `checkpoints/` | 실행으로 생성되며 소비자에게 전달되거나 복원에 사용 | 체크포인트, 모델 카드 |
 
 - [확정] 실행 시 적용된 최종 설정은 체크포인트 또는 실험 manifest와 연결해야 한다.
-- [검증 필요] `experiments/`와 `artifacts/` 사이에서 평가 결과와 생성 샘플을 어느 쪽에 둘지는 `15-experiment-management.md` 작성 시 확정한다.
+- [검증 필요] `experiments/`와 `artifacts/` 사이에서 평가 결과와 생성 샘플을 어느 쪽에 둘지는 [실험 관리 정책](../training/experiment-management.md)에 따라 구현 전에 확정한다.
 
 ## 7. `AGENTS.md` 적용 범위
 

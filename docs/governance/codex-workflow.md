@@ -55,7 +55,7 @@
 6. [확정] 범위 밖에서 자신이 만든 변경은 안전하게 제거하되 기존 사용자 변경은 보존한다.
 7. [확정] [Definition of Done](./definition-of-done.md) 충족 여부를 확인한다.
 8. [확정] 사용자 지정 형식으로 변경, 검증, 미실행 사항을 사실대로 완료 보고한다.
-9. [확정] 사용자의 명시적 요청이 없으면 `git add`, commit, push, merge, tag, release를 수행하지 않는다.
+9. [확정] 사용자의 명시적 요청이 없으면 `git add`, commit, push, merge, rebase, tag, release를 수행하지 않는다.
 
 ## 5. 완료 보고 고정 항목
 
@@ -92,8 +92,10 @@
 
 ## 7. Git과 파괴적 작업 안전
 
-- [확정] 사용자의 명시적 요청 없이 stage, commit, push, merge, tag, release를 하지 않는다.
-- [확정] commit을 요청받은 경우에도 diff를 검토하고 논리적 단위와 한국어 커밋 메시지를 먼저 확인한다.
+- [확정] 사용자가 현재 요청에서 명시적으로 요청한 경우에만 stage와 commit을 수행한다. push, merge, rebase, tag, release도 각각 사용자의 현재 요청이 있어야 한다.
+- [확정] commit을 요청받은 경우에도 diff를 검토하고 하나의 커밋에 하나의 논리적 변경만 담는다.
+- [확정] 커밋 메시지는 영문 Conventional Commit 유형 접두어 `docs:`, `feat:`, `fix:`, `test:`, `refactor:`, `chore:` 중 하나를 사용하고 제목과 본문 설명은 한국어로 작성한다. 메시지 전체를 영어로 작성하지 않는다.
+- [확정] 예: `docs: 모델 설계 문서 정합성 보완`, `feat: 토크나이저 학습 기능 구현`, `fix: causal mask 적용 오류 수정`, `test: 체크포인트 복원 테스트 추가`, `refactor: 학습 설정 로더 구조 정리`, `chore: 개발 의존성 버전 정리`.
 - [확정] `git reset --hard`, 강제 checkout, 광범위 삭제 등 파괴적 명령은 명시적 승인 없이 사용하지 않는다.
 - [확정] 기존 변경을 되돌리거나 자동 정리하지 않는다.
 

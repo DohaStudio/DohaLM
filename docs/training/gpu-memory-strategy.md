@@ -27,7 +27,7 @@
 
 ### 2.2 DohaLM-Small 검토안
 
-- [가정] `04-model-architecture.md`의 비구속 검토안은 `59,804,160`개다.
+- [가정] [모델 아키텍처](../architecture/model-architecture.md)의 비구속 검토안은 `59,804,160`개다.
 - [가정] 같은 단순 `16 byte/parameter` 산식을 적용하면 parameter, gradient 및 AdamW moments payload는 약 912.54 MiB다.
 - [확정] 이 수치는 Small 사양 또는 실제 총 VRAM 사용량을 확정하지 않는다.
 - [검증 필요] Tiny 실측 전 Small의 상세 구조와 optimizer memory 정책을 고정하지 않는다.

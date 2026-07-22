@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [데이터 품질 체크리스트](./data-quality-checklist.md), `10-evaluation-plan.md` 작성 예정 |
+| 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [데이터 품질 체크리스트](./data-quality-checklist.md), [평가 계획](../evaluation/evaluation-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 현재 split 또는 실제 평가 데이터는 없다.

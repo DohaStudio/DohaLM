@@ -18,19 +18,19 @@
 
 | 버전 | 목적 | 포함 범위 | 제외 범위 | 완료 조건 | 필수 문서 | 필수 테스트 | 예상 릴리스 산출물 |
 |---|---|---|---|---|---|---|---|
-| `v0.1` | 문서·환경 기반 확립 | 프로젝트 기준 문서, 저장소 구조, 개발 규칙, 환경 확인 | 데이터 처리와 모델 구현 | Gate 0과 Gate 1 통과 | `00`~`03`, ADR 인덱스, `21`, `22`, `31`~`36` | 저장소·환경 정적 검사 | 승인된 기준 문서와 환경 기록 |
-| `v0.2` | 최소 데이터 파이프라인 | registry, 라이선스 판정, 정제·분할 최소 흐름 | 대규모 수집과 전체 말뭉치 | Gate 2 통과 | `06`, `07`, `23`~`26`, ADR-004 | 데이터 무결성·누수·재현성 검사 | 승인된 소규모 데이터 manifest |
-| `v0.3` | 토크나이저 확립 | SentencePiece Unigram 학습·저장·복원·특수 토큰 | 모델 학습 | Gate 3 통과 | `05`, ADR-003 | round-trip, ID, OOV·coverage 검사 | 버전 고정 토크나이저와 메타데이터 |
-| `v0.4` | 모델 구성요소 검증 | embedding, attention, FFN, block, normalization | 전체 학습 루프 | Gate 4 통과 | `04`, ADR-002 | shape, causal mask, 파라미터 구성요소 단위 테스트 | 구성요소 테스트 결과 |
-| `v0.5` | 모델 통합과 생성 검증 | DohaLM-Tiny 통합, loss 연결, 자기회귀 생성 | 장시간 사전학습 | Gate 5 통과 | `04`, `11` 초안 | 파라미터 수, forward/backward, weight tying, 생성 smoke | 통합 모델 검증 기록 |
-| `v0.6` | 학습·체크포인트 기반 | FP16, 누적, clipping, 저장·복원·재개 | 본 사전학습 | Gate 6 통과 | `08`, `15`, `16`, `22`, `29` | AMP, optimizer step, checkpoint round-trip·resume | 재개 가능한 학습 smoke 산출물 |
-| `v0.7` | Tiny overfit 검증 | 극소 데이터 과적합과 loss 감소 확인 | 장시간 학습 | Gate 7 통과 | `08`, `10`, `18`, `30` | tiny overfit, NaN/Inf, 재현성 검사 | overfit 실험 기록과 체크포인트 |
-| `v0.8` | Tiny 사전학습 | 승인 데이터와 token budget으로 사전학습 | SFT와 서비스 | Gate 8 승인 후 실행, 사전 정의 완료 조건 충족 | `08`, `10`, `15`, `16`, `29`, `30` | validation perplexity, checkpoint 복구, VRAM 실측 | DohaLM-Tiny 기반 체크포인트와 실험 보고서 |
-| `v0.9` | SFT 검증 | 승인된 질문·답변 데이터, 대화 템플릿, SFT | API·UI | Gate 9 통과 | `09`, `10`, `28`, `30` | template, loss mask, 생성 품질·회귀 검사 | SFT 체크포인트와 평가 기록 |
+| `v0.1` | 문서·환경 기반 확립 | 프로젝트 기준 문서, 저장소 구조, 개발 규칙, 환경 확인 | 데이터 처리와 모델 구현 | Gate 0과 Gate 1 통과 | [프로젝트 개요](./overview.md), [범위와 목표](./scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [문서 인덱스](../index.md), [ADR 인덱스](../decisions/README.md), [저장소 구조](../architecture/repository-structure.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](./version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) | 저장소·환경 정적 검사 | 승인된 기준 문서와 환경 기록 |
+| `v0.2` | 최소 데이터 파이프라인 | registry, 라이선스 판정, 정제·분할 최소 흐름 | 대규모 수집과 전체 말뭉치 | Gate 2 통과 | [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 등록부](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 품질 체크리스트](../data/data-quality-checklist.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), ADR-004 | 데이터 무결성·누수·재현성 검사 | 승인된 소규모 데이터 manifest |
+| `v0.3` | 토크나이저 확립 | SentencePiece Unigram 학습·저장·복원·특수 토큰 | 모델 학습 | Gate 3 통과 | [토크나이저 설계](../training/tokenizer-design.md), ADR-003 | round-trip, ID, OOV·coverage 검사 | 버전 고정 토크나이저와 메타데이터 |
+| `v0.4` | 모델 구성요소 검증 | embedding, attention, FFN, block, normalization | 전체 학습 루프 | Gate 4 통과 | [모델 아키텍처](../architecture/model-architecture.md), ADR-002 | shape, causal mask, 파라미터 구성요소 단위 테스트 | 구성요소 테스트 결과 |
+| `v0.5` | 모델 통합과 생성 검증 | DohaLM-Tiny 통합, loss 연결, 자기회귀 생성 | 장시간 사전학습 | Gate 5 통과 | [모델 아키텍처](../architecture/model-architecture.md), `11-inference-design.md` 초안 | 파라미터 수, forward/backward, weight tying, 생성 smoke | 통합 모델 검증 기록 |
+| `v0.6` | 학습·체크포인트 기반 | FP16, 누적, clipping, 저장·복원·재개 | 본 사전학습 | Gate 6 통과 | [사전학습 계획](../training/pretraining-plan.md), [실험 관리](../training/experiment-management.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [재현성 정책](../quality/reproducibility-policy.md) | AMP, optimizer step, checkpoint round-trip·resume | 재개 가능한 학습 smoke 산출물 |
+| `v0.7` | Tiny overfit 검증 | 극소 데이터 과적합과 loss 감소 확인 | 장시간 학습 | Gate 7 통과 | [사전학습 계획](../training/pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [테스트 체크리스트](../quality/testing-checklist.md), [실험 템플릿](../training/experiment-template.md) | tiny overfit, NaN/Inf, 재현성 검사 | overfit 실험 기록과 체크포인트 |
+| `v0.8` | Tiny 사전학습 | 승인 데이터와 token budget으로 사전학습 | SFT와 서비스 | Gate 8 승인 후 실행, 사전 정의 완료 조건 충족 | [사전학습 계획](../training/pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [재현성 정책](../quality/reproducibility-policy.md), [실험 템플릿](../training/experiment-template.md) | validation perplexity, checkpoint 복구, VRAM 실측 | DohaLM-Tiny 기반 체크포인트와 실험 보고서 |
+| `v0.9` | SFT 검증 | 승인된 질문·답변 데이터, 대화 템플릿, SFT | API·UI | Gate 9 통과 | [SFT 계획](../training/sft-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [생성 평가](../evaluation/generation-evaluation.md), [실험 템플릿](../training/experiment-template.md) | template, loss mask, 생성 품질·회귀 검사 | SFT 체크포인트와 평가 기록 |
 | `v1.0` | 재현 가능한 DohaLM-Tiny 완성 | 데이터 계보부터 평가까지 재현 가능한 전체 핵심 파이프라인 | 서비스·외부 제출 | 모든 Tiny 필수 Done 조건 충족 | 핵심 설계·데이터·학습·평가·품질 문서 | 전체 필수 회귀·GPU 검증 | 모델 카드 초안, 체크포인트, tokenizer, 설정, 평가·재현 기록 |
-| `v1.1` | 추론 API | FastAPI 모델 로딩·생성 계약 | 채팅 UI | Gate 10의 API 조건 통과 | `11`, `12`, `19` 초안 | API schema, 오류·동시성·로딩 smoke | 로컬 추론 API 릴리스 후보 |
-| `v1.2` | 채팅 UI | Next.js 채팅 화면과 API 연결 | 공개 배포 보장 | Gate 10의 UI 조건 통과 | `12`, `13`, `19` | UI 흐름, 오류 표시, API 통합 검사 | 로컬 채팅 애플리케이션 릴리스 후보 |
-| `v1.3` | 벤치마크·모델 카드 | 벤치마크 결과 정리, 모델 카드, 제출 가능성 검토 | 제출 자체와 성능 보장 | Gate 11 사용자 승인 및 정책 확인 | `20`, `27`, `28`, `19` | benchmark 재현성, 라이선스·공개 범위 검사 | 모델 카드와 벤치마크 보고서 |
+| `v1.1` | 추론 API | FastAPI 모델 로딩·생성 계약 | 채팅 UI | Gate 10의 API 조건 통과 | `11-inference-design.md`, `12-api-specification.md`, `19-deployment-plan.md` 초안 | API schema, 오류·동시성·로딩 smoke | 로컬 추론 API 릴리스 후보 |
+| `v1.2` | 채팅 UI | Next.js 채팅 화면과 API 연결 | 공개 배포 보장 | Gate 10의 UI 조건 통과 | `12-api-specification.md`, `13-frontend-specification.md`, `19-deployment-plan.md` | UI 흐름, 오류 표시, API 통합 검사 | 로컬 채팅 애플리케이션 릴리스 후보 |
+| `v1.3` | 벤치마크·모델 카드 | 벤치마크 결과 정리, 모델 카드, 제출 가능성 검토 | 제출 자체와 성능 보장 | Gate 11 사용자 승인 및 정책 확인 | `20-leaderboard-strategy.md`, [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), `19-deployment-plan.md` | benchmark 재현성, 라이선스·공개 범위 검사 | 모델 카드와 벤치마크 보고서 |
 
 ## 3. 버전 승격 규칙
 
