@@ -32,6 +32,7 @@
 | `decisions/ADR-003-tokenizer-method.md` | SentencePiece Unigram 및 어휘 정책 결정 | `01`, `05` | `06`, `07`, `08`, `09` | `approved` | 예 | 2026-07-23 | character coverage, normalization, byte fallback |
 | `decisions/ADR-004-data-governance.md` | 원본 불변·registry·라이선스·계보·누수 방지 결정 | `02`, `03`, `22` | `06`, `07`, `23`, `24`, `25`, `26` | `approved` | 예 | 2026-07-23 | manifest schema, 승인 책임, 실제 데이터 조건 |
 | `decisions/ADR-005-evaluation-and-experiment-policy.md` | 고정 평가 조건·실험 계보·실패 보존 결정 | `02`, `08`, `09`, `22`, `26` | `10`, `15`, `27`, `28`, `29`, `30` | `approved` | 예 | 2026-07-23 | 합격선, 반복 seed, schema, Benchmark 후보 |
+| `decisions/ADR-006-development-quality-gates.md` | 단계별 Ready·Done·테스트 기반 품질 게이트 결정 | `02`, `10`, `15`, `17`, `31`, `32`, `33` | `17`, `18`, `34`, `35`, `36`, 구현 작업 | `approved` | 예 | 2026-07-23 | 실제 명령, 정량 합격선, 단계별 승인 책임 |
 | `03-system-architecture.md` | 데이터→학습→평가→서버→UI 시스템 경계 정의 | `00`, `01`, `02`, ADR-001 | `21`, `22`, `04`, `11`, `12` | `review` | 예 | 2026-07-23 | serialization, 실험 metadata, 서비스 schema |
 | `04-model-architecture.md` | Tiny 계산 구조, shape와 파라미터 산식 정의 | `01`, ADR-001, ADR-002 | `08`, `09`, `11`, `16`, `18` | `review` | 예 | 2026-07-23 | Dropout, 초기화, padding mask 세부 규칙 |
 | `05-tokenizer-design.md` | 한국어 SentencePiece 토크나이저 설계 | `01`, ADR-003 | `06`, `07`, `08`, `09` | `review` | 예 | 2026-07-23 | character coverage, normalization, byte fallback, corpus |
@@ -46,8 +47,8 @@
 | `14-database-design.md` | 영속화 필요성과 데이터 구조 결정 | `03`, `12`, `13` | `19` | `planned` | 조건부 | — | DB 사용 여부, 보존·삭제 정책 |
 | `15-experiment-management.md` | 실험 ID·metadata·상태·실패·산출물 계보 관리 | `02`, `08`, `10`, `22`, ADR-005 | `29`, `30`, `17`, `18`, `20` | `review` | 본 학습 전 필수 | 2026-07-23 | ID 발급, schema, 보존 기간, artifact backend |
 | `16-gpu-memory-strategy.md` | 8GB VRAM 산식·측정·OOM 대응 정의 | `04`, ADR-001, ADR-002 | `08`, `11`, `17`, `18` | `draft` | 학습 구현 전 필수 | 2026-07-23 | micro-batch, accumulation, checkpointing, 실측값 |
-| `17-development-roadmap.md` | 단계별 구현 순서와 통과 게이트 정의 | 핵심 설계 문서 | 구현 작업 | `planned` | 본 구현 전 필수 | — | milestone과 중단 시점 |
-| `18-testing-checklist.md` | 단위·통합·재현성·성능 검증 기준 정의 | 구현 대상별 설계 문서 | 구현 완료 판정 | `planned` | 각 구현 전 필수 | — | test matrix와 합격 기준 |
+| `17-development-roadmap.md` | Phase 0~10 구현 순서와 Gate 0~11 통과 기준 정의 | 핵심 설계·데이터·학습·평가 문서, ADR-006 | `18`, `31`, `32`, `33`, `34`, `35`, `36`, 구현 작업 | `review` | 본 구현 전 필수 | 2026-07-23 | 실제 일정, 정량 게이트, 단계별 승인 책임 |
+| `18-testing-checklist.md` | 저장소부터 재현성까지 테스트 대상·실패 조치·상태 정의 | `17`, `31`, `32`, `33`, ADR-006, 구현 대상별 설계 문서 | 구현 완료 판정과 게이트 증거 | `review` | 각 구현 전 필수 | 2026-07-23 | 실제 테스트 명령, 구현 매핑, 정량 합격 기준 |
 | `19-deployment-plan.md` | 로컬·컨테이너 실행과 배포 계획 정의 | `11`, `12`, `13`, `14`, `18` | `20` | `planned` | 배포 전 필수 | — | 환경, monitoring, rollback |
 | `20-leaderboard-strategy.md` | K-AI Leaderboard 제출 가능성 검토 | `10`, `15`, `19` | 제출 결정 ADR | `planned` | 아니요 | — | 최신 규정, 형식, 라이선스, 성능 격차 |
 | `21-repository-structure.md` | 현재·계획 저장소 구조와 디렉터리 책임 정의 | `02`, `03` | `22`, `15`, 구현 작업 | `review` | 예 | 2026-07-23 | experiments/artifacts 스키마, 추가 AGENTS 범위 |
@@ -60,6 +61,12 @@
 | `28-generation-evaluation.md` | 고정 prompt·생성 설정·붕괴 검사·사람 평가 정의 | `05`, `09`, `10`, `26` | `15`, `29`, `11` | `review` | 생성 평가 전 필수 | 2026-07-23 | 실제 prompt, 생성 기준값, 사람 평가 운영 |
 | `29-reproducibility-policy.md` | 환경·seed·계보·재현 수준과 실패 처리 정의 | `02`, `10`, `15`, `22`, ADR-005 | `30`, `18` | `review` | 본 학습 전 필수 | 2026-07-23 | 결정론 설정, 허용 오차, 환경 schema |
 | `30-experiment-template.md` | 새 실험의 목적·변수·환경·평가·결과 기록 양식 제공 | `10`, `15`, `29` | 실제 실험 기록 | `review` | 실험 시작 전 필수 | 2026-07-23 | 실제 운영 feedback과 schema 정합성 |
+| `31-definition-of-ready.md` | 문서·코드·학습 작업의 착수 가능 조건 정의 | `02`, `17`, ADR-006 | `32`, `33`, `18`, 모든 구현 작업 | `review` | 각 작업 시작 전 필수 | 2026-07-23 | 작업 유형별 승인자, 실제 명령과 입력 계약 |
+| `32-definition-of-done.md` | 문서·모델·학습·실험·서비스의 완료 증거 정의 | `17`, `31`, `33`, ADR-006 | `18`, `35`, 완료 판정 | `review` | 각 작업 완료 전 필수 | 2026-07-23 | 정량 합격선, 서비스 단계 세부 기준 |
+| `33-test-strategy.md` | 테스트 수준, CPU/GPU 분리, 회귀와 실패 처리 정책 정의 | `02`, `10`, `17`, `31`, `32`, ADR-006 | `18`, 구현별 테스트 계획 | `review` | 테스트 구현 전 필수 | 2026-07-23 | 테스트 도구·명령, CI 구성, 성능 임계값 |
+| `34-risk-register.md` | 기술·데이터·평가·운영 위험과 예방·대응 관리 | 핵심 설계 문서, `17`, `33`, ADR-006 | 단계별 작업 계획과 게이트 검토 | `review` | 각 단계 계획 전 필수 | 2026-07-23 | 위험 담당자, 정량 임계값, 검토 주기 |
+| `35-version-plan.md` | v0.1~v1.3 권장 이정표와 승격 조건 정의 | `17`, `32`, `33`, `34` | 실제 릴리스 계획 | `review` | 릴리스 계획 전 필수 | 2026-07-23 | 버전 규칙, 호환성 범위, 일정과 보존 정책 |
+| `36-codex-workflow.md` | Codex 작업 전·중·후 절차와 중단·보고 기준 정의 | AGENTS 지침, `31`, `32`, `33` | 개별 Codex 작업 | `review` | Codex 작업 전 필수 | 2026-07-23 | 표준 명령, 자동 보고 범위, 장시간 승인 정책 |
 
 ## 3. 2단계 문서 상태 판단
 
@@ -81,7 +88,7 @@
 3. [확정] 데이터: `06-data-strategy.md` → `23-dataset-registry.md` → `24-data-license-policy.md` → `07-data-preprocessing.md` → `26-data-split-and-leakage-policy.md` → `25-data-quality-checklist.md`
 4. [확정] 자원·학습·평가·실험: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `27-benchmark-policy.md`·`28-generation-evaluation.md` → `15-experiment-management.md` → `29-reproducibility-policy.md` → `30-experiment-template.md`
 5. [확정] SFT·추론: `09-sft-plan.md` → `11-inference-design.md`
-6. [확정] 실행 계획과 검증: `17-development-roadmap.md` → `18-testing-checklist.md`
+6. [확정] 실행 계획과 품질 관리: `17-development-roadmap.md` → `31-definition-of-ready.md` → `33-test-strategy.md` → `18-testing-checklist.md` → `32-definition-of-done.md` → `34-risk-register.md` → `35-version-plan.md` → `36-codex-workflow.md`
 7. [후순위] 서비스: `12-api-specification.md` → `13-frontend-specification.md` → `14-database-design.md` → `19-deployment-plan.md`
 8. [후순위] 외부 제출: `20-leaderboard-strategy.md`
 
@@ -104,6 +111,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] 개발 로드맵·품질 게이트·Ready·Done·테스트·위험·버전·Codex 절차 문서와 ADR-006 상태를 반영함 |
 | 2026-07-23 | [확정] 평가·Benchmark·생성·실험 관리·재현성·템플릿 문서와 ADR-005 상태를 반영함 |
 | 2026-07-23 | [확정] 데이터 전략·전처리·registry·라이선스·품질·누수 문서와 ADR-004 상태를 반영함 |
 | 2026-07-23 | [확정] 시스템 아키텍처, 저장소 구조, 산출물·설정 정책 문서 상태와 선후 관계를 반영함 |
