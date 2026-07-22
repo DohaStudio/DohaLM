@@ -53,7 +53,7 @@
 - [확정] Python, NumPy, PyTorch 및 CUDA 관련 seed를 설정하되 GPU 연산의 완전 결정성이 보장되지 않을 수 있음을 기록한다.
 - [확정] 학습 로그에는 step, epoch 또는 token 진행량, loss, learning rate, 처리량, 경과 시간 및 최대 GPU 메모리를 남긴다.
 - [확정] 체크포인트에는 모델, optimizer, scheduler, AMP scaler, 진행 step 및 재현에 필요한 상태를 저장한다.
-- [검증 필요] 정확한 로그 형식, 실험 ID 및 산출물 디렉터리 규칙은 [실험 관리 문서](./15-experiment-management.md)에서 확정한다.
+- [검증 필요] 정확한 로그 형식, 실험 ID 및 산출물 디렉터리 규칙은 계획 문서 `15-experiment-management.md`에서 확정한다.
 
 ## 6. 설정값 관리 규칙
 
@@ -63,6 +63,44 @@
 - [확정] `DohaLM-Tiny` 기준값을 변경할 때는 이유와 영향 및 전후 비교를 ADR 또는 실험 기록에 남긴다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Attention Head 및 FFN 크기는 Tiny 실측 후 확정한다.
 
+### 6.1 DohaLM-Tiny 확정 사양
+
+다음 값은 [모델 아키텍처](./04-model-architecture.md)와 [ADR-002](./decisions/ADR-002-tiny-model-architecture.md)를 기준으로 관리한다.
+
+| 항목 | 값 | 상태 |
+|---|---:|---|
+| 모델 구조 | Decoder-only Transformer | [확정] |
+| Transformer Layer | 6 | [확정] |
+| Hidden Size | 384 | [확정] |
+| Attention Head | 6 | [확정] |
+| Head Dimension | 64 | [확정] |
+| Context Length | 256 | [확정] |
+| Vocabulary Size | 16,000 | [확정] |
+| FFN Size | 1,536 | [확정] |
+| Block 정규화 | Pre-LayerNorm | [확정] |
+| 위치 표현 | 학습형 absolute positional embedding | [확정] |
+| Linear bias | 사용 | [확정] |
+| Token Embedding–LM Head | weight tying | [확정] |
+| LM Head bias | 미사용 | [확정] |
+| 학습 계산 정밀도 | FP16 mixed precision | [확정] |
+| 예상 파라미터 수 | 16,889,856 | [확정] 설계 산식 기준 |
+
+- [확정] 구현 후 실제 파라미터 수와 checkpoint 구조가 기준 문서와 일치하는지 테스트한다.
+- [확정] 위 사양을 변경하려면 영향과 checkpoint 호환성을 기록한 후속 ADR이 필요하다.
+
+### 6.2 학습 전 미결정 설정
+
+- [검증 필요] Dropout 확률
+- [검증 필요] 파라미터 초기화 방식
+- [검증 필요] 실제 micro-batch
+- [검증 필요] Gradient Accumulation 횟수
+- [검증 필요] Gradient Checkpointing 기본 활성화 여부
+- [검증 필요] Learning Rate
+- [검증 필요] Warmup step 또는 비율
+- [검증 필요] Weight Decay
+- [검증 필요] Token Budget
+- [검증 필요] Checkpoint 주기
+
 ## 7. 데이터 라이선스 기록 규칙
 
 - [확정] 데이터셋마다 이름, 원본 URL 또는 제공처, 취득일, 버전, 라이선스, 사용 조건 및 저장 위치를 기록한다.
@@ -70,7 +108,7 @@
 - [확정] 원본 데이터와 정제·토큰화 산출물의 계보 및 처리 스크립트 버전을 연결한다.
 - [확정] 개인정보, 민감정보, 유해 콘텐츠 및 저작권 위험에 대한 점검 결과를 남긴다.
 - [제외] 출처 또는 라이선스를 확인할 수 없는 데이터는 학습에 사용하지 않는다.
-- [검증 필요] 세부 승인 기준은 [데이터 전략](./06-data-strategy.md)과 [데이터 전처리](./07-data-preprocessing.md)에서 확정한다.
+- [검증 필요] 세부 승인 기준은 계획 문서 `06-data-strategy.md`와 `07-data-preprocessing.md`에서 확정한다.
 
 ## 8. Git 브랜치 및 커밋 규칙
 
@@ -88,7 +126,7 @@
 - [확정] 학습은 작은 배치 과적합, checkpoint round-trip 및 재개 동작을 테스트한다.
 - [확정] 데이터는 정제 규칙, 중복 제거, 분할 누수 및 토큰 경계를 테스트한다.
 - [확정] 문서는 링크, 용어, 상태 및 실제 구현 상태를 검토한다.
-- [검증 필요] 통합 테스트의 구체적 합격 기준은 [테스트 체크리스트](./18-testing-checklist.md)에서 확정한다.
+- [검증 필요] 통합 테스트의 구체적 합격 기준은 계획 문서 `18-testing-checklist.md`에서 확정한다.
 
 ## 10. 임의 추정을 금지하는 규칙
 
@@ -101,7 +139,15 @@
 ## 검토 필요 사항
 
 - [검증 필요] 패키지 버전과 CUDA·PyTorch 호환 조합
-- [검증 필요] Tiny의 FFN 크기, normalization 방식, bias 사용 및 embedding weight tying
+- [검증 필요] Tiny의 Dropout 확률과 파라미터 초기화 방식
+- [검증 필요] 실제 micro-batch, Gradient Accumulation 횟수 및 Gradient Checkpointing 기본 활성화 여부
+- [검증 필요] Learning Rate, Warmup, Weight Decay, Token Budget 및 Checkpoint 주기
 - [검증 필요] FP16 학습의 수치 안정성과 실제 VRAM 상한
 - [검증 필요] 데이터셋별 라이선스와 공개 가능 범위
 - [검증 필요] 정량 평가 합격선과 Small 진행 여부 판단 기준
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] ADR-002에 따라 DohaLM-Tiny 구조를 동기화하고 학습 관련 미결정 항목을 분리함 |

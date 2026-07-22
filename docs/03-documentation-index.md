@@ -1,61 +1,93 @@
 # DohaLM 문서 인덱스
 
-## 상태 기준
+## 1. 문서 상태 체계
 
-- [확정] `작성 완료`: 현재 단계에서 요구된 내용이 작성됨. 구현 완료를 의미하지 않는다.
-- [확정] `기존 스캐폴드`: 파일은 있으나 제목 수준이므로 기준 문서로 사용하지 않는다.
-- [확정] `작성 예정`: 아직 파일이 없거나 기준 내용이 작성되지 않음.
-- [후순위] `후순위`: 선행 실험 또는 핵심 구현 이후 작성 가능함.
+문서 자체의 생명주기 상태는 다음 영문 값만 사용한다.
 
-## 문서 계획
+| 상태 | 의미 |
+|---|---|
+| `planned` | 파일이 없거나 목차·작성 계획만 존재함 |
+| `draft` | 초안이 작성되었으나 핵심 미결정 사항이 남아 있음 |
+| `review` | 필수 내용이 작성되어 검토를 기다리거나 검토 중임 |
+| `approved` | 프로젝트 기준 문서 또는 결정으로 승인됨. 구현 완료를 뜻하지 않음 |
+| `implemented` | 승인된 문서가 코드·설정·테스트에 반영되고 검증됨 |
+| `deprecated` | 후속 문서나 결정으로 대체되어 더 이상 현재 기준이 아님 |
 
-| 파일명 | 문서 목적 | 주요 내용 | 선행 문서 | 작성 상태 | 구현 전 필수 여부 |
-|---|---|---|---|---|---|
-| `00-project-overview.md` | 프로젝트 최상위 개요 정의 | 배경, 목적, 결과물, 개발 흐름, 완료 조건 | 없음 | [확정] 작성 완료 | 예 |
-| `01-scope-and-goals.md` | 범위와 성공·중단 기준 정의 | MVP, Tiny, Small, 포함·제외 범위 | `00-project-overview.md` | [확정] 작성 완료 | 예 |
-| `02-development-rules.md` | 개발 및 검증 규칙 정의 | 직접 구현, 재현성, Git, 테스트, 데이터 기록 | `00`, `01` | [확정] 작성 완료 | 예 |
-| `03-documentation-index.md` | 문서 작성 순서와 상태 관리 | 전체 문서 목록, 의존성, 필수 여부 | `00`, `01`, `02` | [확정] 작성 완료 | 예 |
-| `decisions/ADR-001-initial-model-scope.md` | 최초 모델 범위 결정 기록 | 8GB 제약, Tiny 우선, 모델 규모 역할 | `00`, `01` | [확정] 작성 완료 | 예 |
-| `03-system-architecture.md` | 전체 시스템 경계와 흐름 정의 | 데이터→학습→평가→서버→UI, 모듈 책임 | `00`, `01`, `02`, ADR-001 | [검증 필요] 작성 예정 | 예 |
-| `04-model-architecture.md` | 모델 계산 구조와 사양 확정 | shape, 파라미터 산식, attention, FFN, norm, init | `03-system-architecture.md`, ADR-001 | [검증 필요] 작성 예정 | 예 |
-| `05-tokenizer-design.md` | 한국어 토크나이저 설계 | SentencePiece 방식, 정규화, special token, 평가 | `04-model-architecture.md` | [검증 필요] 작성 예정 | 예 |
-| `06-data-strategy.md` | 데이터 선택 및 거버넌스 정의 | 후보, 라이선스, 품질, 분할, 제외 기준 | `01`, `02`, `05` | [검증 필요] 작성 예정 | 예 |
-| `07-data-preprocessing.md` | 재현 가능한 전처리 명세 | 정제, 중복 제거, 필터, 샤딩, 계보 | `05`, `06` | [검증 필요] 작성 예정 | 예 |
-| `08-pretraining-plan.md` | 사전학습 절차와 자원 계획 | objective, optimizer, schedule, batch, resume | `04`, `05`, `07`, `16` | [검증 필요] 작성 예정 | 예 |
-| `09-sft-plan.md` | 질문·답변 SFT 설계 | 데이터 형식, chat template, loss mask, 비교 평가 | `05`, `07`, `08` | [검증 필요] 작성 예정 | SFT 전 필수 |
-| `10-evaluation-plan.md` | 공통 평가 기준 정의 | loss, perplexity, 생성, 한국어 평가, 합격선 | `04`, `05`, `08`, `09` | [검증 필요] 작성 예정 | 학습 전 필수 |
-| `11-inference-design.md` | 자기회귀 생성 및 모델 로딩 설계 | sampling, KV cache 검토, device, latency, 안전 제한 | `04`, `09`, `10`, `16` | [검증 필요] 작성 예정 | 추론 구현 전 필수 |
-| `12-api-specification.md` | FastAPI 계약 정의 | endpoint, schema, 오류, streaming, lifecycle | `03`, `11` | [후순위] 작성 예정 | API 구현 전 필수 |
-| `13-frontend-specification.md` | Next.js 채팅 화면 명세 | 화면 상태, 메시지 흐름, 오류 및 접근성 | `12` | [후순위] 작성 예정 | UI 구현 전 필수 |
-| `14-database-design.md` | 영속화 필요성과 구조 판단 | 저장 대상, 스키마, 보존·삭제, 미사용 대안 | `03`, `12`, `13` | [후순위] 작성 예정 | 조건부 |
-| `15-experiment-management.md` | 실험과 산출물 추적 규칙 정의 | experiment ID, config snapshot, 로그, checkpoint | `02`, `08`, `10` | [검증 필요] 작성 예정 | 본 학습 전 필수 |
-| `16-gpu-memory-strategy.md` | 8GB VRAM 실행 전략 정의 | 메모리 산식, AMP, accumulation, checkpointing, OOM 절차 | `04`, ADR-001 | [검증 필요] 작성 예정 | 학습 구현 전 필수 |
-| `17-development-roadmap.md` | 단계별 작업 순서와 게이트 정의 | milestone, 의존성, 산출물, 중단·재검토 시점 | 전체 설계 문서 초안 | [검증 필요] 작성 예정 | 본 구현 전 필수 |
-| `18-testing-checklist.md` | 완료 판정용 테스트 체계 정의 | 단위, 통합, 재현성, 성능, API·UI 점검 | 구현 대상별 설계 문서 | [검증 필요] 작성 예정 | 각 구현 전 필수 |
-| `19-deployment-plan.md` | 로컬·컨테이너 실행 및 배포 계획 | 환경, 이미지, 모델 배치, 모니터링, 롤백 | `11`, `12`, `13`, `14`, `18` | [후순위] 작성 예정 | 배포 전 필수 |
-| `20-leaderboard-strategy.md` | K-AI Leaderboard 제출 가능성 검토 | 최신 규정, 형식, 라이선스, 평가, gap 분석 | `10`, `15`, `19` | [후순위] 작성 예정 | 아니요 |
+- [확정] `approved`는 설계 승인이고 `implemented`는 구현 및 검증 완료다.
+- [확정] 구현되지 않은 문서에 `implemented`를 사용하지 않는다.
+- [확정] 문서 상태와 본문의 `[확정]`, `[가정]`, `[검증 필요]`, `[후순위]`, `[제외]` 태그는 서로 다른 축이다.
+- [확정] 예를 들어 문서 상태가 `review`여도 본문 안에는 이미 결정된 `[확정]` 항목과 아직 남은 `[검증 필요]` 항목이 함께 있을 수 있다.
 
-## 권장 작성 순서
+## 2. 전체 문서 현황
 
-1. [확정] 시스템·모델·토크나이저: `03` → `04` → `05`
-2. [확정] 데이터: `06` → `07`
-3. [확정] 자원·학습·평가: `16` → `08` → `10` → `15`
-4. [확정] SFT·추론: `09` → `11`
-5. [확정] 실행 계획과 검증: `17` → `18`
-6. [후순위] 서비스: `12` → `13` → `14` → `19`
-7. [후순위] 외부 제출: `20`
+| 파일명 | 문서 목적 | 선행 문서 | 후속 문서 | 현재 상태 | 구현 전 필수 여부 | 마지막 검토일 | 핵심 미결정 사항 |
+|---|---|---|---|---|---|---|---|
+| `00-project-overview.md` | 프로젝트 최상위 목적과 완료 조건 정의 | 없음 | `01`, `02`, 전체 설계 문서 | `review` | 예 | 2026-07-23 | 처리량, 학습 시간, 데이터 규모 |
+| `01-scope-and-goals.md` | MVP와 Tiny/Small 범위 및 성공 기준 정의 | `00` | `04`, `08`, `09`, `16` | `review` | 예 | 2026-07-23 | 정량 합격선, Small 진행 기준 |
+| `02-development-rules.md` | 개발·재현성·설정·데이터·Git·테스트 규칙 정의 | `00`, `01`, ADR-002 | 모든 구현 문서 | `review` | 예 | 2026-07-23 | 학습 hyperparameter, 실제 VRAM, 데이터 라이선스 |
+| `03-documentation-index.md` | 문서 상태·의존성·작성 순서 관리 | `00`, `01`, `02` | 전체 문서 | `review` | 예 | 2026-07-23 | 계획 문서 작성 일정 |
+| `decisions/README.md` | ADR 목록과 상태 관리 | ADR 전체 | 후속 ADR | `review` | 예 | 2026-07-23 | 없음 |
+| `decisions/ADR-001-initial-model-scope.md` | Tiny 우선 개발과 모델 규모 범위 결정 | `00`, `01` | ADR-002, `04`, `16` | `approved` | 예 | 2026-07-23 | Tiny 실측과 Small 진행 여부 |
+| `decisions/ADR-002-tiny-model-architecture.md` | DohaLM-Tiny 세부 구조 결정 | ADR-001, `04` | 구현, `08`, `16` | `approved` | 예 | 2026-07-23 | Dropout, 초기화 방식 |
+| `decisions/ADR-003-tokenizer-method.md` | SentencePiece Unigram 및 어휘 정책 결정 | `01`, `05` | `06`, `07`, `08`, `09` | `approved` | 예 | 2026-07-23 | character coverage, normalization, byte fallback |
+| `03-system-architecture.md` | 데이터→학습→평가→서버→UI 시스템 경계 정의 | `00`, `01`, `02`, ADR-001 | `04`, `11`, `12` | `planned` | 예 | — | 모듈 경계와 인터페이스 |
+| `04-model-architecture.md` | Tiny 계산 구조, shape와 파라미터 산식 정의 | `01`, ADR-001, ADR-002 | `08`, `09`, `11`, `16`, `18` | `review` | 예 | 2026-07-23 | Dropout, 초기화, padding mask 세부 규칙 |
+| `05-tokenizer-design.md` | 한국어 SentencePiece 토크나이저 설계 | `01`, ADR-003 | `06`, `07`, `08`, `09` | `review` | 예 | 2026-07-23 | character coverage, normalization, byte fallback, corpus |
+| `06-data-strategy.md` | 데이터 후보·라이선스·품질·분할 정책 정의 | `01`, `02`, `05` | `07`, `08`, `09` | `planned` | 예 | — | 데이터 후보와 사용 허가 |
+| `07-data-preprocessing.md` | 정제·중복 제거·필터·샤딩·계보 명세 | `05`, `06` | `08`, `09`, `18` | `planned` | 예 | — | packing, 경계, 필터 임계치 |
+| `08-pretraining-plan.md` | 사전학습 절차, 자원, 복원 계획 정의 | `04`, `05`, `07`, `16` | `10`, `15`, `17`, `18` | `draft` | 예 | 2026-07-23 | LR, warmup, weight decay, token budget, batch, 저장 주기 |
+| `09-sft-plan.md` | 질문·답변 SFT 형식과 loss 정책 정의 | `05`, `07`, `08` | `10`, `11`, `15`, `18` | `draft` | SFT 전 필수 | 2026-07-23 | 데이터, system 문구, truncation, hyperparameter |
+| `10-evaluation-plan.md` | 공통 정량·정성 평가 기준 정의 | `04`, `05`, `08`, `09` | `11`, `15`, `17`, `20` | `planned` | 학습 전 필수 | — | 지표, 데이터셋, 합격선 |
+| `11-inference-design.md` | 자기회귀 생성과 모델 로딩 설계 | `04`, `09`, `10`, `16` | `12`, `13`, `19` | `planned` | 추론 구현 전 필수 | — | sampling, KV cache, latency 정책 |
+| `12-api-specification.md` | FastAPI 요청·응답 계약 정의 | `03`, `11` | `13`, `14`, `19` | `planned` | API 구현 전 필수 | — | streaming, 오류, lifecycle |
+| `13-frontend-specification.md` | Next.js 채팅 화면과 상태 흐름 정의 | `12` | `14`, `19` | `planned` | UI 구현 전 필수 | — | 화면·오류·접근성 세부사항 |
+| `14-database-design.md` | 영속화 필요성과 데이터 구조 결정 | `03`, `12`, `13` | `19` | `planned` | 조건부 | — | DB 사용 여부, 보존·삭제 정책 |
+| `15-experiment-management.md` | 실험 ID, 로그, config, checkpoint 관리 | `02`, `08`, `10` | `17`, `18`, `20` | `planned` | 본 학습 전 필수 | — | 저장 경로, 보존 정책, 추적 형식 |
+| `16-gpu-memory-strategy.md` | 8GB VRAM 산식·측정·OOM 대응 정의 | `04`, ADR-001, ADR-002 | `08`, `11`, `17`, `18` | `draft` | 학습 구현 전 필수 | 2026-07-23 | micro-batch, accumulation, checkpointing, 실측값 |
+| `17-development-roadmap.md` | 단계별 구현 순서와 통과 게이트 정의 | 핵심 설계 문서 | 구현 작업 | `planned` | 본 구현 전 필수 | — | milestone과 중단 시점 |
+| `18-testing-checklist.md` | 단위·통합·재현성·성능 검증 기준 정의 | 구현 대상별 설계 문서 | 구현 완료 판정 | `planned` | 각 구현 전 필수 | — | test matrix와 합격 기준 |
+| `19-deployment-plan.md` | 로컬·컨테이너 실행과 배포 계획 정의 | `11`, `12`, `13`, `14`, `18` | `20` | `planned` | 배포 전 필수 | — | 환경, monitoring, rollback |
+| `20-leaderboard-strategy.md` | K-AI Leaderboard 제출 가능성 검토 | `10`, `15`, `19` | 제출 결정 ADR | `planned` | 아니요 | — | 최신 규정, 형식, 라이선스, 성능 격차 |
 
-## 현재 저장소 문서와의 관계
+## 3. 2단계 문서 상태 판단
 
-- [확정] 기존 `01-project-plan.md`, `02-model-architecture.md`, `03-data-policy.md`, `04-training-plan.md`, `05-evaluation-plan.md`, `06-deployment-plan.md`은 현재 영문 제목만 있는 스캐폴드다.
-- [확정] 이번 단계에서는 기존 파일을 삭제·변경하지 않았다.
-- [검증 필요] 후속 문서화 단계에서 기존 스캐폴드의 이름을 새 문서 계획에 맞게 유지, 이동 또는 대체할지 결정해야 한다. 결정 전에는 위 표의 정확한 파일명을 기준으로 사용한다.
-- [확정] 번호가 같은 `03-documentation-index.md`와 계획 문서 `03-system-architecture.md`는 역할이 다르며 둘 다 유지한다.
+| 문서 | 상태 | 판단 근거 |
+|---|---|---|
+| `04-model-architecture.md` | `review` | Tiny 구조와 산식이 작성되고 ADR-002에 반영되었으나 구현·테스트 전임 |
+| `05-tokenizer-design.md` | `review` | 방식과 special token은 결정되었으나 corpus 기반 세부 검증 전임 |
+| `08-pretraining-plan.md` | `draft` | 필수 흐름은 있으나 학습 hyperparameter와 데이터 계획이 미정임 |
+| `09-sft-plan.md` | `draft` | 템플릿은 정의되었으나 데이터·truncation·평가 기준이 미정임 |
+| `16-gpu-memory-strategy.md` | `draft` | 이론 전략은 작성되었으나 RTX 3060 Ti 8GB 실측 전임 |
 
-## 공통 작성 규칙
+- [확정] 위 다섯 문서는 모두 존재하고 인덱스에 반영되었다.
+- [확정] 어느 문서도 구현과 테스트가 완료되지 않았으므로 `implemented`가 아니다.
+
+## 4. 권장 작성·승인 순서
+
+1. [확정] 시스템·모델·토크나이저: `03-system-architecture.md` → `04-model-architecture.md` → `05-tokenizer-design.md`
+2. [확정] 데이터: `06-data-strategy.md` → `07-data-preprocessing.md`
+3. [확정] 자원·학습·평가: `16-gpu-memory-strategy.md` → `08-pretraining-plan.md` → `10-evaluation-plan.md` → `15-experiment-management.md`
+4. [확정] SFT·추론: `09-sft-plan.md` → `11-inference-design.md`
+5. [확정] 실행 계획과 검증: `17-development-roadmap.md` → `18-testing-checklist.md`
+6. [후순위] 서비스: `12-api-specification.md` → `13-frontend-specification.md` → `14-database-design.md` → `19-deployment-plan.md`
+7. [후순위] 외부 제출: `20-leaderboard-strategy.md`
+
+## 5. 현재 저장소 문서와의 관계
+
+- [확정] 기존 `01-project-plan.md`, `02-model-architecture.md`, `03-data-policy.md`, `04-training-plan.md`, `05-evaluation-plan.md`, `06-deployment-plan.md`은 영문 제목만 있는 스캐폴드이며 현재 기준 문서가 아니다.
+- [검증 필요] 기존 스캐폴드의 유지·이동·대체 여부는 별도 문서 정리 작업에서 결정한다.
+- [확정] 번호가 같은 `03-documentation-index.md`와 계획 문서 `03-system-architecture.md`는 역할이 다르다.
+
+## 6. 공통 작성 규칙
 
 - [확정] 모든 문서는 한국어 Markdown으로 작성한다.
 - [확정] 모델명과 하드웨어 표기는 `DohaLM-Tiny`, `DohaLM-Small`, `RTX 3060 Ti 8GB`로 통일한다.
-- [확정] 목표, 현재 구현 상태 및 검증 결과를 구분한다.
-- [확정] 확인되지 않은 내용에는 상태를 표시하고 검증 방법 또는 선행 문서를 연결한다.
-- [확정] 외부 규정과 라이선스는 적용 시점에 공식 출처로 다시 확인한다.
+- [확정] 목표, 문서 승인, 구현 및 검증 완료를 서로 구분한다.
+- [확정] 확인되지 않은 내용에는 본문 상태 태그와 검증 방법을 기록한다.
+- [확정] 존재하지 않는 계획 문서는 Markdown 링크 대신 파일명을 코드 형식으로 표시한다.
+
+## 7. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] 문서 생명주기 상태 체계를 도입하고 2단계 문서 및 ADR 상태를 실제 저장소에 맞게 동기화함 |

@@ -1,5 +1,12 @@
 # DohaLM 범위와 목표
 
+## 문서 상태
+
+- 문서 상태: `review`
+- 마지막 검토일: 2026-07-23
+- [확정] 이 문서는 프로젝트 범위와 목표를 정의하며 구현 완료를 의미하지 않는다.
+- [확정] Tiny 세부 구조는 [ADR-002](./decisions/ADR-002-tiny-model-architecture.md), 토크나이저 방식은 [ADR-003](./decisions/ADR-003-tokenizer-method.md)을 따른다.
+
 ## 기준
 
 - [확정] 프로젝트명은 `DohaLM`이다.
@@ -16,7 +23,7 @@
 MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하는 단계다.
 
 - [확정] 라이선스를 기록한 한국어 텍스트 데이터 입력
-- [확정] SentencePiece 기반 16,000 어휘 토크나이저 학습
+- [확정] [ADR-003](./decisions/ADR-003-tokenizer-method.md)에 따른 SentencePiece Unigram 기반 16,000 어휘 토크나이저 학습
 - [확정] Decoder-only Transformer 직접 구현
 - [확정] 짧은 데이터 과적합 테스트와 소규모 사전학습
 - [확정] 체크포인트 저장, 복원 및 학습 재개
@@ -27,8 +34,11 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 
 ## 1차 모델 목표: DohaLM-Tiny
 
+다음 값은 [모델 아키텍처](./04-model-architecture.md)와 [ADR-002](./decisions/ADR-002-tiny-model-architecture.md)에서 승인된 설계 사양이다.
+
 | 항목 | 기준 | 상태 |
 |---|---:|---|
+| 모델 구조 | Decoder-only Transformer | [확정] |
 | 목표 파라미터 | 약 15M~25M | [확정] |
 | Transformer Layer | 6 | [확정] |
 | Hidden Size | 384 | [확정] |
@@ -36,11 +46,19 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 | Head Dimension | 64 | [확정] 384 ÷ 6 계산 결과 |
 | Context Length | 256 | [확정] |
 | Vocabulary Size | 16,000 | [확정] |
-| Precision | FP16 | [확정] |
+| FFN Size | 1,536 | [확정] |
+| Normalization | Pre-LayerNorm | [확정] |
+| Position Embedding | 학습형 absolute positional embedding | [확정] |
+| Linear bias | 사용 | [확정] |
+| LM Head bias | 미사용 | [확정] |
+| Token Embedding–LM Head | weight tying 사용 | [확정] |
+| Precision | FP16 mixed precision | [확정] |
+| 예상 파라미터 | 16,889,856 | [확정] 설계 산식 기준 |
 | 목적 | 전체 학습 파이프라인 검증 | [확정] |
 
-- [검증 필요] FFN 차원, 임베딩 가중치 공유 여부, 정규화 방식 등은 [모델 아키텍처 문서](./04-model-architecture.md)에서 확정해야 한다.
-- [검증 필요] 위 미정 항목에 따라 정확한 파라미터 수가 달라지므로 구현 전 산식으로 재확인한다.
+- [확정] 설계상 예상 파라미터 수는 `16,889,856`이며 목표 약 15M~25M 범위 안에 있다.
+- [검증 필요] 구현 후 실제 파라미터 수가 `16,889,856`과 일치하는지 자동 테스트로 확인한다.
+- [검증 필요] Dropout 확률과 파라미터 초기화 방식은 아직 결정되지 않았다.
 - [검증 필요] FP16은 안정성을 포함해 실제 학습에서 검증하며, 손실 스케일링과 수치 안정성 정책은 학습 계획에서 정한다.
 
 ## 2차 모델 목표: DohaLM-Small
@@ -56,6 +74,29 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [확정] Tiny 파이프라인과 자원 사용량이 검증되기 전 Small의 상세 사양을 고정하지 않는다.
 - [가정] Small은 Tiny보다 생성 품질과 표현 용량을 높이는 역할을 맡는다.
 - [검증 필요] 8GB VRAM에서 가능한 컨텍스트 길이와 유효 배치 크기는 메모리 실측 후 정한다.
+
+## 구현 및 학습 전 미결정 사항
+
+### 모델과 학습
+
+- [검증 필요] Dropout 확률
+- [검증 필요] 파라미터 초기화 방식
+- [검증 필요] 실제 micro-batch size
+- [검증 필요] Gradient Accumulation steps
+- [검증 필요] Gradient Checkpointing 기본 활성화 여부
+- [검증 필요] Learning Rate
+- [검증 필요] Warmup step 또는 비율
+- [검증 필요] Weight Decay
+- [검증 필요] Token Budget
+- [검증 필요] Checkpoint 저장 주기
+
+### 토크나이저와 자원
+
+- [검증 필요] SentencePiece character coverage
+- [검증 필요] SentencePiece normalization rule
+- [검증 필요] Byte fallback 사용 여부
+- [검증 필요] `DohaLM-Small` 상세 구조
+- [검증 필요] `RTX 3060 Ti 8GB`의 실제 VRAM 사용량
 
 ## 장기 목표
 
@@ -100,7 +141,7 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [검증 필요] 최대 메모리 사용량, 처리량 및 실행 시간을 실제 측정해 기록한다.
 - [가정] 메모리 부족 시 배치 크기, gradient accumulation, activation checkpointing 또는 컨텍스트 길이를 조정하되 모델 기준값 변경은 ADR로 남긴다.
 
-정량 합격선은 평가 설계와 초기 기준 측정 없이 임의로 정하지 않으며 [평가 계획](./10-evaluation-plan.md)에서 확정한다.
+정량 합격선은 평가 설계와 초기 기준 측정 없이 임의로 정하지 않는다. [예정] `10-evaluation-plan.md`에서 확정한다.
 
 ## 실패 또는 중단 기준
 
@@ -110,3 +151,9 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [확정] NaN/Inf, 반복적인 CUDA OOM 또는 데이터 손상이 해결되지 않으면 해당 실험을 중단하고 직전 검증 단계로 돌아간다.
 - [확정] Small이 하드웨어 제약 안에서 현실적인 처리량을 확보하지 못하면 Small 학습을 중단할 수 있으며, Tiny의 완료 여부와 분리해 기록한다.
 - [검증 필요] 시간·비용에 대한 구체적인 중단 임계치는 초기 벤치마크 후 정한다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] ADR-002와 ADR-003에 맞춰 Tiny 설계 사양을 동기화하고 미결정 사항 및 예정 평가 문서 표기를 정리함 |
