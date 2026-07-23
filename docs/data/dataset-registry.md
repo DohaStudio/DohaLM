@@ -6,13 +6,16 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [데이터 전략](./data-strategy.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
+| 선행 문서 | [데이터 전략](./data-strategy.md), [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터셋 승인 로그](./dataset-approval-log.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 전처리](./preprocessing.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] 이 문서는 등록 양식만 정의하며 실제 데이터셋을 등록하지 않는다.
+- [확정] 이 문서는 승인·다운로드·처리된 실제 dataset version 양식을 정의하며 현재 실제 version은 등록하지 않는다.
+- [확정] 다운로드 전 후보는 [데이터셋 후보 등록부](./dataset-candidate-registry.md)가 관리한다.
 - [확정] 레지스트리의 한 항목은 데이터셋 이름만이 아니라 특정 source version과 사용 조건을 식별한다.
-- [확정] registry는 dataset 후보·목적별 승인 상태의 기준이고, [Phase 1 데이터 계약](./phase1-data-contract.md)의 `source-manifest.json`은 한 실행의 실제 입력 checksum·count·artifact를 기록한다. 둘은 서로 대체하지 않고 dataset ID·version으로 연결한다.
+- [확정] 이 registry는 실제 version·목적별 승인 상태의 기준이고, [Phase 1 데이터 계약](./phase1-data-contract.md)의 `source-manifest.json`은 한 실행의 입력 checksum·count·artifact를 기록한다. 후보 ID, 실제 version과 실행 manifest를 연결한다.
+
+- [가정] `AIHUB-71748` 후보가 실제 취득되면 `aihub-71748-corpus-2026-01` 같은 별도 version ID를 만들 수 있으나 이는 구조 예시이며 확정값이 아니다.
 
 ## 2. 필드 정의
 
@@ -117,4 +120,5 @@ notes: "문서 양식 설명 전용이며 실제 사용 금지"
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] registry와 Phase 1 source manifest의 역할·연결 기준을 명시함 |
+| 2026-07-23 | [확정] 다운로드 전 후보 등록부와 승인·다운로드 후 실제 version registry의 책임을 분리함 |
 | 2026-07-23 | [확정] 데이터셋 registry 필드, 상태 전이, 승인 절차와 가상 예시 정의 |

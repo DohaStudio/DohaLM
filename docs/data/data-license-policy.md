@@ -6,8 +6,8 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [개발 규칙](../governance/development-rules.md), [데이터 전략](./data-strategy.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서 | [데이터 전처리](./preprocessing.md), [데이터 품질 체크리스트](./data-quality-checklist.md), 모델 카드 작성 절차 [검증 필요] |
+| 선행 문서 | [개발 규칙](../governance/development-rules.md), [데이터 전략](./data-strategy.md), [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
+| 후속 문서 | [데이터셋별 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [데이터 전처리](./preprocessing.md), [데이터 품질 체크리스트](./data-quality-checklist.md), 모델 카드 작성 절차 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
 
 > 이 문서는 프로젝트 운영 기준이며 법률 자문이나 특정 데이터셋에 대한 법적 결론이 아니다. 해석이 불명확하거나 위험이 큰 경우 `[법률 검토 필요]`로 남기고 사용하지 않는다.
@@ -19,6 +19,7 @@
 - [확정] 접근 가능하다는 사실을 학습·수정·재배포·모델 공개 허가로 해석하지 않는다.
 - [확정] 원본 데이터 공개 허용과 파생 모델 weight 공개 허용을 별도 항목으로 검토한다.
 - [확정] 사용조건이 목적별로 다르면 토크나이저, 사전학습, SFT, 평가와 공개를 각각 기록한다.
+- [확정] AI Hub 5개 후보의 2026-07-23 공식 정책 snapshot과 미확인 공개·국외 처리 항목은 [데이터셋별 라이선스 검토](./dataset-license-review.md)에서 관리한다.
 
 ## 3. 사용 전 확인 절차
 
@@ -118,3 +119,4 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] 데이터 이용조건 검토, 변경·삭제 대응, 웹·AI Hub 별도 검토와 모델 카드 기록 원칙 정의 |
+| 2026-07-23 | [확정] AI Hub 후보별 공식 이용정책 검토와 일반 정책으로 확정할 수 없는 공개·상업·국외 처리 항목을 연결함 |

@@ -9,6 +9,7 @@
 - [확정] 기준 장비는 단일 `RTX 3060 Ti 8GB`다.
 - [확정] 모델은 [모델 아키텍처](../architecture/model-architecture.md), 토큰 방식은 [토크나이저 설계](./tokenizer-design.md), Phase 2 입력·산출물·호환성은 [토크나이저 상세 계약](./phase2-tokenizer-contract.md)을 따른다.
 - [확정] 현재 학습 코드, 학습 데이터 및 체크포인트는 존재하지 않는다. 이 문서는 실행 계획이다.
+- [확정] 사전학습 후보와 목적별 승인은 [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md)에서 분리해 관리한다.
 - [후순위] `DohaLM-Small` 사전학습은 Tiny의 정확성·메모리·처리량 측정 후 진행한다.
 
 ## 2. 학습 목표
@@ -23,7 +24,7 @@
 
 다음 항목이 통과되기 전 장시간 사전학습을 시작하지 않는다.
 
-1. [검증 필요] 데이터 출처, 라이선스, 정제 및 train/validation 분할 기록 완료
+1. [검증 필요] 데이터 출처·라이선스 검토와 `approved_pretraining` 승인, 정제 및 train/validation 분할 기록 완료
 2. [검증 필요] Phase 2 계약의 SentencePiece 16,000 vocabulary, ADR-003 special token ID 0~7, artifact checksum과 tokenizer fingerprint 테스트 통과
 3. [검증 필요] 모델 파라미터 수 `16,889,856` 일치
 4. [검증 필요] shape, causal mask, loss shift 및 weight tying 단위 테스트 통과
@@ -190,3 +191,4 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약의 artifact·fingerprint·호환성 요구를 사전학습 진입 조건과 checkpoint 계보에 연결함 |
+| 2026-07-23 | [확정] 후보·라이선스·승인 로그를 사전학습 데이터 선행 조건에 연결하고 `approved_pretraining` 목적 승인을 요구함 |
