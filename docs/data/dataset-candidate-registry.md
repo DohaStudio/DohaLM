@@ -7,13 +7,14 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [데이터 전략](./data-strategy.md), [데이터 라이선스 정책](./data-license-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서·작업 | [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [평가 제외 목록](./evaluation-exclusion-list.md), 실제 다운로드 전 검토 |
+| 후속 문서·작업 | [구조 분석 요약](./analysis/dataset-analysis-summary.md), [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [평가 제외 목록](./evaluation-exclusion-list.md), 실제 다운로드 계보 검토 |
 | 구현 전 필수 여부 | 실제 데이터 취득·Phase 2 corpus 승인 전 예 |
 
 - [확정] 이 문서는 다운로드 전 후보의 공식 사실과 기술적 적합성을 관리한다.
 - [확정] 실제 승인·다운로드·처리 version은 [데이터셋 레지스트리](./dataset-registry.md)가 관리한다.
 - [확정] 아래 적합성은 DohaLM 관점의 정성 후보 평가이며 품질·이용 승인이 아니다.
 - [확정] 현재 승인된 tokenizer·pretraining·SFT·preference·evaluation corpus는 0개다.
+- [확정] 2026-07-23 로컬 제한 package 5종의 파일·ZIP 구조를 읽기 전용으로 분석했다. 이 관찰은 공식 다운로드 계보 확인이나 목적별 승인이 아니므로 아래 상태값을 변경하지 않는다.
 
 ## 2. 공식 근거와 제공기관 필드
 
