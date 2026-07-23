@@ -28,9 +28,9 @@
 | CLI-001 | CLI | 도움말, environment YAML/JSON, config validate/resolve, paths와 간결한 오류 | Integration test | 예 | 정상 종료·parse 가능·traceback 없음 | parser·출력·종료 코드 수정 | 예 | `pass` — Gate 1 명령 경로 검증 |
 | PATH-001 | 경로 | 저장소 root·CWD 독립성·Windows/POSIX 상대경로·지연 생성 정책 | Unit/Integration test | 예 | 저장소 밖 차단, 읽기 진단이 디렉터리를 만들지 않음 | 경로 정책 수정 | 예 | `pass` — 경로·artifact 정책 검증 |
 | LOG-001 | 로깅 | UTF-8 한글·비밀 마스킹·handler 중복 방지·지연 파일 생성 | Unit test | 예 | 한글 보존, secret 미노출, 중복 handler 없음 | formatter·handler 정책 수정 | 예 | `pass` — 로깅 회귀 테스트 통과 |
-| DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `pass` — synthetic fixture checksum 불변과 10개 artifact·lineage 정합성 검증 |
-| DATA-002 | 데이터 | deterministic split·exact 직접 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 예 | `pass` — group·normalized checksum·record ID·source record 누수 차단 검증; near 누수는 Phase 1 제외 |
-| DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — `unknown` license, `pending` approval, `suspected` PII 전체 차단 검증 |
+| DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `pass` — Gate 2에서 fixture checksum 불변, mutation 차단과 10개 artifact·lineage 정합성 재검증 |
+| DATA-002 | 데이터 | deterministic split·exact 직접 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 예 | `pass` — 입력 순서·임시 root 독립성과 group·normalized checksum·record ID·source record 누수 차단 재검증; near 누수는 Phase 1 제외 |
+| DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — approval pending/rejected, license unknown/pending/rejected, PII suspected/confirmed/unknown 전체 차단 확인 |
 | TOK-001 | 토크나이저 | vocab 16,000과 special token ID 0~7 | Component test | 예 | size·문자열·ID 정확히 일치 | tokenizer 재학습·설정 수정 | 예 | `planned` |
 | TOK-002 | 토크나이저 | encode/decode·role token 단일 ID·fingerprint | Regression test | 예 | 승인 fixture와 hash 일치 | normalization·artifact 검토 | 예 | `planned` |
 | TOK-003 | 토크나이저 | 한국어·혼합 문자 token 품질 | Manual evaluation | 예 | 승인 상태·통계 기준 충족 | corpus·coverage·fallback 재검토 | 일부 | `planned` |
@@ -73,12 +73,15 @@
 - [확정] `not_applicable`에는 해당하지 않는 이유와 승인 범위를 기록한다.
 - [확정] Phase 0 test 파일은 `tests/test_config.py`, `tests/test_environment.py`, `tests/test_paths.py`, `tests/test_logging.py`, `tests/test_cli.py`이며 `python -m pytest -q`로 실행한다.
 - [확정] Gate 1 근거 revision `10f5f46959a018a93000987e6c20896f6c263c0a`에서 43개 테스트가 수집되어 43개 모두 통과했고 실패는 0개였다.
+- [확정] Gate 2 근거 revision `c9ea945062796c1193b070cc09c00fdab0942a08`에서 Phase 0 회귀 43개를 포함한 75개 테스트가 75개 모두 통과했고 실패·오류·skip은 0개였다.
+- [확정] Gate 2 실제 CLI validate/build, 원본 mutation, atomic failure, 입력 순서·임시 root 결정론과 Windows 경로 검증을 통과했다.
 - [검증 필요] 후속 구현 test와 CI mapping은 해당 단계에서 정한다.
 
 ## 4. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Gate 2 승인 근거 revision·75개 테스트·CLI validate/build·결정론·원본 mutation·Windows 경로 결과를 연결함 |
 | 2026-07-23 | [확정] Gate 1 승인 근거에 따라 직접 검증한 Phase 0 항목만 `pass`로 기록하고 43개 테스트 결과를 연결함 |
 | 2026-07-23 | [확정] 격리 `.venv` editable 설치·의존성 무결성·CLI·CPU/CUDA smoke 검증 반영 |
 | 2026-07-23 | [확정] Phase 0 설정·환경·경로·로깅·CLI 자동 테스트와 실행 명령 반영 |

@@ -7,11 +7,11 @@
 | 문서 상태 | `implemented` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [시스템 아키텍처](./system-architecture.md), [모델 아키텍처](./model-architecture.md), [개발 로드맵](../quality/development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
-| 후속 문서 | Phase 1~6 구현 작업, 구현별 테스트, 최소 로컬 추론 설계 |
+| 후속 문서 | Phase 2~6 구현 작업, 구현별 테스트, 최소 로컬 추론 설계 |
 | 구현 전 필수 여부 | Phase 1~6 핵심 기능 구현 전 예 |
 
 - [확정] 이 문서는 환경·설정·데이터·토크나이저·모델·학습·체크포인트·평가·로컬 추론·실험의 기능 경계와 구현 계약을 정의한다.
-- [확정] 문서 생명주기 상태 `review`와 아래 개별 기능 상태는 서로 다른 축이다.
+- [확정] 문서 생명주기 상태 `implemented`와 아래 개별 기능 상태는 서로 다른 축이다.
 - [확정] Phase 0 기능은 실제 코드와 Gate 1 검증 근거가 있어 `verified`로 표시한다.
 - [확정] Phase 1 이후 기능은 구현되지 않았으며 계약 검토 수준인 `review` 또는 선택 후보인 `planned`로 표시한다.
 - [제외] FastAPI, Next.js, DB, 사용자 계정, 대화 기록 저장, 배포, 운영 모니터링과 Leaderboard 제출 기능은 이 문서 범위가 아니다.
@@ -196,7 +196,7 @@
 | 설정 항목 | parser·normalization·dedup·split·risk policy version; 구체 계약은 [Phase 1 데이터 계약](../data/phase1-data-contract.md), 미결정 설정값은 해당 문서 참조 |
 | 산출물 | versioned manifest·checksum·cleaned record·split·통계·격리 기록; 실제 본체 Git 제외 |
 | 보안·라이선스 | 미승인·PII·민감정보 차단, 제한 원문 로그 최소화, 원본 read-only |
-| 현재 상태 | `review` — 구현·fixture 없음 |
+| 현재 상태 | `verified` — Gate 2, revision `c9ea945062796c1193b070cc09c00fdab0942a08`, 전체 75개 테스트와 실제 CLI validate/build |
 | 관련 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터 전략](../data/data-strategy.md), [전처리](../data/preprocessing.md), [분할·누수](../data/data-split-and-leakage-policy.md), ADR-004 |
 
 ### 7.2 최소 허용 fixture
@@ -205,11 +205,11 @@
 - [확정] 10~100 record, 개인정보·민감정보·실제 credential·제3자 저작물 없음, Git에서 검토 가능한 소형 크기여야 한다.
 - [확정] fixture에는 정상·빈 문서·잘못된 schema·exact duplicate·split 누수 후보와 명시적 기대 결과를 포함할 수 있다.
 - [확정] fixture를 토크나이저 품질 판단이나 모델 학습 데이터로 사용하지 않는다. Phase 6 overfit fixture는 별도 승인·계보를 갖는다.
-- [확정] fixture의 schema·크기·금지 정보와 필수 검증 사례는 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 따른다. 실제 fixture 파일명은 구현 전에 확정한다.
+- [확정] fixture의 schema·크기·금지 정보와 필수 검증 사례는 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 따른다. 현재 fixture는 `tests/fixtures/data/`에 있으며 합성 test-only 자료로 검증됐다.
 
 ### 7.3 기능별 계약
 
-아래 DATA-001~016 각 기능의 concrete schema, checksum, artifact, 오류와 Gate 2 검증 기준은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 공통으로 적용한다. [확정] DATA-001~016의 최소 구현과 synthetic fixture 테스트·CLI smoke는 완료되어 기능 상태는 `implemented`다. Gate 2 사용자 승인 전이므로 `verified` 또는 Gate 2 `passed`로 간주하지 않는다.
+아래 DATA-001~016 각 기능의 concrete schema, checksum, artifact, 오류와 Gate 2 검증 기준은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 공통으로 적용한다. [확정] DATA-001~016은 전체 75개 테스트와 실제 CLI validate/build, 원본 불변·결정론·atomic write 재검증을 통과해 기능 상태가 `verified`다.
 
 | 기능 ID | 기능명 | 입력 | 출력 | 처리 규칙·오류 조건 | 필수 테스트 | 완료 기준 |
 |---|---|---|---|---|---|---|
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] revision `c9ea945` 독립 재검증과 사용자 Gate 2 승인에 따라 DATA-001~016을 `verified`로 변경함 |
 | 2026-07-23 | [확정] DATA-001~016 최소 구현, synthetic fixture 단위·통합 테스트와 실제 CLI smoke 결과를 반영하고 상태를 `implemented`로 변경함; Gate 2는 `planned` 유지 |
 | 2026-07-23 | [확정] DATA-001~016을 Phase 1 데이터 계약에 연결하고 SHA-256·NFC·exact-only·group split 범위를 동기화함; 기능 상태는 `review` 유지 |
 | 2026-07-23 | [확정] Phase 0 실제 기능과 Phase 1~6·최소 추론·실험의 입력·출력·오류·테스트·Done 계약 159개 작성 |

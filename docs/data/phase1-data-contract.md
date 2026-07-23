@@ -12,7 +12,7 @@
 
 - [확정] 이 문서는 Phase 1의 입력, 레코드, checksum, manifest, 정규화, exact 중복 제거, split, 승인·라이선스·개인정보, 산출물과 실패 처리에 관한 단일 구현 계약이다.
 - [확정] 전략·승인 원칙은 기존 데이터 문서와 ADR-004가, 기능 ID·구현 상태는 핵심 개발 기능명세서가 담당한다.
-- [확정] 문서 생명주기 상태와 기능 상태는 별개다. DATA-001~016 최소 구현과 synthetic fixture 기반 테스트·CLI smoke는 완료되어 `implemented`이며, Gate 2 사용자 승인 전에는 `verified` 또는 `passed`가 아니다.
+- [확정] 문서 생명주기 상태와 기능 상태는 별개다. 이 문서는 `implemented`, DATA-001~016 기능은 Gate 2 독립 재검증과 사용자 승인에 따라 `verified`다.
 - [확정] 이 문서는 외부 학습 데이터를 선정하거나 승인하지 않는다. 현재 승인된 실제 학습 데이터는 없다.
 
 ## 2. 목적과 Phase 1 범위
@@ -499,27 +499,27 @@ data.write_empty_split_files
 
 ## 26. Gate 2 검증 기준
 
-Gate 2 상태는 이 문서 작성으로 변경되지 않으며 [개발 로드맵](../quality/development-roadmap.md)의 `planned`를 유지한다. 통과에는 최소 다음 증거가 모두 필요하다.
+Gate 2는 revision `c9ea945062796c1193b070cc09c00fdab0942a08`의 독립 재검증과 사용자 승인으로 `passed`다. 상세 승인 기록의 단일 기준은 [개발 로드맵](../quality/development-roadmap.md)이다.
 
-- [검증 필요] DATA-001~016 구현과 전체 unit test 통과
-- [검증 필요] 허용 fixture 기반 integration test와 `.txt`·`.jsonl` 정상 처리
-- [검증 필요] 원본 불변, SHA-256 file/raw/normalized checksum과 manifest 검증
-- [검증 필요] canonical record, exact dedup과 결정론적 group split 검증
-- [검증 필요] group·checksum·record·source record leakage 0건
-- [검증 필요] rejection, duplicate, statistics, lineage와 resolved config 생성·상호 count 일치
-- [검증 필요] 미승인 source·license·approval과 PII 비-`clear` 차단
-- [검증 필요] 동일 입력 재실행 결과 일치, 입력 순서·CWD·Windows 경로 독립성
-- [검증 필요] atomic write 실패 시 부분 최종 artifact 없음, 기존 version overwrite 차단
-- [검증 필요] 추적 금지 산출물 0건, 모든 필수 test 통과와 사용자 승인
+- [확정] DATA-001~016 구현과 전체 75개 테스트 통과
+- [확정] 허용 fixture 기반 integration test와 `.txt`·`.jsonl` 정상 처리
+- [확정] 원본 불변, SHA-256 file/raw/normalized checksum과 manifest 검증
+- [확정] canonical record, exact dedup과 결정론적 group split 검증
+- [확정] group·checksum·record·source record leakage 0건
+- [확정] rejection, duplicate, statistics, lineage와 resolved config 생성·상호 count 일치
+- [확정] 미승인 source·license·approval과 PII 비-`clear` 차단
+- [확정] 동일 입력 재실행 결과 일치, 입력 순서·CWD·Windows 경로 독립성
+- [확정] atomic write 실패 시 부분 최종 artifact 없음, 기존 version overwrite 차단
+- [확정] 추적 금지 산출물 0건과 사용자 승인
 
-## 27. 미결정 사항
+## 27. 확정 구현값과 미결정 사항
 
-### 27.1 구현 전에 결정
+### 27.1 구현에서 확정
 
-- [검증 필요] 최대 text 문자 수 기본값과 metadata 최대 중첩 깊이
-- [검증 필요] split seed type, 비율 합 허용 오차, 기본 비율과 validation/test 0 허용 여부
-- [검증 필요] 실제 config schema 위치와 pipeline package·Python class·CLI 명령 이름
-- [검증 필요] schema·pipeline·normalization의 최초 version 문자열과 ID 명명 규칙
+- [확정] 최대 text 문자 수는 1,000,000이고 metadata 최대 중첩 깊이는 5다.
+- [확정] split seed는 정수 42, 기본 비율은 0.8/0.1/0.1, 합 허용 오차는 `1e-9`이며 validation/test의 0 비율을 허용한다.
+- [확정] data config는 실행 YAML의 `data` 아래에 두며 구현 package는 `src/data/`, CLI는 `data validate`와 `data build`다.
+- [확정] schema version은 `1.0`, pipeline version은 `phase1-minimal-v1`, normalization version은 `nfc-lf-v1`이며 ID는 SHA-256 문자열을 사용한다.
 
 ### 27.2 실제 데이터 또는 후속 Phase에서 결정
 
@@ -532,5 +532,6 @@ Gate 2 상태는 이 문서 작성으로 변경되지 않으며 [개발 로드�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] revision `c9ea945`의 75개 테스트·CLI·artifact 독립 검증과 사용자 승인으로 Gate 2를 `passed`, DATA-001~016을 `verified`로 반영함 |
 | 2026-07-23 | [확정] DATA-001~016 최소 구현과 75개 전체 테스트·실제 CLI smoke 결과 반영; 중복 record ID를 개별 거부로 동기화하고 Gate 2는 `planned` 유지 |
 | 2026-07-23 | [확정] Phase 1 DATA-001~016의 입력·schema·SHA-256·manifest·NFC·exact dedup·group split·산출물·오류·Gate 2 계약 작성 |
