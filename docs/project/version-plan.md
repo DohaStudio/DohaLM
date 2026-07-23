@@ -19,7 +19,7 @@
 | 버전 | 목적 | 포함 범위 | 제외 범위 | 완료 조건 | 필수 문서 | 필수 테스트 | 예상 릴리스 산출물 |
 |---|---|---|---|---|---|---|---|
 | `v0.1` | 문서·환경 기반 확립 | 프로젝트 기준 문서, 저장소 구조, 개발 규칙, 환경 진단, 설정 loader·validation, 경로 정책, 기본 logging, CLI | 데이터 처리와 모델 구현 | Gate 0 `approved`, Gate 1 `passed` | [프로젝트 개요](./overview.md), [범위와 목표](./scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [문서 인덱스](../index.md), [ADR 인덱스](../decisions/README.md), [저장소 구조](../architecture/repository-structure.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](./version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) | 자동 테스트 43개, CPU·CUDA smoke, CLI·설정·경로·artifact 검사 | 승인된 기준 문서, 환경 snapshot과 Gate 1 검증 기록 |
-| `v0.2` | 최소 데이터 파이프라인 | registry, 라이선스 판정, 정제·분할 최소 흐름 | 대규모 수집과 전체 말뭉치 | Gate 2 통과 | [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 등록부](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 품질 체크리스트](../data/data-quality-checklist.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), ADR-004 | 데이터 무결성·누수·재현성 검사 | 승인된 소규모 데이터 manifest |
+| `v0.2` | 최소 데이터 파이프라인 | UTF-8 TXT·JSONL reader, schema validation, NFC 정규화, SHA-256 checksum·ID, exact dedup, deterministic group split, leakage 검사, manifest·statistics·lineage, CLI와 synthetic fixture 테스트 | 실제 외부 학습 데이터, 대규모 수집·streaming, near dedup과 tokenizer | Gate 2 `passed` | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터 전략](../data/data-strategy.md), [데이터 전처리](../data/preprocessing.md), [데이터셋 등록부](../data/dataset-registry.md), [데이터 라이선스 정책](../data/data-license-policy.md), [데이터 품질 체크리스트](../data/data-quality-checklist.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), ADR-004 | 전체 75개 테스트, CLI validate/build, 원본 불변·누수·결정론·atomic write 검사 | 검증 revision과 synthetic fixture manifest 근거 |
 | `v0.3` | 토크나이저 확립 | SentencePiece Unigram 학습·저장·복원·특수 토큰 | 모델 학습 | Gate 3 통과 | [토크나이저 설계](../training/tokenizer-design.md), ADR-003 | round-trip, ID, OOV·coverage 검사 | 버전 고정 토크나이저와 메타데이터 |
 | `v0.4` | 모델 구성요소 검증 | embedding, attention, FFN, block, normalization | 전체 학습 루프 | Gate 4 통과 | [모델 아키텍처](../architecture/model-architecture.md), ADR-002 | shape, causal mask, 파라미터 구성요소 단위 테스트 | 구성요소 테스트 결과 |
 | `v0.5` | 모델 통합과 생성 검증 | DohaLM-Tiny 통합, loss 연결, 자기회귀 생성 | 장시간 사전학습 | Gate 5 통과 | [모델 아키텍처](../architecture/model-architecture.md), `11-inference-design.md` 초안 | 파라미터 수, forward/backward, weight tying, 생성 smoke | 통합 모델 검증 기록 |
@@ -33,6 +33,7 @@
 | `v1.3` | 벤치마크·모델 카드 | 벤치마크 결과 정리, 모델 카드, 제출 가능성 검토 | 제출 자체와 성능 보장 | Gate 11 사용자 승인 및 정책 확인 | `20-leaderboard-strategy.md`, [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), `19-deployment-plan.md` | benchmark 재현성, 라이선스·공개 범위 검사 | 모델 카드와 벤치마크 보고서 |
 
 - [확정] `v0.1` 권장 이정표의 Phase 0 구현·검증과 Gate 0·1 조건은 충족했다. 이는 실제 Git 태그나 릴리스가 생성되었다는 뜻이 아니다.
+- [확정] `v0.2` 권장 이정표의 Phase 1 구현·검증과 Gate 2 조건은 충족했다. 실제 Git 태그나 릴리스는 생성하지 않았다.
 
 ## 3. 버전 승격 규칙
 
@@ -53,5 +54,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Gate 2 승인에 따라 v0.2 권장 이정표에 DATA-001~016과 75개 테스트·CLI 검증 범위를 반영함; tag·release는 생성하지 않음 |
 | 2026-07-23 | [확정] Gate 1 승인에 따라 v0.1 권장 이정표에 Phase 0 기반·43개 테스트·CPU/CUDA smoke 근거를 반영함 |
 | 2026-07-23 | [확정] 단계별 권장 버전 이정표와 승격 원칙 초안 작성 |
