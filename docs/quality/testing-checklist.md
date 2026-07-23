@@ -32,6 +32,7 @@
 | DATA-002 | 데이터 | deterministic split·exact 직접 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 예 | `pass` — 입력 순서·임시 root 독립성과 group·normalized checksum·record ID·source record 누수 차단 재검증; near 누수는 Phase 1 제외 |
 | DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — approval pending/rejected, license unknown/pending/rejected, PII suspected/confirmed/unknown 전체 차단 확인 |
 | DATA-004 | 외부 데이터 분석 | inventory·ZIP 중앙 디렉터리·제한 schema profile·보고서 비노출 | Unit/Integration test | 예 | 결정론, 원본 무변경, 원문·절대경로 미노출 | 분석 중단·안전 경계 수정 | 예 | `pass` — 합성 JSON/JSONL/TXT/ZIP·손상·대용량·경로 회귀 9건 통과, 실제 5종 source mutation 0건 |
+| DATA-005 | ZIP 안전 표본 | 절대·drive·UNC·traversal·link·크기·형식 차단, 결정론·CRC·checksum·atomic publish | Unit/Integration test | 예 | 위험 entry 추출 0, 실패 시 부분 게시 0, 원본 불변 | 추출 중단·격리 경계와 manifest 수정 | 예 | `pass` — 합성 회귀 26개와 전체 111개 통과; AIHUB-71748 dry-run 안전 0·거부 1,610·추출 0·source mutation 0 |
 | TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `planned` |
 | TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `planned` |
 | TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `planned` |

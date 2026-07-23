@@ -14,6 +14,7 @@
 - [확정] 정확한 수치 임계치는 실제 분포와 표본 검토 전 확정하지 않는다.
 - [확정] Gate 2에서는 [Phase 1 데이터 계약](./phase1-data-contract.md)의 `.txt`·`.jsonl`, 원본 불변, SHA-256, exact dedup, group split, 직접 누수·승인·PII 차단과 artifact 정합성을 필수 검사한다. near·semantic 검사는 후속 범위다.
 - [확정] revision `c9ea945`의 synthetic fixture 검사와 실제 CLI smoke가 위 Phase 1 자동 항목을 통과해 Gate 2는 `passed`다. 이는 실제 외부 데이터의 품질·라이선스·PII 승인이 아니다.
+- [확정] AIHUB-71748 안전 dry-run은 위험 entry 차단과 원본 불변만 확인했으며 표본 0건이므로 실제 schema·품질 검사 결과로 간주하지 않는다.
 
 ## 2. 결과 상태
 

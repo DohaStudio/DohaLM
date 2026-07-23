@@ -15,6 +15,7 @@
 - [확정] 아래 적합성은 DohaLM 관점의 정성 후보 평가이며 품질·이용 승인이 아니다.
 - [확정] 현재 승인된 tokenizer·pretraining·SFT·preference·evaluation corpus는 0개다.
 - [확정] 2026-07-23 로컬 제한 package 5종의 파일·ZIP 구조를 읽기 전용으로 분석했다. 이 관찰은 공식 다운로드 계보 확인이나 목적별 승인이 아니므로 아래 상태값을 변경하지 않는다.
+- [확정] AIHUB-71748의 [안전 표본 dry-run](./analysis/AIHUB-71748-sampling.md)은 absolute entry 1,610개를 거부하고 추출 0건으로 종료했다. 이 결과도 승인 상태를 변경하지 않는다.
 
 ## 2. 공식 근거와 제공기관 필드
 
