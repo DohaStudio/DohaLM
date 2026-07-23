@@ -73,6 +73,7 @@ Phase 2는 다음 기능을 구현하고 검증할 준비를 한다.
 - [확정] 실제 corpus subset은 [후보 등록부](../data/dataset-candidate-registry.md)와 [승인 로그](../data/dataset-approval-log.md)에서 `approved_tokenizer_development` 또는 `approved_tokenizer_candidate` 상태를 받은 경우에만 허용한다.
 - [확정] 현재 등록된 AI Hub 후보 5개의 tokenizer 승인은 모두 `pending`이며 approved tokenizer corpus는 0개다.
 - [확정] 2026-07-23 구조 분석은 ZIP·형식 분포만 확인했으며 ZIP 내부 text field와 schema를 확인하지 않았으므로 corpus 승인 근거로 단독 사용할 수 없다.
+- [확정] AIHUB-71748 [안전 표본 dry-run](../data/analysis/AIHUB-71748-sampling.md)은 안전 entry 0건·추출 0건이므로 tokenizer corpus 입력이나 승인 근거가 아니다.
 - [확정] 기본 학습 입력은 승인된 `train.jsonl`의 `text_normalized`다.
 - [확정] `records.jsonl`은 통계 또는 명시적으로 승인된 목적에서만 허용하며 split·누수 목적을 manifest에 기록한다.
 - [제외] `data/raw/`, `rejections.jsonl`, `duplicates.jsonl`, `validation.jsonl`, `test.jsonl`, 미승인 corpus, `pii_status != clear`, `license_status != approved`인 corpus를 직접 학습 입력으로 사용하지 않는다.

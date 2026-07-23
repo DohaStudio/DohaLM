@@ -63,7 +63,8 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 ## 관련 문서
 
 - [데이터셋 비교 요약](./dataset-analysis-summary.md)
+- [ZIP 안전 표본 추출 정책](./safe-sampling.md)
+- [AIHUB-71748 안전 표본 결과](./AIHUB-71748-sampling.md)
 - [후보 등록부](../dataset-candidate-registry.md)
 - [라이선스 검토](../dataset-license-review.md)
 - [Phase 2 토크나이저 계약](../../training/phase2-tokenizer-contract.md)
-
