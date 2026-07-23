@@ -4,7 +4,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | `review` |
+| 문서 상태 | `implemented` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md) |
 | 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [평가 계획](../evaluation/evaluation-plan.md) |
@@ -86,5 +86,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] synthetic fixture 기반 원본 checksum 불변, schema 거부, exact dedup, deterministic group split, 직접 누수·승인·PII 차단, 10개 artifact 정합성 검사를 구현·통과함; 실제 외부 데이터 품질 승인은 미수행 |
 | 2026-07-23 | [확정] Phase 1 계약과 Gate 2 필수 검사 범위를 연결함 |
 | 2026-07-23 | [확정] 20개 품질 범주, 결과 상태, 조치와 기록 기준 정의 |

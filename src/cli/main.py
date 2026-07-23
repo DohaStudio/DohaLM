@@ -14,6 +14,7 @@ from src.config.errors import ConfigError
 from src.config.loader import load_resolved_config, mask_secrets, parse_overrides
 from src.runtime.environment import collect_environment, cpu_smoke_test, cuda_smoke_test, python_supported
 from src.runtime.paths import inspect_paths, repository_root, tracked_artifact_violations
+from src.data.pipeline import build_pipeline, validate_pipeline
 
 
 def _default_config(name: str) -> str:
@@ -51,6 +52,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     paths = commands.add_parser("paths", help="저장소 기준 경로를 생성하지 않고 확인합니다.")
     paths.add_argument("--json", action="store_true")
+
+    data = commands.add_parser("data", help="Phase 1 데이터 파이프라인을 검증하거나 실행합니다.")
+    data_commands = data.add_subparsers(dest="data_command", required=True)
+    for name in ("validate", "build"):
+        command = data_commands.add_parser(name)
+        command.add_argument("--config", required=True, help="data 설정을 포함한 YAML 경로")
+        command.add_argument("--json", action="store_true")
     return parser
 
 
@@ -101,6 +109,13 @@ def _paths_command(args: argparse.Namespace) -> int:
     return 2 if report["tracked_artifact_violations"] else 0
 
 
+def _data_command(args: argparse.Namespace) -> int:
+    operation = validate_pipeline if args.data_command == "validate" else build_pipeline
+    result = operation(args.config)
+    _print({"success": True, "mode": args.data_command, "result": result.to_dict()}, as_json=args.json)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -111,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
             return _config_command(args)
         if args.command == "paths":
             return _paths_command(args)
+        if args.command == "data":
+            return _data_command(args)
     except (ConfigError, RuntimeError, ValueError) as exc:
         print(f"오류: {exc}", file=sys.stderr)
         return 2

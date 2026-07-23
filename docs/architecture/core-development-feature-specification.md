@@ -4,7 +4,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | `review` |
+| 문서 상태 | `implemented` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [시스템 아키텍처](./system-architecture.md), [모델 아키텍처](./model-architecture.md), [개발 로드맵](../quality/development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | Phase 1~6 구현 작업, 구현별 테스트, 최소 로컬 추론 설계 |
@@ -209,7 +209,7 @@
 
 ### 7.3 기능별 계약
 
-아래 DATA-001~016 각 기능의 concrete schema, checksum, artifact, 오류와 Gate 2 검증 기준은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 공통으로 적용한다. 기능 상태는 구현·테스트 전까지 `review`다.
+아래 DATA-001~016 각 기능의 concrete schema, checksum, artifact, 오류와 Gate 2 검증 기준은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 공통으로 적용한다. [확정] DATA-001~016의 최소 구현과 synthetic fixture 테스트·CLI smoke는 완료되어 기능 상태는 `implemented`다. Gate 2 사용자 승인 전이므로 `verified` 또는 Gate 2 `passed`로 간주하지 않는다.
 
 | 기능 ID | 기능명 | 입력 | 출력 | 처리 규칙·오류 조건 | 필수 테스트 | 완료 기준 |
 |---|---|---|---|---|---|---|
@@ -604,5 +604,6 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] DATA-001~016 최소 구현, synthetic fixture 단위·통합 테스트와 실제 CLI smoke 결과를 반영하고 상태를 `implemented`로 변경함; Gate 2는 `planned` 유지 |
 | 2026-07-23 | [확정] DATA-001~016을 Phase 1 데이터 계약에 연결하고 SHA-256·NFC·exact-only·group split 범위를 동기화함; 기능 상태는 `review` 유지 |
 | 2026-07-23 | [확정] Phase 0 실제 기능과 Phase 1~6·최소 추론·실험의 입력·출력·오류·테스트·Done 계약 159개 작성 |
