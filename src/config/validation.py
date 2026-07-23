@@ -14,15 +14,23 @@ def _location(source: str | Path, field: str | None = None) -> str:
     return f"{source}" + (f" [{field}]" if field else "")
 
 
-def _validate_schema(data: Mapping[str, Any], schema: Mapping[str, tuple], source: str | Path) -> None:
+def _validate_schema(
+    data: Mapping[str, Any],
+    schema: Mapping[str, tuple],
+    source: str | Path,
+    *,
+    optional_fields: frozenset[str] = frozenset(),
+) -> None:
     unknown = sorted(set(data) - set(schema))
     if unknown:
         raise ConfigValidationError(f"{_location(source, unknown[0])}: 알 수 없는 필드입니다.")
-    missing = sorted(set(schema) - set(data))
+    missing = sorted(set(schema) - set(data) - optional_fields)
     if missing:
         raise ConfigValidationError(f"{_location(source, missing[0])}: 필수 필드가 없습니다.")
 
     for field, (expected_type, nullable) in schema.items():
+        if field not in data:
+            continue
         value = data[field]
         if value is None and nullable:
             continue
@@ -56,7 +64,11 @@ def validate_model_config(data: Mapping[str, Any], source: str | Path) -> None:
 def validate_run_config(
     data: Mapping[str, Any], source: str | Path, *, require_complete: bool = True
 ) -> None:
-    _validate_schema(data, RUN_SCHEMA, source)
+    _validate_schema(data, RUN_SCHEMA, source, optional_fields=frozenset({"data"}))
+    if "data" in data:
+        from src.data.config import validate_data_config
+
+        validate_data_config(data["data"], require_inputs=False)
     if require_complete:
         unresolved = [
             field

@@ -4,7 +4,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | `review` |
+| 문서 상태 | `implemented` |
 | 마지막 검토일 | 2026-07-23 |
 | 선행 문서 | [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [데이터 전략](./data-strategy.md), [데이터 전처리 정책](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 분할 및 누수 방지 정책](./data-split-and-leakage-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서·작업 | Phase 1 데이터 최소 파이프라인 구현과 테스트, [Gate 2 검증](../quality/development-roadmap.md) |
@@ -12,7 +12,7 @@
 
 - [확정] 이 문서는 Phase 1의 입력, 레코드, checksum, manifest, 정규화, exact 중복 제거, split, 승인·라이선스·개인정보, 산출물과 실패 처리에 관한 단일 구현 계약이다.
 - [확정] 전략·승인 원칙은 기존 데이터 문서와 ADR-004가, 기능 ID·구현 상태는 핵심 개발 기능명세서가 담당한다.
-- [확정] 문서 생명주기 상태 `review`와 기능 상태는 별개다. DATA-001~016은 모두 `review`이며 구현·검증되지 않았다.
+- [확정] 문서 생명주기 상태와 기능 상태는 별개다. DATA-001~016 최소 구현과 synthetic fixture 기반 테스트·CLI smoke는 완료되어 `implemented`이며, Gate 2 사용자 승인 전에는 `verified` 또는 `passed`가 아니다.
 - [확정] 이 문서는 외부 학습 데이터를 선정하거나 승인하지 않는다. 현재 승인된 실제 학습 데이터는 없다.
 
 ## 2. 목적과 Phase 1 범위
@@ -93,7 +93,7 @@
 
 | 필드 | 계약 | 위반 처리 |
 |---|---|---|
-| `id` | 문자열, trim 후 비어 있지 않음, 최대 256자, Unicode 제어문자 금지, 대소문자 구분 | 타입·형식 위반은 개별 거부; 파일·dataset 전체 중복은 `DUPLICATE_RECORD_ID` 전체 실패 |
+| `id` | 문자열, trim 후 비어 있지 않음, 최대 256자, Unicode 제어문자 금지, 대소문자 구분 | 타입·형식 위반과 dataset 전체 중복은 `DUPLICATE_RECORD_ID` 개별 거부 |
 | `text` | 정규화 전 문자열 필수, NUL 금지, 정규화 후 비어 있지 않음 | 개별 거부. 최대 문자 수 초과는 `TEXT_TOO_LONG` |
 | `source` | 문자열, trim 후 비어 있지 않음, 최대 256자, 출처 식별 가능 | 형식 위반은 개별 거부, 미승인은 전체 실패 |
 | `group_id` | 문자열 또는 `null`, trim 후 빈 값은 미지정, 최대 256자, 제어문자 금지 | 형식 위반은 개별 거부 |
@@ -449,7 +449,7 @@ data.write_empty_split_files
 | `UNKNOWN_FIELD` | 허용하지 않는 최상위 field | record 거부 |
 | `MISSING_REQUIRED_FIELD` | 필수 field 누락 | record 거부 |
 | `INVALID_FIELD_TYPE` | field type·형식 위반 | record 거부 |
-| `DUPLICATE_RECORD_ID` | id가 파일·dataset 안에서 중복 | 전체 실패 |
+| `DUPLICATE_RECORD_ID` | id가 파일·dataset 안에서 중복 | record 거부 |
 | `EMPTY_TEXT` | 정규화 후 빈 text | record 거부 |
 | `TEXT_TOO_LONG` | 설정 최대 문자 수 초과 | record 거부 |
 | `NUL_CHARACTER` | NUL 포함 | record 거부 |
@@ -471,13 +471,13 @@ data.write_empty_split_files
 ### 23.1 전체 실행 실패
 
 - [확정] 입력 읽기 실패, 미지원 형식, 잘못된 encoding, JSONL parse 실패 또는 schema 정의 자체가 유효하지 않음
-- [확정] 원본 mutation, 중복 record ID, 미승인 source·license·approval, PII 비-`clear`
+- [확정] 원본 mutation, 미승인 source·license·approval, PII 비-`clear`
 - [확정] split 비율 오류·leakage, artifact 쓰기·checksum·manifest 불일치
 - [확정] 모든 record 처리 후 `accepted_count == 0`
 
 ### 23.2 기록 후 계속 가능한 record 처리
 
-- [확정] 빈 text, 필수 field 누락, field type·형식 오류, unknown top-level field와 최대 text 길이 초과는 rejection에 기록하고 다음 record를 검사할 수 있다.
+- [확정] 빈 text, 필수 field 누락, field type·형식 오류, unknown top-level field, 최대 text 길이 초과와 중복 record ID는 rejection에 기록하고 다음 record를 검사할 수 있다.
 - [확정] exact duplicate는 duplicate artifact에 기록하고 대표 record만 유지한다.
 - [확정] 전체 실패가 확정되면 최종 dataset version을 publish하지 않는다. 오류 원인과 제한된 진단 정보는 보존한다.
 
@@ -532,4 +532,5 @@ Gate 2 상태는 이 문서 작성으로 변경되지 않으며 [개발 로드�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] DATA-001~016 최소 구현과 75개 전체 테스트·실제 CLI smoke 결과 반영; 중복 record ID를 개별 거부로 동기화하고 Gate 2는 `planned` 유지 |
 | 2026-07-23 | [확정] Phase 1 DATA-001~016의 입력·schema·SHA-256·manifest·NFC·exact dedup·group split·산출물·오류·Gate 2 계약 작성 |

@@ -35,6 +35,7 @@ RUN_SCHEMA = {
     "evaluation_interval": (int, True),
     "output_directory": (str, True),
     "resume_checkpoint": (str, True),
+    "data": (dict, False),
 }
 
 TINY_INVARIANTS = {

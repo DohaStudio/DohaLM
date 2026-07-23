@@ -6,13 +6,13 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 1 환경 검증을 통과했으며, Phase 0 저장소·환경 기반의 구현과 검증을 완료했습니다. Phase 1 데이터 최소 파이프라인부터는 아직 구현하지 않았습니다.
+현재 저장소는 Gate 1 환경 검증을 통과했으며, Phase 0 저장소·환경 기반과 Phase 1 데이터 최소 파이프라인의 구현·synthetic fixture 검증을 완료했습니다. Gate 2는 사용자 승인 전 `planned` 상태입니다.
 
 | 영역 | 상태 |
 |---|---|
 | 문서화 | 진행 및 검토 단계 |
 | Phase 0 환경·설정 기반 | 구현·검증 완료, Gate 1 `passed` |
-| Phase 1 데이터 파이프라인 | 미구현, 진입 허용 |
+| Phase 1 데이터 파이프라인 | DATA-001~016 최소 구현·테스트·CLI smoke 완료, Gate 2 `planned` |
 | 모델 코드 | 스캐폴드만 존재, 미구현 |
 | 데이터 | 후보 및 라이선스 미승인 |
 | 토크나이저 | 미학습 |
@@ -68,7 +68,7 @@ data/          원본·정제·토큰화·SFT 데이터 경로
 docs/          프로젝트 기준 문서와 ADR
 scripts/       실행 스크립트 스캐폴드
 server/        FastAPI 서버 스캐폴드
-src/           Phase 0 설정·환경·경로·CLI와 후속 구현 스캐폴드
+src/           Phase 0 기반과 Phase 1 최소 데이터 파이프라인 구현
 frontend/      Frontend 안내 스캐폴드
 tests/         테스트 경로
 checkpoints/   로컬 체크포인트 경로
@@ -130,6 +130,8 @@ python -m src.cli.main environment --cuda-smoke
 python -m src.cli.main config validate
 python -m src.cli.main config resolve --run configs/pretrain.yaml --allow-incomplete
 python -m src.cli.main paths
+python -m src.cli.main data validate --config tests/fixtures/data/phase1-cli.yaml
+python -m src.cli.main data build --config tests/fixtures/data/phase1-cli.yaml
 python -m pytest -q
 ```
 

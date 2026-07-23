@@ -1,25 +1,12 @@
-seed: null
-device: null
-precision: fp16
-micro_batch: null
-gradient_accumulation: null
-learning_rate: null
-warmup: null
-weight_decay: null
-max_steps: null
-token_budget: null
-checkpoint_interval: null
-evaluation_interval: null
-output_directory: null
-resume_checkpoint: null
 data:
   dataset_id: fixture-dataset
-  dataset_version: v1
-  input_paths: []
+  dataset_version: cli-smoke-v1
+  input_paths:
+    - tests/fixtures/data/happy
   allowed_formats:
     - .txt
     - .jsonl
-  output_dir: data/cleaned
+  output_dir: tests/tmp/phase1-output
   encoding: utf-8
   unicode_normalization: NFC
   max_text_chars: 1000000

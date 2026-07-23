@@ -10,7 +10,7 @@
 | 후속 문서 | 구현별 test와 Gate 결과 [검증 필요] |
 | 구현 전 필수 여부 | 각 구현 전 예 |
 
-- [확정] Phase 0의 환경·설정·경로·로깅·CLI 테스트는 구현·실행했으며, Phase 1 이후 항목은 별도 근거가 없는 한 계획 상태다.
+- [확정] Phase 0의 환경·설정·경로·로깅·CLI 테스트와 Phase 1 최소 데이터 파이프라인의 synthetic fixture 테스트·CLI smoke를 구현·실행했다. Gate 2 사용자 승인은 아직 수행하지 않았다.
 - [확정] 상태는 `planned`, `not_run`, `pass`, `fail`, `blocked`, `not_applicable`만 사용한다.
 - [확정] 필수 항목이 `fail`, `blocked` 또는 `not_run`이면 관련 작업을 완료로 처리하지 않는다.
 
@@ -28,9 +28,9 @@
 | CLI-001 | CLI | 도움말, environment YAML/JSON, config validate/resolve, paths와 간결한 오류 | Integration test | 예 | 정상 종료·parse 가능·traceback 없음 | parser·출력·종료 코드 수정 | 예 | `pass` — Gate 1 명령 경로 검증 |
 | PATH-001 | 경로 | 저장소 root·CWD 독립성·Windows/POSIX 상대경로·지연 생성 정책 | Unit/Integration test | 예 | 저장소 밖 차단, 읽기 진단이 디렉터리를 만들지 않음 | 경로 정책 수정 | 예 | `pass` — 경로·artifact 정책 검증 |
 | LOG-001 | 로깅 | UTF-8 한글·비밀 마스킹·handler 중복 방지·지연 파일 생성 | Unit test | 예 | 한글 보존, secret 미노출, 중복 handler 없음 | formatter·handler 정책 수정 | 예 | `pass` — 로깅 회귀 테스트 통과 |
-| DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `planned` |
-| DATA-002 | 데이터 | deterministic split·exact/near 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 일부 | `planned` |
-| DATA-003 | 데이터 | 개인정보·유해성·라이선스 차단 상태 | Manual evaluation/Static | 예 | 미승인·고위험 입력 사용 금지 | 격리·승인 재검토 | 일부 | `planned` |
+| DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `pass` — synthetic fixture checksum 불변과 10개 artifact·lineage 정합성 검증 |
+| DATA-002 | 데이터 | deterministic split·exact 직접 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 예 | `pass` — group·normalized checksum·record ID·source record 누수 차단 검증; near 누수는 Phase 1 제외 |
+| DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — `unknown` license, `pending` approval, `suspected` PII 전체 차단 검증 |
 | TOK-001 | 토크나이저 | vocab 16,000과 special token ID 0~7 | Component test | 예 | size·문자열·ID 정확히 일치 | tokenizer 재학습·설정 수정 | 예 | `planned` |
 | TOK-002 | 토크나이저 | encode/decode·role token 단일 ID·fingerprint | Regression test | 예 | 승인 fixture와 hash 일치 | normalization·artifact 검토 | 예 | `planned` |
 | TOK-003 | 토크나이저 | 한국어·혼합 문자 token 품질 | Manual evaluation | 예 | 승인 상태·통계 기준 충족 | corpus·coverage·fallback 재검토 | 일부 | `planned` |
@@ -62,8 +62,8 @@
 | DOC-002 | 문서 | 상대 링크와 예정 파일 코드 표기 | Static validation | 예 | 깨진 상대 링크 0개 | 링크·표기 수정 | 예 | `planned` |
 | SEC-001 | 보안 | secret·credential·개인 절대경로 검사 | Static validation | 예 | 노출 0건 | 변경 중단·secret 폐기/회전 보고 | 일부 | `pass` — 환경 identity 제외·설정/로그 secret 마스킹 검증 |
 | SEC-002 | 보안 | path traversal·비승인 파일 접근 | Unit/Integration test | 예 | 경계 밖 접근 명시 실패 | validation·권한 수정 | 예 | `pass` — 절대경로·상위 이동 차단 검증 |
-| REP-001 | 재현성 | Git·config·환경·data/tokenizer fingerprint 기록 | Static/Integration test | 예 | 필수 metadata 완전 | 실행 invalid·기록 수정 | 예 | `planned` |
-| REP-002 | 재현성 | 같은 seed 재실행과 허용 차이 | Regression test | 예 | 기준 허용 범위 내 | 비결정 원인·환경 분석 | 일부 | `planned` |
+| REP-001 | 재현성 | Git·config·data fingerprint 기록 | Static/Integration test | 예 | 필수 metadata 완전 | 실행 invalid·기록 수정 | 예 | `pass` — Phase 1 lineage에 Git SHA·resolved config checksum·dataset fingerprint 기록 |
+| REP-002 | 재현성 | 같은 seed 재실행과 허용 차이 | Regression test | 예 | 결정론적 산출물과 fingerprint 일치 | 비결정 원인·환경 분석 | 예 | `pass` — 입력 순서 변경 시 records·split·statistics·fingerprint 일치 |
 
 ## 3. 실행 기록 원칙
 

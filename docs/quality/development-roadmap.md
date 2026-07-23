@@ -19,7 +19,7 @@
 | Phase | 목적 | 선행 조건 | 작업 항목 | 결과물 | 필수 테스트 | 진입 조건 | 통과 조건 | 실패 시 복귀 | 현재 상태 |
 |---|---|---|---|---|---|---|---|---|---|
 | 0. 저장소와 환경 기반 | 재현 가능한 구현 기반 마련 | 기준 문서·ADR 확인 | 구조 확정, Python 기준, CUDA·PyTorch 호환 검토, 의존성·설정 구조, 기본 테스트 환경, 로그·산출물 경로 | 환경 기준, 설정 계약, 테스트 진입점 | 설정 parse, CPU smoke, CUDA 가용성 후보, 경로·Git 제외 검사 | Gate 0 통과 | Gate 1 통과와 환경 snapshot 가능 | Gate 0 문서 보완 | [확정] 구현·검증 완료 |
-| 1. 데이터 최소 파이프라인 | 안전한 최소 입출력·계보 검증 | Phase 0, 데이터 정책, [Phase 1 데이터 계약](../data/phase1-data-contract.md) | 가상/극소량 로컬 sample, 형식 검증, 정제 흐름, manifest, checksum, split 검증 | 소형 fixture 처리 결과·manifest | 원본 불변, checksum, deterministic split, 누수 fixture | Gate 1 통과·허용 fixture 준비·Phase 1 계약 검토 | Gate 2 통과 | Phase 0 설정·경로 | [검증 필요] 미구현 |
+| 1. 데이터 최소 파이프라인 | 안전한 최소 입출력·계보 검증 | Phase 0, 데이터 정책, [Phase 1 데이터 계약](../data/phase1-data-contract.md) | 가상/극소량 로컬 sample, 형식 검증, 정제 흐름, manifest, checksum, split 검증 | 소형 fixture 처리 결과·manifest | 원본 불변, checksum, deterministic split, 누수 fixture | Gate 1 통과·허용 fixture 준비·Phase 1 계약 검토 | Gate 2 통과 | Phase 0 설정·경로 | [확정] 최소 구현·synthetic fixture 검증 완료, Gate 2 사용자 승인 대기 |
 | 2. 토크나이저 | 한국어 token 계약 확정 | Phase 1, 승인 corpus 정책 | corpus 승인, SentencePiece 학습, 특수 token, encode/decode, fingerprint, 한국어 분할 품질 | `.model`·`.vocab` 후보, mapping, 평가 보고 | vocab 16,000, ID 0~7, round-trip, fingerprint, token 통계 | Gate 2 통과·corpus approved | Gate 3 통과 | Phase 1 데이터·정규화 | [검증 필요] 미구현 |
 | 3. 모델 구성요소 | 핵심 layer를 독립 검증 | Phase 0, ADR-002 | Config, token/position embedding, causal self-attention, MHA, FFN, Pre-LN, block, LM Head, weight tying | 직접 구현 모듈·단위 테스트 | shape, causal mask, backward, dtype/device, error, tying alias | Gate 1·모델 문서 승인 | Gate 4 통과 | 해당 구성요소·Config | [검증 필요] 미구현 |
 | 4. 모델 통합 | DohaLM-Tiny forward·생성 연결 | Phase 2·3 | 전체 forward, loss, parameter count, dtype/device, causal mask, 최소 generation | 통합 model·loss·generation | count 16,889,856, logits shape, shift, mask, forward/backward, deterministic generation | Gate 3·4 통과 | Gate 5 통과 | Phase 2 또는 3 | [검증 필요] 미구현 |
@@ -88,6 +88,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-23 | [확정] Phase 1 DATA-001~016 최소 구현과 synthetic fixture·CLI smoke 완료를 반영함; Gate 2 상태는 `planned` 유지 |
 | 2026-07-23 | [확정] Phase 1 착수와 Gate 2의 필수 기준 문서로 Phase 1 데이터 계약을 연결함; 구현·Gate 상태는 변경하지 않음 |
 | 2026-07-23 | [확정] Phase 1~6와 Gate 2~7의 공통 기능 계약으로 핵심 개발 기능명세서를 연결함; Gate 상태는 변경하지 않음 |
 | 2026-07-23 | [확정] 사용자 승인과 검증 revision·43개 테스트·CPU/CUDA smoke 근거에 따라 Gate 1을 `passed`, Phase 0을 구현·검증 완료로 기록함 |

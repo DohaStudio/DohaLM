@@ -1,0 +1,12 @@
+{"id":"sample-001","text":"첫 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-a","metadata":{"kind":"synthetic"}}
+{"id":"sample-002","text":"두 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-a","metadata":{}}
+{"id":"sample-003","text":"세 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-b","metadata":{}}
+{"id":"sample-004","text":"네 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-c","metadata":{}}
+{"id":"sample-005","text":"다섯 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-d","metadata":{}}
+{"id":"sample-006","text":"여섯 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-e","metadata":{}}
+{"id":"sample-007","text":"일곱 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-f","metadata":{}}
+{"id":"sample-008","text":"여덟 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-g","metadata":{}}
+{"id":"sample-009","text":"아홉 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-h","metadata":{}}
+{"id":"sample-010","text":"열 번째 합성 문장입니다.","source":"fixture-dataset","group_id":"group-i","metadata":{}}
+{"id":"sample-empty","text":"   ","source":"fixture-dataset","metadata":{}}
+{"id":"sample-unknown","text":"거부될 합성 문장입니다.","source":"fixture-dataset","extra":true}
