@@ -65,6 +65,14 @@
 | R-041 | SentencePiece 비결정성 또는 운영 vocabulary 16,000 미충족 | `unknown` | `high` | `high` | 동일 입력 재학습의 piece·checksum 차이, actual piece count 부족 | version·thread·seed·resolved config 기록, `hard_vocab_limit=true`, 다층 결정론 검사 | 후보를 invalid 처리하고 corpus·option·dependency를 재검토 | tokenizer/reproducibility | `open` |
 | R-042 | byte fallback의 vocabulary 잠식 또는 희귀 문자 UNK 증가 | `unknown` | `high` | `high` | 한국어 다문자 piece 감소·byte sequence 증가·UNK record 집중 | fallback off/on A/B와 coverage·UNK·piece 품질 통계 | coverage·fallback·corpus 구성을 재검토하고 승자를 보류 | tokenizer/data | `open` |
 | R-043 | tokenizer 부분 artifact·version 혼동·model/checkpoint 오적용 | `unknown` | `critical` | `critical` | 필수 파일 누락·checksum/fingerprint 불일치·같은 version에 다른 mapping | 8개 필수 artifact, staging atomic publish, overwrite 차단, model/checkpoint fingerprint 연결 | load·학습을 차단하고 정상 호환 bundle로 복구 | tokenizer/model/artifact | `mitigating` |
+| R-044 | AI Hub 일반 정책을 개별 dataset·subset 허가로 확대 해석 | `unknown` | `critical` | `critical` | 일반 정책만으로 학습·공개 승인 처리 | 후보·라이선스·목적별 승인 분리, 공식 원문 snapshot | 다운로드·학습 중단, 승인 철회와 공식 문의 | data/governance | `mitigating` |
+| R-045 | 모델 weight·tokenizer artifact 공개 범위 불확실 | `unknown` | `critical` | `critical` | 문의 없이 Hugging Face·GitHub 공개 준비 | 공개 목적을 별도 `pending`, 공식 문의와 release gate | 공개 중단·artifact 격리·권리자 협의 | data/release | `open` |
+| R-046 | 국외 반출·해외 cloud 처리 위반 | `unknown` | `critical` | `critical` | 해외 region·자동 cloud backup·국외 사용자 제공 | 저장 위치·backup 점검, 별도 합의 전 국외 처리 금지 | 전송 중단·복제본 삭제·공식 보고·영향 추적 | data/security | `mitigating` |
+| R-047 | 원본·가공 text 재배포 또는 복수 source CCL 혼합 오류 | `unknown` | `critical` | `critical` | source 권리 필드 누락·다른 CCL을 단일 허가로 처리 | source/record별 권리·CCL, 원본 외부 업로드 금지 | 배포 중단·영향 subset 격리·manifest 재작성 | data/license | `open` |
+| R-048 | 구매도서 corpus 암기·verbatim 재현 | `unknown` | `critical` | `critical` | 긴 원문 overlap·고유 문장 재현 | 결정론적 표본 후보, dedup·memorization·verbatim 검사 | 해당 corpus·checkpoint 공개 중단, 구성·학습 범위 재검토 | data/model | `open` |
+| R-049 | 감성 대화·판례 데이터의 개인정보·민감정보 포함 | `unknown` | `critical` | `critical` | 연락처·사건정보·상담·위기 발화 탐지 | source별 PII review·대화/session 격리·원문 최소 접근 | 사용 중단·신고·삭제·영향 계보 추적 | data/security | `mitigating` |
+| R-050 | 평가 subset·교정 정답·instruction QA가 학습에 혼입 | `unknown` | `critical` | `critical` | 평가 점수 급증·동일 prompt/answer·split fingerprint 교차 | 평가 제외 목록, subset 분리, exact·near·group 검사 | 결과 invalid·학습 corpus 제거·재처리 | data/evaluation | `mitigating` |
+| R-051 | 공식 문의 미완료 상태에서 다운로드·학습·공개 진행 | `unknown` | `critical` | `critical` | `pending_official_confirmation`을 허용으로 취급 | approval log gate와 사용자 승인, pending 시 fail closed | 즉시 중단·상태 `restricted`·공식 확인 후 재개 | data/governance | `open` |
 
 ## 4. 운영 원칙
 
@@ -80,6 +88,7 @@
 |---|---|
 | 2026-07-23 | [확정] Gate 2 결과로 라이선스·PII·누수·재현 위험을 `mitigating`으로 갱신하고 원본 변조·split·partial artifact·manifest·승인·대용량 위험 R-033~038을 등록함 |
 | 2026-07-23 | [확정] Phase 2 corpus·normalization/whitespace·SentencePiece 결정론·fallback·artifact 호환성 위험 R-039~043을 등록함 |
+| 2026-07-23 | [확정] AI Hub 조건 해석·공개·국외 처리·재배포·도서 암기·PII·평가 누수·미완료 문의 위험 R-044~051을 등록함 |
 | 2026-07-23 | [확정] Gate 1 근거로 CUDA·경로·비밀·대용량 산출물 위험을 재검토하고 환경 출력 직렬화 회귀 위험 R-032를 등록함 |
 | 2026-07-23 | [확정] 중복 Risk ID를 해소하기 위해 문서 누적 위험을 R-030, 장시간 학습 운영 위험을 R-031로 정정함 |
 | 2026-07-23 | [확정] 격리 `.venv`의 clean 설치·`pip check`·CPU/CUDA smoke 통과로 R-029 완화 확인 |

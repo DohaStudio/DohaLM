@@ -6,7 +6,7 @@
 |---|---|
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-23 |
-| 선행 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [토크나이저 설계](./tokenizer-design.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
+| 선행 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [데이터셋 승인 로그](../data/dataset-approval-log.md), [평가 제외 목록](../data/evaluation-exclusion-list.md), [토크나이저 설계](./tokenizer-design.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서·작업 | Phase 2 토크나이저 구현·테스트, [사전학습 계획](./pretraining-plan.md), Gate 3 검증 |
 | 구현 전 필수 여부 | Phase 2 구현 전 예 |
 
@@ -70,6 +70,8 @@ Phase 2는 다음 기능을 구현하고 검증할 준비를 한다.
 ## 5. Corpus 입력 계약
 
 - [확정] 입력은 [Phase 1 데이터 계약](../data/phase1-data-contract.md)을 통과한 cleaned dataset artifact만 허용한다.
+- [확정] 실제 corpus subset은 [후보 등록부](../data/dataset-candidate-registry.md)와 [승인 로그](../data/dataset-approval-log.md)에서 `approved_tokenizer_development` 또는 `approved_tokenizer_candidate` 상태를 받은 경우에만 허용한다.
+- [확정] 현재 등록된 AI Hub 후보 5개의 tokenizer 승인은 모두 `pending`이며 approved tokenizer corpus는 0개다.
 - [확정] 기본 학습 입력은 승인된 `train.jsonl`의 `text_normalized`다.
 - [확정] `records.jsonl`은 통계 또는 명시적으로 승인된 목적에서만 허용하며 split·누수 목적을 manifest에 기록한다.
 - [제외] `data/raw/`, `rejections.jsonl`, `duplicates.jsonl`, `validation.jsonl`, `test.jsonl`, 미승인 corpus, `pii_status != clear`, `license_status != approved`인 corpus를 직접 학습 입력으로 사용하지 않는다.
@@ -508,3 +510,4 @@ Phase 1 dataset fingerprint
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] TOK-001~012의 corpus·SentencePiece·vocabulary·artifact·fingerprint·API·평가·호환성 계약을 작성하고 Gate 3 기준을 정의함 |
+| 2026-07-23 | [확정] 후보 등록부·승인 로그를 corpus 승인 근거로 연결하고 현재 approved tokenizer corpus 0개를 명시함 |

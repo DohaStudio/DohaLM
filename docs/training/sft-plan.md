@@ -10,10 +10,12 @@
 - [후순위] `DohaLM-Small` SFT는 Small 사전학습과 자원 검증 후 수행한다.
 - [확정] tokenizer와 vocabulary를 SFT에서 임의 변경하지 않는다.
 - [확정] 현재 SFT 데이터, 학습 코드 및 checkpoint는 존재하지 않는다.
+- [확정] SFT 후보와 목적별 승인은 [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md)에서 관리한다.
 
 ## 2. 데이터 요구사항
 
 - [확정] 각 데이터셋의 출처, 버전, 취득일, 라이선스, 학습·수정·재배포 허용 범위를 기록한다.
+- [확정] `approved_sft` subset만 사용하며 사전학습 corpus·preference·evaluation subset과 논리적·물리적으로 분리한다.
 - [확정] system, user, assistant role을 구조적으로 구분한다.
 - [확정] 빈 답변, 손상된 role 순서, 개인정보, 중복 및 라이선스 불명 데이터를 제외한다.
 - [확정] train/validation/test 분할 간 질문 또는 답변 중복을 점검한다.
@@ -172,3 +174,9 @@
 - [검증 필요] 기본 system message와 줄바꿈 직렬화
 - [검증 필요] 다중 turn truncation 및 assistant loss 범위
 - [검증 필요] learning rate, token budget, batch와 평가 합격선
+
+## 14. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] 데이터셋 후보·라이선스·승인 로그와 `approved_sft` 목적 승인을 SFT 선행 조건으로 연결함 |
