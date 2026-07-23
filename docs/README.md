@@ -31,11 +31,15 @@
 
 [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md) → [Phase 1 데이터 계약](./data/phase1-data-contract.md) → [데이터 전략](./data/data-strategy.md) → [데이터 전처리](./data/preprocessing.md) → [데이터셋 레지스트리](./data/dataset-registry.md) → [데이터 라이선스 정책](./data/data-license-policy.md) → [데이터 품질 체크리스트](./data/data-quality-checklist.md) → [데이터 분할 및 누수 방지](./data/data-split-and-leakage-policy.md) → Phase 1 구현
 
-### 2.4 학습과 평가
+### 2.4 Phase 2 토크나이저 구현
+
+[Phase 1 데이터 계약](./data/phase1-data-contract.md) → [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md) → [토크나이저 설계](./training/tokenizer-design.md) → Phase 2 구현·테스트
+
+### 2.5 학습과 평가
 
 [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
 
-### 2.5 Codex 작업
+### 2.6 Codex 작업
 
 [개발 규칙](./governance/development-rules.md) → [Definition of Ready](./governance/definition-of-ready.md) → [Definition of Done](./governance/definition-of-done.md) → [Codex 작업 절차](./governance/codex-workflow.md)
 
@@ -66,7 +70,7 @@
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
 | 데이터 | Phase 1 구현 계약, 데이터 승인, 전처리, 라이선스와 품질 | [Phase 1 데이터 계약](./data/phase1-data-contract.md), [데이터 전략](./data/data-strategy.md), [데이터 전처리](./data/preprocessing.md), [데이터셋 레지스트리](./data/dataset-registry.md) |
-| 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
+| 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md), [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
 | 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
@@ -92,11 +96,12 @@
 ## 6. 현재 상태
 
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
-- [확정] `src/config/`, `src/runtime/`, `src/cli/` 이외의 모델·학습·평가·서비스 기능은 스캐폴드이며 구현되지 않았다.
+- [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
+- [확정] 토크나이저·모델·학습·평가·서비스 기능은 스캐폴드이며 구현되지 않았다.
 - [검증 필요] 실제 학습 데이터 후보와 목적별 승인·라이선스 검토는 완료되지 않았다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐지만 코드·테스트 반영은 완료되지 않았다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1은 `passed`이며 Phase 1 데이터 최소 파이프라인 진입이 허용됐다.
+- [확정] Gate 0은 `approved`, Gate 1·2는 `passed`이며 Phase 2 토크나이저 계약·구현 준비가 허용됐다. Gate 3은 `planned`다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
@@ -104,6 +109,7 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] 데이터 작업 읽기 순서에 Phase 1 데이터 계약과 후속 정책·구현 흐름을 연결함 |
+| 2026-07-23 | [확정] Phase 1 데이터 계약→Phase 2 토크나이저 계약→상위 설계→구현 읽기 흐름과 Gate 2 상태를 반영함 |
 | 2026-07-23 | [확정] 개발자 읽기 순서에 핵심 개발 기능명세서를 추가하고 Phase 0·Gate 1 실제 상태를 동기화함 |
 | 2026-07-23 | [확정] 범주별 진입점과 문서 생명주기 인덱스의 역할을 분리함 |
 | 2026-07-23 | [확정] 독자별 읽기 순서, 문서 지도, ADR 안내와 실제 저장소 상태를 반영한 문서 안내서 작성 |

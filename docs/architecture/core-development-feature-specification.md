@@ -13,7 +13,7 @@
 - [확정] 이 문서는 환경·설정·데이터·토크나이저·모델·학습·체크포인트·평가·로컬 추론·실험의 기능 경계와 구현 계약을 정의한다.
 - [확정] 문서 생명주기 상태 `implemented`와 아래 개별 기능 상태는 서로 다른 축이다.
 - [확정] Phase 0 기능은 실제 코드와 Gate 1 검증 근거가 있어 `verified`로 표시한다.
-- [확정] Phase 1 이후 기능은 구현되지 않았으며 계약 검토 수준인 `review` 또는 선택 후보인 `planned`로 표시한다.
+- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐고 Phase 2 이후 기능은 미구현 `review` 또는 선택 후보 `planned`로 표시한다.
 - [제외] FastAPI, Next.js, DB, 사용자 계정, 대화 기록 저장, 배포, 운영 모니터링과 Leaderboard 제출 기능은 이 문서 범위가 아니다.
 
 ## 2. 기능 상태와 필드 적용 규칙
@@ -239,28 +239,28 @@
 | 영역·목적 | 토크나이저: 승인 corpus로 SentencePiece Unigram 16,000 vocabulary 직접 학습 |
 | Phase / Gate | Phase 2 / Gate 3 |
 | 선행 조건 | Gate 2, approved corpus, preprocessing·license manifest, ADR-003 |
-| 설정 항목 | Unigram, vocab 16,000, special ID 0~7; coverage·normalization·byte fallback [검증 필요] |
+| 설정 항목 | Unigram, vocab 16,000, ADR-003 special ID 0~7, NFC 입력+identity normalization; coverage·byte fallback [검증 필요] |
 | 산출물 | `.model`, `.vocab`, mapping, trainer args, corpus fingerprint, 평가·hash |
 | 보안·라이선스 | 승인 corpus만 사용; artifact 공개 조건 별도 검토; 원문 Git 제외 |
 | 현재 상태 | `review`; TOK-010의 byte fallback 채택 여부는 `planned` |
-| 관련 문서 | [토크나이저 설계](../training/tokenizer-design.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md) |
+| 관련 문서 | [Phase 2 토크나이저 상세 계약](../training/phase2-tokenizer-contract.md), [토크나이저 설계](../training/tokenizer-design.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md) |
 
 ### 8.2 기능별 계약
 
 | 기능 ID | 기능명 | 입력 | 출력 | 처리 규칙·오류 조건 | 필수 테스트 | 완료 기준 |
 |---|---|---|---|---|---|---|
-| TOK-001 | corpus 입력 검증 | corpus manifest·text | 승인 corpus stream | license·fingerprint·encoding·empty 검사; 평가 금지 문구 차단 | invalid corpus | 승인·계보 없는 입력 거부 |
+| TOK-001 | corpus 입력 검증 | Phase 1 manifest·`train.jsonl` | 승인 `text_normalized` stream | license·approval·PII·checksum·fingerprint·split 검사 | invalid corpus·validation/test 입력 | 승인·계보 없는 입력 거부 |
 | TOK-002 | SentencePiece 학습 | corpus·trainer config | model·vocab 후보 | Unigram 직접 학습; 완성 토크나이저 대체 금지; trainer 실패 보존 | 소형 fixture smoke | 재현 정보와 산출물 생성 |
 | TOK-003 | vocab size 16,000 검증 | model | piece count | special token 포함 정확히 16,000 아니면 실패 | count regression | count 일치 |
-| TOK-004 | special token ID 검증 | model·mapping | ID 검증 보고 | `<pad>`~`<|end|>` ID 0~7, role token 단일 ID | ID·single-piece | 문자열·ID 정확히 일치 |
+| TOK-004 | special token ID 검증 | model·mapping | ID 검증 보고 | `<pad>`~`<\|end\|>` ID 0~7, role token 단일 ID | ID·single-piece | 문자열·ID 정확히 일치 |
 | TOK-005 | encode | text | ID sequence `[T]` | 각 ID 0..15,999; 조용한 truncation 금지 | 한국어·혼합문자 | 결정론적 유효 ID |
 | TOK-006 | decode | ID sequence | text | 범위 밖 ID·손상 artifact 오류; special 처리 명시 | normal·special | normalization 범위 내 의미 보존 |
 | TOK-007 | round-trip 검사 | versioned text fixture | 비교 결과 | `decode(encode())`와 정규화 기대값 비교 | 문자군 fixture | 승인 표본 모두 판정 기록 |
-| TOK-008 | tokenizer fingerprint | model·vocab·mapping·config | stable fingerprint | 입력 하나라도 변경되면 fingerprint 변경; 알고리즘 기록 | mutation test | 동일 bundle 동일 fingerprint |
+| TOK-008 | tokenizer fingerprint | model·vocab·mapping·config·corpus fingerprints | `sha256:<64 lowercase hex>` | canonical 결정론 필드만 사용; 시각·절대경로·사용자 정보 제외 | mutation·경로 test | 동일 bundle 동일 fingerprint |
 | TOK-009 | 한국어 분할 통계 | 승인 표본·tokenizer | 문자당 token·길이·vocab 사용 | 유형별 분포·256 초과 비율; 임계치 [검증 필요] | 통계 집계 | 분모·표본·version 완전 |
 | TOK-010 | unknown·fallback 통계 | 혼합 문자 표본 | unk·fallback 비교 | unknown 비율 기록; byte fallback on/off는 후보이며 채택 임의 금지 | rare/emoji/한자 | 비교 근거 생성, 상태 `planned` |
-| TOK-011 | tokenizer artifact 저장 | verified bundle | versioned artifact·hash | atomic 후보·필수 file 검증; Git 추적 여부 정책 적용 | save/load | 새 process에서 동일 mapping |
-| TOK-012 | tokenizer 변경 호환성 검사 | 두 tokenizer bundle·checkpoint metadata | compatible/incompatible | vocab·ID·normalization·fingerprint 차이를 자동 호환으로 보지 않음 | mismatch matrix | 비호환 checkpoint load 차단 근거 |
+| TOK-011 | tokenizer artifact 저장 | verified bundle | 8개 필수 versioned artifact·hash | staging 검증 후 atomic publish, overwrite·부분 artifact 차단 | save/load·failure injection | 새 process에서 동일 mapping·fingerprint |
+| TOK-012 | tokenizer 변경 호환성 검사 | 두 tokenizer bundle·checkpoint metadata | compatible/conditionally_compatible/breaking | vocab·ID·normalization·fallback·fingerprint 차이를 자동 호환으로 보지 않음 | mismatch matrix | 비호환 checkpoint load 차단 근거 |
 
 ## 9. Phase 3 모델 구성요소
 
@@ -581,7 +581,7 @@ flowchart LR
 ## 19. 미결정 사항
 
 - [검증 필요] 데이터 최대 text 길이·metadata 깊이, split 기본 비율·허용 오차·validation/test 0 허용 여부, 실제 config schema·구현 symbol과 후속 near dedup·PII 탐지 방식; Phase 1의 SHA-256·NFC·exact dedup·group split schema는 [Phase 1 데이터 계약](../data/phase1-data-contract.md) 참조
-- [검증 필요] tokenizer character coverage, normalization rule, byte fallback, corpus 규모·sampling과 artifact 보존 위치
+- [검증 필요] tokenizer character coverage, byte fallback, corpus 규모·sampling, SentencePiece 세부 option과 artifact 보존 위치; normalization은 Phase 1 NFC 입력+SentencePiece identity로 계약됨
 - [검증 필요] Dropout, 초기화, padding mask dtype·broadcast와 loss shift의 최종 책임 위치
 - [검증 필요] micro-batch, accumulation, checkpointing 기본값, LR, warmup, weight decay, clipping, token budget과 interval
 - [검증 필요] checkpoint format version, atomic replace 방식, checksum, migration과 retention
@@ -595,8 +595,8 @@ flowchart LR
 - [확정] 모든 기능은 공통·기능별 계약을 결합해 ID, 이름, 영역, 목적, Phase, Gate, 선행 조건, 입력, 출력, 처리, 오류, 설정, 산출물, 보안·라이선스, 테스트, 완료 기준, 상태와 관련 문서를 갖는다.
 - [확정] 기능 ID는 영역별 namespace에서 고유하며 중복을 허용하지 않는다.
 - [확정] Tiny 수치는 ADR-002와 일치하고 미결정 hyperparameter는 확정하지 않았다.
-- [확정] Phase 0만 `verified`이며 Phase 1 이후 구현 완료를 주장하지 않는다.
-- [확정] Phase 1은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
+- [확정] Phase 0과 Phase 1 DATA-001~016만 `verified`이며 Phase 2 이후 구현 완료를 주장하지 않는다.
+- [확정] Phase 1 검증은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
 - [확정] 서비스 기능은 포함하지 않고 최소 로컬 추론 경계까지만 정의한다.
 - [검증 필요] 각 구현 작업은 해당 기능 행을 테스트 ID·코드 symbol·실제 artifact에 연결하고 완료 시 상태를 갱신해야 한다.
 
@@ -605,6 +605,7 @@ flowchart LR
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] revision `c9ea945` 독립 재검증과 사용자 Gate 2 승인에 따라 DATA-001~016을 `verified`로 변경함 |
+| 2026-07-23 | [확정] TOK-001~012를 Phase 2 토크나이저 상세 계약에 연결하고 입력·identity·fingerprint·atomic artifact 기준을 구체화함; 기능 상태는 미구현 `review`/`planned` 유지 |
 | 2026-07-23 | [확정] DATA-001~016 최소 구현, synthetic fixture 단위·통합 테스트와 실제 CLI smoke 결과를 반영하고 상태를 `implemented`로 변경함; Gate 2는 `planned` 유지 |
 | 2026-07-23 | [확정] DATA-001~016을 Phase 1 데이터 계약에 연결하고 SHA-256·NFC·exact-only·group split 범위를 동기화함; 기능 상태는 `review` 유지 |
 | 2026-07-23 | [확정] Phase 0 실제 기능과 Phase 1~6·최소 추론·실험의 입력·출력·오류·테스트·Done 계약 159개 작성 |

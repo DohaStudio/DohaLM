@@ -7,7 +7,7 @@
 
 - [확정] 첫 사전학습 대상은 랜덤 초기화한 `DohaLM-Tiny`다.
 - [확정] 기준 장비는 단일 `RTX 3060 Ti 8GB`다.
-- [확정] 모델은 [모델 아키텍처](../architecture/model-architecture.md), 토큰은 [토크나이저 설계](./tokenizer-design.md)를 따른다.
+- [확정] 모델은 [모델 아키텍처](../architecture/model-architecture.md), 토큰 방식은 [토크나이저 설계](./tokenizer-design.md), Phase 2 입력·산출물·호환성은 [토크나이저 상세 계약](./phase2-tokenizer-contract.md)을 따른다.
 - [확정] 현재 학습 코드, 학습 데이터 및 체크포인트는 존재하지 않는다. 이 문서는 실행 계획이다.
 - [후순위] `DohaLM-Small` 사전학습은 Tiny의 정확성·메모리·처리량 측정 후 진행한다.
 
@@ -24,7 +24,7 @@
 다음 항목이 통과되기 전 장시간 사전학습을 시작하지 않는다.
 
 1. [검증 필요] 데이터 출처, 라이선스, 정제 및 train/validation 분할 기록 완료
-2. [검증 필요] SentencePiece 16,000 vocabulary와 special token 테스트 통과
+2. [검증 필요] Phase 2 계약의 SentencePiece 16,000 vocabulary, ADR-003 special token ID 0~7, artifact checksum과 tokenizer fingerprint 테스트 통과
 3. [검증 필요] 모델 파라미터 수 `16,889,856` 일치
 4. [검증 필요] shape, causal mask, loss shift 및 weight tying 단위 테스트 통과
 5. [검증 필요] 작은 batch의 forward/backward에서 NaN/Inf 없음
@@ -158,6 +158,7 @@
 
 - [확정] 최종 적용 학습·모델·데이터 config snapshot
 - [확정] tokenizer model 식별자와 hash, vocabulary size 및 special-token mapping
+- [확정] tokenizer manifest·fingerprint와 corpus manifest·fingerprint, compatibility 결과
 - [확정] train/validation dataset fingerprint와 split version
 - [확정] code revision, Python/PyTorch/CUDA 환경 정보
 - [확정] best metric, 마지막 평가 결과 및 parent checkpoint
@@ -183,3 +184,9 @@
 - [검증 필요] learning rate, warmup, weight decay 및 gradient clipping threshold
 - [검증 필요] micro-batch, accumulation step, checkpointing 활성화 여부
 - [검증 필요] 평가·저장 주기와 정량 중단 기준
+
+## 14. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약의 artifact·fingerprint·호환성 요구를 사전학습 진입 조건과 checkpoint 계보에 연결함 |
