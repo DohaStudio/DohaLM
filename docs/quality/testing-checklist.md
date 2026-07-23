@@ -10,7 +10,7 @@
 | 후속 문서 | 구현별 test와 Gate 결과 [검증 필요] |
 | 구현 전 필수 여부 | 각 구현 전 예 |
 
-- [확정] Phase 0의 환경·설정·경로·로깅·CLI 테스트와 Phase 1 최소 데이터 파이프라인의 synthetic fixture 테스트·CLI smoke를 구현·실행했다. Gate 2 사용자 승인은 아직 수행하지 않았다.
+- [확정] Phase 0의 환경·설정·경로·로깅·CLI 테스트와 Phase 1 최소 데이터 파이프라인의 synthetic fixture 테스트·CLI smoke를 구현·실행했으며 Gate 1·2는 `passed`다.
 - [확정] 상태는 `planned`, `not_run`, `pass`, `fail`, `blocked`, `not_applicable`만 사용한다.
 - [확정] 필수 항목이 `fail`, `blocked` 또는 `not_run`이면 관련 작업을 완료로 처리하지 않는다.
 
@@ -31,9 +31,18 @@
 | DATA-001 | 데이터 | 원본 불변·checksum·manifest 계보 | Component test | 예 | 원본 hash 유지, 입력·출력 연결 | 처리 중단·전처리 수정 | 예 | `pass` — Gate 2에서 fixture checksum 불변, mutation 차단과 10개 artifact·lineage 정합성 재검증 |
 | DATA-002 | 데이터 | deterministic split·exact 직접 누수 fixture | Component test | 예 | 같은 seed 동일 split, 교차 누수 탐지 | split 재생성·알고리즘 수정 | 예 | `pass` — 입력 순서·임시 root 독립성과 group·normalized checksum·record ID·source record 누수 차단 재검증; near 누수는 Phase 1 제외 |
 | DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — approval pending/rejected, license unknown/pending/rejected, PII suspected/confirmed/unknown 전체 차단 확인 |
-| TOK-001 | 토크나이저 | vocab 16,000과 special token ID 0~7 | Component test | 예 | size·문자열·ID 정확히 일치 | tokenizer 재학습·설정 수정 | 예 | `planned` |
-| TOK-002 | 토크나이저 | encode/decode·role token 단일 ID·fingerprint | Regression test | 예 | 승인 fixture와 hash 일치 | normalization·artifact 검토 | 예 | `planned` |
-| TOK-003 | 토크나이저 | 한국어·혼합 문자 token 품질 | Manual evaluation | 예 | 승인 상태·통계 기준 충족 | corpus·coverage·fallback 재검토 | 일부 | `planned` |
+| TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `planned` |
+| TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `planned` |
+| TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `planned` |
+| TOK-004 | 토크나이저 | ADR-003 special token 8개·ID 0~7·단일 piece | Regression test | 예 | 문자열·ID·load 후 mapping 일치 | trainer symbol 설정 수정 | 예 | `planned` |
+| TOK-005 | 토크나이저 | encode 입력·IDs·pieces·길이·truncation | Component test | 예 | 유효 ID, 조용한 절단 없음 | wrapper 수정 | 예 | `planned` |
+| TOK-006 | 토크나이저 | decode·잘못된 ID·special 처리 | Component test | 예 | 범위 오류와 보존·skip 계약 | wrapper 수정 | 예 | `planned` |
+| TOK-007 | 토크나이저 | exact·normalized round-trip 문자군 matrix | Regression test | 예 | 모든 결과·실패 사례 분류·보존 | normalization·후보 재검토 | 예 | `planned` |
+| TOK-008 | 토크나이저 | canonical tokenizer fingerprint | Regression test | 예 | 시각·경로 독립, 의미 변경 감지 | 직렬화·입력 필드 수정 | 예 | `planned` |
+| TOK-009 | 토크나이저 | 한국어 분할·길이·256 초과 통계 | Evaluation test | 예 | 분모·percentile·문자군 통계 완전 | corpus·설정 재검토 | 일부 | `planned` |
+| TOK-010 | 토크나이저 | UNK와 byte fallback A/B 통계 | Evaluation test | 예 | 지표 분리·안전 사례·후보 비교 | coverage·fallback 재검토 | 일부 | `planned` |
+| TOK-011 | 토크나이저 | 8개 필수 artifact·checksum·atomic publish | Integration test | 예 | 부분·overwrite·손상 차단과 새 process load | 저장·복원 로직 수정 | 예 | `planned` |
+| TOK-012 | 토크나이저 | compatible/conditional/breaking matrix | Regression test | 예 | 비호환 model/checkpoint 적용 차단 | version·manifest·loader 수정 | 예 | `planned` |
 | MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `planned` |
 | MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `planned` |
 | MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `planned` |
@@ -82,6 +91,7 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] Gate 2 승인 근거 revision·75개 테스트·CLI validate/build·결정론·원본 mutation·Windows 경로 결과를 연결함 |
+| 2026-07-23 | [확정] TOK-001~012의 corpus·trainer·vocab·API·통계·artifact·호환성 테스트를 Phase 2 계약 기준으로 구체화하고 `planned`를 유지함 |
 | 2026-07-23 | [확정] Gate 1 승인 근거에 따라 직접 검증한 Phase 0 항목만 `pass`로 기록하고 43개 테스트 결과를 연결함 |
 | 2026-07-23 | [확정] 격리 `.venv` editable 설치·의존성 무결성·CLI·CPU/CUDA smoke 검증 반영 |
 | 2026-07-23 | [확정] Phase 0 설정·환경·경로·로깅·CLI 자동 테스트와 실행 명령 반영 |

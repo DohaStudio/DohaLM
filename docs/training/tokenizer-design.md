@@ -9,6 +9,7 @@
 - [확정] vocabulary size는 special token을 포함해 16,000이다.
 - [확정] 외부 완성 모델의 토크나이저를 핵심 토크나이저로 사용하지 않는다.
 - [확정] 현재 토크나이저 모델과 학습 데이터는 존재하지 않으며 아래 내용은 구현 기준이다.
+- [확정] Phase 2의 구체적 입력·설정·산출물·API·평가 계약은 [Phase 2 토크나이저 상세 계약](./phase2-tokenizer-contract.md)을 따른다.
 
 ## 2. 학습 방식
 
@@ -17,9 +18,9 @@
 | 도구 | SentencePiece | [확정] |
 | Vocabulary Size | 16,000 | [확정] |
 | 기본 알고리즘 | Unigram | [확정] |
-| 입력 단위 | 정제된 한국어 텍스트 line | [확정] |
+| 입력 단위 | 승인된 Phase 1 `train.jsonl`의 `text_normalized` | [확정] |
 | Character coverage | 미정 | [검증 필요] 말뭉치 문자 통계 후 확정 |
-| Unicode 정규화 | SentencePiece 정규화 적용 | [가정] 구체 rule은 데이터 정책과 함께 확정 |
+| Unicode 정규화 | Phase 1 NFC 입력 + SentencePiece `identity` | [확정] Phase 2 상세 계약 |
 | Byte fallback | 미정 | [검증 필요] unknown 비율과 vocab 영향 비교 |
 | 학습 corpus 크기 | 미정 | [검증 필요] 데이터 전략 문서 선행 필요 |
 
@@ -50,9 +51,10 @@
 
 - [확정] 원문과 정제문을 분리해 보존하고 변환 계보를 기록한다.
 - [확정] 한글, 라틴 문자, 숫자 및 일반 문장부호를 근거 없이 제거하지 않는다.
-- [확정] 중복 whitespace와 제어문자 처리 규칙을 전처리 문서에 고정한다.
+- [확정] Phase 1의 LF·NFC·행 끝 horizontal whitespace 제거를 적용하고 본문 내부 연속 공백·줄바꿈은 보존한다.
 - [확정] 개인정보와 라이선스 검증을 통과하지 못한 텍스트는 tokenizer 학습에도 사용하지 않는다.
-- [검증 필요] NFC/NFKC 계열 정규화가 호환 문자, 수식 및 특수문자에 미치는 영향을 표본 검토한다.
+- [확정] SentencePiece 내부 NFKC 계열 정규화는 적용하지 않고 `identity`를 사용한다.
+- [검증 필요] `identity`에서도 SentencePiece whitespace marker가 호환 문자, 수식, 특수문자와 공백 표현에 미치는 영향을 표본 검토한다.
 - [검증 필요] 줄바꿈을 문서 경계로 사용할지 별도 경계 token을 둘지는 데이터 전처리 설계에서 정한다.
 
 ## 5. 토크나이저 입출력 계약
@@ -60,12 +62,12 @@
 | 연산 | 입력 | 출력 | shape/형식 |
 |---|---|---|---|
 | `encode` | 한국어 문자열 | token ID sequence | `[T]`, 각 ID는 `0 <= id < 16,000` |
-| batch encode | 문자열 목록 | padded IDs, attention mask | 각각 `[B, T]` |
+| batch encode | 문자열 목록 | record별 token IDs와 pieces | 가변 길이 목록; padding은 모델 batch 단계 |
 | `decode` | token ID sequence | 문자열 | special token 처리 규칙 적용 |
 | model input | token IDs | PyTorch integer tensor | `[B, T]`, `torch.long` |
 
 - [확정] 모델 embedding 입력은 문자열이 아니라 token ID tensor다.
-- [확정] `T`는 `DohaLM-Tiny`에서 256 이하이며 `DohaLM-Small`은 최대 512다.
+- [확정] tokenizer는 context 제한과 독립적으로 전체 sequence를 encode하며 `DohaLM-Tiny` 입력 block을 구성할 때 `T <= 256`을 적용한다. `DohaLM-Small`의 최대 512는 검토안이다.
 - [확정] truncation은 tokenizer 내부에서 조용히 수행하지 않고 데이터 구성 단계에서 명시한다.
 
 ## 6. 사전학습 문서 구성
@@ -137,7 +139,13 @@
 
 ## 11. 검토 필요 사항
 
-- [검증 필요] character coverage, byte fallback 및 정규화 rule
+- [검증 필요] character coverage, byte fallback 및 identity normalization의 whitespace 실제 동작
 - [검증 필요] tokenizer 학습 corpus와 표본 추출 방식
 - [검증 필요] 문서 packing 및 경계 처리
 - [검증 필요] 기본 system message와 실제 줄바꿈 직렬화
+
+## 12. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-23 | [확정] Phase 2 상세 계약을 연결하고 NFC 입력·SentencePiece identity 및 tokenizer/batch 책임 경계를 동기화함 |

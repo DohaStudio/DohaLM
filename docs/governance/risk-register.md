@@ -60,6 +60,11 @@
 | R-036 | manifest count 또는 artifact checksum 불일치 | `low` | `high` | `high` | record·split·source 합계 또는 SHA-256 불일치 | publish 전 count 불변식·artifact checksum 검사 | `MANIFEST_MISMATCH` 또는 `CHECKSUM_MISMATCH`로 전체 실패 | data/artifact | `monitoring` (Gate 2 10개 artifact 정합성 검증) |
 | R-037 | 승인되지 않은 source 또는 목적 상태의 데이터 처리 | `unknown` | `critical` | `critical` | approval 상태 누락·pending·rejected 입력이 pipeline에 진입 | 명시적 `approved` 상태 요구와 source 단위 사전 차단 | `UNAPPROVED_SOURCE`로 전체 실패·승인 기록 재검토 | data/governance | `monitoring` (Gate 2 pending/rejected 차단 검증) |
 | R-038 | 대용량 데이터에서 메모리·처리 시간·atomic staging 비용 증가 | `unknown` | `high` | `high` | 메모리 급증·처리 지연·staging 공간 부족 | 실제 데이터 전 pilot·용량 측정·streaming 설계 검토 | 실행 중단·batch/streaming/multiprocessing 후속 설계 | data/operations | `open` (Phase 1은 소형 in-memory fixture 범위) |
+| R-039 | 승인된 실제 tokenizer corpus 미확보 또는 source 분포 편향 | `unknown` | `high` | `high` | 승인 source 부족·한 source 기여율 과다·한국어 domain 편중 | Phase 1 승인 계약, source별 sampling 전후 record·문자·weight 통계 | 운영 후보 승인을 중단하고 corpus 구성·비율 재검토 | tokenizer/data | `open` |
+| R-040 | NFC 입력과 SentencePiece whitespace 처리 차이로 의미·형식 손실 | `unknown` | `high` | `high` | 연속 공백·줄바꿈·문장 시작 공백 round-trip 실패 | `identity` normalization과 whitespace 문자군 fixture·실패 사례 보존 | wrapper·SentencePiece option·후보 corpus를 재검토하고 Gate 3 중단 | tokenizer/data | `mitigating` |
+| R-041 | SentencePiece 비결정성 또는 운영 vocabulary 16,000 미충족 | `unknown` | `high` | `high` | 동일 입력 재학습의 piece·checksum 차이, actual piece count 부족 | version·thread·seed·resolved config 기록, `hard_vocab_limit=true`, 다층 결정론 검사 | 후보를 invalid 처리하고 corpus·option·dependency를 재검토 | tokenizer/reproducibility | `open` |
+| R-042 | byte fallback의 vocabulary 잠식 또는 희귀 문자 UNK 증가 | `unknown` | `high` | `high` | 한국어 다문자 piece 감소·byte sequence 증가·UNK record 집중 | fallback off/on A/B와 coverage·UNK·piece 품질 통계 | coverage·fallback·corpus 구성을 재검토하고 승자를 보류 | tokenizer/data | `open` |
+| R-043 | tokenizer 부분 artifact·version 혼동·model/checkpoint 오적용 | `unknown` | `critical` | `critical` | 필수 파일 누락·checksum/fingerprint 불일치·같은 version에 다른 mapping | 8개 필수 artifact, staging atomic publish, overwrite 차단, model/checkpoint fingerprint 연결 | load·학습을 차단하고 정상 호환 bundle로 복구 | tokenizer/model/artifact | `mitigating` |
 
 ## 4. 운영 원칙
 
@@ -74,6 +79,7 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] Gate 2 결과로 라이선스·PII·누수·재현 위험을 `mitigating`으로 갱신하고 원본 변조·split·partial artifact·manifest·승인·대용량 위험 R-033~038을 등록함 |
+| 2026-07-23 | [확정] Phase 2 corpus·normalization/whitespace·SentencePiece 결정론·fallback·artifact 호환성 위험 R-039~043을 등록함 |
 | 2026-07-23 | [확정] Gate 1 근거로 CUDA·경로·비밀·대용량 산출물 위험을 재검토하고 환경 출력 직렬화 회귀 위험 R-032를 등록함 |
 | 2026-07-23 | [확정] 중복 Risk ID를 해소하기 위해 문서 누적 위험을 R-030, 장시간 학습 운영 위험을 R-031로 정정함 |
 | 2026-07-23 | [확정] 격리 `.venv`의 clean 설치·`pip check`·CPU/CUDA smoke 통과로 R-029 완화 확인 |

@@ -92,6 +92,7 @@ DohaLM/
 |---|---|---|---|---|---|---|
 | `configs/` | 실행 설정의 단일 기준 제공 | 모델·학습·평가 설정 | 비밀값, 체크포인트, 데이터 | 설정 파일은 추적 | 현재 없음, 필요 시 검토 | 실제 설정 구현 단계 |
 | `docs/` | 기준 문서와 결정 이력 | 설계, 기능명세, 정책, ADR | 실행 산출물 | 추적 | 존재 | 기능 구현 전 |
+| `docs/training/phase2-tokenizer-contract.md` | Phase 2 구현 계약 | corpus·SentencePiece·artifact·API·평가·호환성 기준 | 실제 설정·코드·artifact | 추적 | `docs/AGENTS.md` 적용 | 토크나이저 구현 전 |
 | `src/config/` | YAML 설정 로딩·검증·병합 | schema, Tiny 불변 조건, CLI override | 모델·학습 구현 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/runtime/` | 환경·경로·로깅 기반 제공 | 환경 진단, 저장소 경로, 기본 로깅 | 학습 metric logger | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/cli/` | Phase 0 진단 진입점 | 환경·설정·resolved config·경로 명령 | 학습·추론 명령 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
@@ -108,7 +109,7 @@ DohaLM/
 | `data/` | 단계별 데이터 보관 | raw, cleaned, tokenized, sft | 소스 코드, 비밀값 | 대용량 데이터 제외 | 불필요, 정책 문서 우선 | 라이선스 확인 후 |
 | `checkpoints/` | 학습 재개 상태 보관 | 모델·옵티마이저·스케줄러·AMP 상태 | 소스 코드 | 본체 제외 | 불필요 | 첫 학습 실행 시 |
 | `experiments/` | 실험별 메타데이터와 적용 설정 | [검증 필요] 실험 manifest, 설정 snapshot | 원천 데이터, 대형 체크포인트 | 소형 기록만 추적 후보 | 필요 시 검토 | 실험 관리 스키마 승인 후 |
-| `artifacts/` | 공유·배포 대상으로 선별한 결과 | [검증 필요] 모델 카드, 평가 요약, 배포 묶음 | 모든 중간 산출물 | 항목별 결정 | 필요 시 검토 | 산출물 정책 승인 후 |
+| `artifacts/` | 공유·배포 대상으로 선별한 결과 | [검증 필요] 모델 카드, 평가 요약, 배포 묶음; tokenizer bundle 논리 경로 후보 | 모든 중간 산출물 | 항목별 결정, binary tokenizer는 제외 | 필요 시 검토 | 산출물 정책 승인 후 |
 
 ## 6. 설정·소스·산출물·실험 기록의 경계
 
@@ -145,4 +146,5 @@ DohaLM/
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-23 | [확정] docs 책임과 Phase 1~6 구현 기준에 핵심 개발 기능명세서를 연결함 |
+| 2026-07-23 | [확정] Phase 2 토크나이저 계약 문서와 versioned tokenizer artifact의 논리 경계·Git 제외 원칙을 연결함 |
 | 2026-07-23 | [확정] 현재 구조와 계획 구조, 디렉터리 책임, Git 및 `AGENTS.md` 적용 원칙의 초안 작성 |
