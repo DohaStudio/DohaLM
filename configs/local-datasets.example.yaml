@@ -1,0 +1,18 @@
+datasets:
+  external_root: "D:/path/to/DohaLM-Datasets"
+
+  entries:
+    AIHUB-71748:
+      root: "extracted/AIHUB-71748"
+
+    AIHUB-653:
+      root: "extracted/AIHUB-653"
+
+    AIHUB-110:
+      root: "extracted/AIHUB-110"
+
+    AIHUB-86:
+      root: "extracted/AIHUB-86"
+
+    AIHUB-71477:
+      root: "extracted/AIHUB-71477"
