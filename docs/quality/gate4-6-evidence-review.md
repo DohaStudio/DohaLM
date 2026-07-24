@@ -25,20 +25,22 @@
 - [확정] 입력과 출력은 `tests/output/` 아래 Git 제외 경로에 있으며 절대 로컬 경로를 bundle에 기록하지 않는다.
 - [확정] checkpoint의 `checksums.json`을 다시 계산하며 불일치 시 해당 Gate를 차단한다.
 
-## 3. 검증 결과
+## 3. 검증 및 승인 결과
 
-| Gate | 현재 상태 | 제안 상태 | 주요 근거 |
+| Gate | 승인 전 상태 | 승인 결과 | 주요 근거 |
 |---|---|---|---|
-| Gate 4 | `planned` | `eligible_for_user_approval` | 구성요소 shape·causal mask·backward·dtype/device·tying·count·CPU/CUDA test |
-| Gate 5 | `planned` | `eligible_for_user_approval` | Tiny forward·shifted loss·greedy generation·state round-trip·16,889,856·finite CPU/CUDA |
-| Gate 6 | `planned` | `eligible_for_user_approval` | CUDA FP16 10-step·AMP·accumulation·clipping·checkpoint/resume·RNG/sampler·VRAM·처리량·overfit |
+| Gate 4 | `planned` | `passed` | 구성요소 shape·causal mask·backward·dtype/device·tying·count·CPU/CUDA test와 사용자 승인 |
+| Gate 5 | `planned` | `passed` | Tiny forward·shifted loss·greedy generation·state round-trip·16,889,856·finite CPU/CUDA와 사용자 승인 |
+| Gate 6 | `planned` | `passed` | CUDA FP16 10-step·AMP·accumulation·clipping·checkpoint/resume·RNG/sampler·VRAM·처리량·overfit과 사용자 승인 |
 
 Evidence bundle:
 
 - Run ID: `gate-20260724-review-v3`
 - Evidence fingerprint: `sha256:4260844cd4c48b385e60c8cd023504cbc6897a8914dfab9ec8dc0f7b746156be`
 - Status proposal fingerprint: `sha256:f59573ffc791833247e560da283eb684c4c97246144fea115df16d363b3798c6`
-- [확정] `approved_by`와 `approved_at`은 `null`이다.
+- [확정] 위 proposal artifact의 `approved_by`와 `approved_at`은 제안 생성 시점의 불변 값 `null`이며, 실제 승인 기록은 아래 사용자 승인 metadata와 [개발 로드맵](./development-roadmap.md)에 별도로 보존한다.
+- [확정] 승인자: `DDORINY`
+- [확정] 승인일: 2026-07-24
 
 ## 4. Gate 6 요약 수치
 
@@ -85,8 +87,15 @@ python -m scripts.training.inspect_gate_proposal `
   --json
 ```
 
-## 7. 사용자 검토 항목
+## 7. 사용자 승인 결과와 남은 검토
 
-- [검증 필요] Gate 4·5·6 각각의 현재 `planned` 상태를 변경할지 사용자 승인
+- [확정] Gate 4·5·6은 2026-07-24 사용자 승인으로 `passed` 처리했다.
 - [검증 필요] 합성 evidence의 적용 범위와 남은 실제 데이터 검증 경계 확인
 - [검증 필요] Gate 7 정책과 Pilot 진입 Gate 정의 확정
+- [확정] Gate 3·7은 `planned`, tokenizer·corpus·license·PII 승인은 `pending`이다.
+
+## 8. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-24 | [확정] `DDORINY` 승인과 지정 fingerprint·514개 테스트를 근거로 Gate 4·5·6 `passed`를 기록함 |

@@ -27,13 +27,13 @@
 ## 3. 현재 결과
 
 - [확정] 현재 결과는 `blocked`다.
-- [확정] Gate 3~7은 `planned`이며 Gate 4·5·6은 기술 evidence만 사용자 승인 후보로 제안됐다.
+- [확정] Gate 4·5·6은 사용자 승인으로 `passed`다. Gate 3과 Gate 7은 `planned`다.
 - [확정] 실제 운영 tokenizer와 목적별 승인 corpus artifact·fingerprint가 연결되지 않았다.
 - [확정] storage·retention·training config·scheduler·batch·시간/VRAM·resume 운영 승인이 없다.
 
 주요 차단 code:
 
-- `GATE3_NOT_PASSED`, `GATE4_NOT_PASSED`, `GATE5_NOT_PASSED`, `GATE6_NOT_PASSED`
+- `GATE3_NOT_PASSED`, `GATE7_POLICY_NOT_SATISFIED`
 - `TOKENIZER_NOT_APPROVED`, `TOKENIZER_FINGERPRINT_MISSING`
 - `CORPUS_NOT_APPROVED`, `LICENSE_NOT_APPROVED`, `PII_NOT_CLEARED`
 - `SPLIT_NOT_VERIFIED`, `EVALUATION_EXCLUSION_MISSING`
@@ -70,10 +70,16 @@ python -m scripts.training.validate_pilot_readiness `
 
 ## 6. 실제 Pilot 전 사용자 승인 항목
 
-- [검증 필요] Gate 3~7 상태 또는 별도 pilot 정책
+- [검증 필요] Gate 3과 Gate 7 상태 또는 별도 pilot 정책
 - [검증 필요] 운영 tokenizer bundle과 fingerprint
 - [검증 필요] 목적별 corpus·license·PII 승인과 manifest·split·평가 제외
 - [검증 필요] resolved training config, scheduler, batch·accumulation
 - [검증 필요] 저장공간·checkpoint 보존·예상 시간/VRAM·resume 절차
 
 - [제외] 위 조건이 충족되기 전 AI Hub corpus 연결, 장시간 학습과 실제 Pilot 실행
+
+## 7. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-24 | [확정] Gate 4·5·6 `passed`를 반영하고 Gate 3·7 및 tokenizer·corpus·license·PII 차단을 유지함 |

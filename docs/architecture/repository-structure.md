@@ -99,7 +99,7 @@ DohaLM/
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
 | `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline·dataset adapter 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
 | `src/model/` | Decoder-only Transformer | Config·구성요소·전체 forward·shifted loss·greedy generation·state round-trip helper·parameter count | 완성형 외부 GPT 모델, trainer·checkpoint manager | 소스만 추적 | 존재 | Phase 3 구성요소와 Phase 4 통합 구현 |
-| `src/training/` | 합성 Trainer Foundation과 Tiny 실규모 검증 | config·dataset/collator/loader·stateful sampler·AdamW·linear/cosine 후보·AMP·accumulation·metric·memory/throughput·checkpoint/resume | 실제 corpus 사전학습, SFT, 운영 실험 registry | 소스만 추적 | Phase 5·Gate 6 준비 합성 범위 구현 | Gate 6 검토 전 |
+| `src/training/` | 합성 Trainer Foundation과 Tiny 실규모 검증 | config·dataset/collator/loader·stateful sampler·AdamW·linear/cosine 후보·AMP·accumulation·metric·memory/throughput·checkpoint/resume | 실제 corpus 사전학습, SFT, 운영 실험 registry | 소스만 추적 | Phase 5 합성 범위 구현 및 Gate 6 `passed` | Gate 3·7과 실제 데이터·Pilot 승인 전 |
 | `src/evaluation/` | 정량·정성 평가 | 평가 로직 | 대용량 결과 원본 | 소스만 추적 | 필요 시 검토 | 평가 계획 승인 후 |
 | `src/inference/` | 생성과 채팅 템플릿 | 로컬 추론 로직 | 서버 라우팅, UI | 소스만 추적 | 필요 시 검토 | 추론 설계 승인 후 |
 | `server/` | FastAPI 경계 | 스키마, 라우팅, 모델 서비스 | 모델 핵심 구현 | 소스만 추적 | 필요 시 검토 | API 명세 승인 후 |

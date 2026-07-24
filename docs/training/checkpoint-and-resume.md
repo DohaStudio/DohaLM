@@ -80,7 +80,7 @@ Accumulation 정책은 optimizer update 의미를 바꾸므로 incompatible이�
 - [확정] 현재 format은 synthetic Trainer Foundation의 구현 schema다.
 - [검증 필요] 운영 checkpoint version migration, retention, best/latest alias, 저장 공간과 cross-platform 장기 호환성은 미결정이다.
 - [제외] 이 구현은 실제 tokenizer·dataset 또는 사전학습 checkpoint 승인을 뜻하지 않는다.
-- [확정] Gate 6은 `planned`다.
+- [확정] Gate 6은 checkpoint/resume 통합 evidence와 2026-07-24 사용자 승인으로 `passed`다. 실제 tokenizer·dataset 또는 사전학습 checkpoint 승인은 별도다.
 
 ## 7. 변경 이력
 

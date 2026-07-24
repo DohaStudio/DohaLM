@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [Trainer Foundation](../training/trainer-foundation.md), [Checkpoint·Resume](../training/checkpoint-and-resume.md), [테스트 전략](./test-strategy.md) |
-| 후속 문서·작업 | Gate 6·7 사용자 검토, 운영 데이터·Tiny overfit 검증 |
+| 후속 문서·작업 | Gate 6 승인 기록, Gate 7 사용자 검토, 운영 데이터·Tiny overfit 검증 |
 | 구현 전 필수 여부 | Gate 6 검토 전 예 |
 
 ## 2. 자동 테스트 결과
@@ -45,7 +45,7 @@ CUDA resume 구간 최대 관측값은 allocated `18,574,336 bytes`(`17.714 MiB`
 
 - [가정] accumulation 큰 batch 비교 허용 오차는 float32 reduction 순서 차이를 고려해 `atol=3e-4`, `rtol=1e-4`다.
 - [제외] 실제 corpus 수렴, validation loss, 생성 품질, 장시간 안정성과 OOM 경계는 검증하지 않았다.
-- [확정] synthetic overfit은 Gate 7 통과 근거가 아니며 Gate 3~7 상태는 계속 `planned`다.
+- [확정] Gate 6은 통합 evidence와 2026-07-24 사용자 승인으로 `passed`다. Synthetic overfit은 Gate 7 통과 근거가 아니며 Gate 3·7은 `planned`다.
 
 ## 5. 변경 이력
 

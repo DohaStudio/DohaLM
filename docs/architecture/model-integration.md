@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 아키텍처](./model-architecture.md), [모델 구성요소](./model-components.md), [핵심 개발 기능명세서](./core-development-feature-specification.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md) |
-| 후속 문서·작업 | [통합 테스트](../quality/model-integration-testing.md), Gate 5 사용자 검토, Phase 5 학습 기반 |
+| 후속 문서·작업 | [통합 테스트](../quality/model-integration-testing.md), Gate 5 승인 기록, Phase 5 학습 기반 |
 | 구현 전 필수 여부 | Phase 5 전 예 |
 
 - [확정] Phase 4에서 Phase 3 구성요소를 `DohaLMTiny` 전체 forward로 조립하고 shifted causal loss와 최소 greedy generation을 구현했다.
@@ -92,7 +92,7 @@ Generation은 매 step 전체 prefix를 다시 forward하고 마지막 logits의
 - [검증 필요] 프로젝트 초기화 정책은 여전히 미정이다.
 - [확정] 같은 seed는 같은 초기 weight, 다른 seed는 다른 weight를 만들며 NaN·Inf가 없음을 검증했다.
 - [확정] embedding에 임의 `padding_idx`를 도입하지 않았다.
-- [확정] Gate 3, Gate 4, Gate 5는 모두 `planned`를 유지한다. 구현·테스트 통과는 사용자 Gate 승인을 대신하지 않는다.
+- [확정] Gate 4와 Gate 5는 2026-07-24 사용자 승인으로 `passed`다. Gate 3은 `planned`이며 실제 tokenizer 연결은 승인되지 않았다.
 
 ## 9. 변경 이력
 

@@ -6,15 +6,15 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 1 환경 검증과 Gate 2 데이터 파이프라인 검증을 통과했습니다. Phase 1 DATA-001~016, Phase 3·4 모델, Phase 5 Trainer Foundation과 실제 Tiny 규모의 합성 CUDA 학습 검증은 구현·테스트됐습니다. Gate 3~7은 사용자 승인 전까지 `planned`를 유지합니다.
+현재 저장소는 Gate 1·2와 사용자 승인된 Gate 4·5·6을 통과했습니다. Phase 1 DATA-001~016, Phase 3·4 모델, Phase 5 Trainer Foundation과 실제 Tiny 규모의 합성 CUDA 학습 검증은 구현·테스트됐습니다. Gate 3과 Gate 7은 `planned`를 유지합니다.
 
 | 영역 | 상태 |
 |---|---|
 | 문서화 | 진행 및 검토 단계 |
 | Phase 0 환경·설정 기반 | 구현·검증 완료, Gate 1 `passed` |
 | Phase 1 데이터 파이프라인 | DATA-001~016 `verified`, Gate 2 `passed` |
-| 모델 코드 | Phase 3 구성요소와 Phase 4 전체 forward·loss·greedy generation 구현·검증, Gate 4·5 `planned` |
-| 학습 기반 | 합성 token 전용 Trainer와 실제 Tiny 규모 sampler·cosine 후보·FP16 AMP·batch probe·checkpoint/resume·VRAM 측정 구현·검증, Gate 6·7 `planned` |
+| 모델 코드 | Phase 3 구성요소와 Phase 4 전체 forward·loss·greedy generation 구현·검증, Gate 4·5 `passed` |
+| 학습 기반 | 합성 token 전용 Trainer와 실제 Tiny 규모 sampler·cosine 후보·FP16 AMP·batch probe·checkpoint/resume·VRAM 측정 구현·검증, Gate 6 `passed`, Gate 7 `planned` |
 | 데이터 | 후보 및 라이선스 미승인 |
 | 토크나이저 | 미학습 |
 | 사전학습 | 미실행 |
@@ -22,7 +22,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 추론 API | 스캐폴드만 존재, 미구현 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
 
-Gate 4·5·6 기술 evidence는 `eligible_for_user_approval`로 제안됐지만 실제 상태는 `planned`를 유지합니다. 실제 tokenizer·승인 corpus·운영 설정이 연결되지 않아 Pilot Pretraining readiness는 `blocked`입니다.
+Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24 사용자 승인되어 `passed`입니다. 실제 tokenizer·승인 corpus·운영 설정이 연결되지 않았고 Gate 3·7이 `planned`이므로 Pilot Pretraining readiness는 계속 `blocked`입니다.
 
 ## 프로젝트 목표
 

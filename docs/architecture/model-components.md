@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 아키텍처](./model-architecture.md), [핵심 개발 기능명세서](./core-development-feature-specification.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md) |
-| 후속 문서·작업 | [Phase 4 전체 모델 통합](./model-integration.md), [통합 테스트](../quality/model-integration-testing.md), Gate 4 사용자 검토 |
+| 후속 문서·작업 | [Phase 4 전체 모델 통합](./model-integration.md), [통합 테스트](../quality/model-integration-testing.md), Gate 4 승인 기록 |
 | 구현 전 필수 여부 | 구성요소 소비·통합 전 예 |
 
 - [확정] 이 문서는 Phase 3 Decoder-only Transformer 구성요소 구현을 설명한다.
@@ -84,7 +84,7 @@ LM Head는 bias 없는 `384 → 16,000` projection이다. 생성자 또는 `tie_
 
 Config 불변조건, 잘못된 rank·dtype·device·token 범위·context 초과·mask shape/dtype·hidden shape·tying mismatch는 명시적으로 실패한다. 자동 dtype 변환, token clamp, sequence truncation 또는 mask broadcast fallback은 하지 않는다.
 
-Gate 3과 Gate 4는 모두 `planned`를 유지한다. 구성요소 구현·테스트 성공은 tokenizer 승인, 전체 모델 통합이나 Gate 4 사용자 승인을 의미하지 않는다.
+Gate 4는 통합 evidence와 2026-07-24 사용자 승인으로 `passed`다. Gate 3은 `planned`이며, Gate 4 통과는 tokenizer 승인이나 실제 데이터 연결을 의미하지 않는다.
 
 ## 10. 변경 이력
 

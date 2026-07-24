@@ -30,4 +30,4 @@
 - [확정] VRAM·처리량은 Windows 11, PyTorch 2.7.1+cu118, RTX 3060 Ti 8GB의 현재 짧은 실행 실측이다.
 - [검증 필요] 긴 실행, 다른 driver·PyTorch 조합, 실제 corpus I/O에서는 결과가 달라질 수 있다.
 - [확정] cosine scheduler, LR, warmup, min LR와 batch는 후보이며 운영 승인값이 아니다.
-- [확정] Gate 6·7은 사용자 승인 전 `planned`다.
+- [확정] Gate 6은 2026-07-24 사용자 승인으로 `passed`이며 Gate 7은 `planned`다.

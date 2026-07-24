@@ -86,7 +86,7 @@ State는 global/micro/optimizer step, epoch, tokens·records, best·last metric,
 | 실제 Tiny 제한 overfit | 반복 pattern, S=64, CUDA FP16 100 step | loss `249.9167 → 1.7976e-7` |
 
 - [확정] loss 감소는 synthetic trainer wiring 검증이며 실제 한국어 학습 성공이나 품질 근거가 아니다.
-- [확정] Gate 3~7은 사용자 승인 전까지 `planned`를 유지한다.
+- [확정] Gate 4·5·6은 2026-07-24 사용자 승인으로 `passed`이며 Gate 3·7은 `planned`다.
 
 ## 9. 변경 이력
 
