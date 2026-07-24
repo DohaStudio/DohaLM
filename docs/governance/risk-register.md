@@ -75,6 +75,7 @@
 | R-051 | 공식 문의 미완료 상태에서 다운로드·학습·공개 진행 | `unknown` | `critical` | `critical` | `pending_official_confirmation`을 허용으로 취급 | approval log gate와 사용자 승인, pending 시 fail closed | 즉시 중단·상태 `restricted`·공식 확인 후 재개 | data/governance | `open` |
 | R-052 | 외부 ZIP 내부의 절대·상위 이동 entry 경로로 안전하지 않은 추출 발생 | `high` | `critical` | `critical` | 중앙 디렉터리에서 안전하지 않은 entry 경로 탐지 | 자동 압축 해제 금지·경로 마스킹·격리 root·CRC·checksum·atomic publish 검증 | 추출 중단, 별도 승인된 수동 mapping과 격리 절차 검토 | data/security | `mitigating` (일반 차단 유지; 승인 mapping dry-run rule 매칭 573/0·실제 추출 0·원본 불변) |
 | R-053 | 제한된 대용량 JSON prefix 구조를 전체 schema·PII 부재로 과대 해석 | `unknown` | `high` | `high` | truncated 결과를 complete schema로 기록·Tokenizer 승인 근거로 사용 | entry·전체 read byte 상한, completeness·truncated 명시, key hash·허용명만 기록 | 실제 추출·corpus 승인을 중단하고 별도 schema·PII 검토 범위 승인 | data/security | `mitigating` (5개·각 2 MiB·전체 10 MiB 관측, 모두 truncated·추출 0) |
+| R-054 | 제한 read 구간의 JSON record 표본을 전체 파일 분포·PII 부재로 과대 해석 | `unknown` | `critical` | `critical` | 앞쪽 32 MiB·10개 record 통계를 전체 corpus 승인 근거로 사용 | bounded read·stable rank 범위 명시, 값 비노출, schema·PII 승인 분리 | corpus 생성을 중단하고 별도 층화·PII 검토 범위를 사용자 승인 | data/security | `mitigating` (2개 entry·3,489 record 경계 관측·10개 구조 선택·전체 parse/추출 0) |
 
 ## 4. 운영 원칙
 
@@ -88,6 +89,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 제한 record 표본 과대 해석 위험 R-054와 bounded parser·비노출·승인 분리 대응을 등록함 |
 | 2026-07-24 | [확정] R-052에 rule별 mapping 관측성을 반영하고 제한 JSON 구조의 과대 해석 위험 R-053과 bounded streaming 대응을 등록함 |
 | 2026-07-23 | [확정] R-052 대응으로 안전 표본 추출기와 AIHUB-71748 dry-run 전량 거부·원본 불변 근거를 반영함 |
 | 2026-07-23 | [확정] AI Hub ZIP 중앙 디렉터리 분석에서 안전하지 않은 entry 경로 위험 R-052를 등록하고 자동 추출 금지를 유지함 |

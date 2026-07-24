@@ -58,7 +58,7 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 
 - [확정] 원문 문자열, JSON line, 개인정보 추정 값, 로컬 절대 경로를 로그·Markdown·분석 JSON에 기록하지 않는다.
 - [확정] PII field 이름 탐지는 위험 신호일 뿐 개인정보 존재 여부의 확정 판정이 아니다.
-- [확정] ZIP은 자동 압축 해제하지 않으며 entry 원문을 읽지 않는다.
+- [확정] ZIP은 자동 압축 해제하지 않는다. 기본 구조 분석은 entry를 읽지 않으며, 별도 승인된 bounded inspector만 명시된 byte 상한에서 값을 저장하지 않고 stream으로 읽는다.
 
 ## 관련 문서
 
@@ -68,6 +68,8 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 - [명시적 수동 경로 mapping 계약](./manual-path-mapping.md)
 - [AIHUB-71748 mapping 후보 검토](./AIHUB-71748-path-mapping.md)
 - [대용량 JSON 제한 streaming 검사](./large-json-inspection.md)
+- [ZIP JSON record 제한 분석 계약](./zip-json-record-sampling.md)
+- [AIHUB-71748 record 분석 결과](./AIHUB-71748-record-sampling.md)
 - [후보 등록부](../dataset-candidate-registry.md)
 - [라이선스 검토](../dataset-license-review.md)
 - [Phase 2 토크나이저 계약](../../training/phase2-tokenizer-contract.md)
@@ -76,5 +78,6 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] ZIP JSON array record 경계 분석 계약과 AIHUB-71748 bounded inspection 결과를 연결함 |
 | 2026-07-24 | [확정] 대용량 JSON bounded streaming과 원문 비노출 prefix review 결과 문서를 연결함 |
 | 2026-07-24 | [확정] 일반 안전 sampler와 분리된 수동 mapping 계약 및 AIHUB-71748 pending 후보 문서를 연결함 |
