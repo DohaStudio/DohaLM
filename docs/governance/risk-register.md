@@ -76,6 +76,7 @@
 | R-052 | 외부 ZIP 내부의 절대·상위 이동 entry 경로로 안전하지 않은 추출 발생 | `high` | `critical` | `critical` | 중앙 디렉터리에서 안전하지 않은 entry 경로 탐지 | 자동 압축 해제 금지·경로 마스킹·격리 root·CRC·checksum·atomic publish 검증 | 추출 중단, 별도 승인된 수동 mapping과 격리 절차 검토 | data/security | `mitigating` (일반 차단 유지; 승인 mapping dry-run rule 매칭 573/0·실제 추출 0·원본 불변) |
 | R-053 | 제한된 대용량 JSON prefix 구조를 전체 schema·PII 부재로 과대 해석 | `unknown` | `high` | `high` | truncated 결과를 complete schema로 기록·Tokenizer 승인 근거로 사용 | entry·전체 read byte 상한, completeness·truncated 명시, key hash·허용명만 기록 | 실제 추출·corpus 승인을 중단하고 별도 schema·PII 검토 범위 승인 | data/security | `mitigating` (5개·각 2 MiB·전체 10 MiB 관측, 모두 truncated·추출 0) |
 | R-054 | 제한 read 구간의 JSON record 표본을 전체 파일 분포·PII 부재로 과대 해석 | `unknown` | `critical` | `critical` | 앞쪽 32 MiB·10개 record 통계를 전체 corpus 승인 근거로 사용 | bounded read·stable rank 범위 명시, 값 비노출, schema·PII 승인 분리 | corpus 생성을 중단하고 별도 층화·PII 검토 범위를 사용자 승인 | data/security | `mitigating` (2개 entry·3,489 record 경계 관측·10개 구조 선택·전체 parse/추출 0) |
+| R-055 | 층화 후보가 단일 archive에 집중되거나 field-name 미탐지를 PII 부재로 오해 | `high` | `critical` | `critical` | 요청 archive 수 미충족·`no_field_name_signal`을 clear로 승격 | archive·entry 상한, 실제 strata 보고, 자동 `conditionally_clear` 금지, 자유서술 review 유지 | corpus 승인을 중단하고 공식 schema·비식별 설명과 비공개 사람 검토 | data/security | `mitigating` (후보 571개가 단일 archive, entry 2개·64 MiB·PII review_required 1·preview 0) |
 
 ## 4. 운영 원칙
 
@@ -89,6 +90,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 단일 archive 집중과 PII field-name 미탐지 오해 위험 R-055 및 fail-closed review 대응을 등록함 |
 | 2026-07-24 | [확정] 제한 record 표본 과대 해석 위험 R-054와 bounded parser·비노출·승인 분리 대응을 등록함 |
 | 2026-07-24 | [확정] R-052에 rule별 mapping 관측성을 반영하고 제한 JSON 구조의 과대 해석 위험 R-053과 bounded streaming 대응을 등록함 |
 | 2026-07-23 | [확정] R-052 대응으로 안전 표본 추출기와 AIHUB-71748 dry-run 전량 거부·원본 불변 근거를 반영함 |
