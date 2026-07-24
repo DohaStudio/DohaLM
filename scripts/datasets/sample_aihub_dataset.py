@@ -10,6 +10,11 @@ from src.config.errors import ConfigError
 from src.runtime.paths import repository_root
 
 from .analyzer import DATASET_IDS, load_dataset_config
+from .manual_path_mapping import (
+    load_manual_mapping,
+    manual_sample_output_root,
+    sample_dataset_with_manual_mapping,
+)
 from .safe_sampler import DEFAULT_EXTENSIONS, SamplerError, safe_sample_output_root, sample_dataset
 
 
@@ -25,7 +30,15 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-file-bytes", type=int, default=5 * 1024 * 1024)
     parser.add_argument("--max-total-bytes", type=int, default=50 * 1024 * 1024)
     parser.add_argument("--allowed-extensions", nargs="+", default=list(DEFAULT_EXTENSIONS))
-    parser.add_argument("--output-dir", default="analysis/samples", help="external root 기준 analysis 하위 경로")
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="external root 기준 출력 경로(기본: 일반 analysis/samples, 수동 analysis/manual-samples)",
+    )
+    parser.add_argument(
+        "--manual-mapping",
+        help="Git에서 제외된 사용자 승인 absolute-prefix mapping YAML 경로",
+    )
     parser.add_argument("--dry-run", action="store_true", help="파일을 추출하지 않고 선택·거부 manifest만 생성")
     parser.add_argument("--json", action="store_true", help="안전한 실행 요약을 JSON으로 출력")
     return parser
@@ -35,6 +48,20 @@ def run(args: argparse.Namespace) -> dict[str, object]:
     config = load_dataset_config(args.config)
     if args.dataset not in config.entries:
         raise SamplerError("선택한 데이터셋이 설정에 없습니다.")
+    if args.manual_mapping:
+        mapping = load_manual_mapping(args.manual_mapping, args.dataset)
+        output_root = manual_sample_output_root(config, args.output_dir, repository_root())
+        return sample_dataset_with_manual_mapping(
+            config.entries[args.dataset],
+            output_root,
+            mapping,
+            requested_archive=args.archive,
+            sample_count=args.sample_count,
+            max_file_bytes=args.max_file_bytes,
+            max_total_bytes=args.max_total_bytes,
+            allowed_extensions=args.allowed_extensions,
+            dry_run=args.dry_run,
+        )
     output_root = safe_sample_output_root(config, args.output_dir, repository_root())
     return sample_dataset(
         config.entries[args.dataset],
@@ -64,7 +91,8 @@ def main(argv: list[str] | None = None) -> int:
             f"추출 {result['samples_extracted']}개"
         )
         print(f"상태: {result['run_status']}")
-        print("산출물: 저장소 외부 analysis/samples 경로")
+        location = "analysis/manual-samples" if result.get("manual_mapping") else "analysis/samples"
+        print(f"산출물: 저장소 외부 {location} 경로")
     return 0
 
 
