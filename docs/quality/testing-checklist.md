@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [개발 로드맵](./development-roadmap.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](./test-strategy.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | 구현별 test와 Gate 결과 [검증 필요] |
 | 구현 전 필수 여부 | 각 구현 전 예 |
@@ -33,6 +33,8 @@
 | DATA-003 | 데이터 | 개인정보·라이선스·승인 상태 차단 | Unit/Integration test | 예 | 미승인·PII 비-clear 입력 사용 금지 | 격리·승인 재검토 | 예 | `pass` — approval pending/rejected, license unknown/pending/rejected, PII suspected/confirmed/unknown 전체 차단 확인 |
 | DATA-004 | 외부 데이터 분석 | inventory·ZIP 중앙 디렉터리·제한 schema profile·보고서 비노출 | Unit/Integration test | 예 | 결정론, 원본 무변경, 원문·절대경로 미노출 | 분석 중단·안전 경계 수정 | 예 | `pass` — 합성 JSON/JSONL/TXT/ZIP·손상·대용량·경로 회귀 9건 통과, 실제 5종 source mutation 0건 |
 | DATA-005 | ZIP 안전 표본 | 절대·drive·UNC·traversal·link·크기·형식 차단, 결정론·CRC·checksum·atomic publish | Unit/Integration test | 예 | 위험 entry 추출 0, 실패 시 부분 게시 0, 원본 불변 | 추출 중단·격리 경계와 manifest 수정 | 예 | `pass` — 합성 회귀 26개와 전체 111개 통과; AIHUB-71748 dry-run 안전 0·거부 1,610·추출 0·source mutation 0 |
+| DATA-006 | 명시적 수동 경로 mapping | 승인 metadata·Dataset ID·prefix 경계·target 충돌·mapping 후 전체 안전성·결정론·비노출·rule별 집계 | Unit/Integration test | 예 | 미매핑·위험 entry 추출 0, rejection stage와 rule 통계 일치, 원본 불변 | 실행 중단·mapping과 격리 경계 재검토 | 예 | `pass` — 수동 mapping 회귀 26개와 전체 146개 통과; 실제 dry-run에서 rule 매칭 573/0·선택 1·추출 0 직접 확인 |
+| DATA-007 | 대용량 JSON·prefix 제한 검사 | bounded stream read·UTF-8/BOM·truncated 구조·key hash·Unicode category·원문 비노출 | Unit/Integration test | 예 | entry 5·각 2 MiB·전체 10 MiB 상한, 전체 read·추출 0, 원본 불변 | 검사 중단·read 경계와 lexical scanner 수정 | 예 | `pass` — 신규 회귀 9개와 전체 146개 통과; 실제 JSON 5개 10 MiB 제한 관측·prefix 1,610개 hash 집계·source mutation 0 |
 | TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `planned` |
 | TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `planned` |
 | TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `planned` |
@@ -92,6 +94,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] DATA-006 rejection 관측성과 DATA-007 제한 streaming·Unicode prefix 검사, 전체 146개 통과와 실제 read-only 결과를 반영함 |
+| 2026-07-24 | [확정] DATA-006 수동 mapping 승인·경로·결정론·비노출 합성 회귀 25개와 전체 136개 통과를 반영함 |
 | 2026-07-23 | [확정] Gate 2 승인 근거 revision·75개 테스트·CLI validate/build·결정론·원본 mutation·Windows 경로 결과를 연결함 |
 | 2026-07-23 | [확정] TOK-001~012의 corpus·trainer·vocab·API·통계·artifact·호환성 테스트를 Phase 2 계약 기준으로 구체화하고 `planned`를 유지함 |
 | 2026-07-23 | [확정] Gate 1 승인 근거에 따라 직접 검증한 Phase 0 항목만 `pass`로 기록하고 43개 테스트 결과를 연결함 |
