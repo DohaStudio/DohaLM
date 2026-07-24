@@ -1,0 +1,18 @@
+{
+  "synthetic_only": true,
+  "valid_count": 8,
+  "invalid_reason_codes": [
+    "ROOT_NOT_OBJECT",
+    "TEXT_FIELD_MISSING",
+    "TEXT_NOT_STRING",
+    "TEXT_NOT_STRING",
+    "TEXT_EMPTY",
+    "TEXT_WHITESPACE_ONLY",
+    "TEXT_CONTAINS_NUL"
+  ],
+  "normalization_examples": {
+    "line_endings": "첫째 줄\n둘째 줄\n셋째 줄\n",
+    "nfd_to_nfc_contains": "한글"
+  },
+  "long_text_case": "generated_in_test_to_avoid_a_large_tracked_fixture"
+}

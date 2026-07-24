@@ -97,7 +97,7 @@ DohaLM/
 | `src/runtime/` | 환경·경로·로깅 기반 제공 | 환경 진단, 저장소 경로, 기본 로깅 | 학습 metric logger | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/cli/` | Phase 0 진단 진입점 | 환경·설정·resolved config·경로 명령 | 학습·추론 명령 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
-| `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
+| `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline·dataset adapter 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
 | `src/model/` | Decoder-only Transformer | 직접 구현 모델 소스 | 완성형 외부 GPT 모델 | 소스만 추적 | 존재 | 모델 설계 승인 후 |
 | `src/training/` | 사전학습·SFT·복원 루프 | 학습과 체크포인트 로직 | 체크포인트 본체 | 소스만 추적 | 존재 | 학습 계획 승인 후 |
 | `src/evaluation/` | 정량·정성 평가 | 평가 로직 | 대용량 결과 원본 | 소스만 추적 | 필요 시 검토 | 평가 계획 승인 후 |
@@ -145,6 +145,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] `src/data/adapters/`의 공통 계약과 AIHUB-71748 synthetic adapter 책임을 반영함 |
 | 2026-07-24 | [확정] Synthetic SentencePiece smoke core·CLI·fixture와 운영 tokenizer 미구현 경계를 반영함 |
 | 2026-07-24 | [확정] 승인 정책·redaction·수동 review·삭제 manifest를 갖춘 비공개 최소 preview 도구 책임을 반영함 |
 | 2026-07-24 | [확정] ZIP JSON record state machine과 값 비노출 manifest 책임을 scripts 경계에 반영함 |
