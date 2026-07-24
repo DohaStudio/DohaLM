@@ -73,6 +73,7 @@
 - [확정] 정확한 hyperparameter를 corpus와 처리량 근거 없이 임의로 확정하지 않는다.
 - [확정] optimizer parameter group에서 bias와 LayerNorm parameter의 weight decay 적용 여부를 명시적으로 기록한다.
 - [확정] Phase 5 Trainer Foundation smoke는 구현 계약에 따라 linear warmup 후 linear decay만 사용한다. 이는 위 운영 사전학습 cosine 계획을 변경하거나 승인한 결과가 아니다.
+- [확정] [Tiny 실규모 합성 검증](./tiny-training-validation.md)에서 warmup+cosine과 minimum LR 후보의 step·resume 연속성을 확인했다. 실제 corpus pilot 전 운영값 승인이 필요하다.
 
 ## 6. FP16 mixed precision 계획
 
@@ -193,6 +194,7 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 실제 Tiny 합성 batch·cosine·sampler resume·VRAM/처리량·100-step overfit 후보 결과를 연결하고 실제 사전학습과 구분함 |
 | 2026-07-24 | [확정] 합성 Trainer Foundation·CPU/CUDA FP16·checkpoint/resume·50-step loss 감소 결과를 실제 사전학습과 구분해 반영함 |
 | 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약의 artifact·fingerprint·호환성 요구를 사전학습 진입 조건과 checkpoint 계보에 연결함 |
 | 2026-07-23 | [확정] 후보·라이선스·승인 로그를 사전학습 데이터 선행 조건에 연결하고 `approved_pretraining` 목적 승인을 요구함 |

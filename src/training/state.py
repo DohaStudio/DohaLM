@@ -28,6 +28,7 @@ class TrainingState:
     training_config_fingerprint: str = ""
     dataset_fingerprint: str = ""
     tokenizer_fingerprint: str = ""
+    sampler_state: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not self.started_at:

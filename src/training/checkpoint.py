@@ -147,7 +147,7 @@ class CheckpointManager:
                 "training_config_fingerprint": training_config.fingerprint(),
                 "training_resume_fingerprint": training_config.resume_fingerprint(),
                 "optimizer_type": "AdamW",
-                "scheduler_type": "linear_warmup_linear_decay",
+                "scheduler_type": training_config.scheduler_type,
                 "synthetic_dataset": dataset_metadata or {},
             }
             _write_json(staging / "config.json", config_value)
@@ -240,6 +240,8 @@ class CheckpointManager:
             raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "핵심 training config가 checkpoint와 일치하지 않습니다.")
         if config.get("optimizer_type") != "AdamW":
             raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "optimizer type이 checkpoint 계약과 일치하지 않습니다.")
+        if config.get("scheduler_type") != training_config.scheduler_type:
+            raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "scheduler type이 checkpoint 계약과 일치하지 않습니다.")
         if manifest.get("tokenizer_fingerprint") != tokenizer_fingerprint:
             raise TrainingError("CHECKPOINT_TOKENIZER_MISMATCH", "tokenizer fingerprint가 일치하지 않습니다.")
         if manifest.get("dataset_fingerprint") != dataset_fingerprint:

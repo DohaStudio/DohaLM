@@ -58,10 +58,10 @@
 | TRN-001 | 학습 | 단일 step optimizer·scheduler update | Smoke test | 예 | 예상 parameter·step 갱신 | loop·step 순서 수정 | 예 | `pass` — 합성 CPU smoke에서 parameter·optimizer/global step·linear LR 갱신 통과 |
 | TRN-002 | 학습 | FP16 AMP·GradScaler·NaN/Inf | GPU test | 예 | finite update와 scaler 상태 기록 | precision·연산·중단 처리 검토 | 예 | `pass` — RTX 3060 Ti FP16 autocast·GradScaler·finite gradient·비유한값 차단 통과 |
 | TRN-003 | 학습 | gradient accumulation·clipping 순서 | Component test | 예 | update 주기·정규화·unscale 순서 일치 | trainer 수정 | 예 | `pass` — loss normalization·누적 경계·unscale 후 clipping·scheduler cadence 통과 |
-| TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `partial` — 반복 합성 batch 50-step loss 감소 통과; 승인 fixture·Gate 7 판정은 `planned` |
+| TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `partial` — 실제 Tiny 반복 합성 pattern CUDA FP16 100-step loss 감소 통과; 실제 corpus·Gate 7 판정은 `planned` |
 | CKPT-001 | Checkpoint | 필수 key·format·hash·atomic save | Component test | 예 | 완전한 checkpoint만 노출 | 저장 로직·schema 수정 | 예 | `pass` — 8-file bundle·SHA-256·sibling staging·overwrite/부분 노출 차단 통과 |
 | CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `pass` — strict file load·model state round-trip·embedding/LM Head alias 유지 통과 |
-| CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — optimizer·scheduler·AMP·Python/torch CPU/CUDA RNG와 결정론적 loader fast-forward 통과; NumPy·명시적 sampler state는 미구현 |
+| CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — 실제 Tiny optimizer·cosine·AMP·Python/torch RNG·명시적 sampler state와 bitwise resume 통과; NumPy·실제 corpus worker sampler는 미구현 |
 | GEN-001 | 생성 | 고정 seed 최소 생성·stop token | Regression test | 예 | 재현 정책 범위 내 출력·정상 종료 | sampling·EOS·position 수정 | 예 | `pass` — 합성 token greedy 결정론·batch EOS·context·mode 복원 통과 |
 | GEN-002 | 생성 | 반복·빈 응답·특수문자·언어 붕괴 | Manual/Component test | 예 | 상태형 결과와 실패 sample 기록 | 생성 설정·모델 원인 분석 | 일부 | `planned` |
 | EVAL-001 | 평가 | training/validation loss와 perplexity 집계 | Unit test | 예 | 유효 token 가중 mean과 지수 일치 | mask·집계 수정 | 예 | `planned` |
@@ -93,12 +93,14 @@
 - [확정] Gate 2 근거 revision `c9ea945062796c1193b070cc09c00fdab0942a08`에서 Phase 0 회귀 43개를 포함한 75개 테스트가 75개 모두 통과했고 실패·오류·skip은 0개였다.
 - [확정] Gate 2 실제 CLI validate/build, 원본 mutation, atomic failure, 입력 순서·임시 root 결정론과 Windows 경로 검증을 통과했다.
 - [확정] Phase 5 합성 Trainer Foundation 신규 99개를 포함한 전체 464개 테스트가 통과했고 CPU·RTX 3060 Ti FP16 smoke, checkpoint/resume와 반복 batch loss 감소를 확인했다. 이는 Gate 6·7 통과나 실제 사전학습 성공을 의미하지 않는다.
+- [확정] Gate 6 준비 확장에서 신규 38개를 포함한 전체 502개가 통과했고 실제 Tiny 합성 batch probe·10-step bitwise resume·100-step loss 감소를 확인했다. Gate 6·7은 사용자 승인 전 `planned`다.
 - [검증 필요] 후속 구현 test와 CI mapping은 해당 단계에서 정한다.
 
 ## 4. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Gate 6 준비용 신규 38개, 실제 Tiny Candidate A/B/C·10-step bitwise resume·100-step overfit·VRAM/처리량 결과를 반영함 |
 | 2026-07-24 | [확정] Phase 5 신규 99개·전체 464개, CPU/CUDA FP16·accumulation·checkpoint/resume·합성 loss 감소 결과와 남은 sampler/NumPy 한계를 반영함 |
 | 2026-07-24 | [확정] Phase 4 신규 65개·전체 365개 통과와 MOD-001~004·GEN-001·state dict partial 결과를 반영함 |
 | 2026-07-24 | [확정] MOD-001~004 구성요소 55개 CPU/CUDA 테스트 결과를 반영하고 통합 검증은 partial로 구분함 |

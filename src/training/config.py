@@ -27,6 +27,8 @@ class TrainingConfig:
     betas: tuple[float, float] = (0.9, 0.95)
     epsilon: float = 1e-8
     warmup_steps: int = 0
+    scheduler_type: str = "linear"
+    min_lr_ratio: float = 0.0
     max_grad_norm: float = 1.0
     use_amp: bool = False
     amp_dtype: str = "float16"
@@ -69,6 +71,16 @@ class TrainingConfig:
             raise TrainingError("INVALID_TRAINING_CONFIG", "epsilon은 양수여야 합니다.")
         if isinstance(self.warmup_steps, bool) or not isinstance(self.warmup_steps, int) or not 0 <= self.warmup_steps <= self.max_steps:
             raise TrainingError("INVALID_TRAINING_CONFIG", "warmup_steps는 0 이상 max_steps 이하여야 합니다.")
+        if self.scheduler_type not in {"linear", "cosine"}:
+            raise TrainingError("INVALID_TRAINING_CONFIG", "scheduler_type은 linear 또는 cosine이어야 합니다.")
+        if (
+            isinstance(self.min_lr_ratio, bool)
+            or not isinstance(self.min_lr_ratio, (int, float))
+            or not 0.0 <= self.min_lr_ratio <= 1.0
+        ):
+            raise TrainingError("INVALID_TRAINING_CONFIG", "min_lr_ratio는 0 이상 1 이하여야 합니다.")
+        if self.scheduler_type == "linear" and self.min_lr_ratio != 0.0:
+            raise TrainingError("INVALID_TRAINING_CONFIG", "linear scheduler의 min_lr_ratio는 0이어야 합니다.")
         if not isinstance(self.max_grad_norm, (int, float)) or isinstance(self.max_grad_norm, bool) or self.max_grad_norm <= 0:
             raise TrainingError("INVALID_TRAINING_CONFIG", "max_grad_norm은 양수여야 합니다.")
         if self.amp_dtype != "float16":
