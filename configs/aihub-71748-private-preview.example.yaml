@@ -1,0 +1,18 @@
+schema_version: "1.0"
+dataset_id: "AIHUB-71748"
+approval:
+  status: pending_user_review
+  approved_by: null
+  approved_at: null
+  expires_at: null
+scope:
+  purpose: "manual_pii_and_quality_review"
+  max_records: 10
+  allowed_fields:
+    - text
+  max_characters_per_record: 500
+  retention_days: 7
+  allow_unredacted: false
+review:
+  reviewer: null
+  output_root: "external_private_review_root"
