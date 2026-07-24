@@ -1,7 +1,7 @@
 # DohaLM 문서 인덱스
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-24
 
 ## 1. 문서 상태 체계
 
@@ -50,6 +50,9 @@
 | [data/analysis/dataset-analysis-summary.md](./data/analysis/dataset-analysis-summary.md) | AI Hub 후보 5종의 파일·ZIP 형식과 사용 위험 비교 | [구조 분석 안내](./data/analysis/README.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md) | [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md), [평가 제외 목록](./data/evaluation-exclusion-list.md), 수동 sample inspection | `review` | 실제 corpus 승인 전 필수 | 2026-07-23 | ZIP 내부 schema, text/label/PII field, 안전한 표본 절차 |
 | [data/analysis/safe-sampling.md](./data/analysis/safe-sampling.md) | ZIP Slip·link·크기·형식 위험을 차단하는 제한 표본 추출·검증 계약 정의 | [구조 분석 안내](./data/analysis/README.md), [구조 분석 요약](./data/analysis/dataset-analysis-summary.md), ADR-004 | [AIHUB-71748 표본 결과](./data/analysis/AIHUB-71748-sampling.md), 목적별 schema·PII 수동 검토 | `review` | 실제 ZIP 표본 추출 전 필수 | 2026-07-23 | 선행 `/` 수동 mapping 허용 여부, 안전 표본 확보 |
 | [data/analysis/AIHUB-71748-sampling.md](./data/analysis/AIHUB-71748-sampling.md) | AIHUB-71748 안전 dry-run과 원본 불변·추출 차단 결과 기록 | [안전 표본 추출 정책](./data/analysis/safe-sampling.md), [AIHUB-71748 구조 분석](./data/analysis/AIHUB-71748.md) | 공식 package 구조 검토, 별도 수동 mapping 결정 | `review` | AIHUB-71748 실제 표본·corpus 승인 전 필수 | 2026-07-23 | 안전 entry 0건, schema·PII·라이선스·목적별 승인 |
+| [data/analysis/manual-path-mapping.md](./data/analysis/manual-path-mapping.md) | 사용자 승인 absolute prefix만 격리 상대경로로 치환하는 별도 수동 표본 계약 | [안전 표본 추출 정책](./data/analysis/safe-sampling.md), ADR-004 | [AIHUB-71748 mapping 후보](./data/analysis/AIHUB-71748-path-mapping.md), 승인 후 제한 dry-run | `review` | 수동 mapping 실행 전 필수 | 2026-07-24 | 사용자 승인, 공식 prefix 의미, 실제 dry-run·schema·PII |
+| [data/analysis/AIHUB-71748-path-mapping.md](./data/analysis/AIHUB-71748-path-mapping.md) | Rule별 직접 집계, RaG Unicode category 차이와 제한 검사 상태 기록 | [AIHUB-71748 표본 결과](./data/analysis/AIHUB-71748-sampling.md), [수동 mapping 계약](./data/analysis/manual-path-mapping.md) | [대용량 JSON 제한 검사](./data/analysis/large-json-inspection.md), RaG rule 재승인·schema 검토 | `review` | AIHUB-71748 실제 표본·corpus 승인 전 필수 | 2026-07-24 | 실제 RaG prefix 로컬 승인, 918개 미매핑 entry, 라이선스·PII·Tokenizer 승인 |
+| [data/analysis/large-json-inspection.md](./data/analysis/large-json-inspection.md) | 5 MiB 초과 JSON을 추출하지 않는 bounded streaming·key hash 구조 검사 계약 | [수동 mapping 계약](./data/analysis/manual-path-mapping.md), [AIHUB-71748 mapping 검토](./data/analysis/AIHUB-71748-path-mapping.md) | 별도 schema·PII 검토 범위 승인 | `review` | 대용량 entry 구조 관측 전 필수 | 2026-07-24 | 제한 prefix 대표성, 전체 schema·PII·목적별 승인 |
 | [data/dataset-license-review.md](./data/dataset-license-review.md) | AI Hub 일반·개별 이용조건과 공개·국외 처리 문의 관리 | [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [데이터 라이선스 정책](./data/data-license-policy.md), ADR-004 | [데이터셋 승인 로그](./data/dataset-approval-log.md), 공식 문의, 다운로드·공개 결정 | `review` | 다운로드·학습·공개 전 필수 | 2026-07-23 | weight·tokenizer·가공 text 공개, 상업 서비스, 해외 cloud·국외 반출 |
 | [data/dataset-approval-log.md](./data/dataset-approval-log.md) | 데이터셋·용도별 상태 변경과 허용·금지 범위 이력 관리 | [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [데이터셋 라이선스 검토](./data/dataset-license-review.md) | 실제 registry version, Phase 1 처리, tokenizer·pretraining·SFT 승인 | `review` | 모든 실제 데이터 사용 전 필수 | 2026-07-23 | 승인 책임자, 공식 문의 결과, 실제 download·inspection 상태 |
 | [data/evaluation-exclusion-list.md](./data/evaluation-exclusion-list.md) | 학습·평가 contamination 제외·holdout·검사 후보 관리 | [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [데이터 분할 및 누수 정책](./data/data-split-and-leakage-policy.md), ADR-005 | sample inspection, benchmark contamination 검사, 평가 승인 | `review` | tokenizer·학습·평가 corpus 승인 전 필수 | 2026-07-23 | 실제 subset·benchmark, near/semantic 기준, contamination 결과 |
@@ -141,6 +144,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 대용량 JSON 제한 streaming 검사 문서와 수동 mapping rule·prefix 관측 결과를 등록함 |
+| 2026-07-24 | [확정] 명시적 수동 경로 mapping 계약과 AIHUB-71748 pending 후보 검토 문서를 등록함 |
 | 2026-07-23 | [확정] Gate 2 `passed`, DATA-001~016 `verified`, 관련 구현 문서 상태와 75개 테스트 근거를 동기화함 |
 | 2026-07-23 | [확정] AI Hub 후보·라이선스·승인 로그·평가 제외 문서 4개를 `review` 상태와 실제 데이터 사용 전 필수 문서로 등록함 |
 | 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약을 `review` 상태와 구현 전 필수 문서로 등록함 |

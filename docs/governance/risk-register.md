@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [개발 로드맵](../quality/development-roadmap.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [실험 관리](../training/experiment-management.md), [데이터 라이선스 정책](../data/data-license-policy.md), [재현성 정책](../quality/reproducibility-policy.md) |
 | 후속 문서 | Gate 승인·실험·version 검토 |
 | 구현 전 필수 여부 | 예 |
@@ -73,7 +73,8 @@
 | R-049 | 감성 대화·판례 데이터의 개인정보·민감정보 포함 | `unknown` | `critical` | `critical` | 연락처·사건정보·상담·위기 발화 탐지 | source별 PII review·대화/session 격리·원문 최소 접근 | 사용 중단·신고·삭제·영향 계보 추적 | data/security | `mitigating` |
 | R-050 | 평가 subset·교정 정답·instruction QA가 학습에 혼입 | `unknown` | `critical` | `critical` | 평가 점수 급증·동일 prompt/answer·split fingerprint 교차 | 평가 제외 목록, subset 분리, exact·near·group 검사 | 결과 invalid·학습 corpus 제거·재처리 | data/evaluation | `mitigating` |
 | R-051 | 공식 문의 미완료 상태에서 다운로드·학습·공개 진행 | `unknown` | `critical` | `critical` | `pending_official_confirmation`을 허용으로 취급 | approval log gate와 사용자 승인, pending 시 fail closed | 즉시 중단·상태 `restricted`·공식 확인 후 재개 | data/governance | `open` |
-| R-052 | 외부 ZIP 내부의 절대·상위 이동 entry 경로로 안전하지 않은 추출 발생 | `high` | `critical` | `critical` | 중앙 디렉터리에서 안전하지 않은 entry 경로 탐지 | 자동 압축 해제 금지·경로 마스킹·격리 root·CRC·checksum·atomic publish 검증 | 추출 중단, 별도 승인된 수동 mapping과 격리 절차 검토 | data/security | `mitigating` (안전 추출기 합성 회귀 통과; AIHUB-71748 1,610개 absolute entry 전부 거부·추출 0) |
+| R-052 | 외부 ZIP 내부의 절대·상위 이동 entry 경로로 안전하지 않은 추출 발생 | `high` | `critical` | `critical` | 중앙 디렉터리에서 안전하지 않은 entry 경로 탐지 | 자동 압축 해제 금지·경로 마스킹·격리 root·CRC·checksum·atomic publish 검증 | 추출 중단, 별도 승인된 수동 mapping과 격리 절차 검토 | data/security | `mitigating` (일반 차단 유지; 승인 mapping dry-run rule 매칭 573/0·실제 추출 0·원본 불변) |
+| R-053 | 제한된 대용량 JSON prefix 구조를 전체 schema·PII 부재로 과대 해석 | `unknown` | `high` | `high` | truncated 결과를 complete schema로 기록·Tokenizer 승인 근거로 사용 | entry·전체 read byte 상한, completeness·truncated 명시, key hash·허용명만 기록 | 실제 추출·corpus 승인을 중단하고 별도 schema·PII 검토 범위 승인 | data/security | `mitigating` (5개·각 2 MiB·전체 10 MiB 관측, 모두 truncated·추출 0) |
 
 ## 4. 운영 원칙
 
@@ -87,6 +88,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] R-052에 rule별 mapping 관측성을 반영하고 제한 JSON 구조의 과대 해석 위험 R-053과 bounded streaming 대응을 등록함 |
 | 2026-07-23 | [확정] R-052 대응으로 안전 표본 추출기와 AIHUB-71748 dry-run 전량 거부·원본 불변 근거를 반영함 |
 | 2026-07-23 | [확정] AI Hub ZIP 중앙 디렉터리 분석에서 안전하지 않은 entry 경로 위험 R-052를 등록하고 자동 추출 금지를 유지함 |
 | 2026-07-23 | [확정] Gate 2 결과로 라이선스·PII·누수·재현 위험을 `mitigating`으로 갱신하고 원본 변조·split·partial artifact·manifest·승인·대용량 위험 R-033~038을 등록함 |

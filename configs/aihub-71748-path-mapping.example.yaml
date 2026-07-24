@@ -1,0 +1,15 @@
+schema_version: "1.0"
+dataset_id: "AIHUB-71748"
+approval:
+  status: pending_user_review
+  approved_by: null
+  approved_at: null
+rules:
+  - source_prefix: "/외부데이터/"
+    target_prefix: "external-data/"
+    allowed_extensions:
+      - .json
+  - source_prefix: "/RaG-데이터/"
+    target_prefix: "rag-data/"
+    allowed_extensions:
+      - .json

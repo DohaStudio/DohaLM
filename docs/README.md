@@ -1,7 +1,7 @@
 # DohaLM 문서 안내서
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-24
 - 기준 인덱스: [문서 인덱스](./index.md)
 
 ## 1. 안내 목적과 독자
@@ -29,7 +29,7 @@
 
 ### 2.3 데이터 작업
 
-[데이터 전략](./data/data-strategy.md) → [데이터셋 후보 등록부](./data/dataset-candidate-registry.md) → [구조 분석 요약](./data/analysis/dataset-analysis-summary.md) → [안전 표본 추출](./data/analysis/safe-sampling.md) → [데이터셋 라이선스 검토](./data/dataset-license-review.md) → [데이터셋 승인 로그](./data/dataset-approval-log.md) → [평가 제외 목록](./data/evaluation-exclusion-list.md) → [실제 데이터셋 레지스트리](./data/dataset-registry.md) → [Phase 1 데이터 계약](./data/phase1-data-contract.md)·처리 → [Phase 2 토크나이저 계약](./training/phase2-tokenizer-contract.md)
+[데이터 전략](./data/data-strategy.md) → [데이터셋 후보 등록부](./data/dataset-candidate-registry.md) → [구조 분석 요약](./data/analysis/dataset-analysis-summary.md) → [안전 표본 추출](./data/analysis/safe-sampling.md) → [수동 경로 mapping](./data/analysis/manual-path-mapping.md) → [대용량 JSON 제한 검사](./data/analysis/large-json-inspection.md) → [데이터셋 라이선스 검토](./data/dataset-license-review.md) → [데이터셋 승인 로그](./data/dataset-approval-log.md) → [평가 제외 목록](./data/evaluation-exclusion-list.md) → [실제 데이터셋 레지스트리](./data/dataset-registry.md) → [Phase 1 데이터 계약](./data/phase1-data-contract.md)·처리 → [Phase 2 토크나이저 계약](./training/phase2-tokenizer-contract.md)
 
 ### 2.4 Phase 2 토크나이저 구현
 
@@ -69,7 +69,7 @@
 | 프로젝트 | 목적, 범위와 버전 방향 | [프로젝트 개요](./project/overview.md), [범위와 목표](./project/scope-and-goals.md) |
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
-| 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md) |
+| 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [수동 경로 mapping](./data/analysis/manual-path-mapping.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md) |
 | 학습 | 토크나이저, 사전학습·SFT와 실험 관리 | [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md), [토크나이저 설계](./training/tokenizer-design.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
@@ -100,6 +100,8 @@
 - [확정] 토크나이저·모델·학습·평가·서비스 기능은 스캐폴드이며 구현되지 않았다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
+- [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
+- [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐지만 코드·테스트 반영은 완료되지 않았다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
 - [확정] Gate 0은 `approved`, Gate 1·2는 `passed`이며 Phase 2 토크나이저 계약·구현 준비가 허용됐다. Gate 3은 `planned`다.
@@ -109,6 +111,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 수동 mapping 관측성, 대용량 JSON 5개 제한 검사와 RaG prefix hash·Unicode 비교 결과를 반영함 |
+| 2026-07-24 | [확정] 일반 sampler와 분리된 수동 mapping 계약·AIHUB-71748 pending 후보 문서를 데이터 읽기 흐름에 연결함 |
 | 2026-07-23 | [확정] ZIP 안전 표본 추출 정책과 AIHUB-71748 dry-run 결과 진입점을 추가함 |
 | 2026-07-23 | [확정] AI Hub 후보 5종의 읽기 전용 구조 분석 진입점과 승인 상태 비변경 원칙을 반영함 |
 | 2026-07-23 | [확정] 데이터 작업 읽기 순서에 Phase 1 데이터 계약과 후속 정책·구현 흐름을 연결함 |
