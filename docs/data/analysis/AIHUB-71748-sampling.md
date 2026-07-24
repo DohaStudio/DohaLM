@@ -83,6 +83,7 @@
 - [확정] 일반 sampler의 5 MiB 기본 제한은 변경하지 않았다.
 - [확정] RaG sanitized group 119개는 실제 component의 공백·dash category 차이로 현재 rule과 불일치한다.
 - [확정] 대용량 JSON 5개는 [제한 streaming 검사](./large-json-inspection.md)만 수행했으며 전체 파일을 추출하지 않았다.
+- [확정] 후속 [ZIP JSON record 분석](./AIHUB-71748-record-sampling.md)은 총 32 MiB에서 2개 entry·3,489 record 경계를 관측했지만 원문 파일을 생성하지 않았다.
 - [검증 필요] 제한 구조 관측은 실제 전체 schema 확정이 아니다.
 
 ## Tokenizer corpus 사용 가능 여부
@@ -131,6 +132,7 @@ Git 추적 문서에는 실제 로컬 절대경로와 선택 ZIP의 상대 파�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 대용량 JSON array의 제한 record 구조 관측과 원본 불변 결과를 연결함 |
 | 2026-07-24 | [확정] 관측성 개선 수동 dry-run의 rule별 직접 집계, 추출 0건과 제한 streaming 후속 검사를 기록함 |
 | 2026-07-24 | [확정] 구현된 별도 수동 mapping 계약과 pending 후보 검토 문서를 연결함 |
 | 2026-07-23 | [확정] 최종 dry-run 55 archive·1,610 absolute entry 거부와 추출 0건·원본 불변 결과를 기록함 |

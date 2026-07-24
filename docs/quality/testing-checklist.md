@@ -35,6 +35,7 @@
 | DATA-005 | ZIP 안전 표본 | 절대·drive·UNC·traversal·link·크기·형식 차단, 결정론·CRC·checksum·atomic publish | Unit/Integration test | 예 | 위험 entry 추출 0, 실패 시 부분 게시 0, 원본 불변 | 추출 중단·격리 경계와 manifest 수정 | 예 | `pass` — 합성 회귀 26개와 전체 111개 통과; AIHUB-71748 dry-run 안전 0·거부 1,610·추출 0·source mutation 0 |
 | DATA-006 | 명시적 수동 경로 mapping | 승인 metadata·Dataset ID·prefix 경계·target 충돌·mapping 후 전체 안전성·결정론·비노출·rule별 집계 | Unit/Integration test | 예 | 미매핑·위험 entry 추출 0, rejection stage와 rule 통계 일치, 원본 불변 | 실행 중단·mapping과 격리 경계 재검토 | 예 | `pass` — 수동 mapping 회귀 26개와 전체 146개 통과; 실제 dry-run에서 rule 매칭 573/0·선택 1·추출 0 직접 확인 |
 | DATA-007 | 대용량 JSON·prefix 제한 검사 | bounded stream read·UTF-8/BOM·truncated 구조·key hash·Unicode category·원문 비노출 | Unit/Integration test | 예 | entry 5·각 2 MiB·전체 10 MiB 상한, 전체 read·추출 0, 원본 불변 | 검사 중단·read 경계와 lexical scanner 수정 | 예 | `pass` — 신규 회귀 9개와 전체 146개 통과; 실제 JSON 5개 10 MiB 제한 관측·prefix 1,610개 hash 집계·source mutation 0 |
+| DATA-008 | ZIP JSON record 제한 분석 | incremental UTF-8·문자열/escape/depth 경계·oversized skip·stable rank·key hash·원문 비노출 | Unit/Integration test | 예 | entry 3·record 5·entry 16 MiB·전체 32 MiB 상한, 전체 parse·추출 0, ZIP checksum 불변 | 검사 중단·parser state와 manifest 계약 수정 | 예 | `pass` — 신규 회귀 23개와 전체 169개 통과; 실제 2개 entry·3,489 record 관측·10개 선택·source mutation 0 |
 | TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `planned` |
 | TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `planned` |
 | TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `planned` |
@@ -94,6 +95,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] DATA-008 ZIP JSON record 경계·제한·결정론·비노출 회귀 23개와 전체 169개 통과 결과를 반영함 |
 | 2026-07-24 | [확정] DATA-006 rejection 관측성과 DATA-007 제한 streaming·Unicode prefix 검사, 전체 146개 통과와 실제 read-only 결과를 반영함 |
 | 2026-07-24 | [확정] DATA-006 수동 mapping 승인·경로·결정론·비노출 합성 회귀 25개와 전체 136개 통과를 반영함 |
 | 2026-07-23 | [확정] Gate 2 승인 근거 revision·75개 테스트·CLI validate/build·결정론·원본 mutation·Windows 경로 결과를 연결함 |

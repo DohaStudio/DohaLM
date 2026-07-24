@@ -5,7 +5,7 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-24
 - 선행 문서: [AIHUB-71748 안전 표본 결과](./AIHUB-71748-sampling.md), [수동 mapping 계약](./manual-path-mapping.md)
-- 후속 문서·작업: [대용량 JSON 제한 검사](./large-json-inspection.md), RaG mapping 후보 재검토, schema·PII 검토
+- 후속 문서·작업: [대용량 JSON 제한 검사](./large-json-inspection.md), [ZIP JSON record 분석](./zip-json-record-sampling.md), RaG mapping 후보 재검토, schema·PII 검토
 
 ## 실행 기준
 
@@ -79,6 +79,7 @@ Prefix review는 RaG sanitized group 119개를 하나의 실제 first-component 
 | 수동 mapping 절차 승인 | `approved` |
 | 수동 mapping dry-run | 완료, 선택 1·추출 0 |
 | 대용량 JSON stream 검사 | 5개 완료·전체 추출 없음 |
+| ZIP JSON record inspection | 2개 entry·3,489 record 관측·원문 저장 없음 |
 | Prefix review | 1,610개 중앙 디렉터리 집계 완료 |
 | 실제 제한 추출 | `not_run` |
 | 전체 schema·PII | 미확정 |
@@ -104,5 +105,6 @@ Mapping 절차 승인은 데이터 이용·Tokenizer corpus 승인이 아니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 승인 mapping 기반 ZIP JSON record bounded inspection 결과 문서를 연결함 |
 | 2026-07-24 | [확정] 관측성 개선 dry-run의 rule별 직접 집계, RaG 공백·dash category 차이와 대용량 JSON 5개 제한 구조 검사 결과를 기록함 |
 | 2026-07-24 | [확정] 기존 dry-run 집계로 두 mapping 후보를 제안하고 승인·실행·Gate 상태를 pending/not_run/planned로 기록함 |
