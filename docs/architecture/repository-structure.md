@@ -5,14 +5,14 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](./system-architecture.md) |
 | 후속 문서 | [핵심 개발 기능명세서](./core-development-feature-specification.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 읽기 전용 분석기·안전 표본 추출기와 관련 테스트는 구현됐다. 그 밖의 모델·학습·서비스 기능은 스캐폴드이며 `frontend/`에는 안내 문서만 있다.
+- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 읽기 전용 분석기·안전 표본 추출기·승인 기반 수동 mapping·대용량 JSON 제한 검사·prefix review와 관련 테스트는 구현됐다. 그 밖의 모델·학습·서비스 기능은 스캐폴드이며 `frontend/`에는 안내 문서만 있다.
 
 ## 2. 구조 운영 원칙
 
@@ -90,7 +90,7 @@ DohaLM/
 
 | 경로 | 목적 | 포함할 항목 | 포함하지 않을 항목 | Git 추적 원칙 | 하위 `AGENTS.md` | 생성 시점/선행 조건 |
 |---|---|---|---|---|---|---|
-| `configs/` | 실행 설정의 단일 기준 제공 | 모델·학습·평가 설정, 외부 데이터 경로 예시 | 실제 개인 절대 경로, 비밀값, 체크포인트, 데이터 | 예시는 추적하고 `local-datasets.yaml`은 제외 | 현재 없음, 필요 시 검토 | 실제 설정 구현 단계 |
+| `configs/` | 실행 설정의 단일 기준 제공 | 모델·학습·평가 설정, 외부 데이터 경로·수동 mapping 예시 | 실제 개인 절대 경로, 승인자 정보, 체크포인트, 데이터 | 예시는 추적하고 `local-datasets.yaml`과 실제 mapping YAML은 제외 | 현재 없음, 필요 시 검토 | 실제 설정 구현 단계 |
 | `docs/` | 기준 문서와 결정 이력 | 설계, 기능명세, 정책, ADR | 실행 산출물 | 추적 | 존재 | 기능 구현 전 |
 | `docs/training/phase2-tokenizer-contract.md` | Phase 2 구현 계약 | corpus·SentencePiece·artifact·API·평가·호환성 기준 | 실제 설정·코드·artifact | 추적 | `docs/AGENTS.md` 적용 | 토크나이저 구현 전 |
 | `src/config/` | YAML 설정 로딩·검증·병합 | schema, Tiny 불변 조건, CLI override | 모델·학습 구현 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
@@ -105,7 +105,7 @@ DohaLM/
 | `server/` | FastAPI 경계 | 스키마, 라우팅, 모델 서비스 | 모델 핵심 구현 | 소스만 추적 | 필요 시 검토 | API 명세 승인 후 |
 | `frontend/` | Next.js 채팅 화면 | UI 소스와 정적 자산 | 모델 체크포인트 | 소스만 추적 | 필요 시 검토 | 프론트엔드 명세 승인 후 |
 | `tests/` | 검증 자동화 | 단위·통합·회귀 테스트 | 실제 개인정보 데이터 | 테스트 소스·소형 fixture만 추적 | 필요 시 검토 | 각 구현과 함께 |
-| `scripts/` | 반복 작업 진입점 | 준비·학습·실행 스크립트, 외부 데이터 읽기 전용 구조 분석기·안전 표본 추출기 | 실제 원본·개인 절대 경로, 추출 표본, 핵심 학습 모델 | 추적 | 필요 시 검토 | 해당 작업 구현과 함께 |
+| `scripts/` | 반복 작업 진입점 | 준비·학습·실행 스크립트, 외부 데이터 구조 분석·안전 표본·수동 mapping·bounded JSON·prefix review | 실제 원본·개인 절대 경로, 추출 표본, 핵심 학습 모델 | 추적 | 필요 시 검토 | 해당 작업 구현과 함께 |
 | `data/` | 단계별 데이터 보관 | raw, cleaned, tokenized, sft | 소스 코드, 비밀값 | 대용량 데이터 제외 | 불필요, 정책 문서 우선 | 라이선스 확인 후 |
 | `checkpoints/` | 학습 재개 상태 보관 | 모델·옵티마이저·스케줄러·AMP 상태 | 소스 코드 | 본체 제외 | 불필요 | 첫 학습 실행 시 |
 | `experiments/` | 실험별 메타데이터와 적용 설정 | [검증 필요] 실험 manifest, 설정 snapshot | 원천 데이터, 대형 체크포인트 | 소형 기록만 추적 후보 | 필요 시 검토 | 실험 관리 스키마 승인 후 |
@@ -145,6 +145,8 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 대용량 JSON bounded streaming inspector와 원문 비노출 prefix review 책임을 scripts 경계에 반영함 |
+| 2026-07-24 | [확정] Git 제외 실제 mapping 설정과 별도 수동 prefix mapping 구현 책임을 configs·scripts 경계에 반영함 |
 | 2026-07-23 | [확정] docs 책임과 Phase 1~6 구현 기준에 핵심 개발 기능명세서를 연결함 |
 | 2026-07-23 | [확정] Phase 2 토크나이저 계약 문서와 versioned tokenizer artifact의 논리 경계·Git 제외 원칙을 연결함 |
 | 2026-07-23 | [확정] 현재 구조와 계획 구조, 디렉터리 책임, Git 및 `AGENTS.md` 적용 원칙의 초안 작성 |

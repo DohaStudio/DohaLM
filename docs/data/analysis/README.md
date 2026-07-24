@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-24
 - 적용 범위: 로컬에 제한 보관한 AI Hub 후보 5종의 읽기 전용 구조 분석
 
 ## 분석 목적
@@ -65,6 +65,16 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 - [데이터셋 비교 요약](./dataset-analysis-summary.md)
 - [ZIP 안전 표본 추출 정책](./safe-sampling.md)
 - [AIHUB-71748 안전 표본 결과](./AIHUB-71748-sampling.md)
+- [명시적 수동 경로 mapping 계약](./manual-path-mapping.md)
+- [AIHUB-71748 mapping 후보 검토](./AIHUB-71748-path-mapping.md)
+- [대용량 JSON 제한 streaming 검사](./large-json-inspection.md)
 - [후보 등록부](../dataset-candidate-registry.md)
 - [라이선스 검토](../dataset-license-review.md)
 - [Phase 2 토크나이저 계약](../../training/phase2-tokenizer-contract.md)
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-24 | [확정] 대용량 JSON bounded streaming과 원문 비노출 prefix review 결과 문서를 연결함 |
+| 2026-07-24 | [확정] 일반 안전 sampler와 분리된 수동 mapping 계약 및 AIHUB-71748 pending 후보 문서를 연결함 |

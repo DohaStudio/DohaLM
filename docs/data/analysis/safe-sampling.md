@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-24
 - 선행 문서: [구조 분석 안내](./README.md), [데이터 거버넌스 ADR](../../decisions/ADR-004-data-governance.md)
 - 후속 문서: [AIHUB-71748 표본 결과](./AIHUB-71748-sampling.md), 목적별 수동 승인
 
@@ -101,11 +101,11 @@ python -m scripts.datasets.sample_aihub_dataset --config configs/local-datasets.
 - 손상·암호화·경로 위험은 숨기지 않고 reason code로 기록한다.
 - CRC·checksum·크기·출력 경계 검증 실패 시 게시하지 않는다.
 - 안전 후보 0개는 구현 실패가 아니라 `manual_review_required` 결과다.
-- [후순위] 선행 slash를 허용하는 수동 mapping mode는 별도 설계·승인 전 구현하지 않는다.
+- [확정] 선행 slash를 허용하는 기능은 일반 모드에 추가하지 않으며, 별도 [명시적 수동 mapping 계약](./manual-path-mapping.md)에서 승인된 prefix에만 적용한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 일반 자동 차단과 분리된 명시적 수동 mapping 계약을 후속 절차로 연결함 |
 | 2026-07-23 | [확정] ZIP Slip 차단, 제한 선택·추출·검증·atomic publish와 비공개 보고 계약을 구현 결과에 맞춰 작성함 |
-
