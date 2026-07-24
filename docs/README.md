@@ -37,7 +37,7 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [Pilot Corpus 준비](./data/pilot-corpus-preparation.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [Pilot 테스트](./quality/pilot-pretraining-testing.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
 
 ### 2.6 Codex 작업
 

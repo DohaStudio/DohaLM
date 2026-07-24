@@ -3,6 +3,7 @@
 configs/local-datasets.yaml
 configs/aihub-71748-path-mapping.yaml
 configs/aihub-71748-private-preview.yaml
+configs/pilot-pretrain.yaml
 __pycache__/
 *.py[cod]
 *.egg-info/
