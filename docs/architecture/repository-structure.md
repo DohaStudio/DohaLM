@@ -12,7 +12,7 @@
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 읽기 전용 분석기·안전 표본 추출기·승인 기반 수동 mapping·대용량 JSON 제한 검사·prefix review·ZIP JSON record 경계 분석과 관련 테스트는 구현됐다. 그 밖의 모델·학습·서비스 기능은 스캐폴드이며 `frontend/`에는 안내 문서만 있다.
+- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 읽기 전용 분석기·안전 표본 추출기·승인 기반 수동 mapping·대용량 JSON 제한 검사·prefix review·ZIP JSON record 경계 분석·승인 기반 비공개 최소 preview와 관련 테스트는 구현됐다. 그 밖의 모델·학습·서비스 기능은 스캐폴드이며 `frontend/`에는 안내 문서만 있다.
 
 ## 2. 구조 운영 원칙
 
@@ -145,6 +145,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 승인 정책·redaction·수동 review·삭제 manifest를 갖춘 비공개 최소 preview 도구 책임을 반영함 |
 | 2026-07-24 | [확정] ZIP JSON record state machine과 값 비노출 manifest 책임을 scripts 경계에 반영함 |
 | 2026-07-24 | [확정] 대용량 JSON bounded streaming inspector와 원문 비노출 prefix review 책임을 scripts 경계에 반영함 |
 | 2026-07-24 | [확정] Git 제외 실제 mapping 설정과 별도 수동 prefix mapping 구현 책임을 configs·scripts 경계에 반영함 |

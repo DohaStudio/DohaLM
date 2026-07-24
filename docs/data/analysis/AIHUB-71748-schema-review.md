@@ -5,7 +5,7 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-24
 - 선행 문서: [층화 record review 계약](./stratified-record-review.md), [AIHUB-71748 record 분석](./AIHUB-71748-record-sampling.md)
-- 후속 작업: 비공개 schema·PII 수동 검토 범위 승인
+- 후속 작업: [비공개 최소 preview](./AIHUB-71748-private-review.md)의 기간 제한 사용자 승인
 - 구현 전 필수 여부: AIHUB-71748 corpus 승인 전 예
 
 ## 실행
