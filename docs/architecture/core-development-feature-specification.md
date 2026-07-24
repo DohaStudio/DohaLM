@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `implemented` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [시스템 아키텍처](./system-architecture.md), [모델 아키텍처](./model-architecture.md), [개발 로드맵](../quality/development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | Phase 2~6 구현 작업, 구현별 테스트, 최소 로컬 추론 설계 |
 | 구현 전 필수 여부 | Phase 1~6 핵심 기능 구현 전 예 |
@@ -13,7 +13,7 @@
 - [확정] 이 문서는 환경·설정·데이터·토크나이저·모델·학습·체크포인트·평가·로컬 추론·실험의 기능 경계와 구현 계약을 정의한다.
 - [확정] 문서 생명주기 상태 `implemented`와 아래 개별 기능 상태는 서로 다른 축이다.
 - [확정] Phase 0 기능은 실제 코드와 Gate 1 검증 근거가 있어 `verified`로 표시한다.
-- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐고 Phase 2 이후 기능은 미구현 `review` 또는 선택 후보 `planned`로 표시한다.
+- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐다. Phase 2는 synthetic tokenizer smoke만 구현됐고 승인 corpus·운영 16,000 후보는 미구현이며, 그 이후 기능은 `review` 또는 `planned`다.
 - [제외] FastAPI, Next.js, DB, 사용자 계정, 대화 기록 저장, 배포, 운영 모니터링과 Leaderboard 제출 기능은 이 문서 범위가 아니다.
 
 ## 2. 기능 상태와 필드 적용 규칙
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 2 synthetic tokenizer smoke 구현과 승인 corpus·운영 후보 미구현 경계를 동기화함 |
 | 2026-07-23 | [확정] revision `c9ea945` 독립 재검증과 사용자 Gate 2 승인에 따라 DATA-001~016을 `verified`로 변경함 |
 | 2026-07-23 | [확정] TOK-001~012를 Phase 2 토크나이저 상세 계약에 연결하고 입력·identity·fingerprint·atomic artifact 기준을 구체화함; 기능 상태는 미구현 `review`/`planned` 유지 |
 | 2026-07-23 | [확정] DATA-001~016 최소 구현, synthetic fixture 단위·통합 테스트와 실제 CLI smoke 결과를 반영하고 상태를 `implemented`로 변경함; Gate 2는 `planned` 유지 |
