@@ -81,3 +81,9 @@ python -m scripts.training.inspect_tiny_validation --run-dir tests/output/tiny-v
 - [검증 필요] 운영 LR·warmup·cosine minimum ratio·batch 확정
 - [검증 필요] 여러 반복 실행의 처리량 분산과 장시간 열·전력 안정성
 - [검증 필요] 사용자 Gate 6·7 승인
+
+## 9. Gate evidence 연결
+
+- [확정] [Gate 4·5·6 Evidence 검토](../quality/gate4-6-evidence-review.md)는 이 문서의 세 ignored run을 manifest·checkpoint checksum과 함께 재검증했다.
+- [확정] Evidence fingerprint는 `sha256:4260844cd4c48b385e60c8cd023504cbc6897a8914dfab9ec8dc0f7b746156be`이다.
+- [확정] Gate 4·5·6 제안은 `eligible_for_user_approval`이지만 현재 Gate 상태는 `planned`이며 실제 Pilot은 [준비 검증](./pilot-pretraining-readiness.md)에서 `blocked`다.

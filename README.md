@@ -22,6 +22,8 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 추론 API | 스캐폴드만 존재, 미구현 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
 
+Gate 4·5·6 기술 evidence는 `eligible_for_user_approval`로 제안됐지만 실제 상태는 `planned`를 유지합니다. 실제 tokenizer·승인 corpus·운영 설정이 연결되지 않아 Pilot Pretraining readiness는 `blocked`입니다.
+
 ## 프로젝트 목표
 
 - 한국어 SentencePiece 토크나이저를 직접 학습합니다.
@@ -142,6 +144,9 @@ python -m scripts.training.resume_training_smoke --help
 python -m scripts.training.probe_tiny_batch_sizes --help
 python -m scripts.training.run_tiny_validation --help
 python -m scripts.training.inspect_tiny_validation --help
+python -m scripts.training.validate_gate_evidence --help
+python -m scripts.training.validate_pilot_readiness --help
+python -m scripts.training.inspect_gate_proposal --help
 python -m pytest -q
 ```
 

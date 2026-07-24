@@ -81,6 +81,7 @@
 | R-057 | Dataset adapter 성공을 실제 corpus·tokenizer 승인으로 오해 | `unknown` | `critical` | `critical` | `adapted` record를 승인 로그 확인 없이 split·학습에 사용 | 구조 변환과 usage 상태 분리, pending 차단 사유·content read 0 dry-run 검증 | corpus 게시·학습 중단, 영향 artifact 격리와 승인 상태 재확인 | data/governance | `mitigating` (AIHUB-71748 synthetic adapter만 구현, 실제 read·publish 0) |
 | R-058 | 무작위 초기 모델의 greedy token 출력을 언어 품질 또는 학습 완료로 오해 | `medium` | `high` | `high` | synthetic generation 성공을 한국어 품질·Gate 통과로 표현 | smoke 결과에 random-init·tokenizer 미연결·품질 비평가 경계를 명시 | 결과 해석을 철회하고 학습·고정 평가 후 재검토 | model/evaluation | `monitoring` |
 | R-059 | 합성 Trainer smoke와 linear scheduler 결과를 실제 사전학습 성공 또는 운영 정책 승인으로 오해 | `medium` | `high` | `high` | 50-step 합성 loss 감소·낮은 smoke VRAM을 운영 Tiny 결과로 인용 | 문서·CLI에 synthetic 경계, Gate 6·7 미승인과 운영 scheduler 미확정을 명시 | 해석을 철회하고 승인 tokenizer·corpus·운영 config로 Gate 검증 | training/evaluation/governance | `monitoring` |
+| R-060 | 기술 evidence eligibility를 Gate 통과 또는 실제 Pilot 승인으로 오해 | `medium` | `critical` | `critical` | proposal 생성 직후 실제 corpus 연결·장시간 학습 시도 | 상태와 proposal 분리, approved metadata null, fail-closed Pilot readiness | 실행 중단·Gate/데이터/운영 승인 재검토·영향 artifact 격리 | training/governance/data | `mitigating` (Gate 4·5·6 proposal만 생성, 상태 `planned`와 Pilot `blocked` 유지) |
 
 ## 4. 운영 원칙
 
@@ -94,6 +95,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Gate evidence eligibility와 실제 상태·Pilot 승인을 혼동하는 위험 R-060 및 fail-closed readiness 대응을 등록함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 CUDA batch·VRAM·loss와 명시적 sampler bitwise resume 근거로 R-001·008·011·026을 갱신함 |
 | 2026-07-24 | [확정] Phase 5 합성 AMP·checkpoint/resume 검증으로 R-008~011·014·025·026을 갱신하고 smoke 과대 해석 위험 R-059를 등록함 |
 | 2026-07-24 | [확정] Phase 4 무작위 초기 greedy smoke 과대 해석 위험 R-058과 품질 평가 분리 대응을 등록함 |
