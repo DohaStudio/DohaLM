@@ -37,7 +37,7 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
 
 ### 2.6 Codex 작업
 
@@ -104,13 +104,14 @@
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2는 `passed`이며 Phase 2 토크나이저 계약·구현 준비가 허용됐다. Gate 3은 `planned`다.
+- [확정] Gate 0은 `approved`, Gate 1·2·4·5·6은 `passed`다. Gate 3·7은 `planned`이며 tokenizer·corpus·license·PII 승인은 `pending`이다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Gate 4·5·6 사용자 승인 기록과 Pilot readiness 차단 문서를 학습 흐름에 연결하고 Gate 3·7 및 데이터 승인을 유지함 |
 | 2026-07-24 | [확정] 실제 Tiny 규모 합성 학습·sampler resume·VRAM/처리량 검증 문서를 연결하고 Gate 6·7 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation·checkpoint/resume·테스트 문서를 학습 흐름에 연결하고 실제 사전학습과 구분함 |
 | 2026-07-24 | [확정] Corpus Adapter 공통 계약과 synthetic AIHUB-71748 구현 문서를 데이터 안내 경로에 연결함 |

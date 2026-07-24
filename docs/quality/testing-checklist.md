@@ -92,8 +92,8 @@
 - [확정] Gate 1 근거 revision `10f5f46959a018a93000987e6c20896f6c263c0a`에서 43개 테스트가 수집되어 43개 모두 통과했고 실패는 0개였다.
 - [확정] Gate 2 근거 revision `c9ea945062796c1193b070cc09c00fdab0942a08`에서 Phase 0 회귀 43개를 포함한 75개 테스트가 75개 모두 통과했고 실패·오류·skip은 0개였다.
 - [확정] Gate 2 실제 CLI validate/build, 원본 mutation, atomic failure, 입력 순서·임시 root 결정론과 Windows 경로 검증을 통과했다.
-- [확정] Phase 5 합성 Trainer Foundation 신규 99개를 포함한 전체 464개 테스트가 통과했고 CPU·RTX 3060 Ti FP16 smoke, checkpoint/resume와 반복 batch loss 감소를 확인했다. 이는 Gate 6·7 통과나 실제 사전학습 성공을 의미하지 않는다.
-- [확정] Gate 6 준비 확장에서 신규 38개를 포함한 전체 502개가 통과했고 실제 Tiny 합성 batch probe·10-step bitwise resume·100-step loss 감소를 확인했다. Gate 6·7은 사용자 승인 전 `planned`다.
+- [확정] Phase 5 합성 Trainer Foundation 신규 99개를 포함한 전체 464개 테스트가 통과했고 CPU·RTX 3060 Ti FP16 smoke, checkpoint/resume와 반복 batch loss 감소를 확인했다. 이 결과만으로 Gate 7 통과나 실제 사전학습 성공을 의미하지 않는다.
+- [확정] Gate 6 준비 확장에서 신규 38개를 포함한 전체 502개가 통과했고 실제 Tiny 합성 batch probe·10-step bitwise resume·100-step loss 감소를 확인했다. 이후 514개 전체 테스트와 통합 evidence에 대한 사용자 승인으로 Gate 6은 `passed`, Gate 7은 `planned`다.
 - [확정] Gate evidence·Pilot readiness 신규 12개를 포함한 전체 514개가 통과했고 누락·count/tying·checksum·resume/sampler·finite·overfit·source·승인 차단·경로 비노출·fingerprint 결정론 회귀를 확인했다.
 - [검증 필요] 후속 구현 test와 CI mapping은 해당 단계에서 정한다.
 
@@ -101,6 +101,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 514개 테스트와 지정 evidence·proposal fingerprint에 대한 사용자 승인으로 Gate 4·5·6 `passed`를 반영함 |
 | 2026-07-24 | [확정] Gate evidence·Pilot readiness 신규 12개와 전체 514개 통과, 실제 bundle checksum·status proposal·fail-closed blocker 검증을 반영함 |
 | 2026-07-24 | [확정] Gate 6 준비용 신규 38개, 실제 Tiny Candidate A/B/C·10-step bitwise resume·100-step overfit·VRAM/처리량 결과를 반영함 |
 | 2026-07-24 | [확정] Phase 5 신규 99개·전체 464개, CPU/CUDA FP16·accumulation·checkpoint/resume·합성 loss 감소 결과와 남은 sampler/NumPy 한계를 반영함 |

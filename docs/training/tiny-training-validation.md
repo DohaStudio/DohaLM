@@ -8,7 +8,7 @@
 - [확정] ADR-002의 실제 `DohaLM-Tiny` 16,889,856 파라미터를 단일 `RTX 3060 Ti 8GB`에서 합성 token으로 제한 검증했다.
 - [확정] vocabulary 16,000, context 256, layer 6, hidden 384, head 6, FFN 1,536과 weight tying을 사용했다.
 - [제외] 실제 tokenizer artifact, AI Hub 데이터, 승인 corpus, 장시간 사전학습과 한국어 품질 평가는 사용하거나 수행하지 않았다.
-- [확정] Gate 3~7은 사용자 승인 전까지 `planned`다.
+- [확정] Gate 4·5·6은 2026-07-24 사용자 승인으로 `passed`이며 Gate 3·7은 `planned`다.
 
 ## 2. 구현 계약
 
@@ -80,10 +80,10 @@ python -m scripts.training.inspect_tiny_validation --run-dir tests/output/tiny-v
 - [검증 필요] 실제 tokenizer·승인 corpus 연결
 - [검증 필요] 운영 LR·warmup·cosine minimum ratio·batch 확정
 - [검증 필요] 여러 반복 실행의 처리량 분산과 장시간 열·전력 안정성
-- [검증 필요] 사용자 Gate 6·7 승인
+- [검증 필요] 사용자 Gate 7 승인
 
 ## 9. Gate evidence 연결
 
 - [확정] [Gate 4·5·6 Evidence 검토](../quality/gate4-6-evidence-review.md)는 이 문서의 세 ignored run을 manifest·checkpoint checksum과 함께 재검증했다.
 - [확정] Evidence fingerprint는 `sha256:4260844cd4c48b385e60c8cd023504cbc6897a8914dfab9ec8dc0f7b746156be`이다.
-- [확정] Gate 4·5·6 제안은 `eligible_for_user_approval`이지만 현재 Gate 상태는 `planned`이며 실제 Pilot은 [준비 검증](./pilot-pretraining-readiness.md)에서 `blocked`다.
+- [확정] Gate 4·5·6은 지정 evidence·proposal fingerprint와 514개 테스트를 근거로 사용자 승인되어 `passed`다. 실제 Pilot은 [준비 검증](./pilot-pretraining-readiness.md)에서 계속 `blocked`다.

@@ -44,5 +44,5 @@ dataset·seed·permutation fingerprint 불일치, 유효하지 않은 offset/cou
 
 ## 6. Gate 경계
 
-- [확정] 명시적 sampler state 구현은 Gate 6 승인과 실제 데이터 재현성 승인을 자동으로 의미하지 않는다.
-- [확정] Gate 3~7은 `planned`를 유지한다.
+- [확정] 명시적 sampler state 구현과 통합 evidence는 Gate 6 사용자 승인의 근거이며 실제 데이터 재현성 승인을 자동으로 의미하지 않는다.
+- [확정] Gate 6은 2026-07-24 사용자 승인으로 `passed`이고 Gate 3·7은 `planned`다.

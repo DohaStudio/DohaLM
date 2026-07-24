@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 구성요소](../architecture/model-components.md), [모델 아키텍처](../architecture/model-architecture.md), [테스트 전략](./test-strategy.md), ADR-002 |
-| 후속 문서·작업 | Gate 4 사용자 검토, [Phase 4 통합 모델 테스트](./model-integration-testing.md) |
+| 후속 문서·작업 | Gate 4 승인 기록, [Phase 4 통합 모델 테스트](./model-integration-testing.md) |
 | 구현 전 필수 여부 | Phase 4 통합 전 예 |
 
 ## 2. 검증 범위
@@ -44,7 +44,7 @@ python -m src.cli.main environment --cuda-smoke
 
 ## 5. Gate 경계
 
-- [확정] Gate 4는 `planned`이며 사용자 검토 없이 `passed`로 변경하지 않는다.
+- [확정] Gate 4는 evidence bundle과 2026-07-24 사용자 승인으로 `passed`다.
 - [확정] Phase 4 통합 모델에서 final LayerNorm 위치, 실제 logits causal 불변성, 전체 parameter count와 tied alias를 재검사했다.
 - [제외] 이번 결과는 loss 감소, 생성 품질, checkpoint 복원 또는 학습 가능성을 승인하지 않는다.
 

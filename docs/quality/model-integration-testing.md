@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 통합](../architecture/model-integration.md), [모델 구성요소 테스트](./model-component-testing.md), [테스트 전략](./test-strategy.md) |
-| 후속 문서·작업 | Gate 5 사용자 검토, Phase 5 학습·checkpoint 테스트 |
+| 후속 문서·작업 | Gate 5 승인 기록, Phase 5 학습·checkpoint 테스트 |
 | 구현 전 필수 여부 | Gate 5 검토 전 예 |
 
 ## 2. 검증 범위
@@ -48,7 +48,7 @@ python -m scripts.model.generate_smoke
 
 - [제외] 생성 문장의 자연스러움, 반복, 한국어 품질은 무작위 초기 모델의 합격 조건이 아니다.
 - [제외] 단일 optimizer step, loss 감소, checkpoint 파일 round-trip과 resume는 Phase 5 이후 검증 대상이다.
-- [확정] Gate 3·4·5 상태는 `planned`이며 사용자 승인 전 변경하지 않는다.
+- [확정] Gate 4·5는 2026-07-24 사용자 승인으로 `passed`이며 Gate 3은 `planned`다.
 
 ## 5. 변경 이력
 

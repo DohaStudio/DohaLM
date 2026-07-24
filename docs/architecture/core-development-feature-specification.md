@@ -274,7 +274,7 @@
 | 설정 항목 | 6/384/6/64/1,536/256/16,000, Pre-LN, learned absolute, linear bias, tied head |
 | 산출물 | model modules와 state; 이 문서 작업에서는 생성하지 않음 |
 | 보안·라이선스 | 외부 완성형 GPT model class 사용 금지 |
-| 현재 상태 | `implemented` — MODEL-001~015 구성요소와 단위 테스트 구현, Gate 4는 `planned` |
+| 현재 상태 | `implemented` — MODEL-001~015 구성요소·단위 테스트·통합 evidence 검증 및 사용자 승인 완료, Gate 4 `passed` |
 | 관련 문서 | [모델 아키텍처](./model-architecture.md), [모델 구성요소](./model-components.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [구성요소 테스트](../quality/model-component-testing.md) |
 
 ### 9.2 기능별 계약
@@ -309,7 +309,7 @@
 | 설정 항목 | Tiny config 전체; loss `ignore_index` 값·padding mask dtype [검증 필요] |
 | 산출물 | 통합 model state·logits·loss·검증 보고 |
 | 보안·라이선스 | prompt·fixture에 민감정보 금지 |
-| 현재 상태 | `implemented` — 전체 forward·shifted loss·greedy generation과 합성 CPU/CUDA 검증 완료, Gate 5는 `planned` |
+| 현재 상태 | `implemented` — 전체 forward·shifted loss·greedy generation과 합성 CPU/CUDA 검증 및 사용자 승인 완료, Gate 5 `passed` |
 | 관련 문서 | [모델 아키텍처](./model-architecture.md), [모델 통합](./model-integration.md), [통합 테스트](../quality/model-integration-testing.md), [토크나이저 설계](../training/tokenizer-design.md), [Definition of Done](../governance/definition-of-done.md) |
 
 ### 10.2 기능별 계약
@@ -339,7 +339,7 @@
 | 설정 항목 | AdamW, Phase 5 smoke linear warmup+linear decay; 운영 pretraining scheduler와 batch·LR·warmup·decay·budget·interval·clip [검증 필요] |
 | 산출물 | metric·log·checkpoint 요청·환경·실패 기록 |
 | 보안·라이선스 | 승인 dataset만 사용; sample·로그 원문 최소화; 장시간 실행 별도 승인 |
-| 현재 상태 | `implemented` — 합성 token 전용 Trainer Foundation·CPU/CUDA FP16 smoke 구현·검증; 실제 corpus 사전학습과 Gate 6은 `planned` |
+| 현재 상태 | `implemented` — 합성 token 전용 Trainer Foundation·CPU/CUDA FP16·checkpoint/resume evidence 검증 및 사용자 승인 완료, Gate 6 `passed`; 실제 corpus 사전학습 미실행 |
 | 관련 문서 | [Trainer Foundation](../training/trainer-foundation.md), [Trainer 테스트](../quality/trainer-testing.md), [사전학습 계획](../training/pretraining-plan.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
 
 ### 11.2 기능별 계약
@@ -595,7 +595,7 @@ flowchart LR
 - [확정] 모든 기능은 공통·기능별 계약을 결합해 ID, 이름, 영역, 목적, Phase, Gate, 선행 조건, 입력, 출력, 처리, 오류, 설정, 산출물, 보안·라이선스, 테스트, 완료 기준, 상태와 관련 문서를 갖는다.
 - [확정] 기능 ID는 영역별 namespace에서 고유하며 중복을 허용하지 않는다.
 - [확정] Tiny 수치는 ADR-002와 일치하고 미결정 hyperparameter는 확정하지 않았다.
-- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 3~7 통과나 실제 학습 완료를 주장하지 않는다.
+- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 4·5·6은 사용자 승인으로 `passed`이고 Gate 3·7은 `planned`이며 실제 학습 완료를 주장하지 않는다.
 - [확정] Phase 1 검증은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
 - [확정] 서비스 기능은 포함하지 않고 최소 로컬 추론 경계까지만 정의한다.
 - [검증 필요] 각 구현 작업은 해당 기능 행을 테스트 ID·코드 symbol·실제 artifact에 연결하고 완료 시 상태를 갱신해야 한다.
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 지정 evidence·proposal fingerprint와 514개 테스트에 대한 사용자 승인으로 Gate 4·5·6 `passed`를 반영하고 Gate 3·7 및 실제 데이터 경계를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer·AMP·accumulation·checkpoint/resume와 50-step loss 감소 준비 검증을 반영하고 운영 사전학습·Gate 6·7과 구분함 |
 | 2026-07-24 | [확정] MODEL-101~110 중 전체 forward·loss·count·generation·state 호환 경로 구현과 65개 통합 테스트를 반영하고 Gate 5 `planned`를 유지함 |
 | 2026-07-24 | [확정] MODEL-001~015 구성요소·오류 검증·중복 제외 parameter count와 55개 단위 테스트 구현을 반영하고 Gate 4 `planned`를 유지함 |
