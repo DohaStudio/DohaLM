@@ -51,10 +51,10 @@
 | TOK-010 | 토크나이저 | UNK와 byte fallback A/B 통계 | Evaluation test | 예 | 지표 분리·안전 사례·후보 비교 | coverage·fallback 재검토 | 일부 | `partial` — smoke UNK·fallback 상태 기록; off/on A/B는 `planned` |
 | TOK-011 | 토크나이저 | 8개 필수 artifact·checksum·atomic publish | Integration test | 예 | 부분·overwrite·손상 차단과 새 process load | 저장·복원 로직 수정 | 예 | `partial` — smoke 5개 artifact·checksum·atomic·overwrite 차단; 운영 8개는 `planned` |
 | TOK-012 | 토크나이저 | compatible/conditional/breaking matrix | Regression test | 예 | 비호환 model/checkpoint 적용 차단 | version·manifest·loader 수정 | 예 | `smoke-pass` — compatible/warning/incompatible; checkpoint 연계는 `planned` |
-| MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `planned` |
-| MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `planned` |
-| MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `planned` |
-| MOD-004 | 모델 | CPU forward/backward·dtype/device·오류 | Component test | 예 | finite gradient, 명시적 오류 | 연산·validation 수정 | 예 | `planned` |
+| MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `partial` — component shape 통과, 통합 모델은 Phase 4 `planned` |
+| MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `partial` — 구성요소 container count·storage alias 통과, 통합·checkpoint 재검증 예정 |
+| MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `partial` — attention·block 이전 위치 출력 불변 통과, 통합 logits는 Phase 4 예정 |
+| MOD-004 | 모델 | CPU forward/backward·dtype/device·오류 | Component test | 예 | finite gradient, 명시적 오류 | 연산·validation 수정 | 예 | `pass` — CPU 전 구성요소와 RTX 3060 Ti FP16 forward/backward finite gradient 통과 |
 | TRN-001 | 학습 | 단일 step optimizer·scheduler update | Smoke test | 예 | 예상 parameter·step 갱신 | loop·step 순서 수정 | 예 | `planned` |
 | TRN-002 | 학습 | FP16 AMP·GradScaler·NaN/Inf | GPU test | 예 | finite update와 scaler 상태 기록 | precision·연산·중단 처리 검토 | 예 | `planned` |
 | TRN-003 | 학습 | gradient accumulation·clipping 순서 | Component test | 예 | update 주기·정규화·unscale 순서 일치 | trainer 수정 | 예 | `planned` |
@@ -98,6 +98,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] MOD-001~004 구성요소 55개 CPU/CUDA 테스트 결과를 반영하고 통합 검증은 partial로 구분함 |
 | 2026-07-24 | [확정] DATA-011 AIHUB-71748 synthetic corpus adapter의 30개 회귀와 실제 승인 차단 검증을 반영함 |
 | 2026-07-24 | [확정] TOK-001~012 synthetic smoke 신규 22개·전체 215개 회귀 결과를 반영하고 운영 corpus·16,000 vocabulary·Gate 3 미완료를 구분함 |
 | 2026-07-24 | [확정] DATA-009 archive·entry·record 층화, schema·PII checklist와 preview 차단 회귀 11개·전체 180개 결과를 반영함 |

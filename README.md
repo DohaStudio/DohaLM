@@ -13,7 +13,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 문서화 | 진행 및 검토 단계 |
 | Phase 0 환경·설정 기반 | 구현·검증 완료, Gate 1 `passed` |
 | Phase 1 데이터 파이프라인 | DATA-001~016 `verified`, Gate 2 `passed` |
-| 모델 코드 | 스캐폴드만 존재, 미구현 |
+| 모델 코드 | Phase 3 핵심 구성요소 구현·단위 검증, 전체 모델 통합 미구현 |
 | 데이터 | 후보 및 라이선스 미승인 |
 | 토크나이저 | 미학습 |
 | 사전학습 | 미실행 |
@@ -154,7 +154,7 @@ python -m pytest -q
 
 ## 제한 사항
 
-- DohaLM-Tiny의 구조는 승인됐지만 코드 구현, 실제 파라미터 수와 VRAM 사용량은 검증되지 않았습니다.
+- DohaLM-Tiny 구성요소와 구성요소 집계 파라미터 수는 검증됐지만 전체 모델 통합, loss, generation과 실제 VRAM 사용량은 검증되지 않았습니다.
 - 학습 hyperparameter, 토크나이저 세부 옵션과 정량 평가 합격선은 아직 확정되지 않았습니다.
 - DohaLM-Small 상세 구조, API·Frontend·배포 설계 및 외부 제출은 후순위입니다.
 - 테스트와 재현 증거 없이 구현 또는 학습 완료로 처리하지 않습니다.
