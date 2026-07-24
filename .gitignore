@@ -10,6 +10,7 @@ build/
 dist/
 .pytest_cache/
 tests/tmp/
+tests/output/
 .coverage
 htmlcov/
 logs/

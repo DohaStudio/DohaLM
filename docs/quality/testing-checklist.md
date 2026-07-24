@@ -38,18 +38,18 @@
 | DATA-008 | ZIP JSON record 제한 분석 | incremental UTF-8·문자열/escape/depth 경계·oversized skip·stable rank·key hash·원문 비노출 | Unit/Integration test | 예 | entry 3·record 5·entry 16 MiB·전체 32 MiB 상한, 전체 parse·추출 0, ZIP checksum 불변 | 검사 중단·parser state와 manifest 계약 수정 | 예 | `pass` — 신규 회귀 23개와 전체 169개 통과; 실제 2개 entry·3,489 record 관측·10개 선택·source mutation 0 |
 | DATA-009 | 층화 schema·PII review | archive 분산·entry 상한·size/compression bucket·bounded early/middle/late·field ratio·PII checklist·preview 차단 | Unit/Integration test | 예 | 입력 순서 독립, content dry-run 0, read 상한, 값·경로 비노출, ZIP checksum 불변 | review 중단·층화와 비노출 계약 수정 | 예 | `pass` — 신규 회귀 11개와 전체 180개 통과; 실제 단일 archive·entry 2개·64 MiB·record 141개 관측·10개 선택·source mutation 0 |
 | DATA-010 | 비공개 최소 record preview | 승인·만료·외부 경로·archive/entry 상한·SHA-256 선택·redaction·문자 상한·manifest·review·삭제 | Unit/Integration test | 예 | pending 실제 생성 차단, dry-run read 0, 원문·절대경로 비노출, ZIP checksum 불변 | preview 생성 중단·정책과 보존 경계 재검토 | 예 | `pass` — 합성 회귀 13개 통과; 실제 정책은 pending이며 preview text 생성 0건 |
-| TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `planned` |
-| TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `planned` |
-| TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `planned` |
-| TOK-004 | 토크나이저 | ADR-003 special token 8개·ID 0~7·단일 piece | Regression test | 예 | 문자열·ID·load 후 mapping 일치 | trainer symbol 설정 수정 | 예 | `planned` |
-| TOK-005 | 토크나이저 | encode 입력·IDs·pieces·길이·truncation | Component test | 예 | 유효 ID, 조용한 절단 없음 | wrapper 수정 | 예 | `planned` |
-| TOK-006 | 토크나이저 | decode·잘못된 ID·special 처리 | Component test | 예 | 범위 오류와 보존·skip 계약 | wrapper 수정 | 예 | `planned` |
-| TOK-007 | 토크나이저 | exact·normalized round-trip 문자군 matrix | Regression test | 예 | 모든 결과·실패 사례 분류·보존 | normalization·후보 재검토 | 예 | `planned` |
-| TOK-008 | 토크나이저 | canonical tokenizer fingerprint | Regression test | 예 | 시각·경로 독립, 의미 변경 감지 | 직렬화·입력 필드 수정 | 예 | `planned` |
-| TOK-009 | 토크나이저 | 한국어 분할·길이·256 초과 통계 | Evaluation test | 예 | 분모·percentile·문자군 통계 완전 | corpus·설정 재검토 | 일부 | `planned` |
-| TOK-010 | 토크나이저 | UNK와 byte fallback A/B 통계 | Evaluation test | 예 | 지표 분리·안전 사례·후보 비교 | coverage·fallback 재검토 | 일부 | `planned` |
-| TOK-011 | 토크나이저 | 8개 필수 artifact·checksum·atomic publish | Integration test | 예 | 부분·overwrite·손상 차단과 새 process load | 저장·복원 로직 수정 | 예 | `planned` |
-| TOK-012 | 토크나이저 | compatible/conditional/breaking matrix | Regression test | 예 | 비호환 model/checkpoint 적용 차단 | version·manifest·loader 수정 | 예 | `planned` |
+| TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `smoke-pass` — synthetic fixture root 밖 입력 차단; 승인 Phase 1 corpus 경로는 미구현 |
+| TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `smoke-pass` — SentencePiece 0.2.2, Unigram·memory writer·명시 config 검증 |
+| TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `smoke-pass` — synthetic 256 actual piece 일치; 운영 16,000은 `planned` |
+| TOK-004 | 토크나이저 | ADR-003 special token 8개·ID 0~7·단일 piece | Regression test | 예 | 문자열·ID·load 후 mapping 일치 | trainer symbol 설정 수정 | 예 | `smoke-pass` — ID 0~7·user-defined symbol 단일 piece 검증 |
+| TOK-005 | 토크나이저 | encode 입력·IDs·pieces·길이·truncation | Component test | 예 | 유효 ID, 조용한 절단 없음 | wrapper 수정 | 예 | `smoke-pass` — 단일·목록·BOS/EOS·명시 truncation 검증 |
+| TOK-006 | 토크나이저 | decode·잘못된 ID·special 처리 | Component test | 예 | 범위 오류와 보존·skip 계약 | wrapper 수정 | 예 | `smoke-pass` — 범위·타입·special 보존/제거·빈 목록 검증 |
+| TOK-007 | 토크나이저 | exact·normalized round-trip 문자군 matrix | Regression test | 예 | 모든 결과·실패 사례 분류·보존 | normalization·후보 재검토 | 예 | `smoke-pass` — 합성 한국어·영문·숫자 ID round-trip; 운영 문자군 matrix는 `planned` |
+| TOK-008 | 토크나이저 | canonical tokenizer fingerprint | Regression test | 예 | 시각·경로 독립, 의미 변경 감지 | 직렬화·입력 필드 수정 | 예 | `smoke-pass` — memory writer·canonical JSON·SHA-256 경로 독립 검증 |
+| TOK-009 | 토크나이저 | 한국어 분할·길이·256 초과 통계 | Evaluation test | 예 | 분모·percentile·문자군 통계 완전 | corpus·설정 재검토 | 일부 | `partial` — smoke 평균 token·문자·vocab 사용 통계; percentile·운영 분포는 `planned` |
+| TOK-010 | 토크나이저 | UNK와 byte fallback A/B 통계 | Evaluation test | 예 | 지표 분리·안전 사례·후보 비교 | coverage·fallback 재검토 | 일부 | `partial` — smoke UNK·fallback 상태 기록; off/on A/B는 `planned` |
+| TOK-011 | 토크나이저 | 8개 필수 artifact·checksum·atomic publish | Integration test | 예 | 부분·overwrite·손상 차단과 새 process load | 저장·복원 로직 수정 | 예 | `partial` — smoke 5개 artifact·checksum·atomic·overwrite 차단; 운영 8개는 `planned` |
+| TOK-012 | 토크나이저 | compatible/conditional/breaking matrix | Regression test | 예 | 비호환 model/checkpoint 적용 차단 | version·manifest·loader 수정 | 예 | `smoke-pass` — compatible/warning/incompatible; checkpoint 연계는 `planned` |
 | MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `planned` |
 | MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `planned` |
 | MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `planned` |
@@ -97,6 +97,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] TOK-001~012 synthetic smoke 신규 22개·전체 215개 회귀 결과를 반영하고 운영 corpus·16,000 vocabulary·Gate 3 미완료를 구분함 |
 | 2026-07-24 | [확정] DATA-009 archive·entry·record 층화, schema·PII checklist와 preview 차단 회귀 11개·전체 180개 결과를 반영함 |
 | 2026-07-24 | [확정] DATA-008 ZIP JSON record 경계·제한·결정론·비노출 회귀 23개와 전체 169개 통과 결과를 반영함 |
 | 2026-07-24 | [확정] DATA-006 rejection 관측성과 DATA-007 제한 streaming·Unicode prefix 검사, 전체 146개 통과와 실제 read-only 결과를 반영함 |

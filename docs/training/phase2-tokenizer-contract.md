@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [데이터셋 승인 로그](../data/dataset-approval-log.md), [평가 제외 목록](../data/evaluation-exclusion-list.md), [토크나이저 설계](./tokenizer-design.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서·작업 | Phase 2 토크나이저 구현·테스트, [사전학습 계획](./pretraining-plan.md), Gate 3 검증 |
 | 구현 전 필수 여부 | Phase 2 구현 전 예 |
@@ -13,7 +13,8 @@
 - [확정] 이 문서는 Phase 2 구현에 적용할 corpus 입력, SentencePiece 학습 설정, vocabulary, special token, 산출물, fingerprint, encode/decode, 평가와 호환성 계약의 단일 기준이다.
 - [확정] 문서 상태 `review`는 구현·검증·Gate 통과를 의미하지 않는다.
 - [확정] Gate 1과 Gate 2는 `passed`이며 Phase 1 DATA-001~016은 `verified`다.
-- [검증 필요] SentencePiece 의존성, 실제 승인 corpus, 토크나이저 구현·테스트와 운영 산출물은 아직 없다.
+- [확정] SentencePiece `0.2.2` 의존성과 [synthetic smoke pipeline](./tokenizer-smoke.md)은 구현·검증됐다.
+- [검증 필요] 실제 승인 corpus, 16,000 vocabulary 운영 후보, 후보 비교와 운영 8개 산출물은 아직 없다.
 
 ## 2. 목적과 범위
 
@@ -167,7 +168,7 @@ Phase 2는 다음 기능을 구현하고 검증할 준비를 한다.
 | `shuffle_input_sentence`, `num_threads` | [검증 필요] 결정론 실험 후 결정 |
 | `control_symbols` | [검증 필요] 기본 사용 필요성 없음; user-defined와 동시 사용 방식 검증 |
 
-- [검증 필요] SentencePiece가 user-defined symbol의 입력 순서대로 ID 4~7을 부여하는지 실제 dependency version에서 검사하고 결과만 신뢰한다.
+- [확정] SentencePiece `0.2.2` synthetic smoke에서 user-defined symbol이 입력 순서대로 ID 4~7을 받고 단일 symbol로 유지됨을 검사했다.
 - [확정] trainer 실행 후 모든 resolved option을 기록하며 라이브러리 기본값에 암묵적으로 의존하지 않는다.
 
 ## 13. Random seed와 결정론 수준
@@ -492,7 +493,7 @@ Phase 1 dataset fingerprint
 
 ### 33.1 구현 전에 결정
 
-- [검증 필요] SentencePiece dependency version과 설치 방식
+- [확정] Synthetic smoke의 SentencePiece dependency는 `0.2.2`로 `pyproject.toml`과 `requirements.txt`에 동일하게 고정한다.
 - [검증 필요] 실제 artifact root와 tokenizer ID·version 정책
 - [검증 필요] `num_threads`, shuffle, `input_sentence_size`, `max_sentence_length`, `seed_sentencepiece_size`
 - [검증 필요] wrapper의 빈 decode와 `skip_special_tokens` 최종 기본값
@@ -511,5 +512,6 @@ Phase 1 dataset fingerprint
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] SentencePiece 0.2.2와 synthetic TOK-001~012 smoke 구현을 반영하되 운영 tokenizer·승인·Gate 3은 미완료로 유지함 |
 | 2026-07-23 | [확정] TOK-001~012의 corpus·SentencePiece·vocabulary·artifact·fingerprint·API·평가·호환성 계약을 작성하고 Gate 3 기준을 정의함 |
 | 2026-07-23 | [확정] 후보 등록부·승인 로그를 corpus 승인 근거로 연결하고 현재 approved tokenizer corpus 0개를 명시함 |

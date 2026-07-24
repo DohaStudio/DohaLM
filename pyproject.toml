@@ -9,6 +9,7 @@ description = "한국어 소형 언어 모델을 처음부터 구현하고 학�
 requires-python = ">=3.10,<3.13"
 dependencies = [
     "PyYAML>=6.0,<7",
+    "sentencepiece==0.2.2",
 ]
 
 [project.optional-dependencies]
