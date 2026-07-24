@@ -7,11 +7,11 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 아키텍처](./model-architecture.md), [핵심 개발 기능명세서](./core-development-feature-specification.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md) |
-| 후속 문서·작업 | Phase 4 전체 모델 통합, loss·generation, Gate 4 사용자 검토 |
+| 후속 문서·작업 | [Phase 4 전체 모델 통합](./model-integration.md), [통합 테스트](../quality/model-integration-testing.md), Gate 4 사용자 검토 |
 | 구현 전 필수 여부 | 구성요소 소비·통합 전 예 |
 
 - [확정] 이 문서는 Phase 3 Decoder-only Transformer 구성요소 구현을 설명한다.
-- [제외] 전체 6-layer 모델 forward 조립, final loss, autoregressive generation, trainer, checkpoint와 학습은 구현하지 않았다.
+- [제외] 이 Phase 3 문서 범위에는 전체 6-layer forward, final loss와 generation이 포함되지 않는다. 해당 구현은 [Phase 4 문서](./model-integration.md)에 분리하며 trainer, checkpoint manager와 학습은 여전히 미구현이다.
 - [확정] Hugging Face 완성형 GPT 모델 없이 PyTorch 구성요소를 직접 구현했다.
 
 ## 2. 구현 구성요소
@@ -78,7 +78,7 @@ LM Head는 bias 없는 `384 → 16,000` projection이다. 생성자 또는 `tie_
 | Block 1개 | 1,774,464 |
 
 - [확정] 구현 구성요소 집계는 ADR-002 산식과 일치한다.
-- [검증 필요] Phase 4의 실제 통합 모델 객체에서도 `16,889,856`과 alias를 다시 검증해야 한다.
+- [확정] Phase 4 실제 통합 모델 객체에서도 `16,889,856`과 alias를 재검증했다.
 
 ## 9. 오류와 상태 경계
 
@@ -90,4 +90,5 @@ Gate 3과 Gate 4는 모두 `planned`를 유지한다. 구성요소 구현·테�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 4 통합 count·alias 재검증 결과와 후속 문서 링크를 반영함 |
 | 2026-07-24 | [확정] Phase 3 구성요소 구현, 16,889,856 parameter 집계와 CPU·CUDA 단위 검증 범위를 기록함 |

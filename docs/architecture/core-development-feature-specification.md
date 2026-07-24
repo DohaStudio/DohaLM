@@ -309,8 +309,8 @@
 | 설정 항목 | Tiny config 전체; loss `ignore_index` 값·padding mask dtype [검증 필요] |
 | 산출물 | 통합 model state·logits·loss·검증 보고 |
 | 보안·라이선스 | prompt·fixture에 민감정보 금지 |
-| 현재 상태 | `review` — 통합 모델 미구현 |
-| 관련 문서 | [모델 아키텍처](./model-architecture.md), [토크나이저 설계](../training/tokenizer-design.md), [Definition of Done](../governance/definition-of-done.md) |
+| 현재 상태 | `implemented` — 전체 forward·shifted loss·greedy generation과 합성 CPU/CUDA 검증 완료, Gate 5는 `planned` |
+| 관련 문서 | [모델 아키텍처](./model-architecture.md), [모델 통합](./model-integration.md), [통합 테스트](../quality/model-integration-testing.md), [토크나이저 설계](../training/tokenizer-design.md), [Definition of Done](../governance/definition-of-done.md) |
 
 ### 10.2 기능별 계약
 
@@ -595,7 +595,7 @@ flowchart LR
 - [확정] 모든 기능은 공통·기능별 계약을 결합해 ID, 이름, 영역, 목적, Phase, Gate, 선행 조건, 입력, 출력, 처리, 오류, 설정, 산출물, 보안·라이선스, 테스트, 완료 기준, 상태와 관련 문서를 갖는다.
 - [확정] 기능 ID는 영역별 namespace에서 고유하며 중복을 허용하지 않는다.
 - [확정] Tiny 수치는 ADR-002와 일치하고 미결정 hyperparameter는 확정하지 않았다.
-- [확정] Phase 0과 Phase 1 DATA-001~016만 `verified`이며 Phase 2 이후 구현 완료를 주장하지 않는다.
+- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 3 구성요소와 Phase 4 통합 모델은 구현·테스트됐다. Gate 3~5 통과나 실제 학습 완료를 주장하지 않는다.
 - [확정] Phase 1 검증은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
 - [확정] 서비스 기능은 포함하지 않고 최소 로컬 추론 경계까지만 정의한다.
 - [검증 필요] 각 구현 작업은 해당 기능 행을 테스트 ID·코드 symbol·실제 artifact에 연결하고 완료 시 상태를 갱신해야 한다.
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] MODEL-101~110 중 전체 forward·loss·count·generation·state 호환 경로 구현과 65개 통합 테스트를 반영하고 Gate 5 `planned`를 유지함 |
 | 2026-07-24 | [확정] MODEL-001~015 구성요소·오류 검증·중복 제외 parameter count와 55개 단위 테스트 구현을 반영하고 Gate 4 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 2 synthetic tokenizer smoke 구현과 승인 corpus·운영 후보 미구현 경계를 동기화함 |
 | 2026-07-23 | [확정] revision `c9ea945` 독립 재검증과 사용자 Gate 2 승인에 따라 DATA-001~016을 `verified`로 변경함 |

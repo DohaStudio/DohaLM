@@ -5,9 +5,9 @@
 
 ## 1. 문서 목적과 현재 상태
 
-- [확정] 이 문서는 `DohaLM-Tiny`의 구현 전 모델 구조, 텐서 shape 및 파라미터 산식을 정의한다.
+- [확정] 이 문서는 `DohaLM-Tiny`의 모델 구조, 텐서 shape 및 파라미터 산식을 정의한다.
 - [확정] 모델은 PyTorch 기반 Decoder-only Transformer이며 핵심 구성요소를 직접 구현한다.
-- [확정] 현재 저장소에는 실행 가능한 모델 구현이 없다. 아래 내용은 구현 완료 보고가 아니라 구현 기준이다.
+- [확정] Phase 3 구성요소와 Phase 4 전체 forward·shifted loss·최소 greedy generation이 구현됐으며 상세 구현 경계는 [모델 통합](./model-integration.md)을 따른다.
 - [검증 필요] `DohaLM-Small`의 상세 구조는 Tiny의 정확성, VRAM 및 처리량 실측 후 확정한다.
 
 기존 범위 결정은 [범위와 목표](../project/scope-and-goals.md)와 [ADR-001](../decisions/ADR-001-initial-model-scope.md)을 따른다.
@@ -96,7 +96,7 @@ Linear bias와 LayerNorm affine을 포함하고 LM Head bias는 제외한다.
 
 - [확정] 설계상 예상 파라미터는 `16,889,856`, 약 `16.89M`이다.
 - [확정] 약 15M~25M 목표 범위 안에 있으므로 기존 확정값과 계산 충돌이 없다.
-- [검증 필요] 구현 후 실제 `sum(p.numel())` 결과가 위 계산과 정확히 일치해야 한다.
+- [확정] 통합 모델의 tied 중복 제외 실제 parameter count가 `16,889,856`과 정확히 일치한다.
 - [검증 필요] weight tying을 제거하면 `6,144,000`개가 추가되어 `23,033,856`개가 된다. 현재 설계는 tying 사용이므로 이 값은 비교용이다.
 
 ### 4.3 DohaLM-Small 비구속 검토안
@@ -201,13 +201,13 @@ Linear bias와 LayerNorm affine을 포함하고 LM Head bias는 제외한다.
 - [후순위] KV cache를 추가하면 layer별 K/V shape은 각각 `[B, H, T_cached, Dh]`이며 정확성 비교 테스트가 필요하다.
 - [검증 필요] sampling, EOS 처리 및 KV cache 정책은 `11-inference-design.md`에서 확정한다.
 
-## 9. 구현 전 필수 검증
+## 9. 구현 검증 상태
 
-- [검증 필요] 파라미터 수 `16,889,856` 일치
-- [검증 필요] 각 모듈의 입력·출력 shape와 residual shape 일치
-- [검증 필요] 미래 token 변경이 이전 위치 logits에 영향을 주지 않는 causal mask 테스트
-- [검증 필요] tied weight가 실제로 같은 parameter storage를 참조하는지 확인
-- [검증 필요] FP16 순전파·역전파에서 NaN/Inf가 없는지 확인
+- [확정] 파라미터 수 `16,889,856` 일치
+- [확정] 각 모듈과 통합 모델의 입력·출력 shape 및 residual shape 일치
+- [확정] 미래 token 변경이 이전 위치 logits에 영향을 주지 않는 causal mask 테스트 통과
+- [확정] tied weight가 실제로 같은 Parameter 객체와 storage를 참조함
+- [확정] small config FP16 순전파·역전파에서 NaN/Inf 없음
 - [검증 필요] 작은 데이터 과적합과 checkpoint round-trip 통과
 
 ## 10. 검토 필요 사항
@@ -216,3 +216,9 @@ Linear bias와 LayerNorm affine을 포함하고 LM Head bias는 제외한다.
 - [검증 필요] Small 검토안의 실제 채택 여부
 - [검증 필요] padding mask의 구체적 자료형과 broadcast 규칙
 - [검증 필요] KV cache 구현 시 position ID와 최대 context 처리
+
+## 11. 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-24 | [확정] Phase 4 통합 모델의 parameter count·shape·causal·tying·FP16 검증 결과를 반영함 |

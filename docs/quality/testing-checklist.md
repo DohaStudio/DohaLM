@@ -51,18 +51,18 @@
 | TOK-010 | 토크나이저 | UNK와 byte fallback A/B 통계 | Evaluation test | 예 | 지표 분리·안전 사례·후보 비교 | coverage·fallback 재검토 | 일부 | `partial` — smoke UNK·fallback 상태 기록; off/on A/B는 `planned` |
 | TOK-011 | 토크나이저 | 8개 필수 artifact·checksum·atomic publish | Integration test | 예 | 부분·overwrite·손상 차단과 새 process load | 저장·복원 로직 수정 | 예 | `partial` — smoke 5개 artifact·checksum·atomic·overwrite 차단; 운영 8개는 `planned` |
 | TOK-012 | 토크나이저 | compatible/conditional/breaking matrix | Regression test | 예 | 비호환 model/checkpoint 적용 차단 | version·manifest·loader 수정 | 예 | `smoke-pass` — compatible/warning/incompatible; checkpoint 연계는 `planned` |
-| MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `partial` — component shape 통과, 통합 모델은 Phase 4 `planned` |
-| MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `partial` — 구성요소 container count·storage alias 통과, 통합·checkpoint 재검증 예정 |
-| MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `partial` — attention·block 이전 위치 출력 불변 통과, 통합 logits는 Phase 4 예정 |
-| MOD-004 | 모델 | CPU forward/backward·dtype/device·오류 | Component test | 예 | finite gradient, 명시적 오류 | 연산·validation 수정 | 예 | `pass` — CPU 전 구성요소와 RTX 3060 Ti FP16 forward/backward finite gradient 통과 |
+| MOD-001 | 모델 | component·통합 output shape | Unit/Integration test | 예 | 문서 shape와 일치 | 해당 layer·config 수정 | 예 | `pass` — 전체 forward logits·선택 hidden states shape 통과 |
+| MOD-002 | 모델 | parameter count·weight tying | Regression test | 예 | 16,889,856, storage alias | 구조·bias·tying 수정 | 예 | `pass` — 통합 객체 count·동일 Parameter·state round-trip re-tying 통과 |
+| MOD-003 | 모델 | causal mask 미래 정보 차단 | Unit test | 예 | 미래 token 변경이 이전 logits에 영향 없음 | mask 위치·broadcast 수정 | 예 | `pass` — attention·block과 통합 logits 이전 위치 불변 통과 |
+| MOD-004 | 모델 | CPU forward/backward·dtype/device·오류 | Component test | 예 | finite gradient, 명시적 오류 | 연산·validation 수정 | 예 | `pass` — CPU와 RTX 3060 Ti FP32·FP16 통합 forward/backward·generation 통과 |
 | TRN-001 | 학습 | 단일 step optimizer·scheduler update | Smoke test | 예 | 예상 parameter·step 갱신 | loop·step 순서 수정 | 예 | `planned` |
 | TRN-002 | 학습 | FP16 AMP·GradScaler·NaN/Inf | GPU test | 예 | finite update와 scaler 상태 기록 | precision·연산·중단 처리 검토 | 예 | `planned` |
 | TRN-003 | 학습 | gradient accumulation·clipping 순서 | Component test | 예 | update 주기·정규화·unscale 순서 일치 | trainer 수정 | 예 | `planned` |
 | TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `planned` |
 | CKPT-001 | Checkpoint | 필수 key·format·hash·atomic save | Component test | 예 | 완전한 checkpoint만 노출 | 저장 로직·schema 수정 | 예 | `planned` |
-| CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `planned` |
+| CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `partial` — 메모리 내 state dict·config round-trip과 re-tying 통과; 파일 checkpoint manager는 미구현 |
 | CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `planned` |
-| GEN-001 | 생성 | 고정 seed 최소 생성·stop token | Regression test | 예 | 재현 정책 범위 내 출력·정상 종료 | sampling·EOS·position 수정 | 예 | `planned` |
+| GEN-001 | 생성 | 고정 seed 최소 생성·stop token | Regression test | 예 | 재현 정책 범위 내 출력·정상 종료 | sampling·EOS·position 수정 | 예 | `pass` — 합성 token greedy 결정론·batch EOS·context·mode 복원 통과 |
 | GEN-002 | 생성 | 반복·빈 응답·특수문자·언어 붕괴 | Manual/Component test | 예 | 상태형 결과와 실패 sample 기록 | 생성 설정·모델 원인 분석 | 일부 | `planned` |
 | EVAL-001 | 평가 | training/validation loss와 perplexity 집계 | Unit test | 예 | 유효 token 가중 mean과 지수 일치 | mask·집계 수정 | 예 | `planned` |
 | EVAL-002 | 평가 | 동일 split/tokenizer/context 비교 계약 | Static/Integration test | 예 | 호환되지 않는 비교 차단 | evaluation metadata 수정 | 예 | `planned` |
@@ -98,6 +98,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 4 신규 65개·전체 365개 통과와 MOD-001~004·GEN-001·state dict partial 결과를 반영함 |
 | 2026-07-24 | [확정] MOD-001~004 구성요소 55개 CPU/CUDA 테스트 결과를 반영하고 통합 검증은 partial로 구분함 |
 | 2026-07-24 | [확정] DATA-011 AIHUB-71748 synthetic corpus adapter의 30개 회귀와 실제 승인 차단 검증을 반영함 |
 | 2026-07-24 | [확정] TOK-001~012 synthetic smoke 신규 22개·전체 215개 회귀 결과를 반영하고 운영 corpus·16,000 vocabulary·Gate 3 미완료를 구분함 |
