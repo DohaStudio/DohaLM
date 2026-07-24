@@ -5,13 +5,13 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [사전학습 계획](./pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
 | 후속 문서 | [재현성 정책](../quality/reproducibility-policy.md), [실험 템플릿](./experiment-template.md), [개발 로드맵](../quality/development-roadmap.md), [테스트 체크리스트](../quality/testing-checklist.md), `20-leaderboard-strategy.md` 작성 예정 |
 | 구현 전 필수 여부 | 본 학습 전 예 |
 
-- [확정] 현재 `experiments/` 경로, 실험 metadata 파일, 실행 결과와 schema 구현은 없다.
-- [확정] 이 문서는 계획 구조이며 이번 단계에서 실험 디렉터리나 YAML을 생성하지 않는다.
+- [확정] Phase 5 [Trainer Foundation](./trainer-foundation.md)은 합성 smoke의 구조화 JSONL metric과 checkpoint state를 구현했다. 그러나 이 문서가 정의하는 `experiments/` registry, 전체 metadata schema와 운영 artifact backend는 구현되지 않았다.
+- [확정] 이 문서는 운영 실험 관리 계획이며 합성 smoke output을 완료된 사전학습 실험으로 등록하지 않는다.
 
 ## 2. 실험 단위
 
@@ -184,4 +184,5 @@ experiments/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 5 합성 metric·checkpoint 구현 범위와 미구현 운영 experiment registry를 구분함 |
 | 2026-07-23 | [확정] 실험 단위·ID 후보·metadata·상태·실패 보존·계획 디렉터리 정책 정의 |

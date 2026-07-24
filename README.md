@@ -6,7 +6,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 1 환경 검증과 Gate 2 데이터 파이프라인 검증을 통과했습니다. Phase 1 DATA-001~016과 Phase 3 모델 구성요소, Phase 4 전체 모델 통합은 구현·검증됐습니다. Gate 3~5는 사용자 승인 전까지 `planned`를 유지합니다.
+현재 저장소는 Gate 1 환경 검증과 Gate 2 데이터 파이프라인 검증을 통과했습니다. Phase 1 DATA-001~016, Phase 3 모델 구성요소, Phase 4 전체 모델 통합과 Phase 5 합성 Trainer Foundation은 구현·검증됐습니다. Gate 3~7은 사용자 승인 전까지 `planned`를 유지합니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -14,6 +14,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | Phase 0 환경·설정 기반 | 구현·검증 완료, Gate 1 `passed` |
 | Phase 1 데이터 파이프라인 | DATA-001~016 `verified`, Gate 2 `passed` |
 | 모델 코드 | Phase 3 구성요소와 Phase 4 전체 forward·loss·greedy generation 구현·검증, Gate 4·5 `planned` |
+| 학습 기반 | 합성 token 전용 Trainer·AdamW·linear scheduler·FP16 AMP·accumulation·checkpoint/resume 구현·검증, Gate 6·7 `planned` |
 | 데이터 | 후보 및 라이선스 미승인 |
 | 토크나이저 | 미학습 |
 | 사전학습 | 미실행 |
@@ -103,7 +104,7 @@ checkpoints/   로컬 체크포인트 경로
 
 ## 빠른 시작
 
-Phase 0 도구는 다음과 같이 실행합니다. 학습·추론 명령은 아직 제공하지 않습니다.
+Phase 0 도구와 합성 token 기반 모델·학습 smoke는 다음과 같이 실행합니다. 실제 corpus 사전학습·SFT 명령은 아직 제공하지 않습니다.
 
 Windows PowerShell:
 
@@ -135,6 +136,9 @@ python -m src.cli.main data build --config tests/fixtures/data/phase1-cli.yaml
 python -m scripts.model.inspect_model
 python -m scripts.model.run_model_smoke --device cpu --dtype float32
 python -m scripts.model.generate_smoke
+python -m scripts.training.run_training_smoke --help
+python -m scripts.training.inspect_checkpoint --help
+python -m scripts.training.resume_training_smoke --help
 python -m pytest -q
 ```
 
@@ -157,7 +161,7 @@ python -m pytest -q
 
 ## 제한 사항
 
-- DohaLM-Tiny 전체 forward, shifted loss와 최소 greedy generation은 합성 token으로 검증됐지만 trainer, checkpoint manager, 실제 학습과 운영 Tiny 학습 VRAM은 검증되지 않았습니다.
+- DohaLM-Tiny 전체 forward·shifted loss·최소 greedy generation과 Trainer Foundation·checkpoint/resume는 합성 token으로 검증됐지만, 실제 tokenizer·승인 corpus를 사용한 사전학습과 운영 Tiny 학습 VRAM은 검증되지 않았습니다.
 - 학습 hyperparameter, 토크나이저 세부 옵션과 정량 평가 합격선은 아직 확정되지 않았습니다.
 - DohaLM-Small 상세 구조, API·Frontend·배포 설계 및 외부 제출은 후순위입니다.
 - 테스트와 재현 증거 없이 구현 또는 학습 완료로 처리하지 않습니다.

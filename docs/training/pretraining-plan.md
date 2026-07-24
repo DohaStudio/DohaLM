@@ -1,14 +1,14 @@
 # DohaLM 사전학습 계획
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-24
 
 ## 1. 목적과 전제
 
 - [확정] 첫 사전학습 대상은 랜덤 초기화한 `DohaLM-Tiny`다.
 - [확정] 기준 장비는 단일 `RTX 3060 Ti 8GB`다.
 - [확정] 모델은 [모델 아키텍처](../architecture/model-architecture.md), 토큰 방식은 [토크나이저 설계](./tokenizer-design.md), Phase 2 입력·산출물·호환성은 [토크나이저 상세 계약](./phase2-tokenizer-contract.md)을 따른다.
-- [확정] 현재 학습 코드, 학습 데이터 및 체크포인트는 존재하지 않는다. 이 문서는 실행 계획이다.
+- [확정] 합성 token 전용 [Trainer Foundation](./trainer-foundation.md)과 [checkpoint/resume](./checkpoint-and-resume.md)는 구현·검증됐다. 승인된 실제 학습 데이터·운영 tokenizer·사전학습 checkpoint는 존재하지 않으며, 이 문서의 실제 사전학습 절차는 실행 계획이다.
 - [확정] 사전학습 후보와 목적별 승인은 [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md)에서 분리해 관리한다.
 - [후순위] `DohaLM-Small` 사전학습은 Tiny의 정확성·메모리·처리량 측정 후 진행한다.
 
@@ -26,11 +26,11 @@
 
 1. [검증 필요] 데이터 출처·라이선스 검토와 `approved_pretraining` 승인, 정제 및 train/validation 분할 기록 완료
 2. [검증 필요] Phase 2 계약의 SentencePiece 16,000 vocabulary, ADR-003 special token ID 0~7, artifact checksum과 tokenizer fingerprint 테스트 통과
-3. [검증 필요] 모델 파라미터 수 `16,889,856` 일치
-4. [검증 필요] shape, causal mask, loss shift 및 weight tying 단위 테스트 통과
-5. [검증 필요] 작은 batch의 forward/backward에서 NaN/Inf 없음
-6. [검증 필요] 아주 작은 데이터에 대한 의도적 과적합 성공
-7. [검증 필요] checkpoint 저장·복원 및 재개 테스트 통과
+3. [확정] 합성 통합 모델에서 파라미터 수 `16,889,856` 일치; [검증 필요] 운영 config 재확인
+4. [확정] 합성 입력의 shape, causal mask, loss shift 및 weight tying 단위 테스트 통과; [검증 필요] 운영 tokenizer 연결
+5. [확정] 합성 작은 batch의 CPU·CUDA FP16 forward/backward에서 finite gradient 확인; [검증 필요] 실제 batch 검증
+6. [확정] 반복 합성 batch의 50-step loss 감소 확인; [검증 필요] 승인 데이터 기반 의도적 과적합과 Gate 7 승인
+7. [확정] 합성 checkpoint 저장·복원 및 결정론적 재개 테스트 통과; [검증 필요] NumPy·명시적 sampler state와 운영 checkpoint 검증
 8. [검증 필요] `RTX 3060 Ti 8GB` 메모리 기준선 측정 완료
 
 ## 4. 데이터 흐름
@@ -72,6 +72,7 @@
 
 - [확정] 정확한 hyperparameter를 corpus와 처리량 근거 없이 임의로 확정하지 않는다.
 - [확정] optimizer parameter group에서 bias와 LayerNorm parameter의 weight decay 적용 여부를 명시적으로 기록한다.
+- [확정] Phase 5 Trainer Foundation smoke는 구현 계약에 따라 linear warmup 후 linear decay만 사용한다. 이는 위 운영 사전학습 cosine 계획을 변경하거나 승인한 결과가 아니다.
 
 ## 6. FP16 mixed precision 계획
 
@@ -107,15 +108,15 @@
 
 ### 단계 A: CPU 및 짧은 GPU 검증
 
-- [검증 필요] 단일 batch forward와 loss shift 확인
-- [검증 필요] causal mask 불변성 테스트
-- [검증 필요] 1~수 step backward와 parameter update 확인
+- [확정] 합성 단일 batch forward와 loss shift 확인
+- [확정] causal mask 불변성 테스트
+- [확정] 합성 CPU·CUDA FP16의 1~수 step backward와 parameter update 확인
 
 ### 단계 B: 작은 데이터 과적합
 
-- [검증 필요] 고정된 작은 표본에서 loss가 감소하는지 확인
+- [확정] 반복 합성 batch 50-step에서 loss 감소 확인; [검증 필요] 실제 승인 표본 검증
 - [검증 필요] 생성 결과와 target token alignment 확인
-- [검증 필요] checkpoint round-trip 후 동일 입력 logits 비교
+- [확정] 합성 checkpoint round-trip·resume 연속성·weight tying 확인
 
 ### 단계 C: 메모리·처리량 기준선
 
@@ -145,6 +146,8 @@
 ## 11. 체크포인트 저장 항목
 
 ### 11.1 학습 재개 필수 항목
+
+Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체크포인트·재개](./checkpoint-and-resume.md)를 따른다.
 
 - [확정] checkpoint format version
 - [확정] model `state_dict` 및 전체 model config
@@ -190,5 +193,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 합성 Trainer Foundation·CPU/CUDA FP16·checkpoint/resume·50-step loss 감소 결과를 실제 사전학습과 구분해 반영함 |
 | 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약의 artifact·fingerprint·호환성 요구를 사전학습 진입 조건과 checkpoint 계보에 연결함 |
 | 2026-07-23 | [확정] 후보·라이선스·승인 로그를 사전학습 데이터 선행 조건에 연결하고 `approved_pretraining` 목적 승인을 요구함 |

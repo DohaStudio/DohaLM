@@ -29,13 +29,13 @@
 | R-005 | 개인정보·민감정보 포함 | `unknown` | `critical` | `critical` | 연락처·식별자·민감 sample | 명시적 PII `clear` 요구·탐지·제한 검토·원문 최소 접근 | 격리·삭제·영향 계보·재학습 검토 | data/security | `mitigating` (Gate 2 비-clear 차단 검증, 고급 자동 탐지 미구현) |
 | R-006 | 평가 데이터 누수 | `unknown` | `critical` | `critical` | 비정상 고점·중복·해설 hit | group split·exact fingerprint·고정 prompt 차단 | 결과 invalid·train 제외·split 재생성 | data/evaluation | `mitigating` (Gate 2 직접 누수 차단 검증, near·semantic 미구현) |
 | R-007 | Tokenizer 품질 부족 | `unknown` | `high` | `high` | unknown·token 길이·문자 붕괴 | 승인 corpus·coverage/normalization/fallback 비교 | corpus·설정 재검토, 호환성 ADR | tokenizer/data | `open` |
-| R-008 | Loss 미감소 | `unknown` | `high` | `high` | overfit 실패·gradient 0·정렬 오류 | 단위·단일 batch overfit·mask test | data/shift/mask/optimizer 단계 진단 | model/training | `open` |
-| R-009 | NaN/Inf 발생 | `unknown` | `high` | `high` | scaler 감소·skipped step·gradient 폭증 | AMP 순서·finite check·짧은 smoke | 중단·정상 checkpoint 복구·LR/연산 진단 | training/model | `open` |
-| R-010 | Checkpoint 손상 | `unknown` | `high` | `high` | hash·load·필수 key 실패 | atomic save·저장 직후 load·checksum | 손상본 격리·직전 정상본 복구 | training/artifact | `open` |
-| R-011 | Resume 실패 | `unknown` | `high` | `high` | step·LR·loss·data 순서 불연속 | optimizer/scheduler/AMP/RNG/sampler 저장·test | 장시간 학습 중단·schema 수정·재검증 | training | `open` |
+| R-008 | Loss 미감소 | `unknown` | `high` | `high` | overfit 실패·gradient 0·정렬 오류 | 단위·단일 batch overfit·mask test | data/shift/mask/optimizer 단계 진단 | model/training | `mitigating` (반복 합성 batch 50-step loss 감소 확인, 승인 데이터 미검증) |
+| R-009 | NaN/Inf 발생 | `unknown` | `high` | `high` | scaler 감소·skipped step·gradient 폭증 | AMP 순서·finite check·짧은 smoke | 중단·정상 checkpoint 복구·LR/연산 진단 | training/model | `mitigating` (RTX 3060 Ti FP16 GradScaler·finite 검사·비유한값 차단 검증) |
+| R-010 | Checkpoint 손상 | `unknown` | `high` | `high` | hash·load·필수 key 실패 | atomic save·저장 직후 load·checksum | 손상본 격리·직전 정상본 복구 | training/artifact | `mitigating` (합성 8-file bundle·SHA-256·atomic failure 회귀 검증) |
+| R-011 | Resume 실패 | `unknown` | `high` | `high` | step·LR·loss·data 순서 불연속 | optimizer/scheduler/AMP/RNG/sampler 저장·test | 장시간 학습 중단·schema 수정·재검증 | training | `mitigating` (합성 optimizer·scheduler·AMP·Python/torch RNG 재개 검증, 명시적 sampler state 미구현) |
 | R-012 | 설정 불일치 | `unknown` | `high` | `high` | metadata와 실행값·checkpoint shape 차이 | resolved config·schema·override 기록 | 결과 invalid·호환성 검사·재실행 | config/experiment | `open` |
 | R-013 | 문서·코드 불일치 | `unknown` | `high` | `high` | parameter·shape·상태 차이 | 문서 우선·같은 변경에서 갱신·regression | Gate 중단·기준 확인·ADR/코드 수정 | governance/all | `monitoring` |
-| R-014 | 실험 재현 실패 | `unknown` | `high` | `high` | 같은 config에서 큰 차이·환경 누락 | Git/data/tokenizer/seed/environment 연결 | divergence 분석·새 attempt·invalid 판정 | experiment | `mitigating` (Phase 1 fingerprint·입력 순서·임시 root 결정론 검증, 학습 재현 미검증) |
+| R-014 | 실험 재현 실패 | `unknown` | `high` | `high` | 같은 config에서 큰 차이·환경 누락 | Git/data/tokenizer/seed/environment 연결 | divergence 분석·새 attempt·invalid 판정 | experiment | `mitigating` (Phase 1 결정론과 합성 Trainer config/dataset fingerprint·seed·resume 검증, 운영 실험 미검증) |
 | R-015 | 프로젝트 범위 과다 | `medium` | `high` | `high` | Tiny 전 서비스·Small·외부 기능 병행 | Phase·Gate·MVP·제외 범위 | 후순위로 복귀·작업 분할 | project | `monitoring` |
 | R-016 | FastAPI·Next.js 조기 개발 | `medium` | `medium` | `medium` | Tiny 학습·추론 미검증 상태 UI 작업 | Gate 10과 후순위 명시 | 서비스 중단·추론/평가 Phase 복귀 | service/project | `monitoring` |
 | R-017 | Small 모델 조기 확정 | `medium` | `high` | `high` | Tiny 실측 전 Layer·batch 확정 | ADR-001·Tiny Gate | 사양 철회·Tiny 실측 후 후속 ADR | model/project | `monitoring` |
@@ -46,8 +46,8 @@
 | R-022 | CUDA·PyTorch·NVIDIA Driver 조합의 호환 실패 | `unknown` | `high` | `high` | CUDA 미인식·kernel load 실패·지원되지 않는 compute capability | Phase 0에서 버전 조합과 환경 snapshot 검증 | 호환 행렬을 재검토하고 검증된 조합으로 환경 재구성 | environment/training | `monitoring` (PyTorch 2.7.1+cu118·Driver 610.62 CUDA smoke 통과, `nvcc` 미확인) |
 | R-023 | SentencePiece 설정 또는 artifact 변경으로 checkpoint 호환성 손상 | `unknown` | `high` | `high` | tokenizer fingerprint·vocab ID·embedding shape 불일치 | tokenizer artifact와 fingerprint를 checkpoint·실험 기록에 고정 | 로드를 차단하고 호환 checkpoint 사용 또는 명시적 migration 검토 | tokenizer/model/artifact | `open` |
 | R-024 | FP16 attention softmax overflow로 NaN/Inf 발생 | `unknown` | `high` | `high` | attention score 급증·softmax 비유한값·skipped step | 안정적 mask 값·AMP 경계·finite 검사를 단위 및 smoke test로 검증 | 즉시 중단하고 dtype·mask·scale·정상 checkpoint를 단계별 진단 | model/training | `open` |
-| R-025 | Weight tying이 checkpoint 저장·복원 과정에서 분리됨 | `unknown` | `high` | `high` | token embedding과 LM Head가 같은 storage를 공유하지 않음 | 저장·복원 round-trip에서 alias와 값 일치를 모두 검사 | checkpoint schema·load 순서를 수정하고 영향 checkpoint 재검증 | model/training/artifact | `open` |
-| R-026 | DataLoader resume 시 sample 순서가 불연속 또는 중복됨 | `unknown` | `high` | `high` | 재개 경계에서 sample ID 누락·중복·loss 궤적 단절 | sampler·RNG·epoch·offset 상태 저장과 고정 fixture 재개 테스트 | 학습을 중단하고 마지막 연속 checkpoint에서 loader state를 복구 | data/training/reproducibility | `open` |
+| R-025 | Weight tying이 checkpoint 저장·복원 과정에서 분리됨 | `unknown` | `high` | `high` | token embedding과 LM Head가 같은 storage를 공유하지 않음 | 저장·복원 round-trip에서 alias와 값 일치를 모두 검사 | checkpoint schema·load 순서를 수정하고 영향 checkpoint 재검증 | model/training/artifact | `mitigating` (Phase 5 strict checkpoint load 후 storage alias 회귀 통과) |
+| R-026 | DataLoader resume 시 sample 순서가 불연속 또는 중복됨 | `unknown` | `high` | `high` | 재개 경계에서 sample ID 누락·중복·loss 궤적 단절 | sampler·RNG·epoch·offset 상태 저장과 고정 fixture 재개 테스트 | 학습을 중단하고 마지막 연속 checkpoint에서 loader state를 복구 | data/training/reproducibility | `mitigating` (합성 loader deterministic fast-forward 재개 통과, 명시적 sampler state 미구현) |
 | R-027 | 외부 평가 형식 연동 비용이 예상보다 큼 | `unknown` | `medium` | `medium` | 변환 schema·제출 형식·공식 도구 요구가 반복 변경됨 | 내부 평가 계약을 우선 고정하고 외부 형식은 Gate 11에서 snapshot | 외부 연동 범위를 축소하거나 adapter 작업을 후순위로 재계획 | evaluation/project | `open` |
 | R-028 | 문서 과잉으로 핵심 구현 일정이 지연됨 | `medium` | `medium` | `medium` | 같은 결정의 반복 문서화·Gate 문서만 증가·Phase 0 미착수 | 단일 기준 문서와 Ready 최소 요건을 적용하고 중복 설명을 링크로 대체 | 중복 문서를 통합·deprecated 후보로 분류하고 구현 차단 문서만 우선 처리 | governance/project | `monitoring` |
 | R-029 | 전역 Python 환경의 기존 패키지 충돌 | `medium` | `medium` | `medium` | `pip check`에서 프로젝트 외 패키지의 버전 불일치 | 격리된 `.venv`와 최소 의존성만 사용 | clean 가상환경을 재생성하고 공식 PyTorch 설치 조합으로 재검증 | environment | `monitoring` (격리 환경 검증 통과) |
@@ -80,6 +80,7 @@
 | R-056 | 비공개 preview에 PII가 잔존하거나 보존기한 이후 남음 | `unknown` | `critical` | `critical` | Redaction 누락·review note 원문 복사·만료 파일 잔존 | 승인 만료·외부 경로·최소 text·문자 상한·수동 review·deletion manifest | review 중단, 파일 수동 삭제와 deletion 검증, 영향 범위 확인 | data/security | `mitigating` (기본 pending·실제 preview 0건, 합성 redaction·경로·만료 회귀 검증) |
 | R-057 | Dataset adapter 성공을 실제 corpus·tokenizer 승인으로 오해 | `unknown` | `critical` | `critical` | `adapted` record를 승인 로그 확인 없이 split·학습에 사용 | 구조 변환과 usage 상태 분리, pending 차단 사유·content read 0 dry-run 검증 | corpus 게시·학습 중단, 영향 artifact 격리와 승인 상태 재확인 | data/governance | `mitigating` (AIHUB-71748 synthetic adapter만 구현, 실제 read·publish 0) |
 | R-058 | 무작위 초기 모델의 greedy token 출력을 언어 품질 또는 학습 완료로 오해 | `medium` | `high` | `high` | synthetic generation 성공을 한국어 품질·Gate 통과로 표현 | smoke 결과에 random-init·tokenizer 미연결·품질 비평가 경계를 명시 | 결과 해석을 철회하고 학습·고정 평가 후 재검토 | model/evaluation | `monitoring` |
+| R-059 | 합성 Trainer smoke와 linear scheduler 결과를 실제 사전학습 성공 또는 운영 정책 승인으로 오해 | `medium` | `high` | `high` | 50-step 합성 loss 감소·낮은 smoke VRAM을 운영 Tiny 결과로 인용 | 문서·CLI에 synthetic 경계, Gate 6·7 미승인과 운영 scheduler 미확정을 명시 | 해석을 철회하고 승인 tokenizer·corpus·운영 config로 Gate 검증 | training/evaluation/governance | `monitoring` |
 
 ## 4. 운영 원칙
 
@@ -93,6 +94,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 5 합성 AMP·checkpoint/resume 검증으로 R-008~011·014·025·026을 갱신하고 smoke 과대 해석 위험 R-059를 등록함 |
 | 2026-07-24 | [확정] Phase 4 무작위 초기 greedy smoke 과대 해석 위험 R-058과 품질 평가 분리 대응을 등록함 |
 | 2026-07-24 | [확정] dataset adapter 성공과 실제 corpus 승인을 혼동하는 위험 R-057 및 fail-closed 대응을 등록함 |
 | 2026-07-24 | [확정] 비공개 최소 preview의 redaction 한계와 보존 만료 위험 R-056을 등록함 |
