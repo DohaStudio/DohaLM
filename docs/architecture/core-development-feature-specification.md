@@ -274,8 +274,8 @@
 | 설정 항목 | 6/384/6/64/1,536/256/16,000, Pre-LN, learned absolute, linear bias, tied head |
 | 산출물 | model modules와 state; 이 문서 작업에서는 생성하지 않음 |
 | 보안·라이선스 | 외부 완성형 GPT model class 사용 금지 |
-| 현재 상태 | `review` — 모델 소스는 스캐폴드 |
-| 관련 문서 | [모델 아키텍처](./model-architecture.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [테스트 전략](../quality/test-strategy.md) |
+| 현재 상태 | `implemented` — MODEL-001~015 구성요소와 단위 테스트 구현, Gate 4는 `planned` |
+| 관련 문서 | [모델 아키텍처](./model-architecture.md), [모델 구성요소](./model-components.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [구성요소 테스트](../quality/model-component-testing.md) |
 
 ### 9.2 기능별 계약
 
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] MODEL-001~015 구성요소·오류 검증·중복 제외 parameter count와 55개 단위 테스트 구현을 반영하고 Gate 4 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 2 synthetic tokenizer smoke 구현과 승인 corpus·운영 후보 미구현 경계를 동기화함 |
 | 2026-07-23 | [확정] revision `c9ea945` 독립 재검증과 사용자 Gate 2 승인에 따라 DATA-001~016을 `verified`로 변경함 |
 | 2026-07-23 | [확정] TOK-001~012를 Phase 2 토크나이저 상세 계약에 연결하고 입력·identity·fingerprint·atomic artifact 기준을 구체화함; 기능 상태는 미구현 `review`/`planned` 유지 |
