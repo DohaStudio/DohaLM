@@ -70,6 +70,8 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 - [대용량 JSON 제한 streaming 검사](./large-json-inspection.md)
 - [ZIP JSON record 제한 분석 계약](./zip-json-record-sampling.md)
 - [AIHUB-71748 record 분석 결과](./AIHUB-71748-record-sampling.md)
+- [층화 record schema·PII review 계약](./stratified-record-review.md)
+- [AIHUB-71748 schema·PII review 결과](./AIHUB-71748-schema-review.md)
 - [후보 등록부](../dataset-candidate-registry.md)
 - [라이선스 검토](../dataset-license-review.md)
 - [Phase 2 토크나이저 계약](../../training/phase2-tokenizer-contract.md)
@@ -78,6 +80,7 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Archive·entry·bounded record 구간 층화와 AIHUB-71748 schema·PII review 결과를 연결함 |
 | 2026-07-24 | [확정] ZIP JSON array record 경계 분석 계약과 AIHUB-71748 bounded inspection 결과를 연결함 |
 | 2026-07-24 | [확정] 대용량 JSON bounded streaming과 원문 비노출 prefix review 결과 문서를 연결함 |
 | 2026-07-24 | [확정] 일반 안전 sampler와 분리된 수동 mapping 계약 및 AIHUB-71748 pending 후보 문서를 연결함 |

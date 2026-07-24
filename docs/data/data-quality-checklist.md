@@ -16,6 +16,7 @@
 - [확정] revision `c9ea945`의 synthetic fixture 검사와 실제 CLI smoke가 위 Phase 1 자동 항목을 통과해 Gate 2는 `passed`다. 이는 실제 외부 데이터의 품질·라이선스·PII 승인이 아니다.
 - [확정] AIHUB-71748 안전 dry-run은 위험 entry 차단과 원본 불변만 확인했으며 표본 0건이므로 실제 schema·품질 검사 결과로 간주하지 않는다.
 - [확정] AIHUB-71748 ZIP JSON record 제한 분석은 10개 record의 값 비노출 구조 후보만 관측했으며 실제 schema·PII·품질 승인으로 간주하지 않는다.
+- [확정] 후속 층화 review도 단일 archive의 2개 entry·64 MiB 제한 표본이며 `no_field_name_signal`을 PII 부재나 품질 승인으로 해석하지 않는다.
 
 ## 2. 결과 상태
 
@@ -89,6 +90,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 층화 schema·PII review의 단일 archive·bounded read 한계와 사람 검토 필요 상태를 반영함 |
 | 2026-07-24 | [확정] ZIP JSON record bounded inspection을 품질 승인과 분리하고 schema·PII 미확정 상태를 기록함 |
 | 2026-07-23 | [확정] Gate 2 독립 재검증에서 전체 75개 테스트, 원본 checksum 불변, 10개 artifact와 추적 위반 0건을 확인함 |
 | 2026-07-23 | [확정] synthetic fixture 기반 원본 checksum 불변, schema 거부, exact dedup, deterministic group split, 직접 누수·승인·PII 차단, 10개 artifact 정합성 검사를 구현·통과함; 실제 외부 데이터 품질 승인은 미수행 |
