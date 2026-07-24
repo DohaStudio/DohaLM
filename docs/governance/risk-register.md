@@ -79,6 +79,7 @@
 | R-055 | 층화 후보가 단일 archive에 집중되거나 field-name 미탐지를 PII 부재로 오해 | `high` | `critical` | `critical` | 요청 archive 수 미충족·`no_field_name_signal`을 clear로 승격 | archive·entry 상한, 실제 strata 보고, 자동 `conditionally_clear` 금지, 자유서술 review 유지 | corpus 승인을 중단하고 공식 schema·비식별 설명과 비공개 사람 검토 | data/security | `mitigating` (후보 571개가 단일 archive, entry 2개·64 MiB·PII review_required 1·preview 0) |
 | R-056 | 비공개 preview에 PII가 잔존하거나 보존기한 이후 남음 | `unknown` | `critical` | `critical` | Redaction 누락·review note 원문 복사·만료 파일 잔존 | 승인 만료·외부 경로·최소 text·문자 상한·수동 review·deletion manifest | review 중단, 파일 수동 삭제와 deletion 검증, 영향 범위 확인 | data/security | `mitigating` (기본 pending·실제 preview 0건, 합성 redaction·경로·만료 회귀 검증) |
 | R-057 | Dataset adapter 성공을 실제 corpus·tokenizer 승인으로 오해 | `unknown` | `critical` | `critical` | `adapted` record를 승인 로그 확인 없이 split·학습에 사용 | 구조 변환과 usage 상태 분리, pending 차단 사유·content read 0 dry-run 검증 | corpus 게시·학습 중단, 영향 artifact 격리와 승인 상태 재확인 | data/governance | `mitigating` (AIHUB-71748 synthetic adapter만 구현, 실제 read·publish 0) |
+| R-058 | 무작위 초기 모델의 greedy token 출력을 언어 품질 또는 학습 완료로 오해 | `medium` | `high` | `high` | synthetic generation 성공을 한국어 품질·Gate 통과로 표현 | smoke 결과에 random-init·tokenizer 미연결·품질 비평가 경계를 명시 | 결과 해석을 철회하고 학습·고정 평가 후 재검토 | model/evaluation | `monitoring` |
 
 ## 4. 운영 원칙
 
@@ -92,6 +93,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 4 무작위 초기 greedy smoke 과대 해석 위험 R-058과 품질 평가 분리 대응을 등록함 |
 | 2026-07-24 | [확정] dataset adapter 성공과 실제 corpus 승인을 혼동하는 위험 R-057 및 fail-closed 대응을 등록함 |
 | 2026-07-24 | [확정] 비공개 최소 preview의 redaction 한계와 보존 만료 위험 R-056을 등록함 |
 | 2026-07-24 | [확정] 단일 archive 집중과 PII field-name 미탐지 오해 위험 R-055 및 fail-closed review 대응을 등록함 |

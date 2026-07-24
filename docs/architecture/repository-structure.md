@@ -98,7 +98,7 @@ DohaLM/
 | `src/cli/` | Phase 0 진단 진입점 | 환경·설정·resolved config·경로 명령 | 학습·추론 명령 | 소스만 추적 | 현재 없음 | Phase 0 구현 |
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
 | `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline·dataset adapter 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
-| `src/model/` | Decoder-only Transformer | Config·embedding·LayerNorm·causal MHA·FFN·Pre-LN block·LM Head·parameter count | 완성형 외부 GPT 모델, trainer·checkpoint | 소스만 추적 | 존재 | Phase 3 구성요소 구현; 통합 모델은 Phase 4 |
+| `src/model/` | Decoder-only Transformer | Config·구성요소·전체 forward·shifted loss·greedy generation·state round-trip helper·parameter count | 완성형 외부 GPT 모델, trainer·checkpoint manager | 소스만 추적 | 존재 | Phase 3 구성요소와 Phase 4 통합 구현 |
 | `src/training/` | 사전학습·SFT·복원 루프 | 학습과 체크포인트 로직 | 체크포인트 본체 | 소스만 추적 | 존재 | 학습 계획 승인 후 |
 | `src/evaluation/` | 정량·정성 평가 | 평가 로직 | 대용량 결과 원본 | 소스만 추적 | 필요 시 검토 | 평가 계획 승인 후 |
 | `src/inference/` | 생성과 채팅 템플릿 | 로컬 추론 로직 | 서버 라우팅, UI | 소스만 추적 | 필요 시 검토 | 추론 설계 승인 후 |
@@ -145,6 +145,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 4 전체 model·loss·generation·state helper와 model smoke CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 3 직접 구현 모델 구성요소와 Phase 4 통합 모델의 경계를 반영함 |
 | 2026-07-24 | [확정] `src/data/adapters/`의 공통 계약과 AIHUB-71748 synthetic adapter 책임을 반영함 |
 | 2026-07-24 | [확정] Synthetic SentencePiece smoke core·CLI·fixture와 운영 tokenizer 미구현 경계를 반영함 |
