@@ -59,6 +59,7 @@
 | TRN-002 | 학습 | FP16 AMP·GradScaler·NaN/Inf | GPU test | 예 | finite update와 scaler 상태 기록 | precision·연산·중단 처리 검토 | 예 | `pass` — RTX 3060 Ti FP16 autocast·GradScaler·finite gradient·비유한값 차단 통과 |
 | TRN-003 | 학습 | gradient accumulation·clipping 순서 | Component test | 예 | update 주기·정규화·unscale 순서 일치 | trainer 수정 | 예 | `pass` — loss normalization·누적 경계·unscale 후 clipping·scheduler cadence 통과 |
 | TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `partial` — 실제 Tiny 반복 합성 pattern CUDA FP16 100-step loss 감소 통과; 실제 corpus·Gate 7 판정은 `planned` |
+| TRN-005 | Pilot | local-only corpus·16k tokenizer·split/packing·validation·checkpoint/resume·generation | Unit/Integration/GPU | 예 | Stage A 회귀 통과, Stage B 100-step 이하 증거 | 실제 실행 중단·계보와 권리·OOM 원인 재검토 | 예/일부 | `partial` — Stage A 합성 회귀 구현; 사용자 지정 corpus 기반 Stage B·Gate 7은 `planned` |
 | CKPT-001 | Checkpoint | 필수 key·format·hash·atomic save | Component test | 예 | 완전한 checkpoint만 노출 | 저장 로직·schema 수정 | 예 | `pass` — 8-file bundle·SHA-256·sibling staging·overwrite/부분 노출 차단 통과 |
 | CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `pass` — strict file load·model state round-trip·embedding/LM Head alias 유지 통과 |
 | CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — 실제 Tiny optimizer·cosine·AMP·Python/torch RNG·명시적 sampler state와 bitwise resume 통과; NumPy·실제 corpus worker sampler는 미구현 |

@@ -106,7 +106,7 @@ class TrainingConfig:
         parts = PurePosixPath(raw).parts
         if ".." in parts or not parts:
             raise TrainingError("INVALID_TRAINING_CONFIG", "output_dir은 저장소 밖으로 이동할 수 없습니다.")
-        allowed = parts[0] in _IGNORED_OUTPUT_ROOTS or parts[:2] == ("tests", "output")
+        allowed = parts[0] in _IGNORED_OUTPUT_ROOTS or parts[:2] in {("tests", "output"), ("tests", "tmp")}
         if not allowed:
             raise TrainingError("INVALID_TRAINING_CONFIG", "output_dir은 Git 제외 산출물 경로여야 합니다.")
 
