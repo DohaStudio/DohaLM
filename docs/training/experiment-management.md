@@ -11,6 +11,7 @@
 | 구현 전 필수 여부 | 본 학습 전 예 |
 
 - [확정] Phase 5 [Trainer Foundation](./trainer-foundation.md)은 합성 smoke의 구조화 JSONL metric과 checkpoint state를 구현했다. 그러나 이 문서가 정의하는 `experiments/` registry, 전체 metadata schema와 운영 artifact backend는 구현되지 않았다.
+- [확정] [Tiny 실규모 합성 검증](./tiny-training-validation.md)은 Git 제외 run별 manifest·throughput·memory·resume·sampler 산출물을 생성한다. 이는 운영 experiment registry 등록이나 실제 사전학습 완료가 아니다.
 - [확정] 이 문서는 운영 실험 관리 계획이며 합성 smoke output을 완료된 사전학습 실험으로 등록하지 않는다.
 
 ## 2. 실험 단위
@@ -184,5 +185,6 @@ experiments/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 실제 Tiny 합성 validation artifact 범위와 미구현 운영 experiment registry를 구분함 |
 | 2026-07-24 | [확정] Phase 5 합성 metric·checkpoint 구현 범위와 미구현 운영 experiment registry를 구분함 |
 | 2026-07-23 | [확정] 실험 단위·ID 후보·metadata·상태·실패 보존·계획 디렉터리 정책 정의 |

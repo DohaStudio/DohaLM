@@ -20,7 +20,8 @@ from .config import TrainingConfig
 from .errors import TrainingError
 from .metrics import JsonlMetricLogger, TrainingMetric
 from .optimizer import OptimizerStats, create_optimizer
-from .scheduler import LinearWarmupDecayScheduler
+from .sampler_state import StatefulBatchSampler
+from .scheduler import create_scheduler
 from .state import TrainingState, utc_now
 
 
@@ -64,6 +65,7 @@ class Trainer:
         dataset_metadata: dict[str, object] | None = None,
         state: TrainingState | None = None,
         resume: bool = False,
+        metric_filename: str = "metrics.jsonl",
     ):
         if len(dataloader) == 0:
             raise TrainingError("EMPTY_DATASET", "DataLoader가 batch를 생성하지 않습니다.")
@@ -86,10 +88,12 @@ class Trainer:
             except FileExistsError as exc:
                 raise TrainingError("CHECKPOINT_ALREADY_EXISTS", "기존 training output을 덮어쓸 수 없습니다.") from exc
         self.optimizer, self.optimizer_stats = create_optimizer(model, config)
-        self.scheduler = LinearWarmupDecayScheduler(
+        self.scheduler = create_scheduler(
             self.optimizer,
+            scheduler_type=config.scheduler_type,
             warmup_steps=config.warmup_steps,
             max_steps=config.max_steps,
+            min_lr_ratio=config.min_lr_ratio,
         )
         self.amp_enabled = config.use_amp and self.device.type == "cuda"
         # Bounded smoke default; the production loss-scale policy remains undecided.
@@ -102,9 +106,13 @@ class Trainer:
             tokenizer_fingerprint=tokenizer_fingerprint,
         )
         self.checkpoints = CheckpointManager(self.output_root)
-        self.metric_logger = JsonlMetricLogger(self.output_root / "metrics.jsonl", append=resume)
+        if Path(metric_filename).name != metric_filename or not metric_filename.endswith(".jsonl"):
+            raise TrainingError("INVALID_TRAINING_CONFIG", "metric filename은 단순한 .jsonl 파일명이어야 합니다.")
+        self.metric_logger = JsonlMetricLogger(self.output_root / metric_filename, append=resume)
         self._iterator = None
-        if self.state.micro_step:
+        if self.state.sampler_state is not None:
+            self._load_sampler_state(self.state.sampler_state)
+        elif self.state.micro_step:
             self._fast_forward(self.state.micro_step)
         if self.device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(self.device)
@@ -127,6 +135,23 @@ class Trainer:
             self.state.epoch += 1
             self._iterator = iter(self.dataloader)
             return next(self._iterator)
+
+    def _stateful_sampler(self) -> StatefulBatchSampler | None:
+        sampler = getattr(self.dataloader, "batch_sampler", None)
+        return sampler if isinstance(sampler, StatefulBatchSampler) else None
+
+    def _capture_sampler_state(self) -> None:
+        sampler = self._stateful_sampler()
+        if sampler is not None:
+            self.state.sampler_state = sampler.state_dict()
+            self.state.epoch = sampler.epoch
+
+    def _load_sampler_state(self, value: dict[str, object]) -> None:
+        sampler = self._stateful_sampler()
+        if sampler is None:
+            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint sampler state를 복원할 sampler가 없습니다.")
+        sampler.load_state_dict(value)
+        self._iterator = None
 
     def _move_batch(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         return {
@@ -217,6 +242,7 @@ class Trainer:
             self.state.optimizer_step += 1
             self.state.tokens_seen += step_tokens
             self.state.records_seen += step_records
+            self._capture_sampler_state()
             mean_loss = sum(step_losses) / len(step_losses)
             learning_rate = self.scheduler.get_last_lr()[0]
             elapsed = max(time.perf_counter() - step_started, 1e-12)
@@ -279,5 +305,8 @@ class Trainer:
             device=self.device,
             restore_rng=restore_rng,
         )
-        self._fast_forward(self.state.micro_step)
+        if self.state.sampler_state is not None:
+            self._load_sampler_state(self.state.sampler_state)
+        else:
+            self._fast_forward(self.state.micro_step)
         return self.state

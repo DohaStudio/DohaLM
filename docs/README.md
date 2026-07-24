@@ -37,7 +37,7 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [체크포인트·재개](./training/checkpoint-and-resume.md) → [Trainer 테스트](./quality/trainer-testing.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
 
 ### 2.6 Codex 작업
 
@@ -70,7 +70,7 @@
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
 | 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1·adapter 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [수동 경로 mapping](./data/analysis/manual-path-mapping.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md), [Corpus Adapter 계약](./data/corpus-adapter-contract.md) |
-| 학습 | 토크나이저, 합성 Trainer Foundation, 사전학습·SFT와 실험 관리 | [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md), [토크나이저 설계](./training/tokenizer-design.md), [Trainer Foundation](./training/trainer-foundation.md), [체크포인트·재개](./training/checkpoint-and-resume.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
+| 학습 | 토크나이저, 합성 Trainer Foundation, 실제 Tiny 규모 합성 검증, 사전학습·SFT와 실험 관리 | [Trainer Foundation](./training/trainer-foundation.md), [Tiny 실규모 검증](./training/tiny-training-validation.md), [Sampler와 재개](./training/sampler-state-and-resume.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
 | 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
@@ -97,7 +97,7 @@
 
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
 - [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
-- [확정] Phase 3 모델 구성요소, Phase 4 전체 모델 통합과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. 실제 tokenizer·승인 corpus 사전학습, 평가와 서비스는 구현 또는 실행되지 않았다.
+- [확정] Phase 3·4 모델, Phase 5 Trainer Foundation과 실제 Tiny 규모 합성 CUDA·sampler resume·VRAM 검증은 구현·테스트됐다. 실제 tokenizer·승인 corpus 사전학습, 평가와 서비스는 구현 또는 실행되지 않았다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
 - [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
@@ -111,6 +111,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 실제 Tiny 규모 합성 학습·sampler resume·VRAM/처리량 검증 문서를 연결하고 Gate 6·7 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation·checkpoint/resume·테스트 문서를 학습 흐름에 연결하고 실제 사전학습과 구분함 |
 | 2026-07-24 | [확정] Corpus Adapter 공통 계약과 synthetic AIHUB-71748 구현 문서를 데이터 안내 경로에 연결함 |
 | 2026-07-24 | [확정] 수동 mapping 관측성, 대용량 JSON 5개 제한 검사와 RaG prefix hash·Unicode 비교 결과를 반영함 |

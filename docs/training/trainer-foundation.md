@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [모델 통합](../architecture/model-integration.md), [사전학습 계획](./pretraining-plan.md), [실험 관리](./experiment-management.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
-| 후속 문서·작업 | [Checkpoint·Resume](./checkpoint-and-resume.md), [Trainer 테스트](../quality/trainer-testing.md), Gate 6·7 사용자 검토 |
+| 후속 문서·작업 | [Tiny 실규모 검증](./tiny-training-validation.md), [Sampler와 재개](./sampler-state-and-resume.md), [Trainer 테스트](../quality/trainer-testing.md), Gate 6·7 사용자 검토 |
 | 구현 전 필수 여부 | 실제 학습 기반 확장 전 예 |
 
 - [확정] Phase 5는 `DohaLMTiny`를 실제로 최적화할 수 있는 최소 Trainer Foundation을 구현한다.
@@ -23,7 +23,7 @@
 | Collator | dynamic padding, `<pad>=0`, label padding `-100`, boolean attention mask |
 | DataLoader | 고정 generator seed, shuffle, worker seed, Windows 기본 worker 0 |
 | Optimizer | AdamW, bias·LayerNorm no-decay, tied/frozen parameter 제외 |
-| Scheduler | optimizer-step 기준 linear warmup + linear decay |
+| Scheduler | 기본 linear warmup+decay, 명시 선택 가능한 cosine 후보 |
 | Trainer | AMP, accumulation, clipping, metric, checkpoint boundary |
 | State | step·token·record·시간·lineage fingerprint |
 
@@ -42,6 +42,7 @@ Collator는 batch 내 최대 길이에 맞춰 입력을 `0`, label을 `-100`으�
 - [확정] frozen parameter와 빈 trainable model은 각각 제외·차단한다.
 - [확정] smoke scheduler는 step 0, warmup 경계, max step과 resume LR를 검증한 linear warmup + linear decay다.
 - [검증 필요] 운영 사전학습의 승인 계획은 warmup+cosine이며 이번 synthetic linear scheduler가 이를 변경하지 않는다.
+- [확정] 실제 Tiny 합성 검증용 cosine 구현은 linear warmup, cosine decay와 `min_lr_ratio`를 지원하지만 운영값으로 승인하지 않는다.
 
 ## 5. Trainer 실행 순서
 
@@ -69,7 +70,7 @@ CUDA AMP는 `torch.amp.autocast`와 `GradScaler`를 사용한다. CPU AMP 요청
 
 ## 7. State와 Logging
 
-State는 global/micro/optimizer step, epoch, tokens·records, best·last metric, 시작·갱신 시각과 model/training/dataset/tokenizer fingerprint를 가진다. JSONL metric은 step, loss, LR, clipping 전·후 gradient norm, 누적 token·record, step time, tokens/sec와 peak allocated/reserved byte를 기록한다.
+State는 global/micro/optimizer step, epoch, tokens·records, best·last metric, sampler state, 시작·갱신 시각과 model/training/dataset/tokenizer fingerprint를 가진다. JSONL metric은 step, loss, LR, clipping 전·후 gradient norm, 누적 token·record, step time, tokens/sec와 peak allocated/reserved byte를 기록한다.
 
 - [확정] token sequence와 실제 로컬 절대경로는 로그에 기록하지 않는다.
 - [확정] output은 `.gitignore`가 보호하는 `tests/output`, `checkpoints`, `logs`, `artifacts`, `experiments` 상대경로만 허용한다.
@@ -81,6 +82,8 @@ State는 global/micro/optimizer step, epoch, tokens·records, best·last metric,
 | CPU | small config, batch 2, sequence 8, step 5→10 resume | loss `21.1677 → 0.002842`, checkpoint 검증 통과 |
 | CUDA AMP | small config, batch 2, sequence 16, step 5→10 resume | loss `21.4333 → 0.326715`, finite gradient |
 | Overfit 준비 | 반복 batch, dropout 0, CPU 50 step | loss `21.1677 → 0.00002262` |
+| 실제 Tiny CUDA | 16,889,856 params, S=256, micro 1×accum 8, step 5→10 | loss `254.3525 → 83.2656`, bitwise resume, peak allocated 634,336,768 B |
+| 실제 Tiny 제한 overfit | 반복 pattern, S=64, CUDA FP16 100 step | loss `249.9167 → 1.7976e-7` |
 
 - [확정] loss 감소는 synthetic trainer wiring 검증이며 실제 한국어 학습 성공이나 품질 근거가 아니다.
 - [확정] Gate 3~7은 사용자 승인 전까지 `planned`를 유지한다.
@@ -89,4 +92,5 @@ State는 global/micro/optimizer step, epoch, tokens·records, best·last metric,
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] 명시적 sampler state, cosine 후보와 실제 Tiny 합성 CUDA·VRAM·resume 검증 결과를 연결함 |
 | 2026-07-24 | [확정] synthetic Dataset→Trainer→metric→checkpoint·resume 최소 기반과 CPU·CUDA 결과를 기록함 |
