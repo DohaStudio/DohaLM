@@ -12,7 +12,7 @@
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 분석 도구와 `src/tokenizer/` synthetic smoke pipeline 및 관련 테스트는 구현됐다. 승인 corpus 기반 운영 tokenizer·모델·학습·서비스 기능은 미구현이며 `frontend/`에는 안내 문서만 있다.
+- [확정] `src/config/`, `src/runtime/`, `src/cli/`, Phase 1 `src/data/`, `scripts/datasets/` 분석 도구, `src/tokenizer/` synthetic smoke, Phase 3·4 `src/model/`과 Phase 5 합성 `src/training/` Foundation 및 관련 테스트는 구현됐다. 승인 corpus 기반 운영 tokenizer·실제 사전학습·서비스 기능은 미구현이며 `frontend/`에는 안내 문서만 있다.
 
 ## 2. 구조 운영 원칙
 
@@ -99,13 +99,13 @@ DohaLM/
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
 | `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline·dataset adapter 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
 | `src/model/` | Decoder-only Transformer | Config·구성요소·전체 forward·shifted loss·greedy generation·state round-trip helper·parameter count | 완성형 외부 GPT 모델, trainer·checkpoint manager | 소스만 추적 | 존재 | Phase 3 구성요소와 Phase 4 통합 구현 |
-| `src/training/` | 사전학습·SFT·복원 루프 | 학습과 체크포인트 로직 | 체크포인트 본체 | 소스만 추적 | 존재 | 학습 계획 승인 후 |
+| `src/training/` | 합성 Trainer Foundation과 향후 사전학습·SFT | config·dataset/collator/loader·AdamW·linear smoke scheduler·AMP·accumulation·clipping·metric·checkpoint/resume | 실제 corpus 사전학습, SFT, 운영 실험 registry | 소스만 추적 | Phase 5 합성 범위 구현 | Gate 6 검토 전 |
 | `src/evaluation/` | 정량·정성 평가 | 평가 로직 | 대용량 결과 원본 | 소스만 추적 | 필요 시 검토 | 평가 계획 승인 후 |
 | `src/inference/` | 생성과 채팅 템플릿 | 로컬 추론 로직 | 서버 라우팅, UI | 소스만 추적 | 필요 시 검토 | 추론 설계 승인 후 |
 | `server/` | FastAPI 경계 | 스키마, 라우팅, 모델 서비스 | 모델 핵심 구현 | 소스만 추적 | 필요 시 검토 | API 명세 승인 후 |
 | `frontend/` | Next.js 채팅 화면 | UI 소스와 정적 자산 | 모델 체크포인트 | 소스만 추적 | 필요 시 검토 | 프론트엔드 명세 승인 후 |
 | `tests/` | 검증 자동화 | 단위·통합·회귀 테스트 | 실제 개인정보 데이터 | 테스트 소스·소형 fixture만 추적 | 필요 시 검토 | 각 구현과 함께 |
-| `scripts/` | 반복 작업 진입점 | 준비·학습·실행 스크립트, 외부 데이터 구조 분석·안전 표본·수동 mapping·bounded JSON·prefix review·record 경계 분석 | 실제 원본·개인 절대 경로, 추출 표본·record 원문, 핵심 학습 모델 | 추적 | 필요 시 검토 | 해당 작업 구현과 함께 |
+| `scripts/` | 반복 작업 진입점 | 모델·합성 학습 smoke와 checkpoint 검사·재개, 외부 데이터 구조 분석·안전 표본·수동 mapping·bounded JSON·prefix review·record 경계 분석 | 실제 원본·개인 절대 경로, 추출 표본·record 원문, 핵심 학습 모델 | 추적 | 필요 시 검토 | 해당 작업 구현과 함께 |
 | `data/` | 단계별 데이터 보관 | raw, cleaned, tokenized, sft | 소스 코드, 비밀값 | 대용량 데이터 제외 | 불필요, 정책 문서 우선 | 라이선스 확인 후 |
 | `checkpoints/` | 학습 재개 상태 보관 | 모델·옵티마이저·스케줄러·AMP 상태 | 소스 코드 | 본체 제외 | 불필요 | 첫 학습 실행 시 |
 | `experiments/` | 실험별 메타데이터와 적용 설정 | [검증 필요] 실험 manifest, 설정 snapshot | 원천 데이터, 대형 체크포인트 | 소형 기록만 추적 후보 | 필요 시 검토 | 실험 관리 스키마 승인 후 |
@@ -145,6 +145,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation과 training smoke·checkpoint 검사·재개 CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 4 전체 model·loss·generation·state helper와 model smoke CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 3 직접 구현 모델 구성요소와 Phase 4 통합 모델의 경계를 반영함 |
 | 2026-07-24 | [확정] `src/data/adapters/`의 공통 계약과 AIHUB-71748 synthetic adapter 책임을 반영함 |
