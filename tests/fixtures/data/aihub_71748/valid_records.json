@@ -1,0 +1,10 @@
+[
+  {"text": "한국어 합성 본문입니다."},
+  {"text": "메타데이터와 출처는 본문에 합치지 않습니다.", "metadata": {"category": "synthetic"}, "source": "synthetic-fixture"},
+  {"text": "한글 English 123 혼합 문장입니다."},
+  {"text": "첫째 줄  \r\n둘째 줄\r셋째 줄\n"},
+  {"text": "NFD 한글 정규화 사례"},
+  {"text": "추가 필드는 통계 경고만 남깁니다.", "extra_label": "discarded"},
+  {"text": "중첩 메타데이터 합성 사례입니다.", "metadata": {"nested": {"level": 2, "tags": ["a", "b"]}}},
+  {"text": "PII 유사 필드 이름 경고 사례입니다.", "user_email": "synthetic@example.invalid"}
+]

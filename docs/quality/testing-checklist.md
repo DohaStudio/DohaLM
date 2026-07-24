@@ -38,6 +38,7 @@
 | DATA-008 | ZIP JSON record 제한 분석 | incremental UTF-8·문자열/escape/depth 경계·oversized skip·stable rank·key hash·원문 비노출 | Unit/Integration test | 예 | entry 3·record 5·entry 16 MiB·전체 32 MiB 상한, 전체 parse·추출 0, ZIP checksum 불변 | 검사 중단·parser state와 manifest 계약 수정 | 예 | `pass` — 신규 회귀 23개와 전체 169개 통과; 실제 2개 entry·3,489 record 관측·10개 선택·source mutation 0 |
 | DATA-009 | 층화 schema·PII review | archive 분산·entry 상한·size/compression bucket·bounded early/middle/late·field ratio·PII checklist·preview 차단 | Unit/Integration test | 예 | 입력 순서 독립, content dry-run 0, read 상한, 값·경로 비노출, ZIP checksum 불변 | review 중단·층화와 비노출 계약 수정 | 예 | `pass` — 신규 회귀 11개와 전체 180개 통과; 실제 단일 archive·entry 2개·64 MiB·record 141개 관측·10개 선택·source mutation 0 |
 | DATA-010 | 비공개 최소 record preview | 승인·만료·외부 경로·archive/entry 상한·SHA-256 선택·redaction·문자 상한·manifest·review·삭제 | Unit/Integration test | 예 | pending 실제 생성 차단, dry-run read 0, 원문·절대경로 비노출, ZIP checksum 불변 | preview 생성 중단·정책과 보존 경계 재검토 | 예 | `pass` — 합성 회귀 13개 통과; 실제 정책은 pending이며 preview text 생성 0건 |
+| DATA-011 | AIHUB-71748 Corpus Adapter | object/text schema·metadata/source 미혼입·NFC·결정론 ID·값 비노출 schema·atomic artifact·승인 차단 | Unit/Integration test | 예 | synthetic 변환·거부·checksum 불변, 실제 content read·publish 0 | adapter 중단·schema와 승인 경계 재검토 | 예 | `pass` — synthetic 회귀 30개 통과; 실제 AI Hub content read·artifact publish 0 |
 | TOK-001 | 토크나이저 | 승인 Phase 1 train corpus·manifest·checksum·split 차단 | Component test | 예 | 미승인·validation/test·rejection 입력 거부 | corpus 승인·계보 수정 | 예 | `smoke-pass` — synthetic fixture root 밖 입력 차단; 승인 Phase 1 corpus 경로는 미구현 |
 | TOK-002 | 토크나이저 | SentencePiece Unigram trainer와 resolved config | Integration test | 예 | fixture 학습·명시 설정·안전 오류 | dependency·설정 수정 | 예 | `smoke-pass` — SentencePiece 0.2.2, Unigram·memory writer·명시 config 검증 |
 | TOK-003 | 토크나이저 | 운영 vocab 16,000·ID 연속성·중복 | Component test | 예 | actual piece 정확히 16,000 | corpus·설정 재검토·재학습 | 예 | `smoke-pass` — synthetic 256 actual piece 일치; 운영 16,000은 `planned` |
@@ -97,6 +98,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] DATA-011 AIHUB-71748 synthetic corpus adapter의 30개 회귀와 실제 승인 차단 검증을 반영함 |
 | 2026-07-24 | [확정] TOK-001~012 synthetic smoke 신규 22개·전체 215개 회귀 결과를 반영하고 운영 corpus·16,000 vocabulary·Gate 3 미완료를 구분함 |
 | 2026-07-24 | [확정] DATA-009 archive·entry·record 층화, schema·PII checklist와 preview 차단 회귀 11개·전체 180개 결과를 반영함 |
 | 2026-07-24 | [확정] DATA-008 ZIP JSON record 경계·제한·결정론·비노출 회귀 23개와 전체 169개 통과 결과를 반영함 |
