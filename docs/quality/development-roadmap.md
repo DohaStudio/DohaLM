@@ -102,6 +102,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] ignored Tiny 산출물과 514개 테스트를 재검증해 Gate 4·5·6을 `eligible_for_user_approval`로 제안했으나 실제 상태는 `planned`로 유지하고 Pilot readiness `blocked`를 확인함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 batch probe·sampler resume·10-step CUDA·100-step overfit 결과를 반영하고 Gate 6·7 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation과 Phase 6 반복 합성 batch 준비 검증을 반영하고 Gate 6·7 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 4 전체 forward·shifted loss·greedy generation과 CPU·CUDA 검증을 반영하고 Gate 3~5 `planned`를 유지함 |

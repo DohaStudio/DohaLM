@@ -194,6 +194,7 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-24 | [확정] [Pilot Pretraining 준비 검증](./pilot-pretraining-readiness.md)을 연결하고 Gate·tokenizer·corpus·split·평가 제외·config·storage가 명시 승인되기 전 실제 pilot을 차단함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 batch·cosine·sampler resume·VRAM/처리량·100-step overfit 후보 결과를 연결하고 실제 사전학습과 구분함 |
 | 2026-07-24 | [확정] 합성 Trainer Foundation·CPU/CUDA FP16·checkpoint/resume·50-step loss 감소 결과를 실제 사전학습과 구분해 반영함 |
 | 2026-07-23 | [확정] Phase 2 토크나이저 상세 계약의 artifact·fingerprint·호환성 요구를 사전학습 진입 조건과 checkpoint 계보에 연결함 |
