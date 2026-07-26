@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 선행 문서: [층화 record review 계약](./stratified-record-review.md), [AIHUB-71748 record 분석](./AIHUB-71748-record-sampling.md)
 - 후속 작업: [비공개 최소 preview](./AIHUB-71748-private-review.md)의 기간 제한 사용자 승인
 - 구현 전 필수 여부: AIHUB-71748 corpus 승인 전 예
@@ -111,8 +111,8 @@
 - [확정] 실제 schema·text 품질·PII 부재와 라이선스 승인은 미확정이다.
 - [확정] Tokenizer corpus 승인과 별개이며 corpus를 생성하지 않았다.
 - `candidate_status: registered`
-- `license_review_status: pending_terms_review`
-- `approval.tokenizer/pretraining/sft/evaluation: pending`
+- `license_review_status: approved_student_noncommercial`
+- `approval.tokenizer: approved_tokenizer_development`, `approval.pretraining/sft/evaluation: pending`
 - Gate 3: `planned`
 
 ## 다음 검토
@@ -126,4 +126,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 현재 학생·비상업 라이선스와 tokenizer `under_review` 상태를 동기화함 |
 | 2026-07-24 | [확정] 단일 archive의 size-bucket 2개 entry·64 MiB bounded inspection과 schema·PII checklist 결과를 기록함 |

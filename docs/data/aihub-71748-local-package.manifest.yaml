@@ -1,0 +1,75 @@
+schema_version: "1.0"
+manifest_type: "local_package_observation"
+manifest_status: "review"
+observed_on: "2026-07-26"
+
+dataset:
+  dataset_id: "AIHUB-71748"
+  name: "한국어 성능이 개선된 초거대AI 언어모델 개발 및 데이터"
+  source: "AI Hub 공식 상세페이지; 로컬 취득 증빙은 미확인"
+  provider: "AI Hub / 한국지능정보사회진흥원"
+  source_url: "https://www.aihub.or.kr/aihubdata/data/view.do?dataSetSn=71748"
+  acquired_at: null
+  provider_version: null
+  local_relative_root: "extracted/AIHUB-71748"
+  local_materialization_window: "2026-07-23T19:19:40+09:00/2026-07-23T19:37:05+09:00"
+
+package:
+  download_status: "downloaded_restricted"
+  registry_status: "reviewing"
+  license_status: "approved_student_noncommercial"
+  license_scope:
+    permitted_purpose: "student_noncommercial_research_and_personal_learning"
+    commercial_use: "not_approved"
+    original_dataset_redistribution: "not_approved"
+    derived_dataset_redistribution: "not_approved"
+  zip_file_count: 55
+  total_bytes: 17256335769
+  archive_inventory:
+    archive_count: 55
+    unsupported_archive_count: 0
+    entry_count: 1610
+    json_entry_count: 1609
+    txt_entry_count: 1
+    content_sampled: true
+    content_scope: "schema_metadata_only"
+    records_read_in_latest_review: 6
+    string_values_output: 0
+  checksums:
+    zip_content_sha256:
+      status: "complete"
+      algorithm: "sha256"
+      inventory_path: "aihub-71748-zip-checksums.manifest.yaml"
+      inventory_sha256: "sha256:313694421eb6432327fc9d57da26596e46531719f725c099aa85fbecd53517b4"
+      file_count: 55
+      total_bytes: 17256335769
+      duplicate_file_name_groups: 0
+      duplicate_sha256_groups: 0
+    inventory_metadata_digest: "sha256:1a6455f70b7fa2133ea02e228a1d8f28ec6f98ae90d7105356e1cfc1c8e8c4c9"
+    inventory_json_sha256: "sha256:ba8c0b87f1122055b90a7b1d2573861161ec0769d0be006cb31b3f7702beb1d9"
+    archive_inventory_json_sha256: "sha256:a1cab762907fa772da2d365ba92f9f278e925dcb409b0061c245eb61d750153c"
+
+lineage:
+  acquisition_evidence_status: "missing"
+  provider_version_status: "unknown"
+  zip_content_checksum_status: "complete"
+  source_manifest_eligible: false
+
+approvals:
+  tokenizer: "approved_tokenizer_development"
+  pretraining: "pending"
+  sft: "pending"
+  preference: "pending"
+  evaluation: "pending"
+  adapter_activation: "approved_tokenizer_development_only"
+
+restrictions:
+  record_content_read_allowed: true
+  record_content_read_scope: "training_data_info_contents_only"
+  extraction_allowed: false
+  corpus_generation_allowed: true
+  corpus_generation_scope: "tokenizer_development_only"
+  tokenizer_training_allowed: true
+  tokenizer_training_scope: "operating_16k_candidates_only"
+  model_training_allowed: false
+  redistribution_allowed: false

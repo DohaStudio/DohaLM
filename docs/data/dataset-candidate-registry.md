@@ -5,16 +5,16 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [데이터 전략](./data-strategy.md), [데이터 라이선스 정책](./data-license-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서·작업 | [구조 분석 요약](./analysis/dataset-analysis-summary.md), [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [평가 제외 목록](./evaluation-exclusion-list.md), 실제 다운로드 계보 검토 |
-| 구현 전 필수 여부 | 실제 데이터 취득·Phase 2 corpus 승인 전 예 |
+| 후속 문서·작업 | [구조 분석 요약](./analysis/dataset-analysis-summary.md), [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [평가 제외 목록](./evaluation-exclusion-list.md), 실제 취득 계보 검토 |
+| 구현 전 필수 여부 | 실제 데이터 사용·Phase 2 corpus 승인 전 예 |
 
-- [확정] 이 문서는 다운로드 전 후보의 공식 사실과 기술적 적합성을 관리한다.
+- [확정] 이 문서는 후보의 공식 사실·기술적 적합성과 실제 사용 전 로컬 보유 상태를 관리한다.
 - [확정] 실제 승인·다운로드·처리 version은 [데이터셋 레지스트리](./dataset-registry.md)가 관리한다.
 - [확정] 아래 적합성은 DohaLM 관점의 정성 후보 평가이며 품질·이용 승인이 아니다.
 - [확정] 현재 승인된 tokenizer·pretraining·SFT·preference·evaluation corpus는 0개다.
-- [확정] 2026-07-23 로컬 제한 package 5종의 파일·ZIP 구조를 읽기 전용으로 분석했다. 이 관찰은 공식 다운로드 계보 확인이나 목적별 승인이 아니므로 아래 상태값을 변경하지 않는다.
+- [확정] 2026-07-23 로컬 제한 package 5종의 파일·ZIP 구조를 읽기 전용으로 분석했다. 이 관찰은 공식 다운로드 계보 확인이나 목적별 승인이 아니며, 2026-07-26에는 `AIHUB-71748`의 로컬 보유 사실만 `downloaded_restricted`로 정합화했다.
 - [확정] AIHUB-71748의 [안전 표본 dry-run](./analysis/AIHUB-71748-sampling.md)은 absolute entry 1,610개를 거부하고 추출 0건으로 종료했다. 이 결과도 승인 상태를 변경하지 않는다.
 
 ## 2. 공식 근거와 제공기관 필드
@@ -46,17 +46,22 @@
 
 `registered`, `pending_terms_review`, `pending_download_approval`, `pending_sample_inspection`, `approved_tokenizer_development`, `approved_tokenizer_candidate`, `approved_pretraining`, `approved_sft`, `approved_preference`, `approved_evaluation`, `restricted_internal_only`, `rejected`, `revoked`.
 
-각 후보의 최초 상태는 다음과 같다.
+각 후보의 현재 상태는 다음과 같다.
 
 | Dataset ID | `candidate_status` | `license_review_status` | `download_status` |
 |---|---|---|---|
-| `AIHUB-71748` | `registered` | `pending_terms_review` | `not_requested` |
+| `AIHUB-71748` | `registered` | `approved_student_noncommercial` | `downloaded_restricted` |
 | `AIHUB-110` | `registered` | `pending_terms_review` | `not_requested` |
 | `AIHUB-86` | `registered` | `pending_terms_review` | `not_requested` |
 | `AIHUB-71477` | `registered` | `pending_terms_review` | `not_requested` |
 | `AIHUB-653` | `registered` | `pending_terms_review` | `not_requested` |
 
-용도별 승인은 `pending`, `under_review`, `approved`, `restricted`, `rejected`, `not_applicable`만 사용한다. 현재 5개 후보의 `tokenizer`, `pretraining`, `sft`, `preference`, `evaluation`, `tokenizer_artifact_release`, `model_weight_release`, `commercial_service`, `foreign_cloud_processing`은 모두 `pending`이다.
+용도별 승인은 `pending`, `under_review`, `approved_tokenizer_development`, `approved`, `restricted`, `rejected`, `not_applicable`만 사용한다. `AIHUB-71748`의 tokenizer 목적만 [검토 계획](./aihub-71748-tokenizer-development-review-plan.md)에 따라 `approved_tokenizer_development`이며, Adapter는 이 목적에 한해서만 허용된다. 나머지 목적·후보는 모두 `pending`이다.
+
+- [확정] `AIHUB-71748`의 `downloaded_restricted`는 로컬 ZIP package 존재를 반영한 보유 상태다. 취득 승인·이용 승인·schema/PII 검토·학습 승인을 뜻하지 않는다.
+- [확정] 라이선스는 학생·비상업 연구·개인 학습에 한해 승인됐고 상업적 이용과 원본·파생 데이터 재배포는 승인되지 않았다.
+- [확정] 원본 ZIP 55개의 개별 SHA-256은 [checksum inventory](./aihub-71748-zip-checksums.manifest.yaml)에 기록됐다. 미확정 취득 계보 때문에 일반 source manifest 사용은 차단하되, 사용자 승인에 따라 검증된 Training 원천 ZIP을 tokenizer development에만 제한 사용한다.
+- [검증 필요] 실제 취득일, 제공자 package version과 다운로드 신청·승인 증빙은 확인되지 않았다.
 
 ## 4. 후보 공통 등록 표
 
@@ -253,4 +258,6 @@ AIHUB-71748/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748 라이선스를 `approved_student_noncommercial`로 반영하고 상업·재배포 금지와 tokenizer `under_review` 경계를 유지함 |
+| 2026-07-26 | [확정] AIHUB-71748 로컬 ZIP 55개 존재를 반영해 다운로드 상태를 `not_requested`에서 `downloaded_restricted`로 정합화하고 목적별 승인은 `pending`으로 유지함 |
 | 2026-07-23 | [확정] AI Hub 공식 상세페이지에 근거해 5개 데이터셋을 모두 미승인 `registered` 후보로 등록함 |

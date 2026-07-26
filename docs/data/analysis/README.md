@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 적용 범위: 로컬에 제한 보관한 AI Hub 후보 5종의 읽기 전용 구조 분석
 
 ## 분석 목적
@@ -47,7 +47,8 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 | `manual_review_required` | 원문을 기록하지 않는 별도 승인 검토 필요 |
 | 목적별 승인 | [승인 로그](../dataset-approval-log.md)에 기록되는 사용자 결정 |
 
-- [확정] 5종 모두 `candidate_status: registered`, 목적별 승인은 `pending`으로 유지한다.
+- [확정] 5종 모두 `candidate_status: registered`다. `AIHUB-71748`의 tokenizer 목적만 `approved_tokenizer_development`이며 나머지 목적별 승인은 `pending`이다.
+- [확정] `AIHUB-71748`의 라이선스는 `approved_student_noncommercial`이고 상업·원본·파생 재배포는 `not_approved`다.
 - [검증 필요] 로컬 package 존재는 공식 다운로드 계보와 이용조건 검토가 끝났음을 의미하지 않는다.
 
 ## 문서 상태 체계
@@ -72,6 +73,7 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 - [AIHUB-71748 record 분석 결과](./AIHUB-71748-record-sampling.md)
 - [층화 record schema·PII review 계약](./stratified-record-review.md)
 - [AIHUB-71748 schema·PII review 결과](./AIHUB-71748-schema-review.md)
+- [AIHUB-71748 tokenizer 최소 schema 결과](./AIHUB-71748-tokenizer-schema-review.md)
 - [비공개 최소 record preview 계약](./private-record-preview.md)
 - [AIHUB-71748 비공개 preview 준비 상태](./AIHUB-71748-private-review.md)
 - [후보 등록부](../dataset-candidate-registry.md)
@@ -82,6 +84,7 @@ python -m scripts.datasets.analyze_aihub_dataset --config configs/local-datasets
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스와 tokenizer 최소 schema 결과를 연결함 |
 | 2026-07-24 | [확정] 승인 기반 비공개 최소 preview와 AIHUB-71748 pending 준비 상태를 연결함 |
 | 2026-07-24 | [확정] Archive·entry·bounded record 구간 층화와 AIHUB-71748 schema·PII review 결과를 연결함 |
 | 2026-07-24 | [확정] ZIP JSON array record 경계 분석 계약과 AIHUB-71748 bounded inspection 결과를 연결함 |

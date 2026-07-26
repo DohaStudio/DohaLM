@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 선행 문서: [ZIP JSON record 제한 분석](./zip-json-record-sampling.md), [수동 경로 mapping](./manual-path-mapping.md)
 - 후속 문서: [AIHUB-71748 schema review](./AIHUB-71748-schema-review.md), 별도 비공개 수동 검토 승인
 - 구현 전 필수 여부: 층화 record schema·PII 검토 전 예
@@ -100,8 +100,8 @@ Dry-run은 content를 읽지 않는다. Inspection도 record 원문 파일을 �
 ## 승인 경계
 
 - `candidate_status: registered`
-- `license_review_status: pending_terms_review`
-- `approval.tokenizer/pretraining/sft/evaluation: pending`
+- `license_review_status: approved_student_noncommercial`
+- `approval.tokenizer: approved_tokenizer_development`, `approval.pretraining/sft/evaluation: pending`
 - Gate 3: `planned`
 
 Schema·PII review bundle은 라이선스나 Tokenizer corpus 승인이 아니다.
@@ -110,4 +110,5 @@ Schema·PII review bundle은 라이선스나 Tokenizer corpus 승인이 아니�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748의 현재 학생·비상업 라이선스와 tokenizer `under_review` 경계를 동기화함 |
 | 2026-07-24 | [확정] archive·entry·bounded record 구간 층화와 비노출 field·PII 수동 검토 계약을 기록함 |

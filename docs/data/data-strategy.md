@@ -5,15 +5,17 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [토크나이저 설계](../training/tokenizer-design.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서 | [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터셋 승인 로그](./dataset-approval-log.md), [평가 제외 목록](./evaluation-exclusion-list.md), [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터셋 레지스트리](./dataset-registry.md), [데이터 전처리](./preprocessing.md), [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] 현재 승인·다운로드·처리된 실제 데이터셋은 없다.
-- [확정] AI Hub 5개 데이터셋은 다운로드 전 `registered` 후보이며 목적별 승인 상태는 모두 `pending`이다.
+- [확정] 현재 목적별 사용이 승인되거나 처리된 실제 데이터셋은 없다.
+- [확정] `AIHUB-71748` 로컬 제한 package는 존재하므로 보유 상태를 `downloaded_restricted`로 관리한다. ZIP별 SHA-256은 완료했지만 취득 증빙·제공자 version·이용조건·PII 검토가 미완료이므로 corpus 사용 승인은 아니다.
+- [확정] `AIHUB-71748` 라이선스는 학생·비상업 연구와 개인 학습 범위의 `approved_student_noncommercial`이다. 상업적 이용과 원본·파생 데이터 재배포는 `not_approved`다.
+- [확정] `AIHUB-71748`의 tokenizer 목적만 `approved_tokenizer_development`이며 나머지 목적은 `pending`이다. 다른 AI Hub 4개 후보의 문서상 다운로드 상태는 `not_requested`이고 목적별 승인은 모두 `pending`이다.
 - [확정] 후보 등록, 라이선스 검토, 품질 검토와 사용 승인은 서로 다른 단계다.
-- [확정] 정확한 데이터 크기, 문서 수, token 수와 token budget은 실제 후보 분석 전 확정하지 않는다.
+- [확정] `AIHUB-71748` 로컬 ZIP 총 byte 외의 문서 수·token 수·token budget과 다른 후보의 정확한 규모는 목적별 승인·분석 전 확정하지 않는다.
 
 ## 2. 데이터 전략 원칙
 
@@ -117,6 +119,9 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스 승인과 상업·재배포 금지, 최소 schema 검토 경계를 반영함 |
+| 2026-07-26 | [확정] AIHUB-71748 ZIP별 SHA-256 완료와 tokenizer 목적의 비승인 `under_review` 상태를 반영함 |
+| 2026-07-26 | [확정] AIHUB-71748 로컬 제한 package 존재와 `downloaded_restricted` 보유 상태를 반영하고 승인·처리 0개 경계를 유지함 |
 | 2026-07-23 | [확정] 전략 문서와 Phase 1 구체 구현 계약의 역할을 분리하고 연결함 |
 | 2026-07-23 | [확정] AI Hub 후보 5개 등록과 후보·라이선스·승인·평가 제외 문서의 역할을 연결하고 승인 0개 상태를 반영함 |
 | 2026-07-23 | [확정] 데이터 목적, 후보 평가, 승인 상태와 단계별 규모 원칙 초안 작성 |

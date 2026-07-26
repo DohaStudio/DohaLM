@@ -5,17 +5,17 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [데이터 전략](./data-strategy.md), [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터셋 승인 로그](./dataset-approval-log.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 라이선스 정책](./data-license-policy.md), [데이터 전처리](./preprocessing.md), [데이터 분할 및 누수 방지](./data-split-and-leakage-policy.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] 이 문서는 승인·다운로드·처리된 실제 dataset version 양식을 정의하며 현재 실제 version은 등록하지 않는다.
+- [확정] 이 문서는 실제 dataset version 양식과 제한 상태 snapshot을 관리한다. 현재 승인된 실제 version은 없으며 `AIHUB-71748` 로컬 제한 package 관측값만 등록한다.
 - [확정] 다운로드 전 후보는 [데이터셋 후보 등록부](./dataset-candidate-registry.md)가 관리한다.
 - [확정] 레지스트리의 한 항목은 데이터셋 이름만이 아니라 특정 source version과 사용 조건을 식별한다.
 - [확정] 이 registry는 실제 version·목적별 승인 상태의 기준이고, [Phase 1 데이터 계약](./phase1-data-contract.md)의 `source-manifest.json`은 한 실행의 입력 checksum·count·artifact를 기록한다. 후보 ID, 실제 version과 실행 manifest를 연결한다.
 
-- [가정] `AIHUB-71748` 후보가 실제 취득되면 `aihub-71748-corpus-2026-01` 같은 별도 version ID를 만들 수 있으나 이는 구조 예시이며 확정값이 아니다.
+- [검증 필요] `AIHUB-71748`의 제공자 version과 취득 증빙이 확인되면 내부 version ID를 확정해야 한다. 현재 임의 version ID를 만들지 않는다.
 
 ## 2. 필드 정의
 
@@ -78,7 +78,20 @@
 6. 전처리·분할 manifest와 품질 결과가 연결되면 `processed`로 전환한다.
 7. 조건 변경·오류·대체가 있으면 `deprecated` 처리하고 영향 실험을 추적한다.
 
-## 5. 가상 예시
+## 5. AIHUB-71748 로컬 제한 package snapshot
+
+2026-07-26 읽기 전용 대조 결과의 단일 기계 판독 기준은 [AIHUB-71748 로컬 package manifest](./aihub-71748-local-package.manifest.yaml)다. manifest에는 절대 로컬 경로와 record 본문을 기록하지 않는다.
+
+- [확정] `local_materialization_window`는 filesystem timestamp 관측 범위이며 취득일 증빙이 아니므로 `acquired_at`을 채우지 않는다.
+- [확정] `inventory_metadata_digest`는 상대경로·크기·수정시각 metadata fingerprint이며 ZIP 내용 SHA-256이 아니다.
+- [확정] `inventory_json_sha256`과 `archive_inventory_json_sha256`은 소형 분석 산출물 파일 자체의 SHA-256이며 원본 ZIP checksum을 대신하지 않는다.
+- [확정] 원본 ZIP 55개의 전체 file bytes SHA-256은 [checksum inventory](./aihub-71748-zip-checksums.manifest.yaml)에 기록했다. 파일 수·총 byte·기존 archive 경로 집합이 일치하고 중복 파일명·중복 checksum은 없다.
+- [확정] 라이선스 상태는 `approved_student_noncommercial`이며 허용 범위는 학생·비상업 연구와 개인 학습이다. `commercial_use`, 원본·파생 데이터 재배포는 `not_approved`다.
+- [확정] [최소 schema 검토](./analysis/AIHUB-71748-tokenizer-schema-review.md)에서 Training·Validation 각 3 Record를 값 비노출로 확인했고, tokenizer 목적은 `approved_tokenizer_development`, Adapter는 `approved_tokenizer_development_only`다. 다른 목적은 승인되지 않았다.
+- [검증 필요] 제공자 version, 다운로드 신청·승인 기록, 취득 당시 이용조건 snapshot과 owner가 필요하다.
+- [확정] 필수 취득 계보·이용조건·목적별 승인이 미충족이므로 registry 생명주기는 `downloaded`가 아니라 `reviewing`이며 모든 데이터 사용을 금지한다.
+
+## 6. 가상 예시
 
 > [가정] 아래는 schema 설명을 위한 완전한 가상 예시다. 실제 데이터셋, 제공자, URL 또는 승인 기록이 아니다.
 
@@ -115,10 +128,13 @@ notes: "문서 양식 설명 전용이며 실제 사용 금지"
 
 - [확정] 가상 예시는 권리와 품질이 확인되지 않았으므로 `candidate`이며 다운로드·학습 대상이 아니다.
 
-## 6. 변경 이력
+## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스 범위와 최소 schema 검토 결과를 연결하고 registry `reviewing`을 유지함 |
+| 2026-07-26 | [확정] AIHUB-71748 원본 ZIP 55개 개별 SHA-256 inventory와 inventory artifact digest를 package 계보에 연결함 |
+| 2026-07-26 | [확정] AIHUB-71748 로컬 제한 package의 파일 수·용량·inventory fingerprint와 미확정 취득일·version·ZIP SHA-256을 분리 기록함 |
 | 2026-07-23 | [확정] registry와 Phase 1 source manifest의 역할·연결 기준을 명시함 |
 | 2026-07-23 | [확정] 다운로드 전 후보 등록부와 승인·다운로드 후 실제 version registry의 책임을 분리함 |
 | 2026-07-23 | [확정] 데이터셋 registry 필드, 상태 전이, 승인 절차와 가상 예시 정의 |

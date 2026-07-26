@@ -104,7 +104,7 @@
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·4·5·6은 `passed`다. Gate 3·7은 `planned`이며 tokenizer·corpus·license·PII 승인은 `pending`이다.
+- [확정] Gate 0은 `approved`, Gate 1·2·4·5·6은 `passed`다. Gate 3·7은 `planned`다. AIHUB-71748 v2 운영 tokenizer는 기술 후보 검증을 마쳐 Unigram을 추천하지만 Gate 3 사용자 승인이 남았고, PII·Pretraining·SFT·Preference·모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력

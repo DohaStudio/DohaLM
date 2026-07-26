@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 선행 문서: [비공개 최소 preview 계약](./private-record-preview.md), [AIHUB-71748 schema review](./AIHUB-71748-schema-review.md)
 - 후속 작업: 사용자의 기간 제한 승인 후 별도 실제 실행
 - 구현 전 필수 여부: 실제 AIHUB-71748 preview 생성 전 예
@@ -13,7 +13,7 @@
 - [확정] 로컬 정책은 `pending_user_review`다.
 - [확정] 실제 preview 생성과 원문 파일 저장은 수행하지 않았다.
 - [확정] 승인 없는 dry-run만 수행하며 ZIP entry content read는 0 byte로 유지한다.
-- [확정] Candidate는 `registered`, 라이선스 검토는 `pending_terms_review`, tokenizer·pretraining·SFT·evaluation 승인은 모두 `pending`, Gate 3는 `planned`다.
+- [확정] Candidate는 `registered`, 라이선스는 `approved_student_noncommercial`, tokenizer는 `approved_tokenizer_development`, pretraining·SFT·evaluation 승인은 `pending`, Gate 3는 `planned`다.
 
 ## Pending dry-run 결과
 
@@ -46,4 +46,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 현재 학생·비상업 라이선스와 tokenizer `under_review` 상태를 동기화함 |
 | 2026-07-24 | [확정] pending 정책과 실제 preview 0건 원칙을 기록함 |

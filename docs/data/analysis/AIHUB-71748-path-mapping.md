@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 선행 문서: [AIHUB-71748 안전 표본 결과](./AIHUB-71748-sampling.md), [수동 mapping 계약](./manual-path-mapping.md)
 - 후속 문서·작업: [대용량 JSON 제한 검사](./large-json-inspection.md), [ZIP JSON record 분석](./zip-json-record-sampling.md), RaG mapping 후보 재검토, schema·PII 검토
 
@@ -90,8 +90,8 @@ Mapping 절차 승인은 데이터 이용·Tokenizer corpus 승인이 아니다.
 ## Tokenizer와 Gate 상태
 
 - `candidate_status: registered`
-- `license_review_status: pending_terms_review`
-- `approval.tokenizer/pretraining/sft/evaluation: pending`
+- `license_review_status: approved_student_noncommercial`
+- `approval.tokenizer: approved_tokenizer_development`, `approval.pretraining/sft/evaluation: pending`
 - Gate 3: `planned`
 
 ## 다음 검토
@@ -105,6 +105,7 @@ Mapping 절차 승인은 데이터 이용·Tokenizer corpus 승인이 아니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 현재 학생·비상업 라이선스와 tokenizer `under_review` 상태를 동기화함 |
 | 2026-07-24 | [확정] 승인 mapping 기반 ZIP JSON record bounded inspection 결과 문서를 연결함 |
 | 2026-07-24 | [확정] 관측성 개선 dry-run의 rule별 직접 집계, RaG 공백·dash category 차이와 대용량 JSON 5개 제한 구조 검사 결과를 기록함 |
 | 2026-07-24 | [확정] 기존 dry-run 집계로 두 mapping 후보를 제안하고 승인·실행·Gate 상태를 pending/not_run/planned로 기록함 |

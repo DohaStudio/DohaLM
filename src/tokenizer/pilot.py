@@ -1,4 +1,4 @@
-"""Strict compatibility checks for a 16k pilot SentencePiece model."""
+"""Strict compatibility checks for real and explicitly isolated smoke tokenizers."""
 
 from __future__ import annotations
 
@@ -11,11 +11,27 @@ from .errors import TokenizerError
 from .tokenizer import DohaTokenizer, SPECIAL_TOKEN_IDS
 
 
-def validate_pilot_tokenizer(path: str | Path) -> tuple[DohaTokenizer, dict[str, Any]]:
+SMOKE_VOCAB_SIZES = frozenset({128, 256, 512})
+
+
+def validate_pilot_tokenizer(
+    path: str | Path,
+    *,
+    smoke_mode: bool = False,
+) -> tuple[DohaTokenizer, dict[str, Any]]:
     model_path = Path(path)
     tokenizer = DohaTokenizer(model_path)
-    if tokenizer.vocab_size != 16_000:
-        raise TokenizerError("TOKENIZER_VOCAB_SIZE_MISMATCH", "pilot vocabulary는 정확히 16,000이어야 합니다.")
+    allowed_vocab_sizes = SMOKE_VOCAB_SIZES if smoke_mode else frozenset({16_000})
+    if tokenizer.vocab_size not in allowed_vocab_sizes:
+        if smoke_mode:
+            raise TokenizerError(
+                "TOKENIZER_VOCAB_SIZE_MISMATCH",
+                "smoke vocabulary는 128, 256, 512 중 하나여야 합니다.",
+            )
+        raise TokenizerError(
+            "TOKENIZER_VOCAB_SIZE_MISMATCH",
+            "pilot vocabulary는 정확히 16,000이어야 합니다.",
+        )
     manifest_path = model_path.parent / "manifest.json"
     try:
         import json
@@ -47,4 +63,8 @@ def validate_pilot_tokenizer(path: str | Path) -> tuple[DohaTokenizer, dict[str,
         "hard_vocab_limit": True,
         "special_tokens": dict(SPECIAL_TOKEN_IDS),
         "smoke_unknown_ratio": encoded.ids.count(tokenizer.unk_id) / max(1, len(encoded.ids)),
+        "smoke_mode": smoke_mode,
+        "operating_candidate": False if smoke_mode else True,
+        "gate3_evidence_eligible": False if smoke_mode else True,
+        "approval_effect": "none",
     }
