@@ -1,7 +1,8 @@
 schema_version: "1.0"
 manifest_type: "restricted_operating_tokenizer_summary"
-manifest_status: "review"
+manifest_status: "approved"
 created_on: "2026-07-26"
+approved_on: "2026-07-26"
 
 dataset:
   dataset_id: "AIHUB-71748"
@@ -43,6 +44,8 @@ common_contract:
 
 candidates:
   unigram_16k:
+    selection_status: "approved_operating_tokenizer"
+    bundle_manifest_sha256: "sha256:93dca331e2c82e912e832ecf4252d0638cd55e26f8802aea04d2fe7b3e043e6f"
     tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
     training_config_fingerprint: "sha256:f436a33df5baba777a72fa70ef121ac610fbf1f50de18b4bdf5e1654adf40936"
     model_sha256: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
@@ -58,6 +61,7 @@ candidates:
     exact_roundtrip_ratio: 1.0
     idempotent_ratio: 1.0
   bpe_16k:
+    selection_status: "comparison_only_not_operating"
     tokenizer_fingerprint: "sha256:362a5e9f8e99cb798884397e1b43e87e10f6d13907a9a1d6710e12c423e05822"
     training_config_fingerprint: "sha256:f09199ab0a85115fcded1dcfe219d35eca7c4641dcd9bc1903156cb6b4a17dc9"
     model_sha256: "sha256:023fcc4f688bb4f22a43892095f06f0f412acc6f384bbeee0e5c0749efe0cc08"
@@ -73,9 +77,13 @@ candidates:
     exact_roundtrip_ratio: 1.0
     idempotent_ratio: 1.0
 
-recommendation:
+approval:
   candidate: "operating-16k-v2/unigram-16k"
-  gate3_status: "planned_pending_user_approval"
+  tokenizer_version: "operating-16k-v2"
+  candidate_status: "approved"
+  gate3_status: "passed"
+  adapter_status: "completed_tokenizer_development_scope"
+  approved_by: "user"
   model_training_allowed: false
 
 reproduction_validation:
@@ -84,7 +92,24 @@ reproduction_validation:
   sample_encode_ids_match: true
   binary_fingerprint_matches: false
   binary_difference_note: "SentencePiece model binary includes output-specific trainer metadata; final candidate bundle checksum and fingerprint remain internally consistent."
-  decision_required: "user_gate3_review_under_phase2_checksum_equivalence_rule"
+  decision: "functional_reproduction_accepted_when_all_required_functional_fields_match"
+  artifact_identity:
+    bundle_manifest_sha256: "sha256:93dca331e2c82e912e832ecf4252d0638cd55e26f8802aea04d2fe7b3e043e6f"
+    model_sha256: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
+    vocab_sha256: "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7cbcdfab11b"
+    tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  functional_reproduction_required:
+    - "corpus_fingerprint"
+    - "training_configuration_fingerprint"
+    - "sentencepiece_version"
+    - "vocabulary_size"
+    - "vocabulary_content_or_checksum"
+    - "special_token_id_map"
+    - "encode_id_digest"
+    - "synthetic_probe_results"
+    - "sample_unknown_metrics"
+    - "sample_roundtrip_metrics"
+  reproduced_binary_requires_separate_operating_approval: true
 
 restrictions:
   redistribution: "not_approved"

@@ -11,7 +11,7 @@
 | 구현 전 필수 여부 | 실제 데이터 처리·학습 전 예 |
 
 - [확정] 후보 등록과 데이터 사용 승인은 서로 다른 사건이다.
-- [확정] 현재 로그는 공식 metadata 검토와 로컬 보유 사실의 제한 상태 기록만 포함하며 데이터 처리·학습·공개를 승인하지 않는다.
+- [확정] 현재 로그는 로컬 보유·라이선스·tokenizer development와 최종 운영 tokenizer 승인을 포함한다. Pretraining·모델 학습·공개·재배포 승인은 포함하지 않는다.
 
 ## 2. 기록 schema
 
@@ -60,6 +60,7 @@
 | 2026-07-26 | `AIHUB-71748` | 운영 16k tokenizer development | `tokenizer: under_review` | `tokenizer: approved_tokenizer_development` | 사용자 | Training의 `data_info[].contents`만으로 최소 corpus와 Unigram/BPE 16k 후보 2개를 만들고 비교하도록 명시 승인 | Training 일반 원천데이터, tokenizer 전용 Adapter, corpus manifest·fingerprint·통계, SentencePiece 후보 학습·비교 | Validation, evaluation/benchmark, RLHF, SFT, instruction/answer/label/role/metadata, Pretraining, 모델·GPU 학습, Gate 7, 재배포 | 범위 변경, source checksum 불일치, 후보 공개·모델 연결·Gate 3 상태 전환 | [검토 계획](./aihub-71748-tokenizer-development-review-plan.md), [package manifest](./aihub-71748-local-package.manifest.yaml), [평가 제외 목록](./evaluation-exclusion-list.md) |
 | 2026-07-26 | `AIHUB-71748` | 16k 후보 evidence | `Gate 3: planned` | `Gate 3: planned` | Codex 조사, 사용자 판정 대기 | 제한 corpus 437 MiB, Unigram/BPE 각 16,000 pieces·fingerprint·비교 완료 | checksum·aggregate 품질·속도·한국어/숫자/영어/특수문자 probe 검토 | 후보 모델의 Pretraining 연결, 공개·재배포, Gate 3 통과 처리 | 실제 표본 UNK 0.20%·UNK line 26.17%·round-trip 72.35% 보완과 사용자 승인 | [corpus manifest](./aihub-71748-tokenizer-corpus.manifest.yaml), [후보 평가](../training/aihub-71748-operating-tokenizer-evaluation.md) |
 | 2026-07-26 | `AIHUB-71748` | 16k v2 보완 후보 evidence | `Gate 3: planned` | `Gate 3: planned` | 사용자 보완 작업 승인, 최종 판정 대기 | 기존 corpus와 v1을 보존하고 byte fallback·whitespace 보존 Unigram/BPE v2를 별도 생성 | 동일 Training 표본 10,000건 UNK 0%·exact/ID round-trip 100%, 19개 synthetic probe 실패 0, bundle checksum·fingerprint 검증 | Pretraining·Overfit·모델 연결, 공개·재배포, Gate 3 통과 처리 | 별도 경로 재학습의 vocab·encode ID는 같으나 출력별 metadata로 binary fingerprint가 다른 판정, v2 Unigram 최종 선택과 Gate 3 상태 전환의 사용자 승인 | [v2 요약](./aihub-71748-operating-tokenizer-v2.manifest.yaml), [후보 평가](../training/aihub-71748-operating-tokenizer-evaluation.md) |
+| 2026-07-26 | `AIHUB-71748` | 운영 tokenizer 최종 승인 | `candidate: under_review`, `Gate 3: planned` | `candidate: approved`, `Gate 3: passed` | 사용자 | v2 Unigram bundle checksum·fingerprint, 실제 표본 UNK 0%·round-trip 100%, functional reproduction과 558개 테스트 | `operating-16k-v2/unigram-16k` 운영 참조, tokenizer development Adapter 완료 처리 | BPE 운영 선택, 새 재학습 binary 자동 승격, Pretraining·Overfit·모델/GPU 학습, Gate 7, 공개·재배포 | 승인 bundle checksum 변경, corpus/config/ID/encode digest 불일치, 목적·라이선스 변경 | [v2 요약](./aihub-71748-operating-tokenizer-v2.manifest.yaml), [후보 평가](../training/aihub-71748-operating-tokenizer-evaluation.md), [Phase 2 계약](../training/phase2-tokenizer-contract.md) |
 
 ## 3.3 학생·비상업 라이선스와 최소 schema 검토 이벤트
 
@@ -72,7 +73,7 @@
 
 ## 4. 용도별 승인 snapshot
 
-모든 값은 2026-07-26 기준이다. `AIHUB-71748`의 tokenizer 목적만 `approved_tokenizer_development`이며 다른 목적별 승인값은 변경하지 않는다.
+모든 값은 2026-07-26 기준이다. `AIHUB-71748`의 tokenizer development와 v2 Unigram 운영 후보만 승인됐으며 다른 목적별 승인값은 변경하지 않는다.
 
 | Dataset ID | tokenizer | pretraining | SFT | preference | evaluation | tokenizer artifact 공개 | model weight 공개 | 상업 서비스 | 해외 cloud |
 |---|---|---|---|---|---|---|---|---|---|
@@ -83,6 +84,7 @@
 | `AIHUB-653` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` |
 
 - [확정] tokenizer development 승인 1건은 Pretraining·SFT·Preference·평가·artifact 공개·상업 서비스 승인이 아니다.
+- [확정] 운영 tokenizer는 `operating-16k-v2/unigram-16k`, 후보 상태는 `approved`, tokenizer development Adapter 상태는 `completed`다.
 - [확정] `AIHUB-71748`은 `downloaded_restricted`이며, 나머지 4개 후보의 문서상 `download_status`는 `not_requested`다.
 - [확정] `downloaded_restricted`는 존재 확인일 뿐 처리·sample 검사·학습 허가가 아니다.
 
@@ -107,6 +109,7 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] v2 Unigram을 운영 tokenizer로 승인하고 functional reproduction 기준·Gate 3 `passed`·Adapter 완료를 기록함 |
 | 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스 승인과 6 Record 값 비노출 schema 검토를 기록하고 tokenizer `under_review`를 유지함 |
 | 2026-07-26 | [확정] AIHUB-71748 ZIP 55개 checksum inventory와 별도 검토 계획에 근거해 tokenizer 목적을 비승인 `under_review`로 기록함 |
 | 2026-07-26 | [확정] AIHUB-71748 로컬 ZIP package 존재를 `downloaded_restricted` 비승인 보유 상태로 기록하고 목적별 `pending` 상태를 유지함 |
