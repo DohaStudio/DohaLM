@@ -4,6 +4,7 @@
 
 - 문서 상태: `review`
 - 분석일: 2026-07-23
+- 마지막 검토일: 2026-07-26
 - 분석 방식: quick inventory와 ZIP 중앙 디렉터리 조회 후 제한 quick profile
 
 ## 비교 결과
@@ -22,7 +23,7 @@
 - [확정] 285개 ZIP의 중앙 디렉터리는 모두 정상 조회됐고 암호화 ZIP은 탐지되지 않았다.
 - [확정] ZIP 내부 파일은 총 4,471,632개로 집계됐지만 entry 내용은 읽지 않았다.
 - [검증 필요] 직접 접근 가능한 JSON·JSONL·TXT가 없어 schema signature, text field, label field와 PII field는 미확인이다.
-- [확정] 자동 구조 분석은 승인 결과가 아니다. 5종의 목적별 승인과 Gate 3은 그대로 `pending`·`planned`다.
+- [확정] 자동 구조 분석 자체는 승인 결과가 아니다. 후속 사용자 결정으로 `AIHUB-71748` tokenizer만 `approved_tokenizer_development`, 그 밖의 목적별 승인은 `pending`이며 Gate 3은 `planned`다.
 - [검증 필요] 일부 ZIP 내부 entry가 절대·상위 이동 형태로 분류돼 경로를 보고서에서 마스킹했다. 압축 해제가 필요해질 경우 별도 경로 안전성 검토가 선행돼야 한다.
 - [확정] AIHUB-71748 dry-run에서 55개 archive의 1,610개 entry가 모두 absolute path로 거부돼 실제 추출과 schema 검토를 수행하지 않았다.
 
@@ -31,3 +32,9 @@
 1. 공식 이용조건과 다운로드 계보를 확인한다.
 2. 사용자가 승인한 격리 절차로 ZIP 내부 schema의 최소 수동 표본 검토 여부를 결정한다.
 3. 목적별 corpus와 evaluation 제외 목록을 승인 로그에 기록한다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-26 | [확정] AIHUB-71748 tokenizer `under_review`와 Gate 3 `planned`의 현재 경계를 동기화함 |

@@ -5,14 +5,15 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터 라이선스 정책](./data-license-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서·작업 | [데이터셋 승인 로그](./dataset-approval-log.md), 공식 문의, 다운로드 전 용도별 승인 |
-| 구현 전 필수 여부 | 실제 다운로드·학습·artifact 공개 전 예 |
+| 후속 문서·작업 | [데이터셋 승인 로그](./dataset-approval-log.md), 공식 문의, 취득 계보 확인, 용도별 승인 |
+| 구현 전 필수 여부 | 실제 데이터 사용·학습·artifact 공개 전 예 |
 
 - [확정] 이 문서는 법적·정책적 검토만 관리하며 기술적 품질 평가는 후보 등록부가 담당한다.
 - [확정] 아래 내용은 2026-07-23 공개 상태의 [AI Hub 이용정책](https://www.aihub.or.kr/intrcn/guid/usagepolicy.do)과 각 공식 상세페이지를 요약한 것이며 법률 자문을 대신하지 않는다.
-- [확정] 모든 후보의 `license_review_status`는 `pending_terms_review`다.
+- [확정] `AIHUB-71748`은 사용자 결정에 따라 학생·비상업적 연구 및 개인 학습 범위에서 `approved_student_noncommercial`이다. 나머지 후보는 `pending_terms_review`다.
+- [확정] `AIHUB-71748`의 상업적 이용과 원본·파생 데이터 재배포는 `not_approved`이며 이 결정은 tokenizer·Adapter·학습 승인을 부여하지 않는다.
 
 ## 2. AI Hub 일반 이용정책 확인 결과
 
@@ -34,7 +35,7 @@
 
 ## 3. 공통 미확인 항목
 
-다음은 일반 정책만으로 허용을 확정하지 않고 모두 `pending_official_confirmation`으로 둔다.
+다음은 일반 정책만으로 허용을 확정하지 않는다. `AIHUB-71748`은 학생·비상업 범위와 명시된 금지 상태를 적용하고, 그 밖의 후보는 `pending_official_confirmation`으로 둔다.
 
 - 모델 가중치·GitHub Release·Hugging Face 공개
 - `tokenizer.model`, `tokenizer.vocab` 공개
@@ -48,11 +49,13 @@
 
 | Dataset ID | 개별 이용조건 | 다운로드 승인 조건 | 다운로드 상태 | 검토 상태 |
 |---|---|---|---|---|
-| `AIHUB-71748` | `pending_official_confirmation` | 본인 확인·목적 제출 후 실제 심사 결과 확인 | `not_requested` | `pending_terms_review` |
+| `AIHUB-71748` | 학생·비상업 연구·개인 학습, 상업·재배포 불가 | 취득 증빙은 별도 계보 검토 | `downloaded_restricted` | `approved_student_noncommercial` |
 | `AIHUB-110` | `pending_official_confirmation` | 본인 확인·목적 제출 후 실제 심사 결과 확인 | `not_requested` | `pending_terms_review` |
 | `AIHUB-86` | `pending_official_confirmation` | 본인 확인·목적 제출 후 실제 심사 결과 확인 | `not_requested` | `pending_terms_review` |
 | `AIHUB-71477` | `pending_official_confirmation` | 본인 확인·목적 제출 후 실제 심사 결과 확인 | `not_requested` | `pending_terms_review` |
 | `AIHUB-653` | `pending_official_confirmation` | 본인 확인·목적 제출 후 실제 심사 결과 확인 | `not_requested` | `pending_terms_review` |
+
+- [확정] `AIHUB-71748`의 학생·비상업 라이선스 범위는 승인됐지만 다운로드 신청·승인 증빙과 취득 당시 조건 snapshot은 계보 미확정으로 남는다. package는 `downloaded_restricted`, registry는 `reviewing`을 유지한다.
 
 ## 4. AIHUB-71748 검토표
 
@@ -60,12 +63,13 @@
 
 | 항목 | 상태 | 공식 근거 | 추가 확인 |
 |---|---|---|---|
-| 영리 연구·개발 | 일반 정책 근거 확인 | 일반 이용정책 | 개별 약관·subset 목적 |
-| 상업 서비스 | `pending_official_confirmation` | 명시 범위 불충분 | 공식 문의 |
-| 원본 재배포 | `restricted` | 무승인 제3자 제공 금지 | 개별 조건 |
-| 가공 text 재배포 | `pending_official_confirmation` | 불명확 | source별 문의 |
-| tokenizer.model 공개 | `pending_official_confirmation` | 불명확 | 공식 문의 |
-| tokenizer.vocab 공개 | `pending_official_confirmation` | 불명확 | piece의 원문 파생성 문의 |
+| 학생·비상업 연구·개인 학습 | `approved_student_noncommercial` | 사용자 결정 | 목적·보관 범위 준수 |
+| tokenizer development | `approved_tokenizer_development` | 사용자 명시 승인 | Training `data_info[].contents`만, Validation·benchmark·RLHF·SFT·metadata 제외 |
+| 상업 서비스 | `not_approved` | 사용자 결정 | 별도 결정 전 금지 |
+| 원본 재배포 | `not_approved` | 사용자 결정·제3자 제공 제한 | 금지 유지 |
+| 가공·파생 데이터 재배포 | `not_approved` | 사용자 결정 | 금지 유지 |
+| tokenizer.model 공개 | `not_approved` | 파생 artifact 재배포 미승인 | 별도 공개 승인 필요 |
+| tokenizer.vocab 공개 | `not_approved` | 파생 artifact 재배포 미승인 | 별도 공개 승인 필요 |
 | 모델 가중치 공개 | `pending_official_confirmation` | 불명확 | 공식 문의 |
 | Hugging Face 공개 | `pending_official_confirmation` | 불명확 | 국외 이용·제3자 제공 문의 |
 | 국외 반출 | `restricted_pending_agreement` | 별도 합의 필요 | 수행기관·NIA 합의 |
@@ -74,6 +78,7 @@
 | 데이터셋 판매 | 별도 협의 | 일반 이용정책 | 적용 주체 확인 |
 
 - [검증 필요] 상세페이지가 복수 source·CCL 유형을 제시하므로 source별 권리 조건과 artifact 공개 영향을 따로 확인한다.
+- [확정] tokenizer development는 학생·비상업 범위에서 승인됐다. 이는 tokenizer 전용 최소 corpus와 16k 후보 학습에만 적용하며 PII가 없다는 판정, 모델 학습 승인 또는 artifact 재배포 승인이 아니다.
 
 ## 5. AIHUB-110 검토표
 
@@ -212,4 +217,7 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748을 학생·비상업 연구·개인 학습 `approved_student_noncommercial`로 반영하고 상업·원본·파생 재배포를 `not_approved`로 고정함 |
+| 2026-07-26 | [확정] AIHUB-71748 tokenizer development 허용 여부를 공식 확인 항목으로 추가하고 `under_review`가 사용 승인이 아님을 명시함 |
+| 2026-07-26 | [확정] AIHUB-71748 로컬 package 보유 사실을 `downloaded_restricted`로 반영하고 취득 증빙·공식 조건·목적별 승인 미확정 경계를 유지함 |
 | 2026-07-23 | [확정] AI Hub 일반 정책과 5개 공식 상세페이지를 기준으로 미승인 라이선스 검토 및 공식 문의 항목을 등록함 |

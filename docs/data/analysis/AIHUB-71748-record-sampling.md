@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 선행 문서: [ZIP JSON record 분석 계약](./zip-json-record-sampling.md), [AIHUB-71748 mapping 검토](./AIHUB-71748-path-mapping.md)
 - 후속 작업: [층화 schema·PII review](./AIHUB-71748-schema-review.md), 별도 비공개 수동 검토 범위 승인
 - 구현 전 필수 여부: AIHUB-71748 record 구조 관측 결과 검토 시 예
@@ -87,8 +87,8 @@ Dry-run은 ZIP 중앙 디렉터리와 mapping·출력 계획만 확인했다.
 - [확정] 이번 결과는 구조 후보 관측이며 corpus 생성이 아니다.
 - [확정] 실제 schema 확정, PII 부재 확인과 Tokenizer corpus 승인을 의미하지 않는다.
 - `candidate_status: registered`
-- `license_review_status: pending_terms_review`
-- `approval.tokenizer/pretraining/sft/evaluation: pending`
+- `license_review_status: approved_student_noncommercial`
+- `approval.tokenizer: approved_tokenizer_development`, `approval.pretraining/sft/evaluation: pending`
 - Gate 3: `planned`
 
 ## 다음 검토
@@ -101,5 +101,6 @@ Dry-run은 ZIP 중앙 디렉터리와 mapping·출력 계획만 확인했다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 현재 학생·비상업 라이선스와 tokenizer `under_review` 상태를 동기화함 |
 | 2026-07-24 | [확정] 단일 prefix 관측의 한계를 보완하는 archive·size·record 구간 층화 review 결과를 연결함 |
 | 2026-07-24 | [확정] dry-run 무내용 read와 32 MiB bounded inspection의 3,489 record 관측·원본 불변·비노출 결과를 기록함 |

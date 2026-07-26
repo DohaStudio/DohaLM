@@ -1,0 +1,95 @@
+schema_version: "1.0"
+manifest_type: "restricted_operating_tokenizer_summary"
+manifest_status: "review"
+created_on: "2026-07-26"
+
+dataset:
+  dataset_id: "AIHUB-71748"
+  license_status: "approved_student_noncommercial"
+  purpose: "operating_16k_tokenizer_development_only"
+  corpus_fingerprint: "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
+  corpus_sha256: "sha256:0c7119106261e9a8487b5e2e1ba76ba220761a2fdaeb14738e968b91fdbeeb00"
+
+evaluation_sample:
+  split: "Training"
+  method: "first_10000_nonempty_physical_lines"
+  seed: null
+  record_count: 10000
+  text_values_stored: false
+  fingerprint: "sha256:12e54cec6b04420deb5182b74b359b1b9e87edce1428d0e8444fd95ed832f8fa"
+
+common_contract:
+  sentencepiece_version: "0.2.2"
+  vocab_size: 16000
+  character_coverage: 1.0
+  byte_fallback: true
+  normalization_rule_name: "identity"
+  hard_vocab_limit: true
+  special_token_ids:
+    "<pad>": 0
+    "<unk>": 1
+    "<bos>": 2
+    "<eos>": 3
+    "<|system|>": 4
+    "<|user|>": 5
+    "<|assistant|>": 6
+    "<|end|>": 7
+  whitespace:
+    remove_extra_whitespaces: false
+    add_dummy_prefix: false
+    escape_whitespaces: true
+    allow_whitespace_only_pieces: true
+    treat_whitespace_as_suffix: false
+
+candidates:
+  unigram_16k:
+    tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+    training_config_fingerprint: "sha256:f436a33df5baba777a72fa70ef121ac610fbf1f50de18b4bdf5e1654adf40936"
+    model_sha256: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
+    vocab_sha256: "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7cbcdfab11b"
+    model_bytes: 271029
+    vocab_bytes: 298621
+    training_seconds: 786.718229
+    peak_process_rss_bytes: 2633977856
+    peak_rss_measurement: "same_config_reproduction_training"
+    vocabulary_coverage: 1.0
+    unknown_token_ratio: 0.0
+    unknown_record_ratio: 0.0
+    exact_roundtrip_ratio: 1.0
+    idempotent_ratio: 1.0
+  bpe_16k:
+    tokenizer_fingerprint: "sha256:362a5e9f8e99cb798884397e1b43e87e10f6d13907a9a1d6710e12c423e05822"
+    training_config_fingerprint: "sha256:f09199ab0a85115fcded1dcfe219d35eca7c4641dcd9bc1903156cb6b4a17dc9"
+    model_sha256: "sha256:023fcc4f688bb4f22a43892095f06f0f412acc6f384bbeee0e5c0749efe0cc08"
+    vocab_sha256: "sha256:c09d882311f5bd52a4c84f76308032e743ddb4986ac07bce8636889ccf82aa39"
+    model_bytes: 263742
+    vocab_bytes: 250392
+    training_seconds: 18.022435
+    peak_process_rss_bytes: 887283712
+    peak_rss_measurement: "same_config_reproduction_training"
+    vocabulary_coverage: 1.0
+    unknown_token_ratio: 0.0
+    unknown_record_ratio: 0.0
+    exact_roundtrip_ratio: 1.0
+    idempotent_ratio: 1.0
+
+recommendation:
+  candidate: "operating-16k-v2/unigram-16k"
+  gate3_status: "planned_pending_user_approval"
+  model_training_allowed: false
+
+reproduction_validation:
+  sample_line_count: 10000
+  vocabulary_checksum_matches: true
+  sample_encode_ids_match: true
+  binary_fingerprint_matches: false
+  binary_difference_note: "SentencePiece model binary includes output-specific trainer metadata; final candidate bundle checksum and fingerprint remain internally consistent."
+  decision_required: "user_gate3_review_under_phase2_checksum_equivalence_rule"
+
+restrictions:
+  redistribution: "not_approved"
+  pretraining: "not_approved"
+  overfit: "not_approved"
+  sft: "not_approved"
+  preference_training: "not_approved"
+  gate7_change: "not_approved"

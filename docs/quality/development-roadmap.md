@@ -20,7 +20,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | 0. 저장소와 환경 기반 | 재현 가능한 구현 기반 마련 | 기준 문서·ADR 확인 | 구조 확정, Python 기준, CUDA·PyTorch 호환 검토, 의존성·설정 구조, 기본 테스트 환경, 로그·산출물 경로 | 환경 기준, 설정 계약, 테스트 진입점 | 설정 parse, CPU smoke, CUDA 가용성 후보, 경로·Git 제외 검사 | Gate 0 통과 | Gate 1 통과와 환경 snapshot 가능 | Gate 0 문서 보완 | [확정] 구현·검증 완료 |
 | 1. 데이터 최소 파이프라인 | 안전한 최소 입출력·계보 검증 | Phase 0, 데이터 정책, [Phase 1 데이터 계약](../data/phase1-data-contract.md) | 가상/극소량 로컬 sample, 형식 검증, 정제 흐름, manifest, checksum, split 검증 | 소형 fixture 처리 결과·manifest | 원본 불변, checksum, deterministic split, 누수 fixture | Gate 1 통과·허용 fixture 준비·Phase 1 계약 검토 | Gate 2 통과 | Phase 0 설정·경로 | [확정] 구현·검증 완료, DATA-001~016 `verified` |
-| 2. 토크나이저 | 한국어 token 계약 확정 | Phase 1, [후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [안전 표본 정책](../data/analysis/safe-sampling.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md), [Phase 2 토크나이저 상세 계약](../training/phase2-tokenizer-contract.md) | TOK-001~012: corpus 승인, SentencePiece Unigram, special token, encode/decode, fingerprint, artifact·호환성과 한국어 품질 | versioned tokenizer bundle·manifest·평가·호환성 보고 | vocab 16,000, ADR-003 ID 0~7, round-trip, fingerprint, atomic publish, 후보 비교 | Gate 2 `passed`, 최소 1개 `approved_tokenizer_development`, 공식 조건 검토, fingerprint 가능, validation/test 분리 | Gate 3 통과 | Phase 1 데이터·승인 정책 | [검증 필요] [Synthetic smoke](../training/tokenizer-smoke.md)는 구현·검증됨; 승인 corpus·운영 16,000 후보·Gate 3은 미완료 |
+| 2. 토크나이저 | 한국어 token 계약 확정 | Phase 1, [후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [안전 표본 정책](../data/analysis/safe-sampling.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md), [Phase 2 토크나이저 상세 계약](../training/phase2-tokenizer-contract.md) | TOK-001~012: corpus 승인, SentencePiece Unigram, special token, encode/decode, fingerprint, artifact·호환성과 한국어 품질 | versioned tokenizer bundle·manifest·평가·호환성 보고 | vocab 16,000, ADR-003 ID 0~7, round-trip, fingerprint, atomic publish, 후보 비교 | Gate 2 `passed`, 최소 1개 `approved_tokenizer_development`, 공식 조건 검토, fingerprint 가능, validation/test 분리 | Gate 3 통과 | Phase 1 데이터·승인 정책 | [검증 필요] [v2 후보 평가](../training/aihub-71748-operating-tokenizer-evaluation.md)는 기술 검증을 충족해 Unigram을 추천하며 Gate 3 사용자 승인이 남음 |
 | 3. 모델 구성요소 | 핵심 layer를 독립 검증 | Phase 0, ADR-002 | Config, token/position embedding, causal self-attention, MHA, FFN, Pre-LN, block, LM Head, weight tying | 직접 구현 모듈·단위 테스트 | shape, causal mask, backward, dtype/device, error, tying alias | Gate 1·모델 문서 승인 | Gate 4 통과 | 해당 구성요소·Config | [확정] 구성요소와 단위 테스트 및 통합 evidence를 검증하고 사용자 승인으로 Gate 4 `passed` |
 | 4. 모델 통합 | DohaLM-Tiny forward·생성 연결 | Phase 2·3 | 전체 forward, loss, parameter count, dtype/device, causal mask, 최소 generation | 통합 model·loss·generation | count 16,889,856, logits shape, shift, mask, forward/backward, deterministic generation | Gate 3·4 통과 | Gate 5 통과 | Phase 2 또는 3 | [확정] 합성 token 기반 구현·CPU/CUDA 검증과 사용자 승인 완료, Gate 5 `passed`; 실제 tokenizer 미연결 |
 | 5. 학습 기반 | 재개 가능한 학습 loop 구축 | Phase 1·4 | Dataset/DataLoader, AdamW, scheduler, FP16 AMP, accumulation, clipping, checkpoint, resume, log | trainer·checkpoint·log 계약 | smoke update, AMP, accumulation equivalence 후보, round-trip, resume, NaN/Inf | Gate 5 통과 | Gate 6 통과 | Phase 1 데이터 또는 4 모델 | [확정] 합성 Foundation과 실제 Tiny 규모 sampler·cosine 후보·CUDA FP16·checkpoint/resume·VRAM evidence를 사용자 승인해 Gate 6 `passed`; 실제 사전학습 미실행 |
@@ -90,7 +90,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] Proposal fingerprint: `sha256:f59573ffc791833247e560da283eb684c4c97246144fea115df16d363b3798c6`
 - [확정] 자동 테스트: 514개 통과
 - [확정] Gate 4는 모델 구성요소, Gate 5는 전체 Tiny 통합, Gate 6은 합성 CUDA FP16 학습·checkpoint/resume·RNG·sampler·VRAM·처리량 evidence를 근거로 통과했다.
-- [확정] Gate 3과 Gate 7은 `planned`이며 tokenizer·corpus·license·PII 승인은 `pending`을 유지한다.
+- [확정] Gate 3과 Gate 7은 `planned`다. AIHUB-71748 v2 Unigram/BPE는 동일 실제 표본 UNK 0%와 exact·ID round-trip 100%를 충족했고 별도 경로 재학습의 vocab·encode ID도 같지만, 출력별 trainer metadata에 따른 binary fingerprint 차이와 최종 후보의 사용자 판정이 남아 Gate 3을 통과 처리하지 않는다. Gate 7과 모델 학습은 계속 미승인이다.
 - [제외] 이 승인은 실제 데이터 연결, Pilot Pretraining 실행 또는 장시간 학습 승인이 아니다.
 
 ## 7. Gate 운영 원칙
@@ -114,6 +114,8 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [검증 필요] AIHUB-71748 v2 Unigram/BPE 기술 evidence와 Unigram 추천을 반영하고 Gate 3은 사용자 승인 대기 `planned`로 유지함 |
+| 2026-07-26 | [검증 필요] AIHUB-71748 제한 corpus와 Unigram/BPE 16k 후보 evidence를 연결하되 UNK·round-trip 보완 전 Gate 3 `planned`를 유지함 |
 | 2026-07-24 | [확정] `DDORINY` 사용자 승인과 evidence·proposal fingerprint·514개 테스트를 근거로 Gate 4·5·6을 `passed`로 변경하고 Gate 3·7 및 데이터 승인을 유지함 |
 | 2026-07-24 | [확정] ignored Tiny 산출물과 514개 테스트를 재검증해 Gate 4·5·6을 `eligible_for_user_approval`로 제안했으나 실제 상태는 `planned`로 유지하고 Pilot readiness `blocked`를 확인함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 batch probe·sampler resume·10-step CUDA·100-step overfit 결과를 반영하고 Gate 6·7 `planned`를 유지함 |

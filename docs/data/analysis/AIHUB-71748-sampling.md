@@ -3,7 +3,7 @@
 ## 문서 정보
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-26
 - 관련 정책: [안전 표본 추출 정책](./safe-sampling.md)
 
 ## 분석 기준
@@ -118,8 +118,8 @@ Git 추적 문서에는 실제 로컬 절대경로와 선택 ZIP의 상대 파�
 ## 현재 승인 상태
 
 - `candidate_status: registered`
-- `license_review_status: pending_terms_review`
-- `approval.tokenizer/pretraining/sft/evaluation: pending`
+- `license_review_status: approved_student_noncommercial`
+- `approval.tokenizer: approved_tokenizer_development`, `approval.pretraining/sft/evaluation: pending`
 - Gate 3: `planned`
 
 ## 다음 작업
@@ -132,6 +132,7 @@ Git 추적 문서에는 실제 로컬 절대경로와 선택 ZIP의 상대 파�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 현재 학생·비상업 라이선스와 tokenizer `under_review` 상태를 동기화함 |
 | 2026-07-24 | [확정] 대용량 JSON array의 제한 record 구조 관측과 원본 불변 결과를 연결함 |
 | 2026-07-24 | [확정] 관측성 개선 수동 dry-run의 rule별 직접 집계, 추출 0건과 제한 streaming 후속 검사를 기록함 |
 | 2026-07-24 | [확정] 구현된 별도 수동 mapping 계약과 pending 후보 검토 문서를 연결함 |

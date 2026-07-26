@@ -5,13 +5,14 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터 분할 및 누수 정책](./data-split-and-leakage-policy.md), [Benchmark 정책](../evaluation/benchmark-policy.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md) |
 | 후속 문서·작업 | sample inspection, fingerprint·near duplicate·benchmark contamination 검사 |
 | 구현 전 필수 여부 | 실제 tokenizer·pretraining·SFT·평가 corpus 승인 전 예 |
 
 - [확정] 이 문서는 학습과 평가 간 contamination·누수 방지 기준을 관리한다.
-- [확정] 현재 실제 데이터를 다운로드하지 않았으므로 모든 중복·누수 판정은 `pending_review`다.
+- [확정] `AIHUB-71748`의 최소 schema metadata만 확인했으며 record text fingerprint·benchmark contamination은 검사하지 않았다. 따라서 모든 중복·누수 판정은 `pending_review`다.
+- [확정] `AIHUB-71748/Validation/**`은 tokenizer development 입력에서 전부 제외한다.
 
 ## 2. 제외·검토 목록
 
@@ -32,7 +33,9 @@
 ```yaml
 AIHUB-71748:
   contamination_status: pending_review
+  tokenizer_development_validation_excluded: true
   training_exclusion:
+    - all_validation
     - official_evaluation_subset
     - high_risk_qa_instruction_subset
 
@@ -66,4 +69,6 @@ AIHUB-110:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] AIHUB-71748 `Validation/**` 전체를 tokenizer development에서 제외하고 Training 내부 contamination은 `pending_review`로 유지함 |
+| 2026-07-26 | [확정] AIHUB-71748 로컬 package 존재를 반영하되 본문·fingerprint·contamination 미검사로 모든 제외 판정을 `pending_review`로 유지함 |
 | 2026-07-23 | [확정] AIHUB-71748·110·86·71477·653의 평가 제외·holdout·누수 검사 후보를 등록함 |

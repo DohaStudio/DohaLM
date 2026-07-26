@@ -1,0 +1,242 @@
+schema_version: "1.0"
+manifest_type: "zip_checksum_inventory"
+manifest_status: "review"
+observed_on: "2026-07-26"
+
+dataset:
+  dataset_id: "AIHUB-71748"
+  package_manifest: "aihub-71748-local-package.manifest.yaml"
+  local_relative_root: "extracted/AIHUB-71748"
+
+checksum:
+  algorithm: "sha256"
+  byte_scope: "complete_file_bytes"
+  path_order: "relative_path_ascending"
+
+summary:
+  zip_file_count: 55
+  total_bytes: 17256335769
+  duplicate_file_name_groups: 0
+  duplicate_sha256_groups: 0
+
+files:
+  - relative_path: "3.개방데이터/1.데이터/Other/Other.zip"
+    file_name: "Other.zip"
+    size_bytes: 10427995583
+    sha256: "920657b3c9b1a8ee0fc6653294eeeb1804558e9828b337b8b26a12cdb832eb6e"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL01.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL01.zip"
+    size_bytes: 232701543
+    sha256: "b1dd404412a99d90d3e48fa5d7d8cef594974a414c4556eca5bd78eed73108f3"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL02.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL02.zip"
+    size_bytes: 300124168
+    sha256: "4cf7319dc9194629f0370c8d6cbc0a77ee89f81d88ce3f86a4d0cc0edf4a4d08"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL03.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL03.zip"
+    size_bytes: 7787671
+    sha256: "0240fd0e9acda231d57ccb728cc93caf12f62ecff20d055e00b1ac9758bd4956"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL04.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL04.zip"
+    size_bytes: 9298105
+    sha256: "aec1e63a31cfead7daa55f2a34eb2409faa94a753653e0dabffad63d884f056e"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL05.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL05.zip"
+    size_bytes: 2505318
+    sha256: "db8c15c285805fad9d038257bf3d9697b272fad3d13ea870dba8ee7cb5aadde9"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL06.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL06.zip"
+    size_bytes: 599869314
+    sha256: "cec6927725afc16615637fb133cb32399ce4f86555c493fe0b4fe018c3dc56b6"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL07.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL07.zip"
+    size_bytes: 34760820
+    sha256: "26b054510167ce787b204e26dda8cfb8fa697a736f89d36d89b7fd3368865a5c"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL08.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL08.zip"
+    size_bytes: 41594193
+    sha256: "b1633ad97b183a11f61a979ef81e0270cb220a5c68d482b3e367010b29359afb"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL09.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL09.zip"
+    size_bytes: 416918504
+    sha256: "6d4a76d198667b40c674fb8f94b7d896790329cfc1b19180b652b7cf290bb060"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL10.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL10.zip"
+    size_bytes: 48186902
+    sha256: "896616da77dccac537138ca4d860c3c3853339766dc3ebb4bdcaf3a28a03ea9c"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL11.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL11.zip"
+    size_bytes: 98185209
+    sha256: "b03e788343c523883d01515e56376d5dcba9c5789d706541f0797157374fab8f"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL12.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL12.zip"
+    size_bytes: 648632877
+    sha256: "d589c697f5052b4275dc9c6223947c7ddac1fa860f7c1769edcd696d754b80de"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL13.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL13.zip"
+    size_bytes: 44328551
+    sha256: "8b76c4e187f95fcc8929c6c18fbdfc8048094b840e7da96c15f28ecab902fd4a"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_구어체_SL14.zip"
+    file_name: "TS_01.한국어말뭉치데이터_구어체_SL14.zip"
+    size_bytes: 68969570
+    sha256: "d11b490ea6cf2f60100ab93fcff38530d8a0ce288fcea078742360db8a42e359"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL01.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL01.zip"
+    size_bytes: 504556707
+    sha256: "14a4df3f5de5134bdb2791daba380907598c16f29aa3c3e11683eb995a647a87"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL02.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL02.zip"
+    size_bytes: 1027435838
+    sha256: "8820b3b5e8511e6bc2acee561f22af080d492117a9cbdacb63e207164fd68549"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL03.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL03.zip"
+    size_bytes: 187122074
+    sha256: "be53248f7c4dfd3a82fbf979974ba5ca18e85e51a4cf4f823e06cdf9a3e18ded"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL04.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL04.zip"
+    size_bytes: 77097887
+    sha256: "65d560f66de7db1721b32fab72fb3e58a7df7d803a6e75cbff6b68181795231f"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL05.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL05.zip"
+    size_bytes: 230720134
+    sha256: "8c62d9b63c075e7ea70c3c4855df939962a69570e65767f649b610c040a8eb48"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL06.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL06.zip"
+    size_bytes: 47361297
+    sha256: "12991b2ef09698f7c80e08e45d2d2c25eb308ec8a87c8a578fa8b0386dc511ce"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL07.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL07.zip"
+    size_bytes: 85440474
+    sha256: "bc30d704d3b3b6e654ff133b643010e53bec2443a96af929d1ebfd27d9773809"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL08.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL08.zip"
+    size_bytes: 99198961
+    sha256: "702e3b12d86f84a321a8cb13b4f73c44265561efc9300b1006997ae12e3b2368"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL09.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL09.zip"
+    size_bytes: 1081425992
+    sha256: "79f16c3648df42a915f49a2e4296bb7da934922bc9e55975f1a81263cab22654"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL11.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL11.zip"
+    size_bytes: 42628273
+    sha256: "ff8139c0e0127f2a2528096f1e69d9f38063e16ee84b65bc44e25aaa4cd1f0ca"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_01.한국어말뭉치데이터_문어체_WL12.zip"
+    file_name: "TS_01.한국어말뭉치데이터_문어체_WL12.zip"
+    size_bytes: 13863131
+    sha256: "a9cf1a8927b4e88636b6a6a1ebebf8a491f036d6ca7346e594f64d7a77df645e"
+  - relative_path: "3.개방데이터/1.데이터/Training/01.원천데이터/TS_02.RLHF데이터.zip"
+    file_name: "TS_02.RLHF데이터.zip"
+    size_bytes: 46680605
+    sha256: "f3672bba7f3360c87e0de81153947707c15a52f52e7eeaec9107b52ddab35883"
+  - relative_path: "3.개방데이터/1.데이터/Training/02.라벨링데이터/TL_02.RLHF데이터.zip"
+    file_name: "TL_02.RLHF데이터.zip"
+    size_bytes: 50001412
+    sha256: "cef0801c48b1d03c0cfe8b719c9cc3683d19ca4cd9060f3be9c228921067a8f4"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL01.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL01.zip"
+    size_bytes: 38315240
+    sha256: "9c27f302e235474a657b9e354dddc9995ecbd8842b8229996aaa24d27a56d18c"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL02.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL02.zip"
+    size_bytes: 36656891
+    sha256: "98ebc56f471f2132cfe52cbfcf9c01a75b237635e50ae2dc5f1fb3a701985b37"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL03.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL03.zip"
+    size_bytes: 971699
+    sha256: "123c1a497614a1b0ce3d26320ac7f491f7cd676915f3f019cf5b80d43b48388a"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL04.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL04.zip"
+    size_bytes: 1209515
+    sha256: "901aacbee909c3050caa6b146b57af9ca7bc3254b885231e80d10c2563d15c21"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL05.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL05.zip"
+    size_bytes: 271003
+    sha256: "edb09bef87e2ae9eddd46b190b8c96ca6ee5487f61f39da1e4355e7093c425b8"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL06.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL06.zip"
+    size_bytes: 71815520
+    sha256: "82b77fa568ca3a500c876ef1929cd160219a2bf2a24896442e8a81c8ae4da87c"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL07.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL07.zip"
+    size_bytes: 4589320
+    sha256: "1beffe5582f33de892b293ce3937886af2437e86f32c45a21bbc4309de16680e"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL08.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL08.zip"
+    size_bytes: 7620251
+    sha256: "a6c2b9765b40fdff2e1747618921572d2dce22c3c0521736d17204953e1fb13f"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL09.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL09.zip"
+    size_bytes: 50206105
+    sha256: "a28fc80f2fb3837a7f89158a1a47d6336487da1c5420a3a2a21bc53bf461b1e2"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL10.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL10.zip"
+    size_bytes: 5548145
+    sha256: "0819ca6bd521ff28f54c8df7926ad1953de7051294d4b5dae09dba86c7a68ac6"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL11.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL11.zip"
+    size_bytes: 10822664
+    sha256: "00e2e1ea6e6064ec121bd43075afaf5af09e394dfea07cf657f4307bb34864a3"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL12.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL12.zip"
+    size_bytes: 82251706
+    sha256: "c8e43158a2d0583bde95d8009bf728aafe27ac58cb721ee57fbbfb596809e9ab"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL13.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL13.zip"
+    size_bytes: 4495345
+    sha256: "76f7f5d4c19eb53e6ff7898ff7c99cea1e5f1eddcfc267b2c87dd1b815c62412"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_구어체_SL14.zip"
+    file_name: "VS_01.한국어말뭉치데이터_구어체_SL14.zip"
+    size_bytes: 9129144
+    sha256: "bd138269f229cfa14605fdf8ed7f095d2937d4bd922274dc3255cf0addaa0e68"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL01.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL01.zip"
+    size_bytes: 55877160
+    sha256: "03b7db345f0506439bbbeec1d4c6abc6d5c5c9bc0c8c789d273a32d84df6d870"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL02.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL02.zip"
+    size_bytes: 130234980
+    sha256: "c6e49f1a2244b1dd6f337d2b6878c18107061fcb4f592d1b5d35b72073c08043"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL03.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL03.zip"
+    size_bytes: 22778002
+    sha256: "3127685f04084bf06a0f5c6432722174bbd39ace1c8f799cbb921f2e5ccfda16"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL04.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL04.zip"
+    size_bytes: 9822329
+    sha256: "9eef9dab30562cc0fad934d1266297171e18eda0602254674457e9c94b47bcdd"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL05.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL05.zip"
+    size_bytes: 31042844
+    sha256: "94525f2460a850d882a4fb3ba1e7b9e61e3c1fab3f37d78a2cf3984c16ac6453"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL06.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL06.zip"
+    size_bytes: 6022105
+    sha256: "5dcabb84d0a957fb480fbfcaa737cb596348ede66b99ffb044b6aa243074a128"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL07.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL07.zip"
+    size_bytes: 10739360
+    sha256: "209b7d5528faaff3f1d16bc7db9f7564ba7e4650b417a90bbdf7a5662623b378"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL08.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL08.zip"
+    size_bytes: 11490045
+    sha256: "97ab4a9def6178950308ffcd319b600537ffaf02eeffa30cb3a50e2aa97799e9"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL09.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL09.zip"
+    size_bytes: 160168696
+    sha256: "45a382531783697ce833df3f1124c3b846c5537078971e6f77be584ddef20843"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL11.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL11.zip"
+    size_bytes: 5173866
+    sha256: "6dd6d5ff74296e3c599a4c377e70a15532ac3754e59e7a29f3da7f4d0977bf08"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_01.한국어말뭉치데이터_문어체_WL12.zip"
+    file_name: "VS_01.한국어말뭉치데이터_문어체_WL12.zip"
+    size_bytes: 1607804
+    sha256: "29615a6f43f5e9407484ec027019ad3ff6327a39b61985d03e2c76a6e15d5907"
+  - relative_path: "3.개방데이터/1.데이터/Validation/01.원천데이터/VS_02.RLHF데이터.zip"
+    file_name: "VS_02.RLHF데이터.zip"
+    size_bytes: 5829783
+    sha256: "c1e637f0cab87491f904f28cceea475cb3ff6c752671f9017c83bef7a3ac0e1c"
+  - relative_path: "3.개방데이터/1.데이터/Validation/02.라벨링데이터/VL.zip"
+    file_name: "VL.zip"
+    size_bytes: 6255134
+    sha256: "239515fd66cd3908232aa87fac9b8c1897726a0cf804b50969bae225ec9a22c0"
