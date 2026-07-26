@@ -6,6 +6,7 @@ from .config import TrainingConfig
 from .dataloader import create_dataloader
 from .dataset import SyntheticTokenDataset
 from .errors import TrainingError
+from .gate7_overfit import Gate7OverfitConfig, prepare_gate7_overfit, run_gate7_training
 from .metrics import JsonlMetricLogger, TrainingMetric
 from .memory_probe import CudaMemoryProbe, MemorySnapshot, module_gradient_bytes, module_parameter_bytes, optimizer_state_bytes
 from .optimizer import OptimizerStats, create_optimizer
@@ -36,6 +37,7 @@ __all__ = [
     "CudaMemoryProbe",
     "DEFAULT_BATCH_CANDIDATES",
     "JsonlMetricLogger",
+    "Gate7OverfitConfig",
     "LinearWarmupDecayScheduler",
     "MemorySnapshot",
     "OptimizerStats",
@@ -65,10 +67,12 @@ __all__ = [
     "module_parameter_bytes",
     "optimizer_state_bytes",
     "probe_batch_candidates",
+    "prepare_gate7_overfit",
     "restore_rng_state",
     "seed_everything",
     "summarize_throughput",
     "run_tiny_validation",
+    "run_gate7_training",
     "run_pilot_pretraining",
     "tiny_model_config",
 ]

@@ -1,7 +1,7 @@
 # Pilot Pretraining 준비 검증
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-27
 - 선행 문서: [사전학습 계획](./pretraining-plan.md), [Gate 4·5·6 Evidence 검토](../quality/gate4-6-evidence-review.md), [데이터셋 승인 로그](../data/dataset-approval-log.md)
 - 후속 문서: 승인 tokenizer·corpus 연결 작업, 실제 Pilot Pretraining 실행 계획
 - 구현 전 필수 여부: 실제 Pilot Pretraining 전 필수
@@ -27,14 +27,14 @@
 ## 3. 현재 결과
 
 - [확정] 현재 결과는 `blocked`다.
-- [확정] Gate 4·5·6은 사용자 승인으로 `passed`다. Gate 3과 Gate 7은 `planned`다.
-- [확정] 실제 운영 tokenizer와 목적별 승인 corpus artifact·fingerprint가 연결되지 않았다.
+- [확정] Gate 3·4·5·6은 사용자 승인으로 `passed`이고 Gate 7은 `planned`다.
+- [확정] 운영 v2 Unigram과 tokenizer development corpus identity는 확정됐고, 제한 Gate 7 실험에서 실제 Training 64문서 연결을 검증했다.
+- [확정] 제한 실험은 Pretraining 목적 승인, PII clearance, train/validation split 또는 Pilot 정책 승인을 대체하지 않는다.
 - [확정] storage·retention·training config·scheduler·batch·시간/VRAM·resume 운영 승인이 없다.
 
 주요 차단 code:
 
-- `GATE3_NOT_PASSED`, `GATE7_POLICY_NOT_SATISFIED`
-- `TOKENIZER_NOT_APPROVED`, `TOKENIZER_FINGERPRINT_MISSING`
+- `GATE7_POLICY_NOT_SATISFIED`
 - `CORPUS_NOT_APPROVED`, `LICENSE_NOT_APPROVED`, `PII_NOT_CLEARED`
 - `SPLIT_NOT_VERIFIED`, `EVALUATION_EXCLUSION_MISSING`
 - `TRAINING_CONFIG_NOT_APPROVED`, `STORAGE_NOT_VERIFIED`
@@ -70,8 +70,7 @@ python -m scripts.training.validate_pilot_readiness `
 
 ## 6. 실제 Pilot 전 사용자 승인 항목
 
-- [검증 필요] Gate 3과 Gate 7 상태 또는 별도 pilot 정책
-- [검증 필요] 운영 tokenizer bundle과 fingerprint
+- [검증 필요] Gate 7 상태 또는 별도 pilot 정책
 - [검증 필요] 목적별 corpus·license·PII 승인과 manifest·split·평가 제외
 - [검증 필요] resolved training config, scheduler, batch·accumulation
 - [검증 필요] 저장공간·checkpoint 보존·예상 시간/VRAM·resume 절차
@@ -82,4 +81,5 @@ python -m scripts.training.validate_pilot_readiness `
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] Gate 3과 운영 tokenizer 확정, 제한 Gate 7 실험 결과를 반영하되 Gate 7·PII·Pretraining·Pilot 차단을 유지함 |
 | 2026-07-24 | [확정] Gate 4·5·6 `passed`를 반영하고 Gate 3·7 및 tokenizer·corpus·license·PII 차단을 유지함 |
