@@ -104,13 +104,14 @@
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6은 `passed`이고 Gate 7은 `planned`다. 운영 tokenizer는 승인된 `operating-16k-v2/unigram-16k`이며 PII·Pretraining·Tiny Overfit·SFT·Preference·모델 학습은 승인되지 않았다.
+- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 승인된 `operating-16k-v2/unigram-16k`이고 제한 Tiny Overfit은 `approved`지만 PII·Pilot/전체 Pretraining·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] AIHUB-71748 동일 64문서 Tiny Overfit 최종 승인과 Gate 7 `passed`를 반영하되 Pilot·전체 Pretraining 차단을 유지함 |
 | 2026-07-24 | [확정] Gate 4·5·6 사용자 승인 기록과 Pilot readiness 차단 문서를 학습 흐름에 연결하고 Gate 3·7 및 데이터 승인을 유지함 |
 | 2026-07-24 | [확정] 실제 Tiny 규모 합성 학습·sampler resume·VRAM/처리량 검증 문서를 연결하고 Gate 6·7 `planned`를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation·checkpoint/resume·테스트 문서를 학습 흐름에 연결하고 실제 사전학습과 구분함 |

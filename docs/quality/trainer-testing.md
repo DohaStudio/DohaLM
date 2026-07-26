@@ -45,7 +45,7 @@ CUDA resume 구간 최대 관측값은 allocated `18,574,336 bytes`(`17.714 MiB`
 
 - [가정] accumulation 큰 batch 비교 허용 오차는 float32 reduction 순서 차이를 고려해 `atol=3e-4`, `rtol=1e-4`다.
 - [제외] 실제 corpus 수렴, validation loss, 생성 품질, 장시간 안정성과 OOM 경계는 검증하지 않았다.
-- [확정] Gate 6은 통합 evidence와 2026-07-24 사용자 승인으로 `passed`다. Synthetic overfit은 Gate 7 통과 근거가 아니며 Gate 3·7은 `planned`다.
+- [확정] Gate 6은 통합 evidence와 2026-07-24 사용자 승인으로 `passed`다. Synthetic overfit은 Gate 7 근거가 아니지만 후속 실제 64문서 Tiny Overfit 증거와 별도 사용자 승인으로 Gate 3·7은 모두 `passed`다.
 
 ## 5. 변경 이력
 

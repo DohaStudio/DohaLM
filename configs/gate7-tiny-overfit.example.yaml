@@ -14,7 +14,7 @@ packing_mode: continuous
 packing_remainder: pad
 micro_batch_size: 1
 gradient_accumulation_steps: 4
-max_steps: 500
+max_steps: 1000
 learning_rate: 0.001
 weight_decay: 0.0
 warmup_steps: 10

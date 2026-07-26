@@ -11,11 +11,13 @@ import shutil
 import sys
 import time
 import zipfile
-from dataclasses import asdict, dataclass
+import ctypes
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import torch
+import torch.nn.functional as functional
 import yaml
 
 from src.data.aihub_71748_tokenizer_corpus import (
@@ -48,6 +50,17 @@ EXPECTED_VOCAB = "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7c
 EXPECTED_CORPUS = "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
 EXPECTED_CORPUS_SHA = "sha256:0c7119106261e9a8487b5e2e1ba76ba220761a2fdaeb14738e968b91fdbeeb00"
 SPECIAL_IDS = {"<pad>": 0, "<unk>": 1, "<bos>": 2, "<eos>": 3, "<|system|>": 4, "<|user|>": 5, "<|assistant|>": 6, "<|end|>": 7}
+FOLLOWUP_MAX_STEPS = 1_000
+FOLLOWUP_LEARNING_RATES = {3e-4, 5e-4, 1e-3}
+EVALUATION_PREFIX_LENGTHS = (16, 32, 64, 128)
+PREPARED_FILES = (
+    "overfit-dataset.jsonl",
+    "tokenized-documents.jsonl",
+    "train.jsonl",
+    "dataset-manifest.json",
+    "tokenization-manifest.json",
+    "packing-manifest.json",
+)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -110,8 +123,10 @@ class Gate7OverfitConfig:
                     self.generation_prefix_tokens, self.generation_target_tokens)
         if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in integers):
             raise TrainingError("GATE7_CONFIG_INVALID", "Gate 7 정수 설정이 유효하지 않습니다.")
-        if not 1 <= self.document_count <= 64 or not 1 <= self.max_steps <= 500 or self.context_length != 256:
-            raise TrainingError("GATE7_SCOPE_EXCEEDED", "문서 64개·500 step·context 256 상한을 위반했습니다.")
+        if not 1 <= self.document_count <= 64 or not 1 <= self.max_steps <= FOLLOWUP_MAX_STEPS or self.context_length != 256:
+            raise TrainingError("GATE7_SCOPE_EXCEEDED", "문서 64개·1,000 step·context 256 상한을 위반했습니다.")
+        if float(self.learning_rate) not in FOLLOWUP_LEARNING_RATES:
+            raise TrainingError("GATE7_SCOPE_EXCEEDED", "승인된 learning rate 후보는 3e-4, 5e-4, 1e-3입니다.")
         if min(self.max_document_characters, self.max_document_bytes, self.micro_batch_size, self.gradient_accumulation_steps) <= 0:
             raise TrainingError("GATE7_CONFIG_INVALID", "크기와 batch 설정은 양수여야 합니다.")
         if self.packing_mode != "continuous" or self.packing_remainder != "pad":
@@ -199,7 +214,7 @@ def _validate_approval(config: Gate7OverfitConfig, path: Path) -> dict[str, Any]
     if identity != {"corpus_fingerprint": EXPECTED_CORPUS, "tokenizer_fingerprint": EXPECTED_TOKENIZER,
                     "model_sha256": EXPECTED_MODEL, "vocab_sha256": EXPECTED_VOCAB}:
         raise TrainingError("GATE7_IDENTITY_MISMATCH", "승인 artifact identity가 일치하지 않습니다.")
-    if limits.get("document_count_max") != 64 or limits.get("step_max") != 500 or config.document_count > 64 or config.max_steps > 500:
+    if limits.get("document_count_max") != 64 or limits.get("step_max") != FOLLOWUP_MAX_STEPS or config.document_count > 64 or config.max_steps > FOLLOWUP_MAX_STEPS:
         raise TrainingError("GATE7_SCOPE_EXCEEDED", "승인된 문서/step 상한을 초과했습니다.")
     required = {"pretraining": "not_approved", "gate7_status_change": "not_approved", "validation_use": "not_approved",
                 "evaluation_benchmark_use": "not_approved", "redistribution": "not_approved"}
@@ -433,35 +448,329 @@ def _load_prepared(config: Gate7OverfitConfig, run_id: str) -> tuple[Gate7Paths,
     return paths, dataset, tokenization, packing
 
 
-def _generation_metrics(model: DohaLMTiny, tokenized_path: Path, config: Gate7OverfitConfig, device: torch.device) -> dict[str, Any]:
-    first = json.loads(tokenized_path.open("r", encoding="utf-8").readline())
-    ids = [token for token in first["input_ids"] if token not in {0}]
-    prefix_len = min(config.generation_prefix_tokens, max(1, len(ids) - config.generation_target_tokens))
-    target = ids[prefix_len: prefix_len + config.generation_target_tokens]
-    prefix = ids[:prefix_len]
-    model.eval()
-    input_ids = torch.tensor([prefix], dtype=torch.long, device=device)
-    generated = model.generate(input_ids, max_new_tokens=len(target), eos_token_id=3)[0].detach().cpu().tolist()[prefix_len:]
-    compared = min(len(generated), len(target))
-    accuracy = sum(generated[index] == target[index] for index in range(compared)) / max(1, len(target))
-    exact = generated == target
+def clone_gate7_prepared(config: Gate7OverfitConfig, source_run_id: str, run_id: str) -> dict[str, Any]:
+    """Copy an immutable prepared dataset into a new follow-up run root."""
+
+    source_paths, dataset, tokenization, packing = _load_prepared(config, source_run_id)
+    target_paths = resolve_gate7_paths(config, run_id)
+    _validate_approval(config, target_paths.approval_manifest)
+    if source_paths.output_root == target_paths.output_root or target_paths.output_root.exists():
+        raise TrainingError("GATE7_OUTPUT_EXISTS", "source와 target run은 달라야 하며 target은 존재하지 않아야 합니다.")
+    target_paths.output_root.parent.mkdir(parents=True, exist_ok=True)
+    staging = target_paths.output_root.with_name(f".{target_paths.output_root.name}.staging-{os.getpid()}")
+    staging.mkdir()
+    try:
+        for name in PREPARED_FILES:
+            shutil.copy2(source_paths.output_root / name, staging / name)
+        _write_json(staging / "run-config-resolved.json", {
+            "config": config.to_dict(),
+            "config_fingerprint": checksum_value(config.to_dict()),
+            "logical_external_root": "configured_external_root",
+            "run_id": run_id,
+            "prepared_source_run_id": source_run_id,
+            "prepared_files": {name: file_checksum(staging / name) for name in PREPARED_FILES},
+        })
+        os.replace(staging, target_paths.output_root)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    return {
+        "status": "cloned_prepared_artifacts",
+        "run_id": run_id,
+        "source_run_id": source_run_id,
+        "dataset_fingerprint": dataset["dataset_fingerprint"],
+        "tokenization_fingerprint": tokenization["tokenization_fingerprint"],
+        "packing_fingerprint": packing["packing_fingerprint"],
+        "document_count": dataset["document_count"],
+        "sequence_count": packing["sequence_count"],
+    }
+
+
+def _classification_counts(logits: torch.Tensor, targets: torch.Tensor) -> dict[str, float | int]:
+    """Return shifted-token classification totals for already aligned logits and targets."""
+
+    if logits.ndim != 2 or targets.ndim != 1 or logits.shape[0] != targets.shape[0] or not targets.numel():
+        raise TrainingError("GATE7_EVALUATION_INVALID", "aligned logits와 targets shape이 유효하지 않습니다.")
+    predictions = logits.argmax(dim=-1)
+    top_k = min(5, logits.shape[-1])
+    top5 = logits.topk(top_k, dim=-1).indices
+    losses = functional.cross_entropy(logits.float(), targets, reduction="none")
+    return {
+        "token_count": int(targets.numel()),
+        "top1_count": int((predictions == targets).sum().item()),
+        "top5_count": int((top5 == targets.unsqueeze(-1)).any(dim=-1).sum().item()),
+        "loss_sum": float(losses.sum().item()),
+    }
+
+
+def _float_percentile(values: list[float], fraction: float) -> float:
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, math.ceil(len(ordered) * fraction) - 1)]
+
+
+def _teacher_forced_metrics(model: DohaLMTiny, rows: list[dict[str, Any]], config: Gate7OverfitConfig,
+                            device: torch.device) -> dict[str, Any]:
+    totals = {"token_count": 0, "top1_count": 0, "top5_count": 0, "loss_sum": 0.0}
+    document_top1: list[float] = []
+    for row in rows:
+        ids = [int(token) for token in row["input_ids"] if token != 0]
+        document_correct = document_tokens = 0
+        start = 0
+        while start < len(ids) - 1:
+            window = ids[start:start + config.context_length]
+            if len(window) < 2:
+                break
+            inputs = torch.tensor([window], dtype=torch.long, device=device)
+            mask = torch.ones_like(inputs, dtype=torch.bool)
+            with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+                output = model(inputs, attention_mask=mask)
+            aligned = _classification_counts(output.logits[0, :-1], inputs[0, 1:])
+            for key in totals:
+                totals[key] += aligned[key]
+            document_correct += int(aligned["top1_count"])
+            document_tokens += int(aligned["token_count"])
+            start += config.context_length - 1
+        if document_tokens:
+            document_top1.append(document_correct / document_tokens)
+    token_count = int(totals["token_count"])
+    return {
+        "document_count": len(document_top1),
+        "target_token_count": token_count,
+        "next_token_top1_accuracy": int(totals["top1_count"]) / token_count,
+        "next_token_top5_accuracy": int(totals["top5_count"]) / token_count,
+        "mean_token_loss": float(totals["loss_sum"]) / token_count,
+        "perplexity": math.exp(min(float(totals["loss_sum"]) / token_count, 80.0)),
+        "document_top1_accuracy": {
+            "min": min(document_top1),
+            "p50": _float_percentile(document_top1, 0.5),
+            "p90": _float_percentile(document_top1, 0.9),
+            "max": max(document_top1),
+            "mean": sum(document_top1) / len(document_top1),
+        },
+        "context_window_policy": "non_overlapping_targets_with_one_token_context_overlap",
+        "evaluation_condition": "document_rebased_to_position_zero",
+    }
+
+
+def _packed_teacher_forced_metrics(model: DohaLMTiny, rows: list[dict[str, Any]],
+                                   device: torch.device) -> dict[str, Any]:
+    """Evaluate the exact packed sequences and absolute positions used by training."""
+
+    totals = {"token_count": 0, "top1_count": 0, "top5_count": 0, "loss_sum": 0.0}
+    sequence_top1: list[float] = []
+    for row in rows:
+        inputs = torch.tensor([row["input_ids"]], dtype=torch.long, device=device)
+        labels = torch.tensor(row["labels"], dtype=torch.long, device=device)
+        mask = torch.tensor([row["attention_mask"]], dtype=torch.bool, device=device)
+        if inputs.shape != mask.shape or labels.shape[0] != inputs.shape[1]:
+            raise TrainingError("GATE7_EVALUATION_INVALID", "packed evaluation row shapes do not match")
+        with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+            output = model(inputs, attention_mask=mask)
+        targets = labels[1:]
+        valid = (targets != -100) & mask[0, 1:]
+        if not valid.any():
+            continue
+        aligned = _classification_counts(output.logits[0, :-1][valid], targets[valid])
+        for key in totals:
+            totals[key] += aligned[key]
+        sequence_top1.append(int(aligned["top1_count"]) / int(aligned["token_count"]))
+    token_count = int(totals["token_count"])
+    if not token_count or not sequence_top1:
+        raise TrainingError("GATE7_EVALUATION_INVALID", "packed evaluation contains no target tokens")
+    mean_loss = float(totals["loss_sum"]) / token_count
+    return {
+        "sequence_count": len(sequence_top1),
+        "target_token_count": token_count,
+        "next_token_top1_accuracy": int(totals["top1_count"]) / token_count,
+        "next_token_top5_accuracy": int(totals["top5_count"]) / token_count,
+        "mean_token_loss": mean_loss,
+        "perplexity": math.exp(min(mean_loss, 80.0)),
+        "sequence_top1_accuracy": {
+            "min": min(sequence_top1),
+            "p50": _float_percentile(sequence_top1, 0.5),
+            "p90": _float_percentile(sequence_top1, 0.9),
+            "max": max(sequence_top1),
+            "mean": sum(sequence_top1) / len(sequence_top1),
+        },
+        "evaluation_condition": "exact_training_packing_and_absolute_positions",
+        "padding_targets_excluded": True,
+    }
+
+
+def _autoregressive_prefix_metrics(model: DohaLMTiny, ids: list[int], prefix_length: int, target_length: int,
+                                   device: torch.device) -> dict[str, Any]:
+    prefix = ids[:prefix_length]
+    target = ids[prefix_length:prefix_length + target_length]
     full = torch.tensor([prefix + target], dtype=torch.long, device=device)
-    labels = full.clone()
-    labels[:, :prefix_len] = -100
-    with torch.no_grad(), torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
-        loss = model(full, labels=labels).loss
-    return {"prefix_token_count": prefix_len, "target_token_count": len(target), "generated_token_count": len(generated),
-            "exact_continuation_match": exact, "token_accuracy": accuracy, "continuation_loss": float(loss.detach().float().cpu().item()),
-            "adjacent_repeat_count": sum(generated[i] == generated[i - 1] for i in range(1, len(generated))),
-            "eos_generated": 3 in generated, "special_token_exposure_count": sum(token < 8 for token in generated), "text_values_stored": False}
+    full_mask = torch.ones_like(full, dtype=torch.bool)
+    with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
+        output = model(full, attention_mask=full_mask)
+    target_logits = output.logits[0, prefix_length - 1:prefix_length - 1 + len(target)]
+    teacher = _classification_counts(target_logits, full[0, prefix_length:prefix_length + len(target)])
+    prompt = full[:, :prefix_length]
+    prompt_mask = full_mask[:, :prefix_length]
+    generated_full = model.generate(prompt, max_new_tokens=len(target), eos_token_id=3, attention_mask=prompt_mask)
+    generated = generated_full[0, prefix_length:].detach().cpu().tolist()
+    matches = [index < len(generated) and generated[index] == target[index] for index in range(len(target))]
+    prefix_match = 0
+    for matched in matches:
+        if not matched:
+            break
+        prefix_match += 1
+
+    def first_accuracy(limit: int) -> float:
+        count = min(limit, len(target))
+        return sum(matches[:count]) / count
+
+    return {
+        "prefix_token_count": prefix_length,
+        "target_token_count": len(target),
+        "generated_token_count": len(generated),
+        "teacher_forced_top1_accuracy": int(teacher["top1_count"]) / int(teacher["token_count"]),
+        "teacher_forced_top5_accuracy": int(teacher["top5_count"]) / int(teacher["token_count"]),
+        "continuation_loss": float(teacher["loss_sum"]) / int(teacher["token_count"]),
+        "first_target_token_accuracy": float(bool(matches and matches[0])),
+        "first_4_token_accuracy": first_accuracy(4),
+        "first_8_token_accuracy": first_accuracy(8),
+        "first_16_token_accuracy": first_accuracy(16),
+        "exact_continuation_match": len(generated) == len(target) and all(matches),
+        "token_prefix_match_length": prefix_match,
+        "eos_generated": 3 in generated,
+        "special_token_exposure_count": sum(token < 8 for token in generated),
+        "adjacent_repeat_count": sum(generated[index] == generated[index - 1] for index in range(1, len(generated))),
+        "unique_token_ratio": len(set(generated)) / len(generated) if generated else 0.0,
+        "prompt_last_logit_index": prefix_length - 1,
+        "target_start_index": prefix_length,
+        "text_values_stored": False,
+    }
+
+
+def evaluate_gate7_model(model: DohaLMTiny, tokenized_path: Path, packed_path: Path,
+                         config: Gate7OverfitConfig, device: torch.device) -> dict[str, Any]:
+    document_rows = [json.loads(line) for line in tokenized_path.read_text(encoding="utf-8").splitlines() if line]
+    packed_rows = [json.loads(line) for line in packed_path.read_text(encoding="utf-8").splitlines() if line]
+    if len(document_rows) != config.document_count:
+        raise TrainingError("GATE7_EVALUATION_INVALID", "평가 문서 수가 승인 dataset과 다릅니다.")
+    minimum_length = max(EVALUATION_PREFIX_LENGTHS) + config.generation_target_tokens
+    probe_index = next((index for index, row in enumerate(packed_rows)
+                        if sum(bool(value) for value in row.get("attention_mask", [])) >= minimum_length), None)
+    probe = packed_rows[probe_index] if probe_index is not None else None
+    if probe is None:
+        raise TrainingError("GATE7_EVALUATION_INVALID", "prefix 비교에 충분한 token sequence가 없습니다.")
+    valid_count = sum(bool(value) for value in probe["attention_mask"])
+    probe_ids = [int(token) for token in probe["input_ids"][:valid_count]]
+    if not probe_ids:
+        raise TrainingError("GATE7_EVALUATION_INVALID", "평가 probe의 BOS/EOS 계약이 깨졌습니다.")
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.inference_mode():
+            packed_teacher = _packed_teacher_forced_metrics(model, packed_rows, device)
+            document_teacher = _teacher_forced_metrics(model, document_rows, config, device)
+            prefixes = [
+                _autoregressive_prefix_metrics(model, probe_ids, prefix, config.generation_target_tokens, device)
+                for prefix in EVALUATION_PREFIX_LENGTHS
+            ]
+    finally:
+        model.train(was_training)
+    return {
+        "packed_teacher_forced": packed_teacher,
+        "document_rebased_teacher_forced": document_teacher,
+        "autoregressive": {
+            "probe_source": "packed_training_sequence",
+            "probe_sequence_index": probe_index,
+            "prefixes": prefixes,
+            "decoded_text_evaluated": False,
+        },
+        "alignment": {
+            "causal_shift": "logits[t] predicts input_ids[t+1]",
+            "first_target_prediction": "logits[prefix_length-1] predicts input_ids[prefix_length]",
+            "bos_id": 2,
+            "eos_id": 3,
+            "padding_in_probe": valid_count != len(probe["input_ids"]),
+            "attention_mask": "training_packed_attention_mask",
+            "context_truncation": False,
+            "kv_cache": False,
+            "special_token_suppression": False,
+            "eos_termination": True,
+            "max_new_tokens": config.generation_target_tokens,
+            "token_id_metrics_primary": True,
+            "primary_teacher_forced_condition": "exact_training_packing_and_absolute_positions",
+            "document_rebased_metrics_secondary": True,
+        },
+        "text_values_stored": False,
+    }
+
+
+def evaluate_gate7_checkpoint(config: Gate7OverfitConfig, run_id: str, *, attempt: str, checkpoint_name: str) -> dict[str, Any]:
+    _relative_path("attempt", attempt)
+    if Path(checkpoint_name).name != checkpoint_name or not checkpoint_name.startswith("checkpoint-"):
+        raise TrainingError("GATE7_PATH_INVALID", "checkpoint는 단순 checkpoint 이름이어야 합니다.")
+    paths, dataset, tokenization, packing = _load_prepared(config, run_id)
+    checkpoint = paths.output_root / attempt / checkpoint_name
+    inspection = CheckpointManager.inspect(checkpoint)
+    if inspection.dataset_fingerprint != dataset["dataset_fingerprint"] or inspection.tokenizer_fingerprint != EXPECTED_TOKENIZER:
+        raise TrainingError("GATE7_IDENTITY_MISMATCH", "checkpoint와 prepared artifact identity가 다릅니다.")
+    device = torch.device(config.device)
+    model = DohaLMTiny(ModelConfig()).to(device)
+    model.load_state_dict(torch.load(checkpoint / "model.pt", map_location=device, weights_only=True), strict=True)
+    metrics = evaluate_gate7_model(model, paths.output_root / "tokenized-documents.jsonl",
+                                   paths.output_root / "train.jsonl", config, device)
+    return {
+        "run_id": run_id,
+        "attempt": attempt,
+        "checkpoint": inspection.to_dict(),
+        "dataset_fingerprint": dataset["dataset_fingerprint"],
+        "tokenization_fingerprint": tokenization["tokenization_fingerprint"],
+        "packing_fingerprint": packing["packing_fingerprint"],
+        "evaluation": metrics,
+    }
+
+
+def _process_memory() -> dict[str, Any]:
+    if os.name != "nt":
+        return {"source": "unavailable", "reason": "Windows Process Status API is only used on the approved runtime"}
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", ctypes.c_ulong),
+            ("PageFaultCount", ctypes.c_ulong),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    counters = ProcessMemoryCounters()
+    counters.cb = ctypes.sizeof(counters)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+    psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(ProcessMemoryCounters), ctypes.c_ulong]
+    psapi.GetProcessMemoryInfo.restype = ctypes.c_int
+    handle = kernel32.GetCurrentProcess()
+    success = psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb)
+    if not success:
+        return {"source": "unavailable", "reason": "GetProcessMemoryInfo failed"}
+    return {
+        "source": "windows_psapi",
+        "working_set_bytes": int(counters.WorkingSetSize),
+        "peak_working_set_bytes": int(counters.PeakWorkingSetSize),
+    }
 
 
 def run_gate7_training(config: Gate7OverfitConfig, run_id: str, *, target_steps: int, save_every: int,
-                       attempt: str = "training", resume_checkpoint: str | None = None) -> dict[str, Any]:
+                       attempt: str = "training", resume_checkpoint: str | None = None,
+                       learning_rate: float | None = None) -> dict[str, Any]:
+    config = replace(config, learning_rate=learning_rate) if learning_rate is not None else config
     if not 1 <= target_steps <= config.max_steps or not 1 <= save_every <= target_steps:
         raise TrainingError("GATE7_SCOPE_EXCEEDED", "target/save step이 승인 범위를 벗어났습니다.")
     _relative_path("attempt", attempt)
-    paths, dataset_manifest, _, _ = _load_prepared(config, run_id)
+    paths, dataset_manifest, _, packing_manifest = _load_prepared(config, run_id)
     training_config = config.training_config(run_id=run_id, attempt=attempt, save_every=save_every)
     seed_everything(config.seed)
     dataset = TokenizedJsonlDataset(paths.output_root / "train.jsonl", context_length=config.context_length, vocab_size=16_000)
@@ -486,22 +795,23 @@ def run_gate7_training(config: Gate7OverfitConfig, run_id: str, *, target_steps:
         state_doc = json.loads((checkpoint / "training-state.json").read_text(encoding="utf-8"))
         previous_loss = state_doc["state"].get("last_loss")
         trainer.resume_from(checkpoint)
-    before = _generation_metrics(trainer.model, paths.output_root / "tokenized-documents.jsonl", config, trainer.device)
+    before = evaluate_gate7_model(trainer.model, paths.output_root / "tokenized-documents.jsonl",
+                                  paths.output_root / "train.jsonl", config, trainer.device)
     started = time.perf_counter()
     result = trainer.train(target_steps=target_steps)
     elapsed = time.perf_counter() - started
-    after = _generation_metrics(trainer.model, paths.output_root / "tokenized-documents.jsonl", config, trainer.device)
+    after = evaluate_gate7_model(trainer.model, paths.output_root / "tokenized-documents.jsonl",
+                                 paths.output_root / "train.jsonl", config, trainer.device)
     checkpoint = output_root / f"checkpoint-{target_steps}"
     inspection = CheckpointManager.inspect(checkpoint).to_dict() if checkpoint.is_dir() else None
     checkpoint_bytes = sum(item.stat().st_size for item in checkpoint.iterdir() if item.is_file()) if checkpoint.is_dir() else 0
     metrics = [item.to_dict() for item in result.metrics]
     losses = [item["loss"] for item in metrics]
-    cpu_rss = None
-    try:
-        import psutil
-        cpu_rss = psutil.Process().memory_info().rss
-    except ImportError:
-        pass
+    process_memory = _process_memory()
+    sequence_count = int(packing_manifest["sequence_count"])
+    sampler_state = result.state.sampler_state or {}
+    consumed_sequences = result.state.records_seen
+    consumed_tokens = result.state.tokens_seen
     summary = {
         "status": "completed_gate7_tiny_overfit_segment", "gate_effect": "none", "pretraining_effect": "none", "run_id": run_id,
         "attempt": attempt, "resumed_from": resume_checkpoint, "start_step": target_steps - len(metrics), "final_step": result.state.global_step,
@@ -510,12 +820,25 @@ def run_gate7_training(config: Gate7OverfitConfig, run_id: str, *, target_steps:
         "nonfinite_count": 0, "mean_tokens_per_second": sum(item["tokens_per_second"] for item in metrics) / len(metrics),
         "mean_step_time_seconds": sum(item["step_time"] for item in metrics) / len(metrics),
         "peak_vram_allocated_bytes": max(item["peak_memory_allocated"] for item in metrics),
-        "peak_vram_reserved_bytes": max(item["peak_memory_reserved"] for item in metrics), "cpu_rss_bytes": cpu_rss,
+        "peak_vram_reserved_bytes": max(item["peak_memory_reserved"] for item in metrics), "cpu_memory": process_memory,
         "checkpoint": inspection, "checkpoint_bytes": checkpoint_bytes, "checkpoint_save_seconds": trainer.checkpoints.last_save_seconds,
         "resume_loss_previous": previous_loss, "resume_first_loss": losses[0] if resume else None,
         "resume_loss_relative_delta": abs(losses[0] - previous_loss) / previous_loss if resume and previous_loss else None,
-        "generation_before": before, "generation_after": after,
+        "evaluation_before": before, "evaluation_after": after,
+        "sampler": {
+            "packed_sequence_count": sequence_count,
+            "consumed_sequence_count": consumed_sequences,
+            "consumed_token_count": consumed_tokens,
+            "equivalent_epoch": consumed_sequences / sequence_count,
+            "completed_dataset_repetitions": consumed_sequences // sequence_count,
+            "sampler_epoch": sampler_state.get("epoch"),
+            "sampler_cursor": sampler_state.get("sample_offset"),
+            "sampler_records_yielded": sampler_state.get("records_yielded"),
+            "sampler_batches_yielded": sampler_state.get("batches_yielded"),
+            "permutation_fingerprint": sampler_state.get("permutation_fingerprint"),
+        },
         "dataset_fingerprint": dataset_manifest["dataset_fingerprint"], "tokenizer_fingerprint": EXPECTED_TOKENIZER,
+        "packing_fingerprint": packing_manifest["packing_fingerprint"], "learning_rate": config.learning_rate,
         "training_config_fingerprint": training_config.fingerprint(), "training_resume_fingerprint": training_config.resume_fingerprint(),
         "python": sys.version.split()[0], "torch": torch.__version__, "cuda": torch.version.cuda, "device": str(trainer.device),
     }

@@ -13,7 +13,7 @@
 - [확정] 이 문서는 환경·설정·데이터·토크나이저·모델·학습·체크포인트·평가·로컬 추론·실험의 기능 경계와 구현 계약을 정의한다.
 - [확정] 문서 생명주기 상태 `implemented`와 아래 개별 기능 상태는 서로 다른 축이다.
 - [확정] Phase 0 기능은 실제 코드와 Gate 1 검증 근거가 있어 `verified`로 표시한다.
-- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐다. Phase 2의 승인 corpus와 운영 `operating-16k-v2/unigram-16k` bundle은 구현·검증·사용자 승인됐고 Gate 3은 `passed`다. Gate 7과 모델 학습은 `planned` 또는 미승인 상태다.
+- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐다. Phase 2의 승인 corpus와 운영 `operating-16k-v2/unigram-16k` bundle은 구현·검증·사용자 승인됐고 Gate 3은 `passed`다. 제한 Tiny Overfit 검증도 사용자 승인되어 Gate 7은 `passed`지만 Pilot·전체 Pretraining과 후속 모델 학습은 미승인이다.
 - [제외] FastAPI, Next.js, DB, 사용자 계정, 대화 기록 저장, 배포, 운영 모니터링과 Leaderboard 제출 기능은 이 문서 범위가 아니다.
 
 ## 2. 기능 상태와 필드 적용 규칙
@@ -441,7 +441,7 @@
 | 설정 항목 | batch·steps·LR·seed·loss 판정 기준 [검증 필요] |
 | 산출물 | experiment record·loss curve·checkpoint·sample·VRAM·failure record |
 | 보안·라이선스 | validation/test 데이터 사용 금지; fixture 목적·출처 명시 |
-| 현재 상태 | `implemented` — 반복 합성 batch 50-step loss 감소 준비 검증; 승인 fixture·생성·Gate 7은 `planned` |
+| 현재 상태 | `implemented` — 합성 준비 검증과 실제 Training 64문서의 packed overfit·생성·resume 검증 완료; Gate 7 `passed` |
 | 관련 문서 | [Trainer 테스트](../quality/trainer-testing.md), [사전학습 계획](../training/pretraining-plan.md), [실험 템플릿](../training/experiment-template.md), [개발 로드맵](../quality/development-roadmap.md) |
 
 ### 14.2 기능별 계약
@@ -575,13 +575,13 @@ flowchart LR
 | 학습 차단 | [확정] TRAIN은 approved data pipeline, tokenizer, integrated model과 resolved config 필요 |
 | 복원 차단 | [확정] CKPT는 model·optimizer·scheduler·AMP·RNG·sampler state 계약 없이는 Done 불가 |
 | 평가 차단 | [확정] EVAL 비교는 fixed split·tokenizer·context·mask와 compatible checkpoint 필요 |
-| 장시간 학습 차단 | [확정] overfit·resume·VRAM과 Gate 7 통과 전 Tiny 장시간 사전학습을 제안하지 않음 |
+| 장시간 학습 차단 | [확정] Gate 7 통과 후에도 목적별 corpus·PII·split·config·storage와 Pilot/Pretraining 사용자 승인 전 장시간 사전학습을 제안하지 않음 |
 | 서비스 차단 | [확정] FastAPI·Next.js 기능명세와 구현은 최소 INFER 검증 이후 Gate 10에서 별도 진행 |
 
 ## 19. 미결정 사항
 
 - [검증 필요] 데이터 최대 text 길이·metadata 깊이, split 기본 비율·허용 오차·validation/test 0 허용 여부, 실제 config schema·구현 symbol과 후속 near dedup·PII 탐지 방식; Phase 1의 SHA-256·NFC·exact dedup·group split schema는 [Phase 1 데이터 계약](../data/phase1-data-contract.md) 참조
-- [확정] 운영 tokenizer의 character coverage 1.0, byte fallback, SentencePiece 세부 option, corpus fingerprint와 외부 artifact 논리 위치는 Phase 2 계약과 승인 manifest를 따른다. 모델 학습 입력으로 사용하는 것은 Gate 7 별도 승인 전 금지한다.
+- [확정] 운영 tokenizer의 character coverage 1.0, byte fallback, SentencePiece 세부 option, corpus fingerprint와 외부 artifact 논리 위치는 Phase 2 계약과 승인 manifest를 따른다. Gate 7 Tiny Overfit 외 모델 학습 입력으로 사용하는 것은 목적별 별도 승인 전 금지한다.
 - [검증 필요] Dropout, 초기화, padding mask dtype·broadcast와 loss shift의 최종 책임 위치
 - [검증 필요] micro-batch, accumulation, checkpointing 기본값, LR, warmup, weight decay, clipping, token budget과 interval
 - [검증 필요] checkpoint format version, atomic replace 방식, checksum, migration과 retention
@@ -595,7 +595,7 @@ flowchart LR
 - [확정] 모든 기능은 공통·기능별 계약을 결합해 ID, 이름, 영역, 목적, Phase, Gate, 선행 조건, 입력, 출력, 처리, 오류, 설정, 산출물, 보안·라이선스, 테스트, 완료 기준, 상태와 관련 문서를 갖는다.
 - [확정] 기능 ID는 영역별 namespace에서 고유하며 중복을 허용하지 않는다.
 - [확정] Tiny 수치는 ADR-002와 일치하고 미결정 hyperparameter는 확정하지 않았다.
-- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 2 운영 tokenizer, Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 3·4·5·6은 사용자 승인으로 `passed`이고 Gate 7은 `planned`이며 실제 모델 학습 완료를 주장하지 않는다.
+- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 2 운영 tokenizer, Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 3·4·5·6·7은 사용자 승인으로 `passed`이며 실제 모델 학습 완료 주장은 제한 Tiny Overfit Validation에만 적용한다.
 - [확정] Phase 1 검증은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
 - [확정] 서비스 기능은 포함하지 않고 최소 로컬 추론 경계까지만 정의한다.
 - [검증 필요] 각 구현 작업은 해당 기능 행을 테스트 ID·코드 symbol·실제 artifact에 연결하고 완료 시 상태를 갱신해야 한다.
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] 실제 Training 64문서 packed Tiny Overfit, exact continuation과 checkpoint/resume의 사용자 최종 승인으로 Gate 7 `passed`를 반영하고 Pilot·전체 Pretraining 차단을 유지함 |
 | 2026-07-26 | [확정] `operating-16k-v2/unigram-16k` 최종 승인과 Gate 3 `passed`를 반영하고 BPE 비교 전용·Gate 7 및 모델 학습 미승인 경계를 유지함 |
 | 2026-07-24 | [확정] 지정 evidence·proposal fingerprint와 514개 테스트에 대한 사용자 승인으로 Gate 4·5·6 `passed`를 반영하고 Gate 3·7 및 실제 데이터 경계를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer·AMP·accumulation·checkpoint/resume와 50-step loss 감소 준비 검증을 반영하고 운영 사전학습·Gate 6·7과 구분함 |

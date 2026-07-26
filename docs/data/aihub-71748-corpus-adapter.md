@@ -13,7 +13,7 @@
 - [확정] 구현과 테스트는 실제 AI Hub 원문을 복사하지 않은 synthetic fixture만 사용했다.
 - [확정] 기존 `src/data/adapters/aihub_71748.py`와 `scripts/datasets/adapt_aihub_71748.py`는 회귀 검증을 위해 synthetic fixture 전용으로 유지한다.
 - [확정] 2026-07-26 사용자 승인에 따라 별도 전용 진입점이 Training의 `data_info[].contents`만 제한 처리한다. Validation·RLHF·라벨링·metadata는 입력하지 않는다.
-- [확정] corpus·후보 생성은 tokenizer development에만 승인됐고 모델 학습 승인이 아니다. 2026-07-26 사용자 최종 승인으로 Gate 3은 `passed`, 제한 Adapter 작업은 `completed`이며 Gate 7은 `planned`를 유지한다.
+- [확정] corpus·후보 생성은 tokenizer development에만 승인됐고 모델 학습 승인이 아니다. 2026-07-26 사용자 최종 승인으로 Gate 3과 제한 Adapter 작업이 완료됐으며, 별도 Tiny Overfit 검증 승인으로 2026-07-27 Gate 7은 `passed`다. Pilot·전체 Pretraining은 미승인이다.
 
 ## 2. 합성 Adapter 입력 schema
 
@@ -39,7 +39,7 @@ accepted record는 `record_id`, `dataset_id`, `source_record_hash`, `text_origin
 | usage·split | tokenizer development만 허용 |
 | Adapter | `completed_tokenizer_development_only` |
 | Gate 3 | `passed` |
-| Gate 7 | `planned` |
+| Gate 7 | `passed` — 별도 Tiny Overfit 검증 근거 |
 
 ## 4. 실제 데이터의 제한 활성화
 
