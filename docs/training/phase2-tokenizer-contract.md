@@ -7,12 +7,12 @@
 | 문서 상태 | `approved` |
 | 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [데이터셋 승인 로그](../data/dataset-approval-log.md), [평가 제외 목록](../data/evaluation-exclusion-list.md), [토크나이저 설계](./tokenizer-design.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서·작업 | 별도 사용자 승인 후 [사전학습 계획](./pretraining-plan.md)과 Gate 7 검증 |
+| 후속 문서·작업 | Gate 7 통과 후 별도 사용자 승인에 따른 [사전학습 계획](./pretraining-plan.md)과 Pilot readiness 보완 |
 | 구현 전 필수 여부 | Phase 2 구현 전 예 |
 
 - [확정] 이 문서는 Phase 2 구현에 적용할 corpus 입력, SentencePiece 학습 설정, vocabulary, special token, 산출물, fingerprint, encode/decode, 평가와 호환성 계약의 단일 기준이다.
-- [확정] 문서 상태 `approved`는 2026-07-26 사용자 최종 승인과 Gate 3 통과를 반영하며 Gate 7 또는 모델 학습 승인을 의미하지 않는다.
-- [확정] Gate 1~6은 `passed`, Gate 7은 `planned`이며 Phase 1 DATA-001~016은 `verified`다.
+- [확정] 문서 상태 `approved`는 2026-07-26 사용자 최종 승인과 Gate 3 통과를 반영한다. Gate 7은 별도 Tiny Overfit 증거로 2026-07-27 `passed`가 됐으며 이는 Pilot·전체 Pretraining 승인이 아니다.
+- [확정] Gate 1~7은 `passed`이며 Phase 1 DATA-001~016은 `verified`다.
 - [확정] SentencePiece `0.2.2` 의존성과 [synthetic smoke pipeline](./tokenizer-smoke.md)은 구현·검증됐다.
 - [확정] AIHUB-71748 제한 Training corpus, 16,000 vocabulary 후보 비교와 운영 v2 Unigram 8개 산출물은 구현·검증·승인됐다.
 
@@ -462,7 +462,7 @@ Gate 3은 2026-07-26 사용자 최종 승인으로 `passed`다. 통과 근거는
 - [확정] 전체 대규모 pretraining corpus 확보는 Gate 3와 별도일 수 있으나 최종 운영 tokenizer는 실제 사전학습 분포를 대표하는 승인 corpus로 다시 검증해야 한다.
 - [확정] [AIHUB-71748 16k 후보 평가](./aihub-71748-operating-tokenizer-evaluation.md)는 v1 무결성, v2 Unigram/BPE 실제 표본 UNK 0%, exact·ID round-trip 100%, 19개 synthetic probe 실패 0건을 확인했다.
 - [확정] 별도 경로 재학습은 vocab checksum·표본 encode ID가 일치했고 출력별 trainer metadata만 binary fingerprint 차이를 만들었다. 사용자는 이를 functional reproduction으로 승인하고 v2 Unigram을 최종 운영 tokenizer로 선택했다.
-- [확정] Gate 3 통과는 tokenizer 단계 완료만 의미하며 Gate 7, Pretraining, Tiny Overfit과 모델 학습은 계속 미승인이다.
+- [확정] Gate 3 통과는 tokenizer 단계 완료만 의미한다. 이후 별도 사용자 승인으로 Tiny Overfit과 Gate 7은 완료됐지만 Pretraining과 후속 모델 학습은 계속 미승인이다.
 
 ## 31. DATA→TOK→MODEL 계보
 

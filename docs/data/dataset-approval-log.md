@@ -76,12 +76,13 @@
 | 검토일 | Dataset ID | 용도 | 이전 상태 | 새 상태 | 결정자 | 근거 | 허용 범위 | 금지 범위 | 재검토 조건 | 관련 문서 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-07-27 | `AIHUB-71748` | Gate 7 Tiny Overfit 전용 | `overfit: not_approved`, `Gate 7: planned` | `overfit: approved_bounded_experiment`, `Gate 7: planned` | 사용자 | 운영 v2 Unigram identity와 Training 64문서·500-step 상한의 명시 승인 | Training `data_info[].contents`, 외부 제한 파생 dataset, tokenization·packing, DohaLM-Tiny CUDA FP16, checkpoint/resume·수치 생성 검증 | Validation·evaluation·benchmark, 전체 Pretraining·Pilot, SFT·RLHF·Preference, 500 step 초과, Gate 상태 변경, 공개·재배포 | 64문서 memorization·생성 개선 보완 evidence와 사용자 Gate 판정 | [제한 승인 manifest](./aihub-71748-gate7-tiny-overfit-approval.manifest.yaml), [실행 결과](../training/aihub-71748-gate7-tiny-overfit.md) |
+| 2026-07-27 | `AIHUB-71748` | Gate 7 Tiny Overfit 최종 승인 | `overfit: approved_bounded_experiment`, `Gate 7: planned` | `overfit: approved`, `Gate 7: passed` | 사용자 | 동일 64문서·운영 tokenizer·packed sequence의 1,000-step loss 0.006732, packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume·fingerprint·571 tests | Tiny Overfit Validation 승인, Actual Corpus Training Pipeline 및 Checkpoint/Resume Validation 완료 기록 | Pilot·전체 Pretraining, 데이터 확대, Validation·evaluation·benchmark, SFT·RLHF·Preference, 공개·재배포 | dataset/tokenizer/packing identity 변경, Gate 증거 회귀, 목적 확대 | [최종 검증](../training/aihub-71748-gate7-tiny-overfit.md), [승인 manifest](./aihub-71748-gate7-tiny-overfit-approval.manifest.yaml), [개발 로드맵](../quality/development-roadmap.md) |
 
-- [확정] 제한 실험은 500 step에서 loss 감소와 복원을 확인했지만 exact continuation을 재현하지 못했다. 이 이벤트는 Pretraining 승인이나 Gate 7 통과가 아니다.
+- [확정] 최초 제한 실험은 500 step에서 exact continuation을 재현하지 못했지만, 동일 dataset 보완 검증은 1,000 step에서 Gate 7 기준을 충족해 사용자 최종 승인을 받았다. 이는 Pretraining 승인이 아니다.
 
 ## 4. 용도별 승인 snapshot
 
-모든 값은 2026-07-26 기준이다. `AIHUB-71748`의 tokenizer development와 v2 Unigram 운영 후보만 승인됐으며 다른 목적별 승인값은 변경하지 않는다.
+모든 값은 2026-07-27 기준이다. `AIHUB-71748`의 tokenizer development, v2 Unigram 운영 후보와 제한 Tiny Overfit만 승인됐으며 다른 목적별 승인값은 변경하지 않는다.
 
 | Dataset ID | tokenizer | pretraining | SFT | preference | evaluation | tokenizer artifact 공개 | model weight 공개 | 상업 서비스 | 해외 cloud |
 |---|---|---|---|---|---|---|---|---|---|
@@ -93,6 +94,7 @@
 
 - [확정] tokenizer development 승인 1건은 Pretraining·SFT·Preference·평가·artifact 공개·상업 서비스 승인이 아니다.
 - [확정] 2026-07-27 제한 Tiny Overfit 승인은 위 용도별 snapshot의 Pretraining 또는 evaluation 승인을 변경하지 않는다.
+- [확정] Tiny Overfit은 `approved`, Gate 7은 `passed`다. 이는 Pilot 또는 전체 Pretraining 목적 승인이 아니다.
 - [확정] 운영 tokenizer는 `operating-16k-v2/unigram-16k`, 후보 상태는 `approved`, tokenizer development Adapter 상태는 `completed`다.
 - [확정] `AIHUB-71748`은 `downloaded_restricted`이며, 나머지 4개 후보의 문서상 `download_status`는 `not_requested`다.
 - [확정] `downloaded_restricted`는 존재 확인일 뿐 처리·sample 검사·학습 허가가 아니다.
@@ -118,6 +120,7 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] 동일 64문서 1,000-step packed memorization과 checkpoint/resume 증거의 사용자 최종 승인으로 Tiny Overfit을 `approved`, Gate 7을 `passed`로 기록하고 Pretraining 미승인을 유지함 |
 | 2026-07-27 | [확정] AIHUB-71748 Training 64문서·500-step Gate 7 전용 실험 승인과 실행 결과를 기록하고 Gate 7 `planned`·Pretraining 미승인을 유지함 |
 | 2026-07-26 | [확정] v2 Unigram을 운영 tokenizer로 승인하고 functional reproduction 기준·Gate 3 `passed`·Adapter 완료를 기록함 |
 | 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스 승인과 6 Record 값 비노출 schema 검토를 기록하고 tokenizer `under_review`를 유지함 |

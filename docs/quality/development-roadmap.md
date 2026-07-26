@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-26 |
+| 마지막 검토일 | 2026-07-27 |
 | 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](../architecture/system-architecture.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](./test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](../project/version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) |
 | 구현 전 필수 여부 | 예 |
@@ -24,7 +24,7 @@
 | 3. 모델 구성요소 | 핵심 layer를 독립 검증 | Phase 0, ADR-002 | Config, token/position embedding, causal self-attention, MHA, FFN, Pre-LN, block, LM Head, weight tying | 직접 구현 모듈·단위 테스트 | shape, causal mask, backward, dtype/device, error, tying alias | Gate 1·모델 문서 승인 | Gate 4 통과 | 해당 구성요소·Config | [확정] 구성요소와 단위 테스트 및 통합 evidence를 검증하고 사용자 승인으로 Gate 4 `passed` |
 | 4. 모델 통합 | DohaLM-Tiny forward·생성 연결 | Phase 2·3 | 전체 forward, loss, parameter count, dtype/device, causal mask, 최소 generation | 통합 model·loss·generation | count 16,889,856, logits shape, shift, mask, forward/backward, deterministic generation | Gate 3·4 통과 | Gate 5 통과 | Phase 2 또는 3 | [확정] 합성 token 기반 구현·CPU/CUDA 검증과 사용자 승인 완료, Gate 5 `passed`; 제한 Gate 7 실험에서 운영 tokenizer 연결 검증 |
 | 5. 학습 기반 | 재개 가능한 학습 loop 구축 | Phase 1·4 | Dataset/DataLoader, AdamW, scheduler, FP16 AMP, accumulation, clipping, checkpoint, resume, log | trainer·checkpoint·log 계약 | smoke update, AMP, accumulation equivalence 후보, round-trip, resume, NaN/Inf | Gate 5 통과 | Gate 6 통과 | Phase 1 데이터 또는 4 모델 | [확정] 합성 Foundation과 실제 Tiny 규모 sampler·cosine 후보·CUDA FP16·checkpoint/resume·VRAM evidence를 사용자 승인해 Gate 6 `passed`; 실제 사전학습 미실행 |
-| 6. 초소형 검증 | 장시간 학습 전 end-to-end 검증 | Phase 5 | 단일 batch·극소량 overfit, loss 감소, round-trip, resume, sample, CUDA peak VRAM | overfit 실험 기록·checkpoint·sample | overfit, resume 연속성, 생성, peak allocated/reserved | Gate 6 통과·experiment ready | Gate 7 통과 | Phase 4·5 | [검증 필요] 실제 Training 64문서·운영 tokenizer로 500-step loss 감소와 resume·VRAM은 확인했으나 exact continuation 실패로 Gate 7 미완료 |
+| 6. 초소형 검증 | 장시간 학습 전 end-to-end 검증 | Phase 5 | 단일 batch·극소량 overfit, loss 감소, round-trip, resume, sample, CUDA peak VRAM | overfit 실험 기록·checkpoint·sample | overfit, resume 연속성, 생성, peak allocated/reserved | Gate 6 통과·experiment ready | Gate 7 통과 | Phase 4·5 | [확정] 실제 Training 64문서·운영 tokenizer의 1,000-step packed overfit, exact continuation, resume와 자원 검증을 사용자 승인해 Gate 7 `passed` |
 | 7. Tiny 소규모 사전학습 | 승인 데이터로 Tiny pilot 수행 | Phase 6, 승인 데이터 | 고정 validation, 중간 평가, 실패 복구, 자원 기록, 최종 checkpoint | pilot/final checkpoint·평가·실험 기록 | validation loss/perplexity, resume, 생성, 처리량, peak VRAM | Gate 7 통과·Gate 8 승인 | 계획 종료·평가·복원 성공 | Phase 6 또는 데이터 Phase 1 | [검증 필요] 미구현 |
 | 8. SFT | 대화 형식과 응답 품질 검증 | Phase 7, 승인 SFT 데이터 | chat template, assistant loss mask, SFT 전후 평가, 생성 품질 비교 | SFT checkpoint·전후 보고서 | role/ID, mask alignment, overfit/smoke, 전후 동일 평가, 누수 검사 | Gate 8·9 통과 | SFT 기준과 복원·평가 통과 | Phase 7 또는 SFT 데이터 준비 | [검증 필요] 미구현 |
 | 9. 추론과 서비스 | 검증 model을 로컬 UI까지 연결 | Phase 7 또는 8 | 추론 모듈, 로딩, 생성 옵션, FastAPI, streaming, Next.js | 로컬 추론·API·UI 후보 | model load, generation, API schema, streaming 오류, UI 연동 | Gate 10 통과 | 로컬 end-to-end와 오류 처리 통과 | 추론→API→UI 하위 단계 | [후순위] 미구현 |
@@ -49,7 +49,7 @@
 | Gate 4: 모델 단위 구성요소 검증 | [모델 아키텍처](../architecture/model-architecture.md), ADR-002, [테스트 전략](./test-strategy.md) | 각 모델 component | shape, mask, forward/backward, dtype/device, error | 단위 테스트 결과 | 모든 필수 component test pass | 필수 실패·외부 완성 model 대체 | 사용자 검토 | `passed` |
 | Gate 5: 모델 통합 검증 | [모델 아키텍처](../architecture/model-architecture.md), [토크나이저 설계](../training/tokenizer-design.md), [평가 계획](../evaluation/evaluation-plan.md), ADR-002·003 | Tiny forward/loss/generation | count, logits, causal 불변성, shift, tying, generation | 통합 test report | count 16,889,856과 계약 일치, 필수 test pass | shape·mask·count·NaN/Inf 실패 | 사용자 검토 | `passed` |
 | Gate 6: 학습 파이프라인 검증 | [사전학습 계획](../training/pretraining-plan.md), [실험 관리](../training/experiment-management.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [재현성 정책](./reproducibility-policy.md) | trainer, AMP, accumulation, checkpoint/resume | smoke update, round-trip, resume, RNG, log, OOM handling | checkpoint·log·experiment metadata | 최소 step·복원·재개와 필수 기록 성공 | 복원 실패·누락 state·반복 NaN/Inf | 사용자 검토 | `passed` |
-| Gate 7: 오버피팅 검증 | [사전학습 계획](../training/pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [실험 템플릿](../training/experiment-template.md) | end-to-end tiny training | 단일 batch·극소량 overfit, generation, VRAM | 실험 기록·checkpoint·samples | loss 감소·복원·생성과 peak VRAM 기록 | loss 미감소·회귀·OOM 미해결 | 사용자 검토 | `planned` |
+| Gate 7: 오버피팅 검증 | [사전학습 계획](../training/pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [실험 템플릿](../training/experiment-template.md) | end-to-end tiny training | 단일 batch·극소량 overfit, generation, VRAM | 실험 기록·checkpoint·samples | loss 감소·복원·생성과 peak VRAM 기록 | loss 미감소·회귀·OOM 미해결 | 사용자 검토 | `passed` |
 | Gate 8: Tiny 사전학습 진입 | 데이터·사전학습·평가·위험 문서 | Phase 0~6 구현 | Gate 2~7 증거, fixed validation·failure recovery | approved data, resolved config, ready experiment | 모든 선행 Gate passed·중단 조건·저장공간 확인 | 데이터 미승인·필수 test 미통과·복구 불가 | 사용자 명시 승인 | `planned` |
 | Gate 9: SFT 진입 | [SFT 계획](../training/sft-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), [생성 평가](../evaluation/generation-evaluation.md) | SFT dataset/template/mask | role·mask·누수·SFT smoke·전 기준선 | approved SFT data·parent checkpoint·baseline | parent 검증, 동일 평가 조건, 데이터 승인 | template/mask 오류·평가 누수 | 사용자 명시 승인 | `planned` |
 | Gate 10: 서비스 개발 진입 | 추론·API·frontend 계획 문서 [예정] | 검증 inference module | load·generation·latency 기준선 | 서비스 대상 checkpoint·계약 | Tiny 추론·평가 안정, API/UI 범위 승인 | 학습/추론 오류 미해결·명세 누락 | 사용자 명시 승인 | `planned` |
@@ -100,15 +100,16 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] Proposal fingerprint: `sha256:f59573ffc791833247e560da283eb684c4c97246144fea115df16d363b3798c6`
 - [확정] 자동 테스트: 514개 통과
 - [확정] Gate 4는 모델 구성요소, Gate 5는 전체 Tiny 통합, Gate 6은 합성 CUDA FP16 학습·checkpoint/resume·RNG·sampler·VRAM·처리량 evidence를 근거로 통과했다.
-- [확정] Gate 3은 2026-07-26 사용자 승인으로 `passed`이며 Gate 7과 모델 학습은 계속 미승인이다.
+- [확정] Gate 3은 2026-07-26, Gate 7은 2026-07-27 사용자 승인으로 `passed`다. Pilot·전체 Pretraining과 후속 모델 학습은 계속 미승인이다.
 - [제외] 이 승인은 실제 데이터 연결, Pilot Pretraining 실행 또는 장시간 학습 승인이 아니다.
 
 ## 6.1 Gate 7 제한 실행 기록
 
 - [확정] 2026-07-27 사용자가 AIHUB-71748 Training 64문서와 운영 v2 Unigram을 이용한 최대 500-step Tiny Overfit만 승인했다.
 - [확정] 실제 corpus loss는 `252.593750 → 5.355370`, 구간 최저 `3.694955`로 감소했고 NaN/Inf·OOM 없이 checkpoint-10→50→100→200→500 resume를 완료했다.
-- [검증 필요] teacher-forced continuation loss는 감소했으나 greedy exact continuation은 실패했다. [실행 결과](../training/aihub-71748-gate7-tiny-overfit.md)에 따라 Gate 7은 `planned`를 유지한다.
-- [제외] 전체 Pretraining, Pilot Pretraining, 문서 수 확대와 Gate 7 상태 전환은 승인되지 않았다.
+- [확정] 후속 승인 범위에서 동일 64문서의 LR 3개를 200 step 비교하고 단일 `1e-3` 후보만 1,000 step까지 연장했다.
+- [확정] packed top-1 `99.9047%`, loss `0.006235`, 네 prefix의 16-token exact continuation, checkpoint/resume와 fingerprint 일치를 근거로 사용자 최종 승인 후 Gate 7은 `passed`다.
+- [제외] 이는 동일 packed 조건의 memorization 승인이다. 전체 Pretraining, Pilot Pretraining, 문서 수 확대와 일반화 성능 승인은 포함하지 않는다.
 
 ## 7. Gate 운영 원칙
 
@@ -131,6 +132,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] 실제 Training 64문서의 1,000-step packed memorization·exact continuation·checkpoint/resume 증거와 사용자 최종 승인으로 Gate 7을 `passed`로 변경하고 Pretraining 미승인을 유지함 |
 | 2026-07-26 | [확정] v2 Unigram 최종 운영 승인과 재현성 판정 기준을 근거로 Gate 3을 `passed`로 변경하고 Gate 7 미승인을 유지함 |
 | 2026-07-26 | [검증 필요] AIHUB-71748 v2 Unigram/BPE 기술 evidence와 Unigram 추천을 반영하고 Gate 3은 사용자 승인 대기 `planned`로 유지함 |
 | 2026-07-26 | [검증 필요] AIHUB-71748 제한 corpus와 Unigram/BPE 16k 후보 evidence를 연결하되 UNK·round-trip 보완 전 Gate 3 `planned`를 유지함 |

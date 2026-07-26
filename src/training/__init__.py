@@ -6,7 +6,14 @@ from .config import TrainingConfig
 from .dataloader import create_dataloader
 from .dataset import SyntheticTokenDataset
 from .errors import TrainingError
-from .gate7_overfit import Gate7OverfitConfig, prepare_gate7_overfit, run_gate7_training
+from .gate7_overfit import (
+    Gate7OverfitConfig,
+    clone_gate7_prepared,
+    evaluate_gate7_checkpoint,
+    evaluate_gate7_model,
+    prepare_gate7_overfit,
+    run_gate7_training,
+)
 from .metrics import JsonlMetricLogger, TrainingMetric
 from .memory_probe import CudaMemoryProbe, MemorySnapshot, module_gradient_bytes, module_parameter_bytes, optimizer_state_bytes
 from .optimizer import OptimizerStats, create_optimizer
@@ -57,10 +64,13 @@ __all__ = [
     "build_synthetic_stream",
     "build_pilot_trainer",
     "build_tiny_trainer",
+    "clone_gate7_prepared",
     "create_dataloader",
     "create_optimizer",
     "create_scheduler",
     "evaluate_language_model",
+    "evaluate_gate7_checkpoint",
+    "evaluate_gate7_model",
     "evaluate_pilot_checkpoint",
     "generate_from_pilot_checkpoint",
     "module_gradient_bytes",

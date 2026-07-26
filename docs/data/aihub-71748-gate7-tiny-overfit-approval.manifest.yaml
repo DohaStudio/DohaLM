@@ -18,11 +18,41 @@ identity:
 
 limits:
   document_count_max: 64
-  step_max: 500
+  step_max: 1000
   context_length: 256
   output_scope: "configured_external_root/analysis/gate7-tiny-overfit/AIHUB-71748"
 
+followup_validation:
+  approved_by: "user"
+  purpose: "same_64_document_alignment_and_lr_comparison"
+  learning_rates: [0.0003, 0.0005, 0.001]
+  comparison_step: 200
+  extension_checkpoints: [200, 300, 500, 750, 1000]
+  extension_candidate_max: 1
+  dataset_expansion: "not_approved"
+
+final_validation:
+  approved_by: "user"
+  approved_on: "2026-07-27"
+  gate7_status: "passed"
+  tiny_overfit_validation: "approved"
+  actual_corpus_training_pipeline_validation: "completed"
+  checkpoint_resume_validation: "completed"
+  dataset_sha256: "sha256:c6cd4a5bb072886256bbf5dee573d4f22584f90982f202f69212cb10c0358f3e"
+  dataset_fingerprint: "sha256:c0caeb05eb323c4237f43afbd1c10c295bbcd619512524974d4f5f61d325afbb"
+  tokenization_fingerprint: "sha256:d3da635d018e2821c2688697d95af9cb3b0082b524d7905c942cf07aae0f50d7"
+  packing_fingerprint: "sha256:deb634292a0d71f56954bef419303daa285d4154593a994aafdd109e0fea4900"
+  final_optimizer_step: 1000
+  packed_evaluation_loss: 0.006235
+  packed_perplexity: 1.0063
+  packed_top1_accuracy: 0.999047
+  packed_top5_accuracy: 0.999934
+  exact_continuation_prefixes_passed: 4
+  exact_continuation_prefixes_total: 4
+  limitation: "memorization_under_identical_packed_training_conditions_only"
+
 restrictions:
+  scope: "experiment_execution_only"
   pretraining: "not_approved"
   gate7_status_change: "not_approved"
   validation_use: "not_approved"

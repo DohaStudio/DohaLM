@@ -8,7 +8,7 @@
 | 평가일 | 2026-07-26 |
 | 범위 | AIHUB-71748 tokenizer development 전용 |
 | 선행 문서 | [ADR-003](../decisions/ADR-003-tokenizer-method.md), [Phase 2 계약](./phase2-tokenizer-contract.md), [corpus manifest](../data/aihub-71748-tokenizer-corpus.manifest.yaml), [v2 요약 manifest](../data/aihub-71748-operating-tokenizer-v2.manifest.yaml) |
-| Gate 영향 | 사용자 최종 승인으로 Gate 3 `passed`, Gate 7 `planned` 유지 |
+| Gate 영향 | 이 문서의 사용자 최종 승인으로 Gate 3 `passed`; 후속 별도 Tiny Overfit 승인으로 Gate 7도 `passed` |
 
 - [확정] Pretraining·Overfit·SFT·RLHF·Preference·모델/GPU 학습은 실행하지 않았다.
 - [확정] 기존 `operating-16k-v1`은 수정하지 않았다. v2는 별도 외부 디렉터리에 원자적으로 게시했다.
