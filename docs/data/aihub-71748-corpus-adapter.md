@@ -7,13 +7,13 @@
 | 문서 상태 | `implemented` |
 | 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [Corpus Adapter 공통 계약](./corpus-adapter-contract.md), [AIHUB-71748 schema review](./analysis/AIHUB-71748-schema-review.md), [dataset 승인 로그](./dataset-approval-log.md) |
-| 후속 문서·작업 | 운영 16k tokenizer 후보 비교와 Gate 3 사용자 검토 |
+| 후속 문서·작업 | Gate 7 별도 승인 검토; 현재 Adapter 범위는 tokenizer development 완료로 종료 |
 | 구현 전 필수 여부 | AIHUB-71748 corpus 변환 전 예 |
 
 - [확정] 구현과 테스트는 실제 AI Hub 원문을 복사하지 않은 synthetic fixture만 사용했다.
 - [확정] 기존 `src/data/adapters/aihub_71748.py`와 `scripts/datasets/adapt_aihub_71748.py`는 회귀 검증을 위해 synthetic fixture 전용으로 유지한다.
 - [확정] 2026-07-26 사용자 승인에 따라 별도 전용 진입점이 Training의 `data_info[].contents`만 제한 처리한다. Validation·RLHF·라벨링·metadata는 입력하지 않는다.
-- [확정] corpus·후보 생성은 tokenizer development에만 승인됐고 모델 학습 승인이 아니다. Gate 3은 사용자 판정 전 `planned`를 유지한다.
+- [확정] corpus·후보 생성은 tokenizer development에만 승인됐고 모델 학습 승인이 아니다. 2026-07-26 사용자 최종 승인으로 Gate 3은 `passed`, 제한 Adapter 작업은 `completed`이며 Gate 7은 `planned`를 유지한다.
 
 ## 2. 합성 Adapter 입력 schema
 
@@ -37,7 +37,9 @@ accepted record는 `record_id`, `dataset_id`, `source_record_hash`, `text_origin
 | evaluation | `pending` |
 | PII | `not_cleared_restricted_tokenizer_development_approval` |
 | usage·split | tokenizer development만 허용 |
-| Gate 3 | `planned` |
+| Adapter | `completed_tokenizer_development_only` |
+| Gate 3 | `passed` |
+| Gate 7 | `planned` |
 
 ## 4. 실제 데이터의 제한 활성화
 
@@ -78,5 +80,6 @@ python -m scripts.datasets.adapt_aihub_71748 `
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 운영 tokenizer 최종 승인에 따라 제한 Adapter 범위를 `completed`, Gate 3을 `passed`로 기록하고 Gate 7·모델 학습 미승인 경계를 유지함 |
 | 2026-07-26 | [확정] 사용자 승인에 따라 Training `data_info[].contents` 전용 제한 pipeline을 분리하고 Validation·RLHF·metadata·모델 학습 차단을 유지함 |
 | 2026-07-24 | [확정] synthetic fixture 전용 AIHUB-71748 adapter와 실제 content read 0 차단 경계를 기록함 |

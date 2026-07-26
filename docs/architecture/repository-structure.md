@@ -5,14 +5,14 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-24 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](./system-architecture.md) |
 | 후속 문서 | [핵심 개발 기능명세서](./core-development-feature-specification.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] Phase 0·1 기반, synthetic tokenizer smoke, Phase 3·4 model, Phase 5 Trainer Foundation과 실제 Tiny 규모 합성 sampler·cosine·CUDA validation 도구 및 테스트는 구현됐다. 승인 corpus 기반 운영 tokenizer·실제 사전학습·서비스 기능은 미구현이다.
+- [확정] Phase 0·1 기반, 승인 corpus 기반 운영 `operating-16k-v2/unigram-16k`, Phase 3·4 model, Phase 5 Trainer Foundation과 실제 Tiny 규모 합성 sampler·cosine·CUDA validation 도구 및 테스트는 구현됐다. 실제 사전학습·서비스 기능은 미구현이다.
 
 ## 2. 구조 운영 원칙
 
@@ -145,6 +145,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 외부 artifact root의 운영 `operating-16k-v2/unigram-16k` 승인과 Gate 3 완료 상태를 반영하고 실제 사전학습 미구현 경계를 유지함 |
 | 2026-07-24 | [확정] stateful sampler·cosine 후보·memory/throughput·Tiny validation과 probe/inspection CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation과 training smoke·checkpoint 검사·재개 CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 4 전체 model·loss·generation·state helper와 model smoke CLI 책임을 반영함 |

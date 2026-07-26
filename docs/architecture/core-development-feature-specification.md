@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `implemented` |
-| 마지막 검토일 | 2026-07-24 |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [시스템 아키텍처](./system-architecture.md), [모델 아키텍처](./model-architecture.md), [개발 로드맵](../quality/development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | Phase 2~6 구현 작업, 구현별 테스트, 최소 로컬 추론 설계 |
 | 구현 전 필수 여부 | Phase 1~6 핵심 기능 구현 전 예 |
@@ -13,7 +13,7 @@
 - [확정] 이 문서는 환경·설정·데이터·토크나이저·모델·학습·체크포인트·평가·로컬 추론·실험의 기능 경계와 구현 계약을 정의한다.
 - [확정] 문서 생명주기 상태 `implemented`와 아래 개별 기능 상태는 서로 다른 축이다.
 - [확정] Phase 0 기능은 실제 코드와 Gate 1 검증 근거가 있어 `verified`로 표시한다.
-- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐다. Phase 2는 synthetic tokenizer smoke만 구현됐고 승인 corpus·운영 16,000 후보는 미구현이며, 그 이후 기능은 `review` 또는 `planned`다.
+- [확정] Phase 1 DATA-001~016은 Gate 2에서 `verified`됐다. Phase 2의 승인 corpus와 운영 `operating-16k-v2/unigram-16k` bundle은 구현·검증·사용자 승인됐고 Gate 3은 `passed`다. Gate 7과 모델 학습은 `planned` 또는 미승인 상태다.
 - [제외] FastAPI, Next.js, DB, 사용자 계정, 대화 기록 저장, 배포, 운영 모니터링과 Leaderboard 제출 기능은 이 문서 범위가 아니다.
 
 ## 2. 기능 상태와 필드 적용 규칙
@@ -239,10 +239,10 @@
 | 영역·목적 | 토크나이저: 승인 corpus로 SentencePiece Unigram 16,000 vocabulary 직접 학습 |
 | Phase / Gate | Phase 2 / Gate 3 |
 | 선행 조건 | Gate 2, approved corpus, preprocessing·license manifest, ADR-003 |
-| 설정 항목 | Unigram, vocab 16,000, ADR-003 special ID 0~7, NFC 입력+identity normalization; coverage·byte fallback [검증 필요] |
+| 설정 항목 | SentencePiece Unigram 16,000, ADR-003 special ID 0~7, NFC 입력+identity normalization, character coverage 1.0, byte fallback 활성화 |
 | 산출물 | `.model`, `.vocab`, mapping, trainer args, corpus fingerprint, 평가·hash |
 | 보안·라이선스 | 승인 corpus만 사용; artifact 공개 조건 별도 검토; 원문 Git 제외 |
-| 현재 상태 | `review`; TOK-010의 byte fallback 채택 여부는 `planned` |
+| 현재 상태 | `verified`; `operating-16k-v2/unigram-16k` 사용자 승인 및 Gate 3 `passed`. BPE 후보는 비교 전용이며 운영 tokenizer가 아님 |
 | 관련 문서 | [Phase 2 토크나이저 상세 계약](../training/phase2-tokenizer-contract.md), [토크나이저 설계](../training/tokenizer-design.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md) |
 
 ### 8.2 기능별 계약
@@ -581,7 +581,7 @@ flowchart LR
 ## 19. 미결정 사항
 
 - [검증 필요] 데이터 최대 text 길이·metadata 깊이, split 기본 비율·허용 오차·validation/test 0 허용 여부, 실제 config schema·구현 symbol과 후속 near dedup·PII 탐지 방식; Phase 1의 SHA-256·NFC·exact dedup·group split schema는 [Phase 1 데이터 계약](../data/phase1-data-contract.md) 참조
-- [검증 필요] tokenizer character coverage, byte fallback, corpus 규모·sampling, SentencePiece 세부 option과 artifact 보존 위치; normalization은 Phase 1 NFC 입력+SentencePiece identity로 계약됨
+- [확정] 운영 tokenizer의 character coverage 1.0, byte fallback, SentencePiece 세부 option, corpus fingerprint와 외부 artifact 논리 위치는 Phase 2 계약과 승인 manifest를 따른다. 모델 학습 입력으로 사용하는 것은 Gate 7 별도 승인 전 금지한다.
 - [검증 필요] Dropout, 초기화, padding mask dtype·broadcast와 loss shift의 최종 책임 위치
 - [검증 필요] micro-batch, accumulation, checkpointing 기본값, LR, warmup, weight decay, clipping, token budget과 interval
 - [검증 필요] checkpoint format version, atomic replace 방식, checksum, migration과 retention
@@ -595,7 +595,7 @@ flowchart LR
 - [확정] 모든 기능은 공통·기능별 계약을 결합해 ID, 이름, 영역, 목적, Phase, Gate, 선행 조건, 입력, 출력, 처리, 오류, 설정, 산출물, 보안·라이선스, 테스트, 완료 기준, 상태와 관련 문서를 갖는다.
 - [확정] 기능 ID는 영역별 namespace에서 고유하며 중복을 허용하지 않는다.
 - [확정] Tiny 수치는 ADR-002와 일치하고 미결정 hyperparameter는 확정하지 않았다.
-- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 4·5·6은 사용자 승인으로 `passed`이고 Gate 3·7은 `planned`이며 실제 학습 완료를 주장하지 않는다.
+- [확정] Phase 0과 Phase 1 DATA-001~016은 `verified`이며 Phase 2 운영 tokenizer, Phase 3 구성요소, Phase 4 통합 모델과 Phase 5 합성 Trainer Foundation은 구현·테스트됐다. Gate 3·4·5·6은 사용자 승인으로 `passed`이고 Gate 7은 `planned`이며 실제 모델 학습 완료를 주장하지 않는다.
 - [확정] Phase 1 검증은 외부 데이터가 아닌 최소 허용 fixture 계약과 연결된다.
 - [확정] 서비스 기능은 포함하지 않고 최소 로컬 추론 경계까지만 정의한다.
 - [검증 필요] 각 구현 작업은 해당 기능 행을 테스트 ID·코드 symbol·실제 artifact에 연결하고 완료 시 상태를 갱신해야 한다.
@@ -604,6 +604,7 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] `operating-16k-v2/unigram-16k` 최종 승인과 Gate 3 `passed`를 반영하고 BPE 비교 전용·Gate 7 및 모델 학습 미승인 경계를 유지함 |
 | 2026-07-24 | [확정] 지정 evidence·proposal fingerprint와 514개 테스트에 대한 사용자 승인으로 Gate 4·5·6 `passed`를 반영하고 Gate 3·7 및 실제 데이터 경계를 유지함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer·AMP·accumulation·checkpoint/resume와 50-step loss 감소 준비 검증을 반영하고 운영 사전학습·Gate 6·7과 구분함 |
 | 2026-07-24 | [확정] MODEL-101~110 중 전체 forward·loss·count·generation·state 호환 경로 구현과 65개 통합 테스트를 반영하고 Gate 5 `planned`를 유지함 |

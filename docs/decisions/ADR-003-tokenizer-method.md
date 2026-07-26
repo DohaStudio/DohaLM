@@ -2,7 +2,7 @@
 
 - 문서 상태: `approved`
 - 결정일: 2026-07-23
-- 구현 상태: [검증 필요] 미구현
+- 구현 상태: [확정] `operating-16k-v2/unigram-16k` 구현·검증·운영 승인 완료
 - 기준 설계: [DohaLM 토크나이저 설계](../training/tokenizer-design.md)
 - 관련 모델 결정: [ADR-002: DohaLM-Tiny 모델 아키텍처](./ADR-002-tiny-model-architecture.md)
 
@@ -74,15 +74,20 @@ DohaLM은 한국어 언어모델을 랜덤 초기화부터 직접 사전학습�
 - [확정] role 및 message 종료 token은 분할되지 않는 user-defined symbol로 등록한다.
 - [확정] 표 안의 역슬래시는 Markdown table escape이며 실제 token 문자열에는 포함되지 않는다.
 
+## 운영 tokenizer 확정 설정
+
+- [확정] 운영 version과 후보는 `operating-16k-v2/unigram-16k`다.
+- [확정] AIHUB-71748 Training의 `data_info[].contents` 전용 승인 corpus를 사용한다.
+- [확정] SentencePiece 0.2.2, vocabulary 16,000, `character_coverage=1.0`, `byte_fallback=true`, `normalization_rule_name=identity`, hard vocabulary limit를 사용한다.
+- [확정] extra whitespace 제거와 dummy prefix를 끄고 whitespace-only piece를 허용하며 special token ID 0~7을 유지한다.
+- [확정] 승인 bundle의 manifest/model/vocab checksum과 tokenizer fingerprint로 artifact identity를 판정한다.
+- [확정] 별도 경로 재학습은 corpus/config fingerprint, SentencePiece version, vocabulary·special ID, encode ID digest와 품질 지표가 일치하면 functional reproduction으로 인정하되 새 binary의 운영 사용은 재승인한다.
+
 ## 아직 확정되지 않은 항목
 
-- [검증 필요] character coverage
-- [검증 필요] 구체적인 normalization rule
-- [검증 필요] byte fallback 사용 여부
-- [검증 필요] tokenizer 학습 corpus와 표본 추출 방식
 - [검증 필요] 문서 packing 및 경계 처리의 세부 방식
 - [검증 필요] 기본 system message와 실제 줄바꿈 직렬화
-- [검증 필요] 품질 지표별 허용 임계치
+- [검증 필요] 다른 corpus 분포와 실제 모델 학습 단계의 downstream 품질 기준
 
 ## Character coverage 검증 계획
 
@@ -127,4 +132,5 @@ DohaLM은 한국어 언어모델을 랜덤 초기화부터 직접 사전학습�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] v2 Unigram 운영 bundle, 세부 SentencePiece 설정, artifact identity·functional reproduction과 Gate 3 승인 결과를 반영함 |
 | 2026-07-23 | [확정] SentencePiece Unigram, Vocabulary Size 16,000 및 special-token 정책을 결정으로 기록함 |

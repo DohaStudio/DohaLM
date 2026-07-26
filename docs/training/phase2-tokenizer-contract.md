@@ -4,17 +4,17 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-24 |
+| 문서 상태 | `approved` |
+| 마지막 검토일 | 2026-07-26 |
 | 선행 문서 | [Phase 1 데이터 계약](../data/phase1-data-contract.md), [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [데이터셋 승인 로그](../data/dataset-approval-log.md), [평가 제외 목록](../data/evaluation-exclusion-list.md), [토크나이저 설계](./tokenizer-design.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [ADR-003](../decisions/ADR-003-tokenizer-method.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
-| 후속 문서·작업 | Phase 2 토크나이저 구현·테스트, [사전학습 계획](./pretraining-plan.md), Gate 3 검증 |
+| 후속 문서·작업 | 별도 사용자 승인 후 [사전학습 계획](./pretraining-plan.md)과 Gate 7 검증 |
 | 구현 전 필수 여부 | Phase 2 구현 전 예 |
 
 - [확정] 이 문서는 Phase 2 구현에 적용할 corpus 입력, SentencePiece 학습 설정, vocabulary, special token, 산출물, fingerprint, encode/decode, 평가와 호환성 계약의 단일 기준이다.
-- [확정] 문서 상태 `review`는 구현·검증·Gate 통과를 의미하지 않는다.
-- [확정] Gate 1과 Gate 2는 `passed`이며 Phase 1 DATA-001~016은 `verified`다.
+- [확정] 문서 상태 `approved`는 2026-07-26 사용자 최종 승인과 Gate 3 통과를 반영하며 Gate 7 또는 모델 학습 승인을 의미하지 않는다.
+- [확정] Gate 1~6은 `passed`, Gate 7은 `planned`이며 Phase 1 DATA-001~016은 `verified`다.
 - [확정] SentencePiece `0.2.2` 의존성과 [synthetic smoke pipeline](./tokenizer-smoke.md)은 구현·검증됐다.
-- [검증 필요] 실제 승인 corpus, 16,000 vocabulary 운영 후보, 후보 비교와 운영 8개 산출물은 아직 없다.
+- [확정] AIHUB-71748 제한 Training corpus, 16,000 vocabulary 후보 비교와 운영 v2 Unigram 8개 산출물은 구현·검증·승인됐다.
 
 ## 2. 목적과 범위
 
@@ -182,12 +182,14 @@ Phase 2는 다음 기능을 구현하고 검증할 준비를 한다.
 | 입력 corpus 결정론 | 같은 승인 입력에서 동일 canonical corpus manifest |
 | 설정 결정론 | 같은 명시 설정에서 동일 resolved config checksum |
 | sampling 결정론 | 입력 순서·CWD·OS 경로와 무관한 동일 record 집합·순서 |
-| artifact checksum 결정론 | [검증 필요] 동일 환경에서도 bitwise 보장 여부 실측 |
+| artifact checksum 결정론 | [확정] 승인 bundle identity에는 bitwise checksum을 요구하고 별도 경로 재학습에는 functional reproduction 기준을 적용 |
 | piece 목록 결정론 | 동일 환경·version·thread에서 ID·piece·score 목록 일치 |
 | encode 결과 결정론 | 동일 model과 입력에서 ID·piece 결과 일치 |
 
 - [확정] SentencePiece 학습의 플랫폼 간 bitwise 동일성을 근거 없이 보장하지 않는다.
-- [검증 필요] checksum만 다르고 piece 목록·encode가 같은 경우의 Gate 3 판정은 원인과 라이브러리 보장 범위를 기록한 뒤 사용자 승인을 받는다.
+- [확정] Artifact identity는 승인 bundle의 model/vocab checksum, tokenizer fingerprint와 manifest checksum으로 판정한다.
+- [확정] Functional reproduction은 corpus/config fingerprint, SentencePiece version, vocabulary·special ID, encode ID digest, synthetic probe와 실제 표본 UNK·round-trip 지표가 모두 일치해야 한다.
+- [확정] 출력 경로별 trainer metadata 때문에 model binary SHA-256만 다른 경우 위 기능 항목이 모두 같으면 functional reproduction을 통과한 것으로 인정한다. 새 binary는 별도 artifact이며 운영 사용 전 재승인한다.
 
 ## 14. Artifact 구조와 무결성
 
@@ -443,11 +445,11 @@ tokenizer:
 
 비교 지표는 실제 piece 수, UNK rate, round-trip 실패, 문자/token, token/어절, 256 token 초과 비율, 한국어 다문자 piece 비율, 희귀 문자·이모지 복원, artifact 크기와 학습 시간이다.
 
-- [검증 필요] 실제 승인 corpus가 없으므로 이번 문서에서 승자를 정하지 않는다.
+- [확정] AIHUB-71748 Training 승인 corpus 비교 결과에 따라 `operating-16k-v2/unigram-16k`를 운영 tokenizer로 선택한다. BPE는 비교 후보로만 유지한다.
 
 ## 30. Gate 3 완료 기준
 
-Gate 3 상태는 `planned`를 유지한다. 통과 후보 조건은 다음과 같다.
+Gate 3은 2026-07-26 사용자 최종 승인으로 `passed`다. 통과 근거는 다음과 같다.
 
 - TOK-001~012 구현과 SentencePiece dependency 검토·승인
 - synthetic fixture test와 승인 development corpus 검증
@@ -458,7 +460,9 @@ Gate 3 상태는 `planned`를 유지한다. 통과 후보 조건은 다음과 �
 - Windows 검증, 추적 금지 artifact 위반 0건, 사용자 승인
 
 - [확정] 전체 대규모 pretraining corpus 확보는 Gate 3와 별도일 수 있으나 최종 운영 tokenizer는 실제 사전학습 분포를 대표하는 승인 corpus로 다시 검증해야 한다.
-- [검증 필요] 2026-07-26 [AIHUB-71748 16k 후보 평가](./aihub-71748-operating-tokenizer-evaluation.md)는 v1 무결성을 재검증하고 v2 Unigram/BPE에서 동일 실제 표본 UNK 0%, exact·ID round-trip 100%, 19개 synthetic probe 실패 0건을 확인했다. 별도 경로 재학습은 vocab checksum·표본 encode ID가 같지만 출력별 trainer metadata로 binary fingerprint가 달랐으므로 위 checksum 동등성 규칙과 최종 v2 Unigram 선택을 사용자 판정에 남기고 Gate 3은 `planned`로 유지한다.
+- [확정] [AIHUB-71748 16k 후보 평가](./aihub-71748-operating-tokenizer-evaluation.md)는 v1 무결성, v2 Unigram/BPE 실제 표본 UNK 0%, exact·ID round-trip 100%, 19개 synthetic probe 실패 0건을 확인했다.
+- [확정] 별도 경로 재학습은 vocab checksum·표본 encode ID가 일치했고 출력별 trainer metadata만 binary fingerprint 차이를 만들었다. 사용자는 이를 functional reproduction으로 승인하고 v2 Unigram을 최종 운영 tokenizer로 선택했다.
+- [확정] Gate 3 통과는 tokenizer 단계 완료만 의미하며 Gate 7, Pretraining, Tiny Overfit과 모델 학습은 계속 미승인이다.
 
 ## 31. DATA→TOK→MODEL 계보
 
@@ -495,24 +499,24 @@ Phase 1 dataset fingerprint
 ### 33.1 구현 전에 결정
 
 - [확정] Synthetic smoke의 SentencePiece dependency는 `0.2.2`로 `pyproject.toml`과 `requirements.txt`에 동일하게 고정한다.
-- [검증 필요] 실제 artifact root와 tokenizer ID·version 정책
-- [검증 필요] `num_threads`, shuffle, `input_sentence_size`, `max_sentence_length`, `seed_sentencepiece_size`
+- [확정] 운영 tokenizer ID·version은 `operating-16k-v2/unigram-16k`이며 실제 위치는 `configured_external_root` 아래 승인 manifest의 논리 경로로 해석한다.
+- [확정] 운영 bundle의 `num_threads=1`, `shuffle_input_sentence=false`, `input_sentence_size=1000000`, `max_sentence_length=16384`, `seed_sentencepiece_size=1000000` 설정을 고정한다.
 - [검증 필요] wrapper의 빈 decode와 `skip_special_tokens` 최종 기본값
 - [검증 필요] user-defined symbol ID 할당·normalization·whitespace의 실제 라이브러리 동작
 - [검증 필요] special token literal escape 방식의 Phase 2 포함 여부
 
 ### 33.2 승인 corpus 실험 후 결정
 
-- [검증 필요] 실제 학습 corpus·외부 dataset과 source별 혼합 비율
-- [검증 필요] 최종 sampling 규모와 character coverage
-- [검증 필요] byte fallback 최종 사용 여부
-- [검증 필요] round-trip, UNK rate와 한국어 분할 품질 합격선
-- [검증 필요] final tokenizer version과 운영 artifact 공개 범위
+- [확정] tokenizer 개발 corpus는 AIHUB-71748 Training의 `data_info[].contents`로 고정하며 source별 후속 Pretraining 혼합 비율은 별도 승인 대상으로 남긴다.
+- [확정] 운영 tokenizer는 `character_coverage=1.0`, `byte_fallback=true`, `normalization_rule_name=identity`를 사용한다.
+- [확정] 실제 표본 UNK 0%, exact·ID round-trip 100%와 synthetic probe 실패 0건을 Gate 3 품질 근거로 승인한다.
+- [확정] final tokenizer version은 `operating-16k-v2`이며 artifact 공개·재배포는 승인하지 않는다.
 
 ## 34. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 사용자 최종 승인으로 v2 Unigram, artifact identity·functional reproduction 기준과 Gate 3 `passed`를 계약에 반영함 |
 | 2026-07-26 | [검증 필요] byte fallback·whitespace 보존 v2 후보가 실제 표본 UNK 0%와 exact·ID round-trip 100%를 충족한 evidence를 반영하고 Gate 3 사용자 승인 대기로 유지함 |
 | 2026-07-26 | [검증 필요] AIHUB-71748 제한 corpus와 Unigram/BPE 16k 후보 비교 결과를 연결하고 round-trip·UNK 보완 전 Gate 3 `planned`를 유지함 |
 | 2026-07-24 | [확정] SentencePiece 0.2.2와 synthetic TOK-001~012 smoke 구현을 반영하되 운영 tokenizer·승인·Gate 3은 미완료로 유지함 |

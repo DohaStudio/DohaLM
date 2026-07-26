@@ -4,11 +4,11 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | `review` |
+| 문서 상태 | `approved` |
 | 평가일 | 2026-07-26 |
 | 범위 | AIHUB-71748 tokenizer development 전용 |
 | 선행 문서 | [ADR-003](../decisions/ADR-003-tokenizer-method.md), [Phase 2 계약](./phase2-tokenizer-contract.md), [corpus manifest](../data/aihub-71748-tokenizer-corpus.manifest.yaml), [v2 요약 manifest](../data/aihub-71748-operating-tokenizer-v2.manifest.yaml) |
-| Gate 영향 | 기술 evidence 보완 완료, Gate 3 `planned`와 Gate 7 `planned` 유지 |
+| Gate 영향 | 사용자 최종 승인으로 Gate 3 `passed`, Gate 7 `planned` 유지 |
 
 - [확정] Pretraining·Overfit·SFT·RLHF·Preference·모델/GPU 학습은 실행하지 않았다.
 - [확정] 기존 `operating-16k-v1`은 수정하지 않았다. v2는 별도 외부 디렉터리에 원자적으로 게시했다.
@@ -115,13 +115,19 @@ v2는 무손실성과 희귀 문자 복원을 얻는 대신 v1보다 token 수�
 
 실제 표본의 v1 round-trip 실패 2,765건 중 2,617건은 UNK 대체가 동반됐고 148건은 whitespace 표현 차이였다. v2 실제 표본 10,000건의 분류는 `exact=10,000`이며 unknown 대체, whitespace, Unicode normalization, 기타 정보 손실 실패가 모두 0건이다. 실패 문자열이나 원문은 기록하지 않았다.
 
-## 8. 추천과 Gate 3 판정
+## 8. 최종 선택과 Gate 3 판정
 
-- [추천] `operating-16k-v2/unigram-16k`를 최종 운영 후보로 사용자 검토에 올린다. v2 BPE와 동일하게 UNK 0%, exact/ID round-trip 100%이고 ADR-003의 Unigram 기준선, encode 속도, 한국어 다문자 piece 비율이 더 높다.
-- [대안] 학습 시간과 압축 효율을 더 중시한다면 v2 BPE가 우세하지만, 선택 시 ADR-003 변경 검토가 필요하다.
-- [확정] vocabulary 16,000, special ID 0~7, checksum/fingerprint, 동일 표본 A/B, Windows 평가, 원본 불변과 추적 금지 요건은 충족한다.
-- [검증 필요] 품질·계약 측면에서는 Gate 3 승인 후보가 됐으나, 경로가 다른 재학습의 binary fingerprint는 출력별 trainer metadata 때문에 달랐다. Phase 2 계약에 따라 vocab과 encode 동작이 같고 checksum만 다른 경우의 판정 및 최종 후보 선택을 사용자에게 남기며 Gate 3은 `planned`를 유지한다.
-- [차단] 이 추천은 Pretraining·모델 연결·Gate 7·artifact 공개나 재배포를 허용하지 않는다.
+- [확정] 사용자는 2026-07-26 `operating-16k-v2/unigram-16k`를 DohaLM의 최종 운영 16k tokenizer로 승인했다.
+- [확정] v2 BPE는 비교·검증 산출물로 유지하지만 운영 기본값으로 선택하지 않는다.
+- [확정] vocabulary 16,000, special ID 0~7, checksum/fingerprint, 동일 표본 A/B, Windows 평가, 원본 불변과 추적 금지 요건을 근거로 Gate 3을 `passed`로 변경한다.
+- [확정] 이 승인은 Pretraining·모델 연결·Tiny Overfit·Gate 7·artifact 공개나 재배포를 허용하지 않는다.
+
+### 8.1 재현성 판정 기준
+
+- [확정] Artifact identity는 승인 bundle 자체의 model SHA-256, vocab SHA-256, tokenizer fingerprint와 manifest checksum으로 판정한다. 운영 및 후속 학습 설정은 이 승인 bundle을 그대로 참조해야 한다.
+- [확정] Functional reproduction은 corpus fingerprint, training configuration fingerprint, SentencePiece version, vocabulary 크기·내용/checksum, special-token ID map, 10,000건 encode ID digest, synthetic probe, 실제 표본 UNK·round-trip 지표의 일치로 판정한다.
+- [확정] 출력별 trainer metadata로 model binary SHA-256만 다르고 위 기능 항목이 모두 같으면 functional reproduction은 통과한다.
+- [확정] Functional reproduction을 통과한 새 binary도 기존 승인 bundle과 동일 artifact로 간주하지 않으며 운영에 쓰려면 별도 승인이 필요하다.
 
 ## 9. Artifact 위치
 
@@ -138,5 +144,6 @@ v2는 무손실성과 희귀 문자 복원을 얻는 대신 v1보다 token 수�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-26 | [확정] 사용자가 v2 Unigram을 최종 운영 tokenizer로 승인하고 artifact identity·functional reproduction 기준 및 Gate 3 `passed`를 확정함 |
 | 2026-07-26 | [검증 필요] v1 무결성을 재검증하고 byte fallback·whitespace 보존 v2 Unigram/BPE를 동일 10,000건 표본과 19개 synthetic probe로 비교해 v2 Unigram을 Gate 3 승인 후보로 추천함 |
 | 2026-07-26 | [검증 필요] v1 후보의 실제 표본 UNK·round-trip 차단 근거를 기록함 |
