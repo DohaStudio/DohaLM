@@ -22,9 +22,9 @@
 | 1. 데이터 최소 파이프라인 | 안전한 최소 입출력·계보 검증 | Phase 0, 데이터 정책, [Phase 1 데이터 계약](../data/phase1-data-contract.md) | 가상/극소량 로컬 sample, 형식 검증, 정제 흐름, manifest, checksum, split 검증 | 소형 fixture 처리 결과·manifest | 원본 불변, checksum, deterministic split, 누수 fixture | Gate 1 통과·허용 fixture 준비·Phase 1 계약 검토 | Gate 2 통과 | Phase 0 설정·경로 | [확정] 구현·검증 완료, DATA-001~016 `verified` |
 | 2. 토크나이저 | 한국어 token 계약 확정 | Phase 1, [후보 등록부](../data/dataset-candidate-registry.md), [구조 분석 요약](../data/analysis/dataset-analysis-summary.md), [안전 표본 정책](../data/analysis/safe-sampling.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md), [Phase 2 토크나이저 상세 계약](../training/phase2-tokenizer-contract.md) | TOK-001~012: corpus 승인, SentencePiece Unigram, special token, encode/decode, fingerprint, artifact·호환성과 한국어 품질 | versioned tokenizer bundle·manifest·평가·호환성 보고 | vocab 16,000, ADR-003 ID 0~7, round-trip, fingerprint, atomic publish, 후보 비교 | Gate 2 `passed`, 최소 1개 `approved_tokenizer_development`, 공식 조건 검토, fingerprint 가능, validation/test 분리 | Gate 3 통과 | Phase 1 데이터·승인 정책 | [확정] `operating-16k-v2/unigram-16k` 구현·검증·사용자 승인 완료, Gate 3 `passed` |
 | 3. 모델 구성요소 | 핵심 layer를 독립 검증 | Phase 0, ADR-002 | Config, token/position embedding, causal self-attention, MHA, FFN, Pre-LN, block, LM Head, weight tying | 직접 구현 모듈·단위 테스트 | shape, causal mask, backward, dtype/device, error, tying alias | Gate 1·모델 문서 승인 | Gate 4 통과 | 해당 구성요소·Config | [확정] 구성요소와 단위 테스트 및 통합 evidence를 검증하고 사용자 승인으로 Gate 4 `passed` |
-| 4. 모델 통합 | DohaLM-Tiny forward·생성 연결 | Phase 2·3 | 전체 forward, loss, parameter count, dtype/device, causal mask, 최소 generation | 통합 model·loss·generation | count 16,889,856, logits shape, shift, mask, forward/backward, deterministic generation | Gate 3·4 통과 | Gate 5 통과 | Phase 2 또는 3 | [확정] 합성 token 기반 구현·CPU/CUDA 검증과 사용자 승인 완료, Gate 5 `passed`; 실제 tokenizer 미연결 |
+| 4. 모델 통합 | DohaLM-Tiny forward·생성 연결 | Phase 2·3 | 전체 forward, loss, parameter count, dtype/device, causal mask, 최소 generation | 통합 model·loss·generation | count 16,889,856, logits shape, shift, mask, forward/backward, deterministic generation | Gate 3·4 통과 | Gate 5 통과 | Phase 2 또는 3 | [확정] 합성 token 기반 구현·CPU/CUDA 검증과 사용자 승인 완료, Gate 5 `passed`; 제한 Gate 7 실험에서 운영 tokenizer 연결 검증 |
 | 5. 학습 기반 | 재개 가능한 학습 loop 구축 | Phase 1·4 | Dataset/DataLoader, AdamW, scheduler, FP16 AMP, accumulation, clipping, checkpoint, resume, log | trainer·checkpoint·log 계약 | smoke update, AMP, accumulation equivalence 후보, round-trip, resume, NaN/Inf | Gate 5 통과 | Gate 6 통과 | Phase 1 데이터 또는 4 모델 | [확정] 합성 Foundation과 실제 Tiny 규모 sampler·cosine 후보·CUDA FP16·checkpoint/resume·VRAM evidence를 사용자 승인해 Gate 6 `passed`; 실제 사전학습 미실행 |
-| 6. 초소형 검증 | 장시간 학습 전 end-to-end 검증 | Phase 5 | 단일 batch·극소량 overfit, loss 감소, round-trip, resume, sample, CUDA peak VRAM | overfit 실험 기록·checkpoint·sample | overfit, resume 연속성, 생성, peak allocated/reserved | Gate 6 통과·experiment ready | Gate 7 통과 | Phase 4·5 | [검증 필요] 실제 Tiny 반복 합성 pattern 100-step loss 감소와 resume·VRAM 완료; 실제 tokenizer/corpus·생성 품질·Gate 7 미완료 |
+| 6. 초소형 검증 | 장시간 학습 전 end-to-end 검증 | Phase 5 | 단일 batch·극소량 overfit, loss 감소, round-trip, resume, sample, CUDA peak VRAM | overfit 실험 기록·checkpoint·sample | overfit, resume 연속성, 생성, peak allocated/reserved | Gate 6 통과·experiment ready | Gate 7 통과 | Phase 4·5 | [검증 필요] 실제 Training 64문서·운영 tokenizer로 500-step loss 감소와 resume·VRAM은 확인했으나 exact continuation 실패로 Gate 7 미완료 |
 | 7. Tiny 소규모 사전학습 | 승인 데이터로 Tiny pilot 수행 | Phase 6, 승인 데이터 | 고정 validation, 중간 평가, 실패 복구, 자원 기록, 최종 checkpoint | pilot/final checkpoint·평가·실험 기록 | validation loss/perplexity, resume, 생성, 처리량, peak VRAM | Gate 7 통과·Gate 8 승인 | 계획 종료·평가·복원 성공 | Phase 6 또는 데이터 Phase 1 | [검증 필요] 미구현 |
 | 8. SFT | 대화 형식과 응답 품질 검증 | Phase 7, 승인 SFT 데이터 | chat template, assistant loss mask, SFT 전후 평가, 생성 품질 비교 | SFT checkpoint·전후 보고서 | role/ID, mask alignment, overfit/smoke, 전후 동일 평가, 누수 검사 | Gate 8·9 통과 | SFT 기준과 복원·평가 통과 | Phase 7 또는 SFT 데이터 준비 | [검증 필요] 미구현 |
 | 9. 추론과 서비스 | 검증 model을 로컬 UI까지 연결 | Phase 7 또는 8 | 추론 모듈, 로딩, 생성 옵션, FastAPI, streaming, Next.js | 로컬 추론·API·UI 후보 | model load, generation, API schema, streaming 오류, UI 연동 | Gate 10 통과 | 로컬 end-to-end와 오류 처리 통과 | 추론→API→UI 하위 단계 | [후순위] 미구현 |
@@ -102,6 +102,13 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] Gate 4는 모델 구성요소, Gate 5는 전체 Tiny 통합, Gate 6은 합성 CUDA FP16 학습·checkpoint/resume·RNG·sampler·VRAM·처리량 evidence를 근거로 통과했다.
 - [확정] Gate 3은 2026-07-26 사용자 승인으로 `passed`이며 Gate 7과 모델 학습은 계속 미승인이다.
 - [제외] 이 승인은 실제 데이터 연결, Pilot Pretraining 실행 또는 장시간 학습 승인이 아니다.
+
+## 6.1 Gate 7 제한 실행 기록
+
+- [확정] 2026-07-27 사용자가 AIHUB-71748 Training 64문서와 운영 v2 Unigram을 이용한 최대 500-step Tiny Overfit만 승인했다.
+- [확정] 실제 corpus loss는 `252.593750 → 5.355370`, 구간 최저 `3.694955`로 감소했고 NaN/Inf·OOM 없이 checkpoint-10→50→100→200→500 resume를 완료했다.
+- [검증 필요] teacher-forced continuation loss는 감소했으나 greedy exact continuation은 실패했다. [실행 결과](../training/aihub-71748-gate7-tiny-overfit.md)에 따라 Gate 7은 `planned`를 유지한다.
+- [제외] 전체 Pretraining, Pilot Pretraining, 문서 수 확대와 Gate 7 상태 전환은 승인되지 않았다.
 
 ## 7. Gate 운영 원칙
 

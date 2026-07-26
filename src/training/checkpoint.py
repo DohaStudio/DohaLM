@@ -8,6 +8,7 @@ import os
 import random
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -106,6 +107,7 @@ class CheckpointInspection:
 class CheckpointManager:
     def __init__(self, output_root: Path):
         self.output_root = output_root.resolve()
+        self.last_save_seconds: float | None = None
 
     def checkpoint_path(self, step: int) -> Path:
         return self.output_root / f"checkpoint-{step}"
@@ -122,6 +124,7 @@ class CheckpointManager:
         state: TrainingState,
         dataset_metadata: dict[str, Any] | None = None,
     ) -> Path:
+        started = time.perf_counter()
         final_path = self.checkpoint_path(state.global_step)
         if final_path.exists():
             raise TrainingError("CHECKPOINT_ALREADY_EXISTS", f"checkpoint-{state.global_step}가 이미 존재합니다.")
@@ -171,6 +174,7 @@ class CheckpointManager:
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint를 저장하지 못했습니다.") from exc
         finally:
+            self.last_save_seconds = time.perf_counter() - started
             if staging.exists():
                 shutil.rmtree(staging)
         return final_path

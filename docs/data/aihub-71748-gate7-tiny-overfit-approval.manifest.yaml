@@ -1,0 +1,34 @@
+schema_version: "1.0"
+manifest_type: "restricted_gate7_tiny_overfit_approval"
+manifest_status: "approved"
+approved_on: "2026-07-27"
+
+approval:
+  dataset_id: "AIHUB-71748"
+  source_split: "Training"
+  purpose: "gate7_tiny_overfit_only"
+  approved_by: "user"
+  license_status: "approved_student_noncommercial"
+
+identity:
+  corpus_fingerprint: "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  model_sha256: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
+  vocab_sha256: "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7cbcdfab11b"
+
+limits:
+  document_count_max: 64
+  step_max: 500
+  context_length: 256
+  output_scope: "configured_external_root/analysis/gate7-tiny-overfit/AIHUB-71748"
+
+restrictions:
+  pretraining: "not_approved"
+  gate7_status_change: "not_approved"
+  validation_use: "not_approved"
+  evaluation_benchmark_use: "not_approved"
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  redistribution: "not_approved"
+  model_release: "not_approved"
