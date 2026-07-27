@@ -27,7 +27,9 @@ class ValidationResult:
         return asdict(self)
 
 
-def evaluate_language_model(model: nn.Module, dataloader: DataLoader, *, device: torch.device, use_amp: bool) -> ValidationResult:
+def evaluate_language_model(
+    model: nn.Module, dataloader: DataLoader, *, device: torch.device, use_amp: bool, max_batches: int | None = None
+) -> ValidationResult:
     if len(dataloader) == 0:
         raise TrainingError("EMPTY_DATASET", "validation DataLoader가 비어 있습니다.")
     was_training = model.training
@@ -40,6 +42,8 @@ def evaluate_language_model(model: nn.Module, dataloader: DataLoader, *, device:
     try:
         with torch.no_grad():
             for batch in dataloader:
+                if max_batches is not None and batches >= max_batches:
+                    break
                 moved = {name: tensor.to(device) for name, tensor in batch.items()}
                 with torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=use_amp and device.type == "cuda"):
                     output = model(moved["input_ids"], attention_mask=moved["attention_mask"], labels=moved["labels"])

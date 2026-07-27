@@ -1,0 +1,102 @@
+schema_version: "1.0"
+manifest_type: "pilot_pretraining_execution_plan"
+manifest_status: "review"
+prepared_on: "2026-07-27"
+
+execution_approval:
+  status: "not_approved"
+  approved_by: null
+  approved_at: null
+  execution_started: false
+
+source:
+  git_commit: "556f395092b5065874552a116db801d1b5999bdc"
+  git_branch: "feat/pilot-pretraining"
+  working_tree_clean_at_planning_start: true
+
+identity:
+  dataset_id: "AIHUB-71748"
+  source_split: "Training"
+  candidate_source_dataset_fingerprint: "sha256:c0caeb05eb323c4237f43afbd1c10c295bbcd619512524974d4f5f61d325afbb"
+  pilot_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  training_dataset_fingerprint: "sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6"
+  split_fingerprint: "sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f"
+  pii_fingerprint: "sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed"
+  tokenizer_id: "operating-16k-v2/unigram-16k"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  config_path: "configs/pilot-pretraining.example.yaml"
+  config_fingerprint: "sha256:d5a004949eb804212150b9ed59164dcc3af862f458d453a7f415da20d08b37f6"
+  model_name: "DohaLM-Tiny"
+  model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
+
+environment:
+  python_version: "3.12.5"
+  torch_version: "2.7.1+cu118"
+  cuda_version: "11.8"
+  cuda_driver_version: "610.62"
+  gpu_name: "NVIDIA GeForce RTX 3060 Ti"
+  gpu_vram_bytes: 8589410304
+
+candidate_training:
+  optimizer: "AdamW"
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  scheduler: "cosine"
+  warmup_steps: 10
+  min_lr_ratio: 0.1
+  micro_batch_size: 2
+  gradient_accumulation_steps: 4
+  effective_batch_size: 8
+  context_length: 256
+  max_steps: 100
+  checkpoint_interval: 25
+  evaluation_interval: 10
+  logging_interval: 1
+  seed: 17
+  precision: "fp16_amp"
+
+readiness:
+  status: "ready_awaiting_final_execution_approval"
+  validator_status: "ready_for_user_approval"
+  evidence_fingerprint: "sha256:f2c5e89c4ea5de10a777dcb4a6be690ee517b873ffdaca95f5703d1324af664f"
+  blocking_codes: []
+  source_lineage_status: "verified"
+  runtime_smoke_status: "passed_pilot_v2_5_optimizer_steps"
+
+storage:
+  logical_root: "configured_external_root/analysis/pilot-pretraining"
+  drive_format: "NTFS"
+  available_bytes_observed: 995760758784
+  capacity_verified: true
+  output_path_write_verified: true
+  minimum_free_bytes_before_start: 5368709120
+  git_tracked_outputs_allowed: false
+
+checkpoint_policy:
+  interval_steps: 25
+  planned_steps: [25, 50, 75, 100]
+  maximum_count: 4
+  automatic_deletion_during_run: false
+  resume_requires_checksum: true
+  resume_requires_config_fingerprint: true
+  resume_requires_dataset_fingerprint: true
+  resume_requires_tokenizer_fingerprint: true
+  policy_approval: "approved"
+
+logging_policy:
+  jsonl: "authoritative"
+  console: "summary_only"
+  csv: "optional_post_run_derivative"
+  tensorboard: "disabled_no_dependency"
+  text_values_in_metrics: false
+  policy_approval: "approved"
+
+scope_restrictions:
+  pilot_pretraining: "not_approved"
+  full_pretraining: "not_approved"
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  api: "not_approved"
+  frontend: "not_approved"
+  deployment: "not_approved"

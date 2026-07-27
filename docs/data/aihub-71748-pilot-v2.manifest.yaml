@@ -1,0 +1,65 @@
+schema_version: "1.0"
+manifest_type: "restricted_pilot_dataset_lineage_summary"
+manifest_status: "verified_runtime_revalidated"
+created_on: "2026-07-27"
+
+dataset:
+  dataset_id: "AIHUB-71748"
+  version: "pilot-v2"
+  storage: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2"
+  git_tracked: false
+  source_split: "Training"
+  original_validation_used: false
+  text_field: "data_info[].contents"
+  metadata_used: false
+  license_status: "approved_student_noncommercial"
+  purpose: "pilot_pretraining_max_100_steps_candidate"
+
+source_lineage:
+  status: "verified"
+  canonical_selection_contract: "aihub-71748-training-selection-v1"
+  contract_fingerprint: "sha256:bea1f19b1571e062096bd1d9dbd7b2c4144f2e9bf8f578448b190e3a60eb4293"
+  source_record_count: 107226
+  source_character_count: 198740203
+  source_corpus_sha256: "sha256:0c7119106261e9a8487b5e2e1ba76ba220761a2fdaeb14738e968b91fdbeeb00"
+  source_corpus_fingerprint: "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
+  source_lineage_manifest_sha256: "sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f"
+
+prepared_dataset:
+  pii_excluded_records: 9479
+  train_records: 92948
+  internal_evaluation_records: 4799
+  dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  split_fingerprint: "sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f"
+  pii_fingerprint: "sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed"
+  tokenization_manifest_sha256: "sha256:a0fbc78d4e7e55e7e79bd72362946964514d111993bd8889d312f8d6efceef6c"
+  packing_manifest_sha256: "sha256:e7ad635dafa3f18a77a243ec17b2bcb9d5f29c72e081ad161bd63b2218e0680b"
+  artifact_checksums_sha256: "sha256:55d299869c22c7175a8123de5f7e50e937898087c9bafde2851f073ac171cde5"
+  completion_marker_sha256: "sha256:57021ed385c1d87facd06833ad0c105087bb914fb112d37a78976f29eb007823"
+
+implementation:
+  selector_files_fingerprint: "sha256:767a7a7f85e7796626a02a5bea0c0ba6069da046317c82ee7ed98e3d21d47137"
+  files:
+    src/data/aihub_71748_tokenizer_corpus.py: "sha256:8ae977d733e7443881a52cda97822ab24d6671edc7afeeb5576f87bbe144cdc9"
+    src/data/normalization.py: "sha256:44ccc786f8ab1181413abaf238249580b8ae5934ca29a43d35573a0dcfd6fc17"
+    src/data/pilot_dataset.py: "sha256:09c6225495b18db2bae4951e6dd60b2df6ed77947fd3072d078b43b2e397786a"
+
+historical_relationship:
+  pilot_v1: "superseded_selector_bug_runtime_smoke_only"
+  pilot_v1_checkpoint_5: "smoke_only_not_promotable"
+  operating_tokenizer_corpus: "historical_immutable_canonical_source"
+
+runtime_revalidation:
+  status: "passed"
+  run_id: "SMOKE-PILOT-V2-0001"
+  optimizer_steps: 5
+  result_manifest: "../training/pilot-pretraining-v2-runtime-smoke.manifest.yaml"
+  summary_sha256: "sha256:d04a1388dc3b94049fd7faead48d23305efa47fada8f9fbaff6402d59583cc3c"
+  checkpoint_promotable: false
+
+restrictions:
+  additional_smoke: "not_approved"
+  pilot_100_step_execution: "not_approved"
+  full_pretraining: "not_approved"
+  redistribution: "not_approved"
+  gate_change: "not_approved"

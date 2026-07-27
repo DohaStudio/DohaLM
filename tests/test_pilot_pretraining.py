@@ -78,6 +78,14 @@ def test_stage_a_full_orchestration_with_synthetic_sentencepiece(monkeypatch, tm
     )
     actual = DohaTokenizer(tokenizer_root / "tokenizer.model")
     monkeypatch.setattr("src.training.pilot_pretraining.validate_pilot_tokenizer", lambda _path: (actual, {"status": "synthetic-smoke"}))
+    monkeypatch.setattr("src.training.pilot_pretraining._lineage", lambda _config: {
+        "dataset_fingerprint": "sha256:" + "a" * 64,
+        "tokenizer_fingerprint": "sha256:" + "b" * 64,
+        "local_experiment_only": True,
+        "publish_allowed": False,
+        "redistribution_allowed": False,
+        "model_release_allowed": False,
+    })
     result = run_pilot_pretraining(config)
     assert result["global_step"] == 5
     assert len(result["validation"]) == 6

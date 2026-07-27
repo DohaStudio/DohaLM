@@ -86,7 +86,7 @@
 
 | Dataset ID | tokenizer | pretraining | SFT | preference | evaluation | tokenizer artifact 공개 | model weight 공개 | 상업 서비스 | 해외 cloud |
 |---|---|---|---|---|---|---|---|---|---|
-| `AIHUB-71748` | `approved_tokenizer_development` | `pending` | `pending` | `pending` | `pending` | `not_approved` | `pending` | `not_approved` | `pending` |
+| `AIHUB-71748` | `approved_tokenizer_development` | `approved_pilot_pretraining` | `pending` | `pending` | `pending` | `not_approved` | `pending` | `not_approved` | `pending` |
 | `AIHUB-110` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` |
 | `AIHUB-86` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` |
 | `AIHUB-71477` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` | `pending` |
@@ -120,6 +120,9 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] 사용자 승인 범위에서 canonical pilot-v2 Runtime Smoke를 정확히 5 optimizer step 실행하고 checkpoint checksum·load-only resume·mismatch 차단을 검증함; 100-step·Full Pretraining은 미승인 유지 |
+| 2026-07-27 | [확정] Pilot v1의 quota control-flow bug로 추가된 48건을 전수 분류하고 canonical pilot-v2 107,226건을 생성·검증함; Source lineage blocker는 해소하되 추가 Smoke·100-step 실행은 미승인 유지 |
+| 2026-07-27 | [확정] AIHUB-71748 Training `contents`의 제한 100-step Pilot corpus 목적, PII 후보 9,480건 자동 제외, 95/5 내부 split과 5-step 자원 Smoke를 승인·검증함; 100-step 실행·Full Pretraining·재배포는 미승인 유지 |
 | 2026-07-27 | [확정] 동일 64문서 1,000-step packed memorization과 checkpoint/resume 증거의 사용자 최종 승인으로 Tiny Overfit을 `approved`, Gate 7을 `passed`로 기록하고 Pretraining 미승인을 유지함 |
 | 2026-07-27 | [확정] AIHUB-71748 Training 64문서·500-step Gate 7 전용 실험 승인과 실행 결과를 기록하고 Gate 7 `planned`·Pretraining 미승인을 유지함 |
 | 2026-07-26 | [확정] v2 Unigram을 운영 tokenizer로 승인하고 functional reproduction 기준·Gate 3 `passed`·Adapter 완료를 기록함 |

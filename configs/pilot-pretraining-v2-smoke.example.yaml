@@ -1,0 +1,64 @@
+train_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/train.jsonl
+validation_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/evaluation.jsonl
+tokenizer_model: analysis/tokenizer-development/AIHUB-71748/operating-16k-v2/tokenizers/unigram-16k/tokenizer.model
+corpus_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/dataset-manifest.json
+split_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/split-manifest.json
+path_root: configured_external
+local_dataset_config: configs/local-datasets.yaml
+output_dir: analysis/pilot-pretraining/AIHUB-71748/runs/SMOKE-PILOT-V2-0001
+micro_batch_size: 2
+gradient_accumulation_steps: 4
+max_steps: 5
+log_every: 1
+validation_every: 5
+save_every: 5
+learning_rate: 0.0003
+weight_decay: 0.1
+warmup_steps: 5
+min_lr_ratio: 0.1
+scheduler_type: cosine
+max_grad_norm: 1.0
+seed: 17
+device: cuda
+use_amp: true
+num_workers: 0
+pin_memory: true
+local_experiment_only: true
+publish_allowed: false
+redistribution_allowed: false
+model_release_allowed: false
+prompt: 한국어
+max_new_tokens: 16
+validation_max_batches: 8
+resume_checkpoint: null
+pilot_readiness:
+  gates:
+    "3": passed
+    "4": passed
+    "5": passed
+    "6": passed
+    "7": passed
+  tokenizer:
+    approval_status: approved
+    fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    vocab_size: 16000
+    special_token_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  corpus:
+    approval_status: approved_pilot_pretraining
+    license_status: approved_student_noncommercial
+    pii_status: clear
+    manifest_checksum: sha256:41bf8fc2732a36a5ff3f64c19a2cc48aab84b984050fad78499a3373eaf0729c
+    split_verified: true
+    evaluation_exclusion_verified: true
+    dataset_fingerprint: sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b
+    source_lineage_verified: true
+  training:
+    checkpoint_retention_approved: true
+    config_approved: true
+    scheduler_approved: true
+    batch_policy_approved: true
+    estimate_verified: true
+    resume_procedure_documented: true
+    runtime_smoke_dataset_fingerprint: sha256:1f585de3bc1c4a60de51577b37aaad7bf070240f8dfcc474b4de8eb458108191
+  storage:
+    verified: true

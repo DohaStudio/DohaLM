@@ -4,16 +4,23 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+import json
+import hashlib
+import math
+import time
 
 import torch
 
 from src.data.checksums import checksum_value, file_checksum
+from src.data.aihub_71748_tokenizer_corpus import resolve_local_paths
 from src.data.tokenized_dataset import TokenizedJsonlDataset
 from src.model import DohaLMTiny
 from src.runtime.paths import repository_root, resolve_repository_path
 from src.tokenizer import DohaTokenizer, validate_pilot_tokenizer
+from src.tokenizer.operating import validate_operating_candidate
 
 from .collator import CausalLMCollator
+from .checkpoint import CheckpointManager
 from .dataloader import create_dataloader
 from .errors import TrainingError
 from .pilot_config import PilotPretrainingConfig
@@ -22,8 +29,18 @@ from .trainer import Trainer, seed_everything
 from .validation import ValidationResult, evaluate_language_model
 
 
+def resolve_pilot_path(config: PilotPretrainingConfig, value: str) -> Path:
+    if config.path_root == "repository":
+        return resolve_repository_path(value)
+    external_root, _ = resolve_local_paths(resolve_repository_path(config.local_dataset_config))
+    resolved = (external_root / value).resolve()
+    if external_root not in resolved.parents:
+        raise TrainingError("PILOT_PATH_INVALID", "Pilot artifact 경로가 configured external root 밖입니다.")
+    return resolved
+
+
 def _resolve(config: PilotPretrainingConfig, value: str) -> Path:
-    return resolve_repository_path(value)
+    return resolve_pilot_path(config, value)
 
 
 def _lineage(config: PilotPretrainingConfig) -> dict[str, Any]:
@@ -38,11 +55,20 @@ def _lineage(config: PilotPretrainingConfig) -> dict[str, Any]:
     if missing:
         raise TrainingError("PILOT_ARTIFACT_MISSING", f"필수 pilot artifact가 없습니다: {missing}")
     checksums = {name: file_checksum(path) for name, path in files.items()}
+    tokenizer_manifest_path = files["tokenizer_model"].with_name("tokenizer-manifest.json")
+    try:
+        tokenizer_manifest = json.loads(tokenizer_manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise TrainingError("PILOT_TOKENIZER_MISMATCH", "운영 tokenizer manifest를 읽을 수 없습니다.") from exc
+    tokenizer_fingerprint = tokenizer_manifest.get("tokenizer_fingerprint")
+    if tokenizer_manifest.get("model_checksum") != checksums["tokenizer_model"] or not isinstance(tokenizer_fingerprint, str):
+        raise TrainingError("PILOT_TOKENIZER_MISMATCH", "운영 tokenizer model checksum 또는 fingerprint가 일치하지 않습니다.")
     return {
         "schema_version": "1.0",
         "checksums": checksums,
         "dataset_fingerprint": checksum_value({key: checksums[key] for key in ("train_dataset", "validation_dataset", "corpus_manifest", "split_manifest")}),
-        "tokenizer_fingerprint": checksums["tokenizer_model"],
+        "tokenizer_fingerprint": tokenizer_fingerprint,
+        "tokenizer_model_checksum": checksums["tokenizer_model"],
         "local_experiment_only": True,
         "publish_allowed": False,
         "redistribution_allowed": False,
@@ -56,12 +82,22 @@ def _generation(model: DohaLMTiny, tokenizer: DohaTokenizer, prompt: str, *, dev
     input_ids = torch.tensor([ids], dtype=torch.long, device=device)
     output = model.generate(input_ids, max_new_tokens=max_new_tokens, eos_token_id=3)
     generated_ids = output[0].detach().cpu().tolist()
+    encoded_ids = json.dumps(generated_ids, separators=(",", ":")).encode("ascii")
     return {
         "prompt_token_count": len(ids),
         "generated_token_count": len(generated_ids) - len(ids),
-        "token_ids": generated_ids,
-        "decoded": tokenizer.decode(generated_ids, skip_special_tokens=True),
+        "token_ids_sha256": f"sha256:{hashlib.sha256(encoded_ids).hexdigest()}",
+        "token_ids_stored": False,
+        "decoded_sha256": f"sha256:{hashlib.sha256(tokenizer.decode(generated_ids, skip_special_tokens=True).encode('utf-8')).hexdigest()}",
+        "decoded_text_stored": False,
     }
+
+
+def _validate_runtime_tokenizer(model_path: Path) -> tuple[DohaTokenizer, dict[str, Any]]:
+    if (model_path.parent / "tokenizer-manifest.json").is_file():
+        report = validate_operating_candidate(model_path.parent)
+        return DohaTokenizer(model_path), {**report, "operating_candidate": True, "approval_effect": "none"}
+    return validate_pilot_tokenizer(model_path)
 
 
 def build_pilot_trainer(config: PilotPretrainingConfig, *, resume: bool = False) -> tuple[Trainer, TokenizedJsonlDataset, TokenizedJsonlDataset, dict[str, Any]]:
@@ -89,11 +125,16 @@ def build_pilot_trainer(config: PilotPretrainingConfig, *, resume: bool = False)
 
 
 def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
+    if config.max_steps > 5:
+        raise TrainingError("PILOT_SMOKE_SCOPE_EXCEEDED", "이 실행 경로는 최대 5 optimizer step Smoke만 허용합니다.")
+    from .gate7_overfit import _process_memory
+
+    run_started = time.perf_counter()
     resume = config.resume_checkpoint is not None
     trainer, _, validation_dataset, lineage = build_pilot_trainer(config, resume=resume)
     if resume:
         trainer.resume_from(_resolve(config, config.resume_checkpoint or ""))
-    tokenizer, tokenizer_report = validate_pilot_tokenizer(_resolve(config, config.tokenizer_model))
+    tokenizer, tokenizer_report = _validate_runtime_tokenizer(_resolve(config, config.tokenizer_model))
     if tokenizer.vocab_size != config.model.vocab_size:
         raise TrainingError("PILOT_TOKENIZER_MISMATCH", "tokenizer vocabulary가 model config와 일치하지 않습니다.")
     validation_loader = create_dataloader(
@@ -102,7 +143,9 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         config.to_training_config(),
         shuffle=False,
     )
-    initial_validation = evaluate_language_model(trainer.model, validation_loader, device=trainer.device, use_amp=trainer.amp_enabled)
+    initial_validation = evaluate_language_model(
+        trainer.model, validation_loader, device=trainer.device, use_amp=trainer.amp_enabled, max_batches=config.validation_max_batches
+    )
     before = _generation(trainer.model, tokenizer, config.prompt, device=trainer.device, max_new_tokens=config.max_new_tokens)
     validation_history: list[dict[str, Any]] = [{"global_step": trainer.state.global_step, **initial_validation.to_dict()}]
     all_metrics: list[dict[str, Any]] = []
@@ -112,7 +155,9 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         result = trainer.train(target_steps=target)
         all_metrics.extend(metric.to_dict() for metric in result.metrics)
         checkpoints.extend(result.checkpoints)
-        validation = evaluate_language_model(trainer.model, validation_loader, device=trainer.device, use_amp=trainer.amp_enabled)
+        validation = evaluate_language_model(
+            trainer.model, validation_loader, device=trainer.device, use_amp=trainer.amp_enabled, max_batches=config.validation_max_batches
+        )
         validation_history.append({"global_step": trainer.state.global_step, **validation.to_dict()})
     after = _generation(trainer.model, tokenizer, config.prompt, device=trainer.device, max_new_tokens=config.max_new_tokens)
     checkpoint_sizes = {
@@ -120,8 +165,14 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         for path in sorted(trainer.output_root.glob("checkpoint-*"))
         if path.is_dir()
     }
+    checkpoint_path = trainer.output_root / f"checkpoint-{trainer.state.global_step}"
+    checkpoint_inspection = CheckpointManager.inspect(checkpoint_path).to_dict() if checkpoint_path.is_dir() else None
+    metric_log = trainer.output_root / "pilot-training-metrics.jsonl"
+    finite = all(math.isfinite(item["loss"]) for item in all_metrics)
+    process_memory = _process_memory()
+    elapsed = time.perf_counter() - run_started
     summary = {
-        "status": "completed_local_pilot",
+        "status": "completed_resource_smoke",
         "global_step": trainer.state.global_step,
         "training_metrics": all_metrics,
         "validation": validation_history,
@@ -129,14 +180,32 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         "generation_after": after,
         "checkpoints": checkpoints,
         "checkpoint_sizes_bytes": checkpoint_sizes,
+        "checkpoint": checkpoint_inspection,
+        "checkpoint_save_seconds": trainer.checkpoints.last_save_seconds,
+        "metric_log_bytes": metric_log.stat().st_size if metric_log.is_file() else 0,
+        "elapsed_seconds": elapsed,
+        "mean_tokens_per_second": sum(item["tokens_per_second"] for item in all_metrics) / len(all_metrics),
+        "mean_optimizer_step_seconds": sum(item["step_time"] for item in all_metrics) / len(all_metrics),
+        "peak_vram_allocated_bytes": max(item["peak_memory_allocated"] for item in all_metrics),
+        "peak_vram_reserved_bytes": max(item["peak_memory_reserved"] for item in all_metrics),
+        "peak_cpu_working_set_bytes": process_memory.get("peak_working_set_bytes"),
+        "cpu_memory_source": process_memory.get("source"),
+        "amp_skip_count": sum(bool(item.get("amp_step_skipped")) for item in all_metrics),
+        "nonfinite_metric_count": 0 if finite else 1,
+        "disk_usage_bytes": sum(path.stat().st_size for path in trainer.output_root.rglob("*") if path.is_file()),
         "lineage": lineage,
         "tokenizer_compatibility": tokenizer_report,
         "effective_batch_size": config.effective_batch_size,
         "gate_effect": "none",
         "approval_effect": "none",
+        "pilot_100_step_execution_allowed": False,
     }
     write_pilot_json(trainer.output_root / "pilot-run-summary.json", summary)
-    write_pilot_json(trainer.output_root / "pilot-config-resolved.json", config.to_dict())
+    resolved_config = config.to_dict()
+    resolved_config["prompt_sha256"] = f"sha256:{hashlib.sha256(config.prompt.encode('utf-8')).hexdigest()}"
+    resolved_config["prompt_text_stored"] = False
+    resolved_config.pop("prompt", None)
+    write_pilot_json(trainer.output_root / "pilot-config-resolved.json", resolved_config)
     return summary
 
 
@@ -152,5 +221,5 @@ def generate_from_pilot_checkpoint(config: PilotPretrainingConfig, checkpoint: s
     resumed = PilotPretrainingConfig(**{**config.__dict__, "resume_checkpoint": checkpoint, "prompt": prompt})
     trainer, _, _, _ = build_pilot_trainer(resumed, resume=True)
     trainer.resume_from(_resolve(resumed, checkpoint), restore_rng=False)
-    tokenizer, _ = validate_pilot_tokenizer(_resolve(resumed, resumed.tokenizer_model))
+    tokenizer, _ = _validate_runtime_tokenizer(_resolve(resumed, resumed.tokenizer_model))
     return _generation(trainer.model, tokenizer, prompt, device=trainer.device, max_new_tokens=resumed.max_new_tokens)

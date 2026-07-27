@@ -21,10 +21,13 @@ class PilotPretrainingConfig:
     tokenizer_model: str
     corpus_manifest: str
     split_manifest: str
+    path_root: str = "repository"
+    local_dataset_config: str = "configs/local-datasets.yaml"
     output_dir: str = "experiments/pilot-pretraining"
     micro_batch_size: int = 2
     gradient_accumulation_steps: int = 4
     max_steps: int = 100
+    log_every: int = 1
     validation_every: int = 10
     save_every: int = 25
     learning_rate: float = 3e-4
@@ -44,17 +47,21 @@ class PilotPretrainingConfig:
     model_release_allowed: bool = False
     prompt: str = "한국어"
     max_new_tokens: int = 16
+    validation_max_batches: int | None = None
     resume_checkpoint: str | None = None
+    pilot_readiness: dict[str, Any] = field(default_factory=dict)
     model: ModelConfig = field(default_factory=ModelConfig)
 
     def __post_init__(self) -> None:
-        for name in ("train_dataset", "validation_dataset", "tokenizer_model", "corpus_manifest", "split_manifest", "output_dir"):
+        for name in ("train_dataset", "validation_dataset", "tokenizer_model", "corpus_manifest", "split_manifest", "local_dataset_config", "output_dir"):
             self._validate_relative_path(name, getattr(self, name))
+        if self.path_root not in ("repository", "configured_external"):
+            raise TrainingError("INVALID_PILOT_CONFIG", "path_root는 repository 또는 configured_external이어야 합니다.")
         if self.resume_checkpoint is not None:
             self._validate_relative_path("resume_checkpoint", self.resume_checkpoint)
         if not self.local_experiment_only or self.publish_allowed or self.redistribution_allowed or self.model_release_allowed:
             raise TrainingError("PILOT_LOCAL_ONLY_VIOLATION", "pilot은 local-only이며 공개·재배포·모델 배포를 허용하지 않습니다.")
-        integer_fields = ("micro_batch_size", "gradient_accumulation_steps", "max_steps", "validation_every", "save_every", "max_new_tokens")
+        integer_fields = ("micro_batch_size", "gradient_accumulation_steps", "max_steps", "log_every", "validation_every", "save_every", "max_new_tokens")
         if any(isinstance(getattr(self, name), bool) or not isinstance(getattr(self, name), int) or getattr(self, name) <= 0 for name in integer_fields):
             raise TrainingError("INVALID_PILOT_CONFIG", "batch·step·generation 값은 양의 정수여야 합니다.")
         if self.max_steps > 100:
@@ -65,6 +72,10 @@ class PilotPretrainingConfig:
             raise TrainingError("INVALID_PILOT_CONFIG", "generation prompt가 비어 있습니다.")
         if self.scheduler_type != "cosine":
             raise TrainingError("INVALID_PILOT_CONFIG", "현재 pilot scheduler 후보는 cosine만 지원합니다.")
+        if not isinstance(self.pilot_readiness, dict):
+            raise TrainingError("INVALID_PILOT_CONFIG", "pilot_readiness는 mapping이어야 합니다.")
+        if self.validation_max_batches is not None and (isinstance(self.validation_max_batches, bool) or self.validation_max_batches <= 0):
+            raise TrainingError("INVALID_PILOT_CONFIG", "validation_max_batches는 양의 정수여야 합니다.")
 
     @staticmethod
     def _validate_relative_path(name: str, value: str) -> None:
@@ -77,6 +88,7 @@ class PilotPretrainingConfig:
         return self.micro_batch_size * self.gradient_accumulation_steps
 
     def to_training_config(self) -> TrainingConfig:
+        training_output = self.output_dir if self.path_root == "repository" else "artifacts/pilot-pretraining-external"
         return TrainingConfig(
             batch_size=self.effective_batch_size,
             micro_batch_size=self.micro_batch_size,
@@ -90,9 +102,9 @@ class PilotPretrainingConfig:
             max_grad_norm=self.max_grad_norm,
             use_amp=self.use_amp,
             seed=self.seed,
-            log_every=1,
+            log_every=self.log_every,
             save_every=self.save_every,
-            output_dir=self.output_dir,
+            output_dir=training_output,
             device=self.device,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,

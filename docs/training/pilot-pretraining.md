@@ -7,7 +7,7 @@
 | 문서 상태 | `review` |
 | 마지막 검토일 | 2026-07-24 |
 | 선행 문서 | [사전학습 계획](./pretraining-plan.md), [Pilot 준비 검증](./pilot-pretraining-readiness.md), [체크포인트와 재개](./checkpoint-and-resume.md) |
-| 후속 문서 | 실제 Pilot 실행 기록, Gate 7 검토 |
+| 후속 문서 | [Pilot 실행 준비 계획](./pilot-pretraining-execution-plan.md), 별도 승인 후 실제 Pilot 실행 기록 |
 | 구현 전 필수 여부 | 예 |
 
 ## 2. 범위와 상태
@@ -22,7 +22,7 @@
 
 `명시적 corpus → 엄격한 UTF-8/NFC 검사 → SentencePiece 16,000 호환성 검사 → SHA-256 split → tokenization → 256-token packing → train/validation DataLoader → DohaLM-Tiny → checkpoint/resume → 검증·생성`
 
-기본 후보값은 micro-batch 2, gradient accumulation 4, effective batch 8, FP16 AMP, cosine scheduler, validation 10-step, checkpoint 25-step, 최대 100-step이다. [가정] 이 값은 Candidate B 시작 후보이며 운영 확정값이 아니다.
+기본 후보값은 micro-batch 2, gradient accumulation 4, effective batch 8, FP16 AMP, AdamW LR `3e-4`·weight decay `0.1`, cosine scheduler·warmup 10, validation 10-step, checkpoint 25-step, log 1-step, 최대 100-step이다. [가정] 이 값은 Candidate B 시작 후보이며 사용자 승인 전 운영 확정값이 아니다.
 
 ## 4. Validation과 지표
 
@@ -42,11 +42,12 @@
 
 ```powershell
 python -m scripts.training.prepare_pilot_corpus --help
-python -m scripts.training.run_pilot_pretraining --config configs/pilot-pretrain.yaml --steps 100 --device cuda --use-amp --json
+python -m scripts.training.run_pilot_pretraining --config configs/pilot-pretraining.example.yaml --manifest docs/training/pilot-pretraining-execution.manifest.yaml --json
 python -m scripts.training.evaluate_pilot_checkpoint --checkpoint "<저장소 상대 checkpoint>" --json
 python -m scripts.training.generate_from_checkpoint --checkpoint "<저장소 상대 checkpoint>" --prompt "안녕하세요" --max-new-tokens 32 --json
 ```
 
 - [확정] 실제 설정 `configs/pilot-pretrain.yaml`, tokenized corpus, experiment, checkpoint와 생성 결과는 Git 제외 경로에만 둔다.
+- [확정] 위 run 명령은 현재 inspection-only plan을 출력한다. 실제 실행은 별도 승인 manifest와 `--execute`가 모두 필요하며 현재는 차단된다.
 - [확정] 생성 품질은 자동 성공 판정하지 않는다.
 - [제외] SFT, RLHF, 분산·멀티 GPU, API, Frontend, 장시간 학습과 공개 배포는 이 단계 범위가 아니다.

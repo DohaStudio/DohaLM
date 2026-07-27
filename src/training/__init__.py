@@ -18,6 +18,7 @@ from .metrics import JsonlMetricLogger, TrainingMetric
 from .memory_probe import CudaMemoryProbe, MemorySnapshot, module_gradient_bytes, module_parameter_bytes, optimizer_state_bytes
 from .optimizer import OptimizerStats, create_optimizer
 from .pilot_config import PilotPretrainingConfig
+from .pilot_execution import inspect_pilot_execution, require_pilot_execution_approval
 from .pilot_pretraining import build_pilot_trainer, evaluate_pilot_checkpoint, generate_from_pilot_checkpoint, run_pilot_pretraining
 from .sampler_state import SamplerState, StatefulBatchSampler
 from .scheduler import CosineWarmupDecayScheduler, LinearWarmupDecayScheduler, create_scheduler
@@ -49,6 +50,8 @@ __all__ = [
     "MemorySnapshot",
     "OptimizerStats",
     "PilotPretrainingConfig",
+    "inspect_pilot_execution",
+    "require_pilot_execution_approval",
     "SamplerState",
     "StatefulBatchSampler",
     "SyntheticTokenDataset",

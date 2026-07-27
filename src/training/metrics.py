@@ -25,6 +25,7 @@ class TrainingMetric:
     tokens_per_second: float
     peak_memory_allocated: int
     peak_memory_reserved: int
+    amp_step_skipped: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
