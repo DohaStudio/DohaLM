@@ -4,6 +4,7 @@ import tempfile
 
 import torch
 
+from src.data.checksums import checksum_value
 from src.evaluation.config import EvaluationConfig
 from src.evaluation.datasets import deterministic_indices
 from src.evaluation.runner import (
@@ -12,6 +13,7 @@ from src.evaluation.runner import (
     _prepare_model,
     _publish,
     _quick_full_comparison,
+    _validate_quick_reference,
     publish_failure,
 )
 from src.evaluation.artifacts import ArtifactRegistry
@@ -74,6 +76,121 @@ def test_quick_full_comparison_keeps_policy_unapproved() -> None:
     )
     assert result["representativeness_status"] == "insufficient_evidence"
     assert result["policy_status"] == "proposed_not_approved"
+
+
+def test_candidate_b_full_accepts_candidate_b_same_artifact_quick_reference() -> None:
+    categories = {"eos": {"accuracy": 0.1, "top1_accuracy": 0.1}}
+    buckets = {"0-31": {"accuracy": 0.1, "top1_accuracy": 0.1}}
+    full_metrics = {
+        "perplexity": {"loss": 5.5, "perplexity": 244.0},
+        "next_token": {"top1_accuracy": .23, "top5_accuracy": .38, "top10_accuracy": .45, "token_type_accuracy": categories},
+        "position": {"packed_top1": .23, "rebased": {"top1_accuracy": .24}, "position_gap": .01, "buckets": buckets},
+    }
+    quick_result = {
+        "manifest": {
+            "artifact_id": "candidate-b-final", "profile": "quick",
+            "result_fingerprint": "sha256:quick-b", "evaluation_id": "quick-b-1",
+        },
+        "metrics": full_metrics,
+        "resource": {"evaluation_seconds": 1.0, "peak_gpu_reserved_bytes": 10},
+    }
+    result = _quick_full_comparison(
+        full_metrics,
+        {"evaluation_seconds": 100.0, "peak_gpu_reserved_bytes": 10},
+        quick_result,
+        expected_artifact_id="candidate-b-final",
+    )
+    assert result["quick_evaluation_id"] == "quick-b-1"
+
+
+def test_candidate_b_full_rejects_candidate_a_quick_as_direct_reference() -> None:
+    quick_result = {
+        "manifest": {
+            "artifact_id": "candidate-a-final", "profile": "quick",
+            "result_fingerprint": "sha256:quick-a", "evaluation_id": "quick-a-1",
+        },
+        "metrics": {},
+        "resource": {},
+    }
+    try:
+        _quick_full_comparison({}, {}, quick_result, expected_artifact_id="candidate-b-final")
+    except TypeError:
+        raise AssertionError("same-artifact Quick contract is not implemented")
+    except Exception as exc:
+        assert getattr(exc, "code", None) == "QUICK_REFERENCE_ARTIFACT_MISMATCH"
+    else:
+        raise AssertionError("cross-artifact Quick reference was accepted")
+
+
+def _quick_reference_validation_fixture() -> tuple[dict, SimpleNamespace, dict]:
+    metrics = {"fixture": "evaluation-result-v2"}
+    artifact = SimpleNamespace(
+        artifact_id="candidate-b-final",
+        identity_fingerprint="sha256:artifact-b",
+        value={
+            "checkpoint_step": 12208,
+            "model_fingerprint": "sha256:model",
+            "split_fingerprint": "sha256:split",
+            "source_lineage_fingerprint": "sha256:lineage",
+        },
+    )
+    manifest = {
+        "artifact_id": "candidate-b-final", "artifact_identity_fingerprint": "sha256:artifact-b",
+        "profile": "quick", "checkpoint_identity": {"global_step": 12208},
+        "model_fingerprint": "sha256:model", "tokenizer_fingerprint": "sha256:tokenizer",
+        "dataset_identity": {"evaluation_fingerprint": "sha256:dataset"},
+        "split_fingerprint": "sha256:split", "source_lineage_fingerprint": "sha256:lineage",
+        "prompt_set_fingerprint": "sha256:prompt", "result_fingerprint_schema": "evaluation-result-v2",
+        "result_fingerprint": checksum_value(metrics),
+    }
+    return {"manifest": manifest, "metrics": metrics, "resource": {}}, artifact, {
+        "evaluation_fingerprint": "sha256:dataset",
+    }
+
+
+def test_quick_reference_validator_accepts_same_artifact_identity() -> None:
+    result, artifact, dataset = _quick_reference_validation_fixture()
+    report = _validate_quick_reference(
+        result, artifact=artifact, dataset_identity=dataset,
+        tokenizer_fingerprint="sha256:tokenizer", prompt_fingerprint="sha256:prompt",
+    )
+    assert report["teacher_forced_metrics"] == "comparable"
+    assert report["generation_metrics"] == "comparable"
+
+
+def test_quick_reference_validator_separates_prompt_incomparability() -> None:
+    result, artifact, dataset = _quick_reference_validation_fixture()
+    report = _validate_quick_reference(
+        result, artifact=artifact, dataset_identity=dataset,
+        tokenizer_fingerprint="sha256:tokenizer", prompt_fingerprint="sha256:different",
+    )
+    assert report["overall_status"] == "completed_with_incomparable_generation_reference"
+    assert report["generation_prompt_error_code"] == "GENERATION_PROMPT_INCOMPARABLE"
+
+
+def test_quick_reference_validator_uses_specific_fail_closed_codes() -> None:
+    cases = (
+        ("profile", "full", "QUICK_REFERENCE_PROFILE_INVALID"),
+        ("artifact_id", "candidate-a-final", "QUICK_REFERENCE_ARTIFACT_MISMATCH"),
+        ("artifact_identity_fingerprint", "sha256:other", "QUICK_REFERENCE_ARTIFACT_MISMATCH"),
+        ("checkpoint_identity", {"global_step": 4883}, "QUICK_REFERENCE_CHECKPOINT_MISMATCH"),
+        ("model_fingerprint", "sha256:other", "QUICK_REFERENCE_MODEL_MISMATCH"),
+        ("tokenizer_fingerprint", "sha256:other", "QUICK_REFERENCE_TOKENIZER_MISMATCH"),
+        ("dataset_identity", {"evaluation_fingerprint": "sha256:other"}, "QUICK_REFERENCE_DATASET_MISMATCH"),
+        ("result_fingerprint", "sha256:other", "QUICK_REFERENCE_RESULT_FINGERPRINT_INVALID"),
+    )
+    for field, value, expected_code in cases:
+        result, artifact, dataset = _quick_reference_validation_fixture()
+        result["manifest"][field] = value
+        try:
+            _validate_quick_reference(
+                result, artifact=artifact, dataset_identity=dataset,
+                tokenizer_fingerprint="sha256:tokenizer", prompt_fingerprint="sha256:prompt",
+            )
+        except Exception as exc:
+            assert getattr(exc, "code", None) == expected_code
+        else:
+            raise AssertionError(f"{field} mismatch was accepted")
 
 
 def test_initial_model_is_evaluation_only_and_unchanged() -> None:

@@ -41,7 +41,7 @@
 
 [Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [Candidate B 설계](./training/candidate-b-design.md) → [Candidate B Backend](./training/candidate-b-backend.md) → [Candidate B 실패 Run](./training/candidate-b-failed-run-20260728-0001.md) → [Checkpoint 정책](./training/candidate-b-checkpoint-policy.md) → [Candidate B 최종 Readiness](./training/candidate-b-final-readiness.md) → [실험 관리](./training/experiment-management.md)
 
-Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B 첫 실행은 12,208 step 후 checkpoint 문자열 정렬 버그로 실패했고 기존 cleanup으로 checkpoint가 보존되지 않았다. Numeric validator와 향후 quarantine 정책은 보완됐지만 새 실행은 `not_approved`, `execution_allowed: false`다.
+Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B Run 0002는 12,208 step·25,001,984 token과 세 checkpoint로 정상 완료됐고 Final Quick도 완료됐다. Final Full은 same-artifact Quick reference 계약 수정 후 기존 checkpoint로 evaluation-only 수행하며 추가 학습은 승인되지 않았다.
 
 ### 2.6 Codex 작업
 
@@ -102,20 +102,21 @@ Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성�
 
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
 - [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
-- [확정] Phase 3·4 모델, Trainer, 운영 tokenizer, 실제 corpus Tiny Overfit, canonical Pilot, Candidate A 10M과 Evaluation Framework는 구현·검증 또는 실행됐다. Candidate B 첫 실행은 실패했고 공식 결과는 없으며 서비스·SFT와 새 Candidate B training은 승인되지 않았다.
+- [확정] Phase 3·4 모델, Trainer, 운영 tokenizer, 실제 corpus Tiny Overfit, canonical Pilot, Candidate A 10M과 Evaluation Framework는 구현·검증 또는 실행됐다. Candidate B Run 0001은 실패했지만 Run 0002 학습과 Final Quick는 완료됐다. Final Full은 evaluator 계약 수정 후 evaluation-only로 진행하며 서비스·SFT와 추가 Candidate B training은 승인되지 않았다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
 - [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical Pilot과 Candidate A 10M은 완료됐다. Candidate B validator·실패 보존 정책은 보완됐지만 rerun·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
+- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical Pilot과 Candidate A 10M, Candidate B Run 0002 training은 완료됐다. Candidate B Full은 재평가 대기이며 추가 training·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B Run 0002 학습·Quick 완료와 Full Evaluation 계약 수정 단계 연결 |
 | 2026-07-28 | Candidate B 첫 실행 실패와 numeric validator·quarantine 보완, 재실행 미승인 경계 연결 |
 | 2026-07-28 | Candidate B backend·CPU validation·output probe 완료와 실행 승인 대기 상태 연결 |
 | 2026-07-27 | [확정] AIHUB-71748 동일 64문서 Tiny Overfit 최종 승인과 Gate 7 `passed`를 반영하되 Pilot·전체 Pretraining 차단을 유지함 |

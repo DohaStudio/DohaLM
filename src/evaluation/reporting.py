@@ -64,3 +64,65 @@ def compare_completed_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "pair_statuses": statuses, "rows": [leaderboard_row(item["manifest"], item["metrics"]) for item in results],
         "composite_score_used": False,
     }
+
+
+def compare_full_candidate_results(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Compare two completed Full results without using either Quick result as a baseline."""
+    manifests = (baseline["manifest"], candidate["manifest"])
+    if any(item.get("status") != "completed" or item.get("profile") != "full" for item in manifests):
+        raise EvaluationError("BASELINE_REFERENCE_INVALID", "Candidate comparison requires two completed Full results")
+    if manifests[0].get("artifact_id") == manifests[1].get("artifact_id"):
+        raise EvaluationError("BASELINE_REFERENCE_INVALID", "Baseline and candidate artifacts must differ")
+    if (
+        manifests[0].get("dataset_identity") != manifests[1].get("dataset_identity")
+        or manifests[0].get("tokenizer_fingerprint") != manifests[1].get("tokenizer_fingerprint")
+        or manifests[0].get("model_fingerprint") != manifests[1].get("model_fingerprint")
+    ):
+        raise EvaluationError("BASELINE_REFERENCE_INVALID", "Full baseline identity is not comparable")
+
+    left, right = baseline["metrics"], candidate["metrics"]
+    left_next, right_next = left["next_token"], right["next_token"]
+    left_position, right_position = left["position"], right["position"]
+    scalar_deltas = {
+        "loss": right["perplexity"]["loss"] - left["perplexity"]["loss"],
+        "perplexity_ratio": right["perplexity"]["perplexity"] / left["perplexity"]["perplexity"],
+        "top1": right_next["top1_accuracy"] - left_next["top1_accuracy"],
+        "top5": right_next["top5_accuracy"] - left_next["top5_accuracy"],
+        "top10": right_next["top10_accuracy"] - left_next["top10_accuracy"],
+        "packed_top1": right_position["packed_top1"] - left_position["packed_top1"],
+        "rebased_top1": right_position["rebased"]["top1_accuracy"] - left_position["rebased"]["top1_accuracy"],
+        "position_gap": right_position["position_gap"] - left_position["position_gap"],
+    }
+    category_deltas: dict[str, Any] = {}
+    for key in left_next.get("token_type_accuracy", {}):
+        if key not in right_next.get("token_type_accuracy", {}):
+            continue
+        left_value, right_value = left_next["token_type_accuracy"][key], right_next["token_type_accuracy"][key]
+        category_deltas[key] = {
+            metric: right_value[metric] - left_value[metric]
+            for metric in ("top1_accuracy", "top5_accuracy", "top10_accuracy", "mean_loss")
+            if metric in left_value and metric in right_value
+        }
+    generation_comparable = manifests[0].get("prompt_set_fingerprint") == manifests[1].get("prompt_set_fingerprint")
+    return {
+        "status": "completed" if generation_comparable else "completed_with_incomparable_generation_reference",
+        "baseline_artifact_id": manifests[0]["artifact_id"],
+        "candidate_artifact_id": manifests[1]["artifact_id"],
+        "teacher_forced_metrics": "comparable",
+        "generation_metrics": "comparable" if generation_comparable else "incomparable_prompt_identity",
+        "generation_prompt_error_code": None if generation_comparable else "GENERATION_PROMPT_INCOMPARABLE",
+        "scalar_deltas": scalar_deltas,
+        "token_category_deltas": category_deltas,
+        "position_bucket_top1_deltas": {
+            key: right_position["buckets"][key]["top1_accuracy"] - left_position["buckets"][key]["top1_accuracy"]
+            for key in left_position.get("buckets", {}) if key in right_position.get("buckets", {})
+        },
+        "resource_deltas": {
+            key: candidate["resource"][key] - baseline["resource"][key]
+            for key in ("evaluation_seconds", "tokens_per_second", "peak_gpu_reserved_bytes", "cpu_working_set_bytes")
+            if baseline["resource"].get(key) is not None and candidate["resource"].get(key) is not None
+        },
+        "baseline_result_fingerprint": manifests[0]["result_fingerprint"],
+        "candidate_result_fingerprint": manifests[1]["result_fingerprint"],
+        "composite_score_used": False,
+    }

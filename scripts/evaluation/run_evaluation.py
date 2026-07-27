@@ -16,13 +16,18 @@ from src.evaluation import (
     publish_quick_comparison,
     run_evaluation,
 )
-from src.evaluation.reporting import compare_completed_results, leaderboard_row, load_completed_result
+from src.evaluation.reporting import (
+    compare_completed_results,
+    compare_full_candidate_results,
+    leaderboard_row,
+    load_completed_result,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="DohaLM evaluation-only runner")
     parser.add_argument("--config", default="configs/evaluation.example.yaml")
-    parser.add_argument("--mode", choices=("inspect", "quick", "full", "compare", "report"), default="inspect")
+    parser.add_argument("--mode", choices=("inspect", "quick", "full", "compare", "full-compare", "report"), default="inspect")
     parser.add_argument("--artifact-id", default="candidate-a-final")
     parser.add_argument("--evaluation-id")
     parser.add_argument("--execute", action="store_true")
@@ -65,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
                 )
             else:
                 result = compare_completed_results([load_completed_result(config, item) for item in args.result])
+        elif args.mode == "full-compare":
+            completed = [load_completed_result(config, item) for item in args.result]
+            if len(completed) != 2:
+                raise EvaluationError("BASELINE_REFERENCE_INVALID", "full-compare requires baseline and candidate results")
+            result = compare_full_candidate_results(completed[0], completed[1])
         else:
             completed = [load_completed_result(config, item) for item in args.result]
             if not completed:
