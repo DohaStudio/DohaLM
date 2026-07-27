@@ -18,9 +18,11 @@ REGISTRY = Path("configs/evaluation-artifacts.example.yaml")
 def test_registry_contains_required_artifacts() -> None:
     registry = ArtifactRegistry.load(REGISTRY)
     assert set(registry.artifacts) == {
-        "initial-seed-17", "gate7-overfit-final", "pilot-100", "candidate-a-mid", "candidate-a-final"
+        "initial-seed-17", "gate7-overfit-final", "pilot-100", "candidate-a-mid",
+        "candidate-a-final", "candidate-b-final",
     }
     assert registry.get("candidate-a-final").value["evaluation_eligibility"] == "eligible"
+    assert registry.get("candidate-b-final").value["run_id"] == "FULL-PRETRAIN-CANDIDATE-B-20260728-0002"
 
 
 def test_initial_seed_17_initialization_fingerprint_is_reproducible() -> None:

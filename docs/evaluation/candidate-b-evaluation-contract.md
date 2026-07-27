@@ -45,10 +45,15 @@ ADR 영향 검토가 필요하다.
 
 Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS 기준이 일반 정확도·반복·자원 성능과 충돌하거나, privacy·lineage 요건이 강화되면 재검토한다.
 
+[제안] 동일 synthetic prompt와 16/32/64/128-token horizon으로 Candidate A/B를 비교하는
+[EOS Generation·Decoding 진단](./eos-generation-decoding-policy.md)은 재검토 근거만 제공한다. 결과가
+나와도 이 approved 계약과 Candidate B 공식 상태는 사용자 승인 없이 변경하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | proposed 다중 길이 EOS·decoding 진단을 계약 재검토 근거로만 연결 |
 | 2026-07-28 | Run 0002 완료 후 추가 training 미승인·승인 재사용 금지 경계 명시 |
 | 2026-07-28 | Candidate B same-artifact Quick reference, Full baseline 분리와 prompt comparability 계약 명시 |
 | 2026-07-27 | Candidate A 진단을 기준으로 Candidate B 평가·EOS 성공 조건 제안 작성 |

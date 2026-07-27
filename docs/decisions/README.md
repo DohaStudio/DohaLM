@@ -20,8 +20,9 @@
 | ADR-005 | [평가 및 실험 관리 정책](./ADR-005-evaluation-and-experiment-policy.md) | `approved` | 2026-07-23 | [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [Benchmark 정책](../evaluation/benchmark-policy.md), [생성 평가](../evaluation/generation-evaluation.md), [재현성 정책](../quality/reproducibility-policy.md) | validation·perplexity·prompt 비교 조건, experiment 계보와 실패 보존 계약 | 예: metric 표현 부족, 재현 불가, 외부 평가 조건 변경 시 |
 | ADR-006 | [개발 단계와 품질 게이트](./ADR-006-development-quality-gates.md) | `approved` | 2026-07-23 | [개발 로드맵](../quality/development-roadmap.md), [테스트 체크리스트](../quality/testing-checklist.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [Codex 작업 절차](../governance/codex-workflow.md) | 단계별 진입·통과 기준, 필수 테스트, 실패 시 복구와 승인 경계 고정 | 예: 게이트가 결함을 놓치거나 과도하게 차단함, 하드웨어·범위·자동화 변경 시 |
 | ADR-007 | [Evaluation Baseline and Candidate Comparison Policy](./ADR-007-evaluation-baseline-and-candidate-comparison.md) | `approved` | 2026-07-27 | [EOS 진단](../evaluation/eos-incomplete-block-diagnostic.md), [Quick 대표성 정책](../evaluation/quick-full-representativeness-policy.md), [Candidate B 평가 계약](../evaluation/candidate-b-evaluation-contract.md) | Candidate A Full baseline, Quick 역할·등급, EOS·Candidate B 평가 계약 고정 | 예: evaluation identity·대표성·EOS 기준 충돌 시 |
+| ADR-008 | [EOS Generation and Decoding Evaluation Policy](./ADR-008-eos-generation-and-decoding-evaluation-policy.md) | `proposed` | 미정 | [EOS Generation·Decoding 정책](../evaluation/eos-generation-decoding-policy.md) | 다중 길이·prompt category·pure/assisted decoding 분리 제안; 승인 정책 변경 없음 | 동일 조건 진단 결과와 사용자 승인 시 |
 
-- [확정] 현재 `docs/decisions/`에 존재하는 ADR-001부터 ADR-007까지 모두 등록했다.
+- [확정] 승인 ADR-001부터 ADR-007과 proposed ADR-008을 모두 등록했다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -30,6 +31,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [제안] ADR-008 EOS generation·decoding 평가 정책 초안 등록 |
 | 2026-07-28 | [확정] 장기 Model Family 제안과 승인 ADR의 경계를 명시함 |
 | 2026-07-27 | [확정] ADR-007 Evaluation baseline·Quick 대표성·Candidate B 평가 계약 등록 |
 | 2026-07-26 | [확정] ADR-003에 v2 Unigram 운영 승인과 재현성 판정 기준을 반영함 |

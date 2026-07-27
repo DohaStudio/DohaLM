@@ -1,0 +1,28 @@
+schema_version: "1.0"
+status: proposed
+evaluation_config: configs/evaluation.example.yaml
+prompt_set: configs/eos-generation-prompts.example.yaml
+output_root: analysis/evaluation/diagnostics/eos-generation-decoding
+seed: 17
+maximum_prompt_tokens: 128
+generation_lengths: [16, 32, 64, 128]
+raw_text_storage: false
+token_id_storage: false
+overwrite: false
+artifacts:
+  - artifact_id: candidate-a-final
+    full_reference: candidate-a-final:candidate-a-final-full-20260727-01
+  - artifact_id: candidate-b-final
+    full_reference: candidate-b-final:candidate-b-final-full-20260728-03
+profiles:
+  - {name: greedy, strategy: greedy, temperature: null, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: temperature-0.7, strategy: sample, temperature: 0.7, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: temperature-1.0, strategy: sample, temperature: 1.0, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: top-k-20, strategy: sample, temperature: 1.0, top_k: 20, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: top-k-50, strategy: sample, temperature: 1.0, top_k: 50, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: top-p-0.9, strategy: sample, temperature: 1.0, top_p: 0.9, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: top-p-0.95, strategy: sample, temperature: 1.0, top_p: 0.95, repetition_penalty: 1.0, no_repeat_ngram: 0}
+  - {name: repetition-1.05, strategy: greedy, temperature: null, repetition_penalty: 1.05, no_repeat_ngram: 0}
+  - {name: repetition-1.10, strategy: greedy, temperature: null, repetition_penalty: 1.10, no_repeat_ngram: 0}
+  - {name: no-repeat-bigram, strategy: greedy, temperature: null, repetition_penalty: 1.0, no_repeat_ngram: 2}
+  - {name: no-repeat-trigram, strategy: greedy, temperature: null, repetition_penalty: 1.0, no_repeat_ngram: 3}
