@@ -25,6 +25,13 @@ Position 분포 JS divergence는 `1.02e-10`, target length KS는 `0.0000698`로 
 
 ## 용도
 
+[확정] Quick/Full 대표성 비교는 같은 artifact와 checkpoint에서만 수행한다. 다른 Candidate의 Quick를 Full
+reference로 연결하지 않는다. Candidate 간 공식 성능 비교는 동일 Full profile 결과끼리 별도 수행한다.
+
+[확정] Prompt fingerprint가 다르면 teacher-forced 지표의 비교 가능성과 synthetic generation의 비교 가능성을
+분리한다. generation은 `incomparable_prompt_identity`로 표시할 수 있지만 Full teacher-forced 결과를
+임의로 폐기하거나 성공으로 완화하지 않는다.
+
 - [확정] Quick은 개발 중 회귀 탐지와 방향성 확인에 사용한다.
 - [확정] milestone, 공식 baseline, 모델 간 최종 판정에는 Full을 사용한다.
 - [확정] Quick 결과에는 `representativeness_status`와 가장 최근 동일 checkpoint Full 대비 bias를 함께 기록한다.
@@ -63,5 +70,6 @@ Evaluation identity가 바뀌거나, 두 개 이상의 후속 Quick/Full 쌍에�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | same-artifact Quick/Full reference와 prompt별 부분 comparability 경계 추가 |
 | 2026-07-27 | Candidate A Final Quick/Full 분포 비교와 대표성 임계값 제안 작성 |
 | 2026-07-27 | 사용자 승인으로 역할·등급·임계값과 Candidate A 판정을 `approved`로 변경 |

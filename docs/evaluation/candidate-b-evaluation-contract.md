@@ -10,6 +10,14 @@
 
 ## 고정 비교 조건
 
+[확정] Candidate B Final Full의 직접 Quick reference는 동일 Candidate B Final artifact여야 한다. artifact ID,
+run/checkpoint identity, model, tokenizer, dataset lineage와 Quick result fingerprint가 모두 일치해야 한다.
+Candidate A Quick는 Candidate B Full의 직접 reference가 아니며 Candidate A/B 공식 비교는 Full 결과끼리
+별도로 수행한다. 세부 구현 경계는 [Full 계약 수정](./candidate-b-full-evaluation-contract-fix.md)을 따른다.
+
+[확정] Synthetic prompt fingerprint 불일치는 teacher-forced Full 지표를 무효화하지 않는다. generation
+지표만 `incomparable_prompt_identity`로 분리하며 historical prompt가 없으면 추정하지 않는다.
+
 [확정] Candidate B를 별도 승인할 경우 Candidate A와 동일한 dataset/split/tokenizer/model/context/packing/masking 평가 identity를 사용한다. 먼저 Quick으로 개발 회귀를 확인하고, 최종 판정은 Full로 한다. 변경된 identity는 같은 leaderboard 비교군에 넣지 않는다.
 
 ## 필수 지표와 합격 제안
@@ -38,5 +46,6 @@ Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B same-artifact Quick reference, Full baseline 분리와 prompt comparability 계약 명시 |
 | 2026-07-27 | Candidate A 진단을 기준으로 Candidate B 평가·EOS 성공 조건 제안 작성 |
 | 2026-07-27 | 사용자 승인으로 Candidate B Evaluation Contract를 `approved`로 변경하고 training `not_approved` 유지 |

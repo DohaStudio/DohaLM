@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 기준 시점: 2026-07-28
-- 기준 브랜치/실패 실행 commit: `feat/candidate-b-design` / `bdcf85d4fd60aefb15178ec4041735737bb86b1b`
+- 기준 학습 commit: Run 0001 `bdcf85d4fd60aefb15178ec4041735737bb86b1b` / Run 0002 `4c2eced3bf70551fbf7bc8ebde6666062584d92b`
 - 관련 근거: [개발 Roadmap](../quality/development-roadmap.md), [Candidate A 결과](../training/full-pretraining-candidate-a-result.md), [Evaluation Framework](../evaluation/README.md), [Candidate B Readiness](../training/candidate-b-readiness.md)
 
 ## 1. 통합 상태
@@ -21,10 +21,13 @@
 | Candidate A Full baseline | `approved` | ADR-007과 Final Full result |
 | Candidate B design/backend | `fix_validated` | numeric checkpoint validation·quarantine 보존 정책 포함 |
 | Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
-| Candidate B training | `not_approved` | 기존 승인 소비; 새 실행 승인 없음 |
-| Candidate B rerun | `awaiting_separate_approval` | `execution_allowed: false`; 새 commit·Run ID·Approval 필요 |
+| Candidate B Run 0002 training | `completed` | 12,208 step, 25,001,984 token, retry/resume/extension 없음 |
+| Candidate B Final Quick | `completed` | 기존 final checkpoint evaluation-only 결과 |
+| Candidate B Final Full | `blocked_by_evaluator_contract_fix` | 학습·checkpoint 문제가 아닌 same-artifact reference 버그 |
 
-첫 실행의 Failure Manifest와 approval consumption record는 외부 제한 경로에서 read-only로 보존한다. 실행은 12,208 step에 도달했지만 checkpoint가 제거돼 Quick/Full Evaluation과 공식 Candidate B 결과는 없다. 이번 수정은 새 실행 승인이 아니며 병합 후에도 `execution_allowed: false`를 유지한다.
+첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
+Run 0002 checkpoint 4,883/9,766/12,208과 Final Quick는 완료됐고 Full은 evaluator 계약 수정 전까지 차단한다.
+Candidate B 학습은 다시 실행하지 않는다.
 
 ## 2. Gate 최신 상태
 
@@ -72,8 +75,8 @@
 - 첫 Approval: `CANDIDATE-B-APPROVAL-20260728-0001`, atomic consumed, 재사용 불가.
 - 실패 원인: checkpoint 이름의 lexicographic ordering; checkpoint는 기존 cleanup으로 미보존.
 - 보완: numeric ordering·invalid/missing/duplicate/unexpected/final/metadata 진단과 향후 quarantine 정책 구현.
-- Quick/Full Evaluation: `not_run`; 공식 Candidate B 결과: `unavailable`.
-- `execution_allowed: false`, training `not_approved`, rerun `awaiting_separate_approval`.
+- Quick Evaluation: `completed`; Full Evaluation: `blocked_by_evaluator_contract_fix`.
+- Training Run 0002: `completed`; 추가 training/retry/resume/extension: `not_approved`.
 
 ## 7. 미승인·미착수
 
@@ -85,14 +88,15 @@
 
 ## 8. 다음 권장 작업
 
-1. 수정·테스트가 병합된 새 immutable commit 후보 검토
-2. 별도 새 Run ID와 single-use Approval 발급 여부 결정
-3. 별도 승인 시 실행 직전 physical preflight와 모든 fingerprint 재검증
-4. 새 실행이 정상 완료된 경우에만 Quick·Full Evaluation 수행
+1. same-artifact Quick reference 계약 수정과 회귀 검증
+2. 수정 PR을 `develop`에 병합한 뒤 clean evaluation-only branch 확정
+3. 기존 Final checkpoint와 Candidate B Final Quick를 사용해 새 Evaluation ID로 Full 1회 수행
+4. Candidate A/B의 완료된 Full 결과만 별도 비교하고 문서·leaderboard를 갱신
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B Run 0002 학습·checkpoint·Quick 완료와 Full evaluator blocker 반영 |
 | 2026-07-28 | Candidate B 첫 실행 실패·승인 소비·checkpoint 미보존과 validator/quarantine 보완 상태 반영 |
 | 2026-07-28 | Gate 0~7, tokenizer, Pilot, Candidate A, Evaluation과 Candidate B 현재 blocker 통합 snapshot 작성 |

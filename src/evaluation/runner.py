@@ -502,10 +502,15 @@ def _quick_full_comparison(
     full_metrics: dict[str, Any],
     full_resource: dict[str, Any],
     quick_result: dict[str, Any],
+    *,
+    expected_artifact_id: str = "candidate-a-final",
+    reference_validation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     manifest = quick_result["manifest"]
-    if manifest.get("artifact_id") != "candidate-a-final" or manifest.get("profile") != "quick":
-        raise EvaluationError("QUICK_REFERENCE_INVALID", "Full Evaluation requires Candidate A Final Quick reference")
+    if manifest.get("artifact_id") != expected_artifact_id:
+        raise EvaluationError("QUICK_REFERENCE_ARTIFACT_MISMATCH", "Full Evaluation requires a same-artifact Quick reference")
+    if manifest.get("profile") != "quick":
+        raise EvaluationError("QUICK_REFERENCE_PROFILE_INVALID", "Full Evaluation reference must use the Quick profile")
     quick = quick_result["metrics"]
     quick_resource = quick_result["resource"]
     full_next, quick_next = full_metrics["next_token"], quick["next_token"]
@@ -546,6 +551,12 @@ def _quick_full_comparison(
         and abs(deltas["top10"]) <= proposed_thresholds["top10_absolute"]
         and abs(deltas["position_gap"]) <= proposed_thresholds["position_gap_absolute"]
     )
+    validation = reference_validation or {
+        "teacher_forced_metrics": "comparable",
+        "generation_metrics": "comparable",
+        "overall_status": "comparable",
+        "prompt_identity_status": "current_prompt_only",
+    }
     return {
         "quick_reference_result_fingerprint": manifest["result_fingerprint"],
         "quick_evaluation_id": manifest["evaluation_id"],
@@ -557,8 +568,59 @@ def _quick_full_comparison(
         "policy_status": "proposed_not_approved",
         "proposed_thresholds": proposed_thresholds,
         "candidate_threshold_outcome": "pass" if candidate_pass else "fail",
+        "teacher_forced_metrics": validation["teacher_forced_metrics"],
+        "generation_metrics": validation["generation_metrics"],
+        "overall_status": validation["overall_status"],
+        "prompt_identity_status": validation["prompt_identity_status"],
         "raw_text_stored": False,
         "token_ids_stored": False,
+    }
+
+
+def _validate_quick_reference(
+    quick_result: dict[str, Any],
+    *,
+    artifact: EvaluationArtifact,
+    dataset_identity: dict[str, Any],
+    tokenizer_fingerprint: str,
+    prompt_fingerprint: str,
+) -> dict[str, Any]:
+    manifest = quick_result.get("manifest", {})
+    metrics = quick_result.get("metrics")
+    if manifest.get("profile") != "quick":
+        raise EvaluationError("QUICK_REFERENCE_PROFILE_INVALID", "Quick reference profile is invalid")
+    if manifest.get("artifact_id") != artifact.artifact_id:
+        raise EvaluationError("QUICK_REFERENCE_ARTIFACT_MISMATCH", "Quick reference artifact differs from Full target")
+    if manifest.get("artifact_identity_fingerprint") != artifact.identity_fingerprint:
+        raise EvaluationError("QUICK_REFERENCE_ARTIFACT_MISMATCH", "Quick reference run identity differs from Full target")
+    checkpoint = manifest.get("checkpoint_identity") or {}
+    if checkpoint.get("global_step") != artifact.value["checkpoint_step"]:
+        raise EvaluationError("QUICK_REFERENCE_CHECKPOINT_MISMATCH", "Quick reference checkpoint step differs from Full target")
+    if manifest.get("model_fingerprint") != artifact.value["model_fingerprint"]:
+        raise EvaluationError("QUICK_REFERENCE_MODEL_MISMATCH", "Quick reference model fingerprint differs from Full target")
+    if manifest.get("tokenizer_fingerprint") != tokenizer_fingerprint:
+        raise EvaluationError("QUICK_REFERENCE_TOKENIZER_MISMATCH", "Quick reference tokenizer fingerprint differs from Full target")
+    quick_dataset = manifest.get("dataset_identity") or {}
+    if (
+        quick_dataset.get("evaluation_fingerprint") != dataset_identity.get("evaluation_fingerprint")
+        or manifest.get("split_fingerprint") != artifact.value["split_fingerprint"]
+        or manifest.get("source_lineage_fingerprint") != artifact.value["source_lineage_fingerprint"]
+    ):
+        raise EvaluationError("QUICK_REFERENCE_DATASET_MISMATCH", "Quick reference dataset lineage differs from Full target")
+    if not isinstance(metrics, dict):
+        raise EvaluationError("QUICK_REFERENCE_RESULT_FINGERPRINT_INVALID", "Quick reference metrics are missing")
+    schema = manifest.get("result_fingerprint_schema", "evaluation-result-v1")
+    expected_result_fingerprint = checksum_value(_result_fingerprint_payload(metrics, schema=schema))
+    if manifest.get("result_fingerprint") != expected_result_fingerprint:
+        raise EvaluationError("QUICK_REFERENCE_RESULT_FINGERPRINT_INVALID", "Quick reference result fingerprint is invalid")
+    prompt_matches = manifest.get("prompt_set_fingerprint") == prompt_fingerprint
+    return {
+        "teacher_forced_metrics": "comparable",
+        "generation_metrics": "comparable" if prompt_matches else "incomparable_prompt_identity",
+        "overall_status": "comparable" if prompt_matches else "completed_with_incomparable_generation_reference",
+        "prompt_identity_status": "current_prompt_only" if prompt_matches else "incomparable_prompt_identity",
+        "generation_prompt_error_code": None if prompt_matches else "GENERATION_PROMPT_INCOMPARABLE",
+        "historical_prompt_status": "historical_prompt_unverified",
     }
 
 
@@ -608,6 +670,17 @@ def run_evaluation(
         raise EvaluationError("FULL_DATASET_INCOMPLETE", "full profile must use every packed sequence in source order")
     loader = DataLoader(subset, batch_size=config.profile.batch_size, shuffle=False, collate_fn=CausalLMCollator(context_length=256), num_workers=0)
     prompts, prompt_fingerprint = _load_prompts(config)
+    quick_reference_validation = None
+    if config.profile.name == "full":
+        if quick_reference is None:
+            raise EvaluationError("QUICK_REFERENCE_MISSING", "Full Evaluation requires an immutable same-artifact Quick reference")
+        quick_reference_validation = _validate_quick_reference(
+            quick_reference,
+            artifact=artifact,
+            dataset_identity=config.dataset_identity,
+            tokenizer_fingerprint=tokenizer_report["tokenizer_fingerprint"],
+            prompt_fingerprint=prompt_fingerprint,
+        )
     model, checkpoint_before = _prepare_model(config, artifact, device)
     model_before = _model_digest(model)
     if any(parameter.requires_grad for parameter in model.parameters()) or model.training:
@@ -670,16 +743,13 @@ def run_evaluation(
         raise EvaluationError("EVALUATION_CPU_MEMORY_LIMIT", "evaluation exceeded CPU working-set limit")
     quick_full = None
     if config.profile.name == "full":
-        if quick_reference is None:
-            raise EvaluationError("QUICK_REFERENCE_REQUIRED", "Full Evaluation requires an immutable Quick reference")
-        quick_manifest = quick_reference["manifest"]
-        if (
-            quick_manifest["dataset_identity"]["evaluation_fingerprint"] != config.dataset_identity["evaluation_fingerprint"]
-            or quick_manifest["tokenizer_fingerprint"] != tokenizer_report["tokenizer_fingerprint"]
-            or quick_manifest["prompt_set_fingerprint"] != prompt_fingerprint
-        ):
-            raise EvaluationError("QUICK_REFERENCE_INCOMPARABLE", "Quick reference identity does not match Full Evaluation")
-        quick_full = _quick_full_comparison(deterministic_metrics, resource, quick_reference)
+        quick_full = _quick_full_comparison(
+            deterministic_metrics,
+            resource,
+            quick_reference,
+            expected_artifact_id=artifact_id,
+            reference_validation=quick_reference_validation,
+        )
     manifest = {
         "schema_version": "1.0", "evaluation_id": evaluation_id, "profile": config.profile.name,
         "artifact_id": artifact_id, "artifact_identity_fingerprint": artifact.identity_fingerprint,
@@ -699,6 +769,7 @@ def run_evaluation(
         "result_fingerprint_schema": result_fingerprint_schema,
         "quick_reference_fingerprint": None if quick_full is None else quick_full["quick_reference_result_fingerprint"],
         "quick_full_comparability": None if quick_full is None else quick_full["comparability"],
+        "quick_reference_validation": quick_reference_validation,
         "checkpoint_checksum_before": checkpoint_before, "checkpoint_checksum_after": checkpoint_after,
         "tokenizer_checksum_before": tokenizer_checksum_before, "tokenizer_checksum_after": tokenizer_checksum_after,
         "dataset_manifest_checksum_before": dataset_manifest_checksum_before,
