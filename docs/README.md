@@ -1,7 +1,7 @@
 # DohaLM 문서 안내서
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-28
 - 기준 인덱스: [문서 인덱스](./index.md)
 
 ## 1. 안내 목적과 독자
@@ -21,7 +21,9 @@
 
 ### 2.1 처음 보는 사람
 
-[프로젝트 개요](./project/overview.md) → [범위와 목표](./project/scope-and-goals.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
+[프로젝트 개요](./project/overview.md) → [현재 프로젝트 상태](./project/current-project-status.md) → [범위와 목표](./project/scope-and-goals.md) → [Foundation Model Strategy](./project/foundation-model-strategy.md) → [Model Family Roadmap](./project/model-family-roadmap.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
+
+장기 제품·연구 계보를 검토할 때는 [Model Lineage](./project/model-lineage.md)와 [Domain Model Strategy](./project/domain-model-strategy.md)를 함께 읽는다. 이 다섯 문서는 `review` 단계의 장기 제안이며 기존 승인 ADR이나 현재 실행 권한을 대체하지 않는다.
 
 ### 2.2 핵심 구현과 모델 개발
 
@@ -37,9 +39,9 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [실험 관리](./training/experiment-management.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [Candidate B 설계](./training/candidate-b-design.md) → [Candidate B Backend](./training/candidate-b-backend.md) → [Candidate B 최종 Readiness](./training/candidate-b-final-readiness.md) → [실험 관리](./training/experiment-management.md)
 
-Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B training은 `not_approved`다.
+Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B backend·CPU validation·output probe는 완료됐다. 실제 실행 때는 clean immutable Git identity를 다시 고정하고 물리 preflight와 single-use 승인을 충족해야 한다. Training은 `not_approved`, `execution_allowed: false`다.
 
 ### 2.6 Codex 작업
 
@@ -100,20 +102,21 @@ Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성�
 
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
 - [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
-- [확정] Phase 3·4 모델, Phase 5 Trainer Foundation과 실제 Tiny 규모 합성 CUDA·sampler resume·VRAM 검증은 구현·테스트됐다. 실제 tokenizer·승인 corpus 사전학습, 평가와 서비스는 구현 또는 실행되지 않았다.
+- [확정] Phase 3·4 모델, Trainer, 운영 tokenizer, 실제 corpus Tiny Overfit, canonical Pilot, Candidate A 10M과 Evaluation Framework는 구현·검증 또는 실행됐다. 서비스·SFT와 Candidate B training은 실행되지 않았다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
 - [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical pilot-v2 100-step Pilot은 완료됐다. 해당 승인은 소비됐고 Full Pretraining·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
+- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical Pilot과 Candidate A 10M은 완료됐다. Candidate B backend는 준비됐지만 Candidate B training·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B backend·CPU validation·output probe 완료와 실행 승인 대기 상태 연결 |
 | 2026-07-27 | [확정] AIHUB-71748 동일 64문서 Tiny Overfit 최종 승인과 Gate 7 `passed`를 반영하되 Pilot·전체 Pretraining 차단을 유지함 |
 | 2026-07-24 | [확정] Gate 4·5·6 사용자 승인 기록과 Pilot readiness 차단 문서를 학습 흐름에 연결하고 Gate 3·7 및 데이터 승인을 유지함 |
 | 2026-07-24 | [확정] 실제 Tiny 규모 합성 학습·sampler resume·VRAM/처리량 검증 문서를 연결하고 Gate 6·7 `planned`를 유지함 |

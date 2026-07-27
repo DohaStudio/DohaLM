@@ -5,14 +5,14 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-26 |
+| 마지막 검토일 | 2026-07-28 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](./system-architecture.md) |
 | 후속 문서 | [핵심 개발 기능명세서](./core-development-feature-specification.md), [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md), [실험 관리 정책](../training/experiment-management.md) |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 이 문서는 현재 저장소에 실제로 존재하는 구조와 향후 후보 구조를 구분한다.
 - [확정] 디렉터리가 존재한다는 사실은 해당 기능이 구현됐다는 뜻이 아니다.
-- [확정] Phase 0·1 기반, 승인 corpus 기반 운영 `operating-16k-v2/unigram-16k`, Phase 3·4 model, Phase 5 Trainer Foundation과 실제 Tiny 규모 합성 sampler·cosine·CUDA validation 도구 및 테스트는 구현됐다. 실제 사전학습·서비스 기능은 미구현이다.
+- [확정] Phase 0·1 기반, 운영 `operating-16k-v2/unigram-16k`, DohaLM-Tiny, Trainer, 실제 corpus Overfit, canonical Pilot·Candidate A 실행 backend와 Evaluation Framework는 구현·검증 또는 실행됐다. 서비스·Frontend·SFT와 Candidate B training은 미구현 또는 미실행이다.
 
 ## 2. 구조 운영 원칙
 
@@ -25,7 +25,7 @@
 
 ## 3. 현재 실제 구조
 
-아래 트리는 2026-07-23 Phase 0 구현 후 구조를 요약한다. `.git/`과 파일 단위의 세부 목록은 생략했다.
+아래 트리는 2026-07-28 현재 주요 구조를 요약한다. `.git/`과 대부분의 파일 단위 세부 목록은 생략했다.
 
 ```text
 DohaLM/
@@ -38,7 +38,13 @@ DohaLM/
 │   ├── tokenized/
 │   └── sft/
 ├── docs/
-│   └── decisions/
+│   ├── decisions/
+│   └── project/
+│       ├── current-project-status.md
+│       ├── foundation-model-strategy.md
+│       ├── model-family-roadmap.md
+│       ├── model-lineage.md
+│       └── domain-model-strategy.md
 ├── frontend/
 ├── scripts/
 ├── server/
@@ -99,7 +105,7 @@ DohaLM/
 | `src/tokenizer/` | 토크나이저 학습·래퍼 | SentencePiece 연동 소스 | 학습 corpus, 생성 모델 | 소스만 추적 | 필요 시 검토 | 토크나이저 구현 단계 |
 | `src/data/` | 정제·중복 제거·데이터셋 구성 | 탐색·reader·validation·정규화·checksum/ID·exact dedup·split/leakage·artifact·pipeline·dataset adapter 소스 | 실제 대용량 데이터 | 소스만 추적 | Phase 1 최소 파이프라인 구현 | Gate 2 승인 전 synthetic fixture 검증 |
 | `src/model/` | Decoder-only Transformer | Config·구성요소·전체 forward·shifted loss·greedy generation·state round-trip helper·parameter count | 완성형 외부 GPT 모델, trainer·checkpoint manager | 소스만 추적 | 존재 | Phase 3 구성요소와 Phase 4 통합 구현 |
-| `src/training/` | 합성 Trainer Foundation과 Tiny 실규모 검증 | config·dataset/collator/loader·stateful sampler·AdamW·linear/cosine 후보·AMP·accumulation·metric·memory/throughput·checkpoint/resume | 실제 corpus 사전학습, SFT, 운영 실험 registry | 소스만 추적 | Phase 5 합성 범위 구현 및 Gate 6 `passed` | Gate 3·7과 실제 데이터·Pilot 승인 전 |
+| `src/training/` | Trainer와 fail-closed pretraining backend | config·dataset/collator/loader·stateful sampler·AdamW·scheduler·AMP·accumulation·metric·memory/throughput·checkpoint/resume·Pilot/Candidate orchestration | 실제 corpus·checkpoint·대용량 실행 결과, SFT, 운영 실험 registry | 소스만 추적 | Gate 6·7과 Pilot·Candidate A 검증 완료 | 각 실제 실행의 별도 승인 전 |
 | `src/evaluation/` | 정량·정성 평가 | 평가 로직 | 대용량 결과 원본 | 소스만 추적 | 필요 시 검토 | 평가 계획 승인 후 |
 | `src/inference/` | 생성과 채팅 템플릿 | 로컬 추론 로직 | 서버 라우팅, UI | 소스만 추적 | 필요 시 검토 | 추론 설계 승인 후 |
 | `server/` | FastAPI 경계 | 스키마, 라우팅, 모델 서비스 | 모델 핵심 구현 | 소스만 추적 | 필요 시 검토 | API 명세 승인 후 |
@@ -145,6 +151,7 @@ DohaLM/
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] 현재 구현·실행 상태와 장기 Foundation·Model Family 문서 구조를 반영함 |
 | 2026-07-26 | [확정] 외부 artifact root의 운영 `operating-16k-v2/unigram-16k` 승인과 Gate 3 완료 상태를 반영하고 실제 사전학습 미구현 경계를 유지함 |
 | 2026-07-24 | [확정] stateful sampler·cosine 후보·memory/throughput·Tiny validation과 probe/inspection CLI 책임을 반영함 |
 | 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation과 training smoke·checkpoint 검사·재개 CLI 책임을 반영함 |

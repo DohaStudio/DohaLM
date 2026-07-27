@@ -1,0 +1,7 @@
+schema_version: "1.0"
+binding_type: candidate_b_local_binding
+run_id: FULL-PRETRAIN-CANDIDATE-B-20260728-0001
+local_dataset_config: configs/local-datasets.yaml
+output_logical_root: analysis/training/candidate-b/runs/FULL-PRETRAIN-CANDIDATE-B-20260728-0001
+readiness_logical_root: analysis/training/candidate-b/readiness
+failure_logical_root: analysis/training/candidate-b/failures

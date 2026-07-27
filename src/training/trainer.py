@@ -213,6 +213,7 @@ class Trainer:
         *,
         target_steps: int | None = None,
         metric_observer: Callable[[TrainingMetric], None] | None = None,
+        before_optimizer_step: Callable[[int], None] | None = None,
     ) -> TrainingResult:
         target = self.config.max_steps if target_steps is None else target_steps
         if target <= self.state.global_step or target > self.config.max_steps:
@@ -266,6 +267,8 @@ class Trainer:
                 after_clip = self._gradient_norm()
                 if not math.isfinite(after_clip):
                     raise TrainingError("NON_FINITE_GRADIENT", "clipping 후 gradient가 NaN 또는 Inf입니다.")
+                if before_optimizer_step is not None:
+                    before_optimizer_step(self.state.global_step + 1)
                 scale_before = self.scaler.get_scale()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()

@@ -1,0 +1,118 @@
+schema_version: "1.0"
+candidate_id: candidate-b
+run_id: FULL-PRETRAIN-CANDIDATE-B-YYYYMMDD-NNNN
+execution_mode: inspection_only
+training_stage: full_pretraining_candidate
+
+train_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/train.jsonl
+evaluation_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/evaluation.jsonl
+tokenizer_model: analysis/tokenizer-development/AIHUB-71748/operating-16k-v2/tokenizers/unigram-16k/tokenizer.model
+corpus_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/dataset-manifest.json
+split_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/split-manifest.json
+output_dir: analysis/full-pretraining/AIHUB-71748/runs/FULL-PRETRAIN-CANDIDATE-B-YYYYMMDD-NNNN
+path_root: configured_external
+local_dataset_config: configs/local-datasets.yaml
+
+baseline:
+  candidate: candidate_a_final
+  evaluation_id: candidate-a-final-full-20260727-01
+  checkpoint_checksum: sha256:80f2aee72605ffcfeea13e158cbf7a132682591cf4295cd01c16f514686338f8
+  evaluation_result_fingerprint: sha256:1ec526e2dc6b1792f2d071fc788cd384ad3a22a0c2750df7437158153ca2d78d
+
+budget_candidate: candidate_b_25m
+token_budget: 25000000
+tokens_per_optimizer_step: 2048
+max_steps: 12208
+scheduled_tokens: 25001984
+maximum_epochs: 0.35061991694052586
+
+micro_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 0.0003
+weight_decay: 0.1
+scheduler_type: cosine
+warmup_steps: 10
+min_lr_ratio: 0.1
+max_grad_norm: 1.0
+log_every: 1
+seed: 17
+device: cuda
+use_amp: true
+
+initialization:
+  mode: fresh_seed_17
+  seed: 17
+  parent_checkpoint: null
+  candidate_a_checkpoint_used: false
+  optimizer_state_reused: false
+  scheduler_state_reused: false
+  sampler_state_reused: false
+
+evaluation_policy:
+  contract: docs/evaluation/candidate-b-evaluation-contract.md
+  config: configs/evaluation.example.yaml
+  evaluation_fingerprint: sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790
+  quick_schedule: [start, step-4883, final]
+  full_schedule: [post-training-final]
+  full_evaluation_during_training: false
+  official_decision_profile: full
+  original_validation_used: false
+  external_benchmark_used: false
+  raw_text_storage: false
+  token_id_storage: false
+
+checkpoint_policy:
+  steps: [4883, 9766, 12208]
+  scheduled_tokens: [10000384, 20000768, 25001984]
+  maximum_retained: 3
+  atomic_publish: true
+  checksum_manifest: true
+  automatic_deletion_during_run: false
+  post_run_deletion: separate_user_approval_required
+
+resume_policy:
+  resume_allowed: false
+  automatic_resume: false
+  automatic_retry: false
+  same_run_only: true
+  checksum_valid_checkpoint_required: true
+  separate_user_approval_required: true
+  cross_candidate_resume: false
+
+disk_budget:
+  run_budget_bytes: 2147483648
+  minimum_free_bytes_before_start: 10737418240
+  minimum_free_bytes_during_run: 5368709120
+  estimated_output_bytes: 697932185
+
+wall_clock_budget:
+  estimated_seconds_from_candidate_a: 3276
+  planned_seconds: 3600
+  hard_stop_seconds: 5400
+
+system_safety:
+  maximum_reserved_vram_bytes: 7516192768
+  maximum_cpu_working_set_bytes: 4294967296
+  repeated_amp_skip_limit: 3
+  loss_spike_multiplier: 4.0
+  loss_spike_consecutive_steps: 10
+  gradient_norm_spike_multiplier: 4.0
+  gradient_norm_spike_consecutive_steps: 10
+  rolling_window_steps: 100
+  windows_sleep_prevention: required_before_execution
+  plugged_power: required_before_execution
+  adequate_cooling_and_ventilation: required_before_execution
+  no_other_long_gpu_task: required_before_execution
+
+approval:
+  status: not_approved
+  execution_allowed: false
+  single_use: true
+  consume_on_optimizer_step: 1
+  automatic_extension: false
+  automatic_retry: false
+
+local_experiment_only: true
+publish_allowed: false
+redistribution_allowed: false
+model_release_allowed: false

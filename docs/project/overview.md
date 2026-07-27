@@ -1,13 +1,15 @@
 # DohaLM 프로젝트 개요
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-28
+
+> 현재 구현·실행 상태는 [Current Project Status](./current-project-status.md)가 기준이다. 아래 초기 목표와 완료 조건은 역사적 범위를 보존하며, 장기 확장 제안은 [Foundation Model Strategy](./foundation-model-strategy.md)와 [Model Family Roadmap](./model-family-roadmap.md)를 따른다.
 
 ## 프로젝트 기준
 
 - [확정] 이 문서는 DohaLM의 최상위 기준 문서다.
 - [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
-- [확정] 현재 저장소는 디렉터리와 파일 스캐폴드만 있으며 모델, 학습, 평가, 서버, 프론트엔드 기능은 구현되지 않았다.
+- [확정] 현재 저장소에는 DohaLM-Tiny, 데이터·tokenizer·Trainer pipeline과 Evaluation Framework가 구현돼 있고 Gate 1~7이 통과했다. 서버와 frontend는 scaffold 단계이며 SFT·Candidate B training은 미실행이다.
 
 ## 프로젝트 배경
 
@@ -33,13 +35,13 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 
 | 결과물 | 상태 | 완료 판단 |
 |---|---|---|
-| 한국어 SentencePiece 토크나이저 | [검증 필요] | 학습 산출물, 설정, 어휘 및 기본 인코딩 테스트가 존재함 |
-| `DohaLM-Tiny` | [검증 필요] | 사전학습·평가·생성 파이프라인을 끝까지 실행함 |
+| 한국어 SentencePiece 토크나이저 | [확정] | 운영 `operating-16k-v2/unigram-16k` 승인과 fingerprint·round-trip 검증 완료 |
+| `DohaLM-Tiny` | [확정] | 실제 corpus Overfit, Pilot, Candidate A와 Quick·Full 평가 완료 |
 | `DohaLM-Small` | [후순위] | Tiny 결과를 반영한 설계와 학습·생성 결과가 존재함 |
-| PyTorch 기반 모델 구현 | [검증 필요] | 직접 구현 범위가 코드와 테스트로 확인됨 |
-| 데이터 처리 파이프라인 | [검증 필요] | 출처·라이선스·정제·중복 제거·분할 기록이 재현 가능함 |
+| PyTorch 기반 모델 구현 | [확정] | 직접 구현 범위가 코드와 테스트로 확인됨 |
+| 데이터 처리 파이프라인 | [확정] | 원본 불변·계보·분할·누수·fingerprint 계약과 canonical pilot-v2 검증 완료 |
 | 사전학습 및 SFT 체크포인트 | [검증 필요] | 저장·복원 및 중단 후 재개가 검증됨 |
-| 평가 보고서 | [검증 필요] | 손실, perplexity, 생성 샘플 및 한국어 평가 결과가 기록됨 |
+| 평가 보고서 | [확정] | Candidate A Quick·Full, EOS 진단과 공식 internal baseline 기록 완료 |
 | FastAPI 및 Next.js 데모 | [후순위] | 로컬 환경에서 요청부터 생성 응답까지 연결됨 |
 | K-AI Leaderboard 검토서 | [후순위] | 당시 규정, 형식, 라이선스 및 성능 요건을 대조함 |
 
@@ -60,12 +62,12 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 ## 전체 개발 흐름
 
 1. [확정] 기준 문서와 ADR 작성
-2. [검증 필요] 데이터 후보 조사, 라이선스 검토 및 데이터 정책 확정
-3. [검증 필요] 정제·중복 제거·분할 파이프라인 구축
-4. [검증 필요] SentencePiece 토크나이저 학습 및 검증
-5. [검증 필요] `DohaLM-Tiny` 모델과 단위 테스트 구현
-6. [검증 필요] 짧은 과적합 및 복원 테스트로 학습 파이프라인 검증
-7. [검증 필요] Tiny 사전학습, 평가 및 생성 점검
+2. [확정] AIHUB-71748 학생·비상업 범위와 canonical pilot-v2 계보 검토
+3. [확정] 정제·중복 제거·분할 파이프라인 구축
+4. [확정] SentencePiece 운영 토크나이저 학습 및 검증
+5. [확정] `DohaLM-Tiny` 모델과 단위 테스트 구현
+6. [확정] 실제 corpus Tiny Overfit과 복원 테스트로 학습 파이프라인 검증
+7. [확정] Pilot·Candidate A 사전학습과 Quick·Full 평가 완료
 8. [검증 필요] 질문·답변 데이터 준비와 SFT
 9. [후순위] 측정 결과를 바탕으로 `DohaLM-Small` 상세 사양 확정 및 학습
 10. [후순위] FastAPI 추론 서버와 Next.js 채팅 화면 연결

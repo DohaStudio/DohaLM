@@ -1,7 +1,7 @@
 # DohaLM Architecture Decision Records
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-28
 
 ## 목적
 
@@ -24,11 +24,13 @@
 - [확정] 현재 `docs/decisions/`에 존재하는 ADR-001부터 ADR-007까지 모두 등록했다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
+- [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] 장기 Model Family 제안과 승인 ADR의 경계를 명시함 |
 | 2026-07-27 | [확정] ADR-007 Evaluation baseline·Quick 대표성·Candidate B 평가 계약 등록 |
 | 2026-07-26 | [확정] ADR-003에 v2 Unigram 운영 승인과 재현성 판정 기준을 반영함 |
 | 2026-07-23 | [확정] ADR 인덱스 문서 상태 필드와 ADR-001 상태 표현을 표준화함 |
