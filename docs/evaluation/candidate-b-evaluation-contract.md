@@ -1,0 +1,42 @@
+# Candidate B 평가 계약
+
+- 문서 상태: `review`
+- 승인 상태: `approved`
+- 승인일: 2026-07-27
+- 승인 범위: Candidate B 완료 후 필수 Evaluation Framework 검증
+- 대체 여부: `not_superseded`
+- 학습 승인: `not_approved`
+- 마지막 검토일: 2026-07-27
+
+## 고정 비교 조건
+
+[확정] Candidate B를 별도 승인할 경우 Candidate A와 동일한 dataset/split/tokenizer/model/context/packing/masking 평가 identity를 사용한다. 먼저 Quick으로 개발 회귀를 확인하고, 최종 판정은 Full로 한다. 변경된 identity는 같은 leaderboard 비교군에 넣지 않는다.
+
+## 필수 지표와 합격 제안
+
+- [확정] Full loss, PPL, Top-1/5/10, Korean·English·number·symbol·byte fallback과 position gap을 Candidate A Final Full과 비교한다.
+- [확정] EOS Top-1/5/10은 각각 Candidate A의 12.2334% / 86.3028% / 89.4814%보다 낮아지지 않아야 한다.
+- [확정] EOS mean loss, median rank 3과 p90 rank 12가 악화되지 않는 것을 판단 기준으로 사용한다.
+- [확정] EOS rank distribution, probability와 Top-1 margin을 같은 position/context bucket으로 보고한다.
+- [확정] synthetic greedy EOS rate는 0%보다 개선하고 maximum-length rate는 100%보다 낮아야 한다.
+- [확정] 반복률 45.3333%, loop rate 80%, special-token exposure 0%와 일반 Top-k가 심각하게 악화되면 EOS 개선만으로 통과시키지 않는다.
+- [확정] Quick 대표성은 [승인 정책](./quick-full-representativeness-policy.md)에 따라 Full 쌍으로 재판정한다.
+
+Teacher-forced EOS 필수 보고값은 target count·ratio, mean loss, Top-1/5/10, median/p90 rank다. 생성 필수 보고값은 greedy와 승인된 sampling profile의 EOS rate, maximum-length rate, mean termination length, loop, 반복, distinct-n과 special-token exposure다. 안정성·평가 시간·peak VRAM은 필수 보고하되 성능 합격선과 분리한다. 임의 종합 점수는 만들지 않는다.
+
+필수 실행은 동일 Quick, 동일 Full internal, 동일 synthetic generation, 동일 EOS rank, position-aware와 token-category 평가다. Candidate A Final Full·Quick 및 Initial/Pilot/Mid/Final Quick comparison을 기준선으로 고정한다.
+
+## Fail Closed
+
+[확정] 이 문서는 평가 계약만 승인하며 Candidate B 생성·학습·데이터 변경을 승인하지 않는다. Candidate B training은 `not_approved`다. 별도 사용자 승인 전에는 optimizer, backward, 장시간 GPU 작업과 Candidate B/C를 실행하지 않는다. EOS 삽입, loss weighting, packing 또는 decoding 변경도 각각 별도 승인과 ADR 영향 검토가 필요하다.
+
+## 재검토 조건
+
+Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS 기준이 일반 정확도·반복·자원 성능과 충돌하거나, privacy·lineage 요건이 강화되면 재검토한다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-27 | Candidate A 진단을 기준으로 Candidate B 평가·EOS 성공 조건 제안 작성 |
+| 2026-07-27 | 사용자 승인으로 Candidate B Evaluation Contract를 `approved`로 변경하고 training `not_approved` 유지 |

@@ -66,6 +66,12 @@
 
 - [확정] 장시간 학습은 Gate 8 또는 Gate 9의 사용자 명시 승인 없이 시작하지 않는다.
 
+### Candidate B 추가 Ready
+
+- [확정] 승인된 [ADR-007](../decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md), Candidate A Final Full baseline과 [Candidate B 평가 계약](../evaluation/candidate-b-evaluation-contract.md)을 고정한다.
+- [확정] Candidate B design·training은 평가 계약 승인과 별개의 사용자 승인이 필요하다.
+- [확정] Quick v2는 `planned_awaiting_separate_approval`이며 승인 전 입력으로 사용하지 않는다.
+
 ## 6. Ready 미충족 보고
 
 다음 형식으로 안전하게 가능한 확인 결과만 보고한다.
@@ -91,4 +97,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | Candidate B 평가 계약 승인과 design·training·Quick v2 별도 승인 Ready 경계 추가 |
 | 2026-07-23 | [확정] 공통·문서·코드·학습 작업의 시작 조건과 미충족 보고 방식 정의 |

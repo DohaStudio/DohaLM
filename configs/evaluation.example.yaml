@@ -1,0 +1,59 @@
+schema_version: "1.0"
+execution_mode: inspection_only
+profile: quick
+artifact_registry: configs/evaluation-artifacts.example.yaml
+prompt_set: configs/evaluation-prompts.example.yaml
+local_dataset_config: configs/local-datasets.yaml
+dataset_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/dataset-manifest.json
+split_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/split-manifest.json
+evaluation_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/evaluation.jsonl
+tokenizer_model: analysis/tokenizer-development/AIHUB-71748/operating-16k-v2/tokenizers/unigram-16k/tokenizer.model
+output_root: analysis/evaluation
+
+dataset_identity:
+  dataset_version: pilot-v2
+  source_split: internal_evaluation_from_training
+  records: 4799
+  packed_sequences: 14329
+  target_tokens: 3653719
+  split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+  evaluation_fingerprint: sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790
+  original_validation_used: false
+
+profiles:
+  quick:
+    maximum_sequences: 128
+    batch_size: 8
+    timeout_seconds: 600
+    generation_enabled: true
+    continuation_enabled: true
+    fp32_comparison_sequences: 8
+  full:
+    maximum_sequences: 14329
+    batch_size: 8
+    timeout_seconds: 900
+    generation_enabled: true
+    continuation_enabled: true
+    fp32_comparison_sequences: 32
+
+device: cuda
+precision: fp16
+seed: 17
+deterministic_algorithms: true
+raw_text_storage: false
+token_id_storage: false
+overwrite: false
+external_benchmark: disabled
+metrics:
+  perplexity: true
+  next_token: true
+  position_aware: true
+  generation: true
+  continuation: true
+  stability: true
+generation:
+  strategy: greedy
+  max_new_tokens: 16
+resource_limits:
+  maximum_reserved_vram_bytes: 7516192768
+  maximum_cpu_working_set_bytes: 4294967296

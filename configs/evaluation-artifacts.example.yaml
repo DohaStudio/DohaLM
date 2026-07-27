@@ -1,0 +1,127 @@
+schema_version: "1.0"
+artifacts:
+  initial-seed-17:
+    display_name: DohaLM-Tiny initial seed 17
+    artifact_type: deterministic_initialization
+    model_version: DohaLM-Tiny
+    training_stage: initial
+    run_id: null
+    checkpoint_step: 0
+    consumed_tokens: 0
+    equivalent_epoch: 0.0
+    dataset_version: pilot-v2
+    dataset_fingerprint: sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b
+    source_lineage_fingerprint: sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f
+    pii_fingerprint: sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed
+    split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: sha256:c580d1786efc2aa85ebb4c9ada4cf28ac280b3367beeee69cd263dc25b7a3356
+    checkpoint_training_config_fingerprint: null
+    checkpoint_checksum: null
+    checkpoint_bundle_bytes: 0
+    logical_external_path: null
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved
+  gate7-overfit-final:
+    display_name: Gate 7 Tiny Overfit final
+    artifact_type: checkpoint
+    model_version: DohaLM-Tiny
+    training_stage: memorization_only
+    run_id: gate7-followup-20260727-01/lr-1e-3
+    checkpoint_step: 1000
+    consumed_tokens: 1024000
+    equivalent_epoch: 33.3333333333
+    dataset_version: gate7-overfit-v1
+    dataset_fingerprint: sha256:c0caeb05eb323c4237f43afbd1c10c295bbcd619512524974d4f5f61d325afbb
+    source_lineage_fingerprint: null
+    pii_fingerprint: null
+    split_fingerprint: null
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: null
+    checkpoint_training_config_fingerprint: sha256:ca60bb7779bb1e1edb15dc849c3fcecf6e1b994067e2c068b0a5b906a40ba2be
+    checkpoint_checksum: sha256:7c7f931363595b73119c768f909374a080e10c5b878e9bd8d239db704ec9b86f
+    checkpoint_bundle_bytes: 202788710
+    logical_external_path: analysis/gate7-tiny-overfit/AIHUB-71748/gate7-followup-20260727-01/lr-1e-3/checkpoint-1000
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved
+  pilot-100:
+    display_name: canonical pilot-v2 step 100
+    artifact_type: checkpoint
+    model_version: DohaLM-Tiny
+    training_stage: pilot
+    run_id: PILOT-100-V2-20260727-0001
+    checkpoint_step: 100
+    consumed_tokens: 204800
+    equivalent_epoch: 0.002872
+    dataset_version: pilot-v2
+    dataset_fingerprint: sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6
+    source_lineage_fingerprint: sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f
+    pii_fingerprint: sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed
+    split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: sha256:9d78f5dbc668eafaa44d558364405e266db9e4c7626ac0b749c2c5c2b81d967f
+    checkpoint_training_config_fingerprint: sha256:31136e924cd63a29c428400dd955dc956564de770e7295d692ec2c67c60b72c0
+    checkpoint_checksum: sha256:8ad3dc5fdab5932164fd55aedb7ce9d488290d5ad7f57f8ebee707cbcff241d4
+    checkpoint_bundle_bytes: 202789742
+    logical_external_path: analysis/pilot-pretraining/AIHUB-71748/runs/PILOT-100-V2-20260727-0001/checkpoint-100
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved
+  candidate-a-mid:
+    display_name: Candidate A mid checkpoint
+    artifact_type: checkpoint
+    model_version: DohaLM-Tiny
+    training_stage: full_pretraining
+    run_id: FULL-PRETRAIN-CANDIDATE-A-20260727-0001
+    checkpoint_step: 2442
+    consumed_tokens: 5001216
+    equivalent_epoch: 0.070135
+    dataset_version: pilot-v2
+    dataset_fingerprint: sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6
+    source_lineage_fingerprint: sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f
+    pii_fingerprint: sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed
+    split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5
+    checkpoint_training_config_fingerprint: sha256:99acc4b5508f85254e6829ad5856c0de564029d421973aec0627d171b965b15a
+    checkpoint_checksum: sha256:99519a1dcb3dd2ac667229184735dd54b08db874fe4a6f3e6cf45010b0744d7e
+    checkpoint_bundle_bytes: 202790078
+    logical_external_path: analysis/full-pretraining/AIHUB-71748/runs/FULL-PRETRAIN-CANDIDATE-A-20260727-0001/checkpoint-2442
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved
+  candidate-a-final:
+    display_name: Candidate A final checkpoint
+    artifact_type: checkpoint
+    model_version: DohaLM-Tiny
+    training_stage: full_pretraining
+    run_id: FULL-PRETRAIN-CANDIDATE-A-20260727-0001
+    checkpoint_step: 4883
+    consumed_tokens: 10000384
+    equivalent_epoch: 0.14024222267534303
+    dataset_version: pilot-v2
+    dataset_fingerprint: sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6
+    source_lineage_fingerprint: sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f
+    pii_fingerprint: sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed
+    split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5
+    checkpoint_training_config_fingerprint: sha256:99acc4b5508f85254e6829ad5856c0de564029d421973aec0627d171b965b15a
+    checkpoint_checksum: sha256:80f2aee72605ffcfeea13e158cbf7a132682591cf4295cd01c16f514686338f8
+    checkpoint_bundle_bytes: 202790081
+    logical_external_path: analysis/full-pretraining/AIHUB-71748/runs/FULL-PRETRAIN-CANDIDATE-A-20260727-0001/checkpoint-4883
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved
