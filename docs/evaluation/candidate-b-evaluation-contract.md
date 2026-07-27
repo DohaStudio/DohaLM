@@ -5,7 +5,7 @@
 - 승인일: 2026-07-27
 - 승인 범위: Candidate B 완료 후 필수 Evaluation Framework 검증
 - 대체 여부: `not_superseded`
-- 학습 승인: `not_approved`
+- 추가 학습 승인: `not_approved` (Run 0002 승인 소비·실행 완료)
 - 마지막 검토일: 2026-07-27
 
 ## 고정 비교 조건
@@ -36,7 +36,10 @@ Teacher-forced EOS 필수 보고값은 target count·ratio, mean loss, Top-1/5/1
 
 ## Fail Closed
 
-[확정] 이 문서는 평가 계약만 승인하며 Candidate B 생성·학습·데이터 변경을 승인하지 않는다. Candidate B training은 `not_approved`다. 별도 사용자 승인 전에는 optimizer, backward, 장시간 GPU 작업과 Candidate B/C를 실행하지 않는다. EOS 삽입, loss weighting, packing 또는 decoding 변경도 각각 별도 승인과 ADR 영향 검토가 필요하다.
+[확정] 이 문서는 평가 계약만 승인하며 Candidate B 생성·추가 학습·데이터 변경을 승인하지 않는다. Run 0002
+학습 승인은 소비됐고 재사용할 수 없다. 별도 사용자 승인 전에는 optimizer, backward, 장시간 GPU 학습과
+Candidate B/C를 실행하지 않는다. EOS 삽입, loss weighting, packing 또는 decoding 변경도 각각 별도 승인과
+ADR 영향 검토가 필요하다.
 
 ## 재검토 조건
 
@@ -46,6 +49,7 @@ Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Run 0002 완료 후 추가 training 미승인·승인 재사용 금지 경계 명시 |
 | 2026-07-28 | Candidate B same-artifact Quick reference, Full baseline 분리와 prompt comparability 계약 명시 |
 | 2026-07-27 | Candidate A 진단을 기준으로 Candidate B 평가·EOS 성공 조건 제안 작성 |
 | 2026-07-27 | 사용자 승인으로 Candidate B Evaluation Contract를 `approved`로 변경하고 training `not_approved` 유지 |

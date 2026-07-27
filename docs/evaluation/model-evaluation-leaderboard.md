@@ -1,10 +1,11 @@
 # DohaLM 모델 평가 리더보드
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-27
+- 마지막 검토일: 2026-07-28
 - 태그: `evaluation`, `leaderboard`, `quick`, `full`
 
-첫 네 행은 동일한 Quick subset 비교군이다. Candidate A Final Full 행은 같은 internal evaluation identity의 전체 14,329 sequence 결과이며 Quick와 profile을 섞지 않는다.
+Quick 행은 동일한 128-sequence subset 비교군이고 Full 행은 같은 internal evaluation identity의 전체 14,329
+sequence 결과다. Quick와 Full을 같은 판정 profile로 섞지 않는다.
 
 공통 dataset fingerprint: `sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790`
 
@@ -15,10 +16,16 @@
 | Candidate A step 2,442 | full-pretraining mid | 2,442 | 5,001,216 | 0.070135 | quick | 128 | `sha256:0265e2d4...f8790` | 6.559930 | 706.2223 | 15.9559% | 28.1373% | 34.1728% | 15.9559% | 16.6033% | +0.6475%p | 0% | 100% | 69.3333% | .2813/.3533/.4286 | 0.8569s | `sha256:423ec489...81837` | `completed` |
 | Candidate A step 4,883 | full-pretraining final | 4,883 | 10,000,384 | 0.140242 | quick | 128 | `sha256:0265e2d4...f8790` | 6.282144 | 534.9342 | 18.2353% | 30.8915% | 37.0221% | 18.2353% | 19.2962% | +1.0609%p | 0% | 100% | 45.3333% | .3813/.4800/.5786 | 0.7849s | `sha256:21649cca...1ad2ab` | `completed` |
 | Candidate A step 4,883 | full-pretraining final | 4,883 | 10,000,384 | 0.140242 | full | 14,329 | `sha256:0265e2d4...f8790` | 6.369027 | 583.4899 | 16.8417% | 29.2154% | 35.5767% | 16.8417% | 16.6767% | -0.1650%p | 0% | 100% | 45.3333% | .3813/.4800/.5786 | 135.8096s | `sha256:1ec526e2...2d78d` | `completed` |
+| Candidate B step 12,208 | full-pretraining candidate | 12,208 | 25,001,984 | 0.350620 | quick | 128 | `sha256:0265e2d4...f8790` | 5.496214 | 243.7672 | 23.4222% | 38.3640% | 45.3186% | 23.4222% | 25.0454% | +1.6233%p | 0% | 100% | 23.3333% | .4188/.5667/.6643 | 5.6279s | `sha256:96f7d914...732d4` | `completed` |
+| Candidate B step 12,208 | full-pretraining candidate | 12,208 | 25,001,984 | 0.350620 | full | 14,329 | `sha256:0265e2d4...f8790` | 5.591160 | 268.0464 | 21.8782% | 36.8569% | 43.9577% | 21.8782% | 22.1533% | +0.2751%p | 0% | 100% | 23.3333% | .4188/.5667/.6643 | 123.4320s | `sha256:7b796f3a...d9df0` | `evaluated_contract_not_passed` |
 
 Comparison ID는 `initial-pilot-candidate-a-quick-20260727-01`이며 상태는 `comparable`이다. Gate 7은 memorization-only 별도 그룹이므로 이 순위에 포함하지 않는다. 공개 승인이 없는 checkpoint, 원문, token 배열 및 생성 text는 연결하지 않는다.
 
 [확정] Candidate A Final Quick은 동일 Full 대비 `approximately_representative`이며 `biased_optimistic` 특성을 가진다. 공식 baseline은 Full 행이다. 기존 행의 수치·fingerprint·`completed` 실행 상태는 변경하지 않으며 대표성 판정은 [승인 정책](./quick-full-representativeness-policy.md)에 둔다.
+
+Candidate B는 Full teacher-forced 지표와 EOS rank를 개선했지만 greedy EOS 0%·maximum-length 100%로 승인
+계약을 통과하지 못했다. Candidate A를 공식 internal baseline으로 유지한다. Candidate A와 B의 generation은
+prompt identity가 달라 직접 비교하지 않는다.
 
 ## 변경 이력
 
@@ -30,3 +37,4 @@ Comparison ID는 `initial-pilot-candidate-a-quick-20260727-01`이며 상태는 `
 | 2026-07-27 | Candidate A Final 14,329-sequence Full Evaluation을 별도 profile 행으로 반영 |
 | 2026-07-27 | Quick 대표성 잠정 판정과 기존 leaderboard 상태 유지 경계 기록 |
 | 2026-07-27 | Candidate A Quick 대표성 승인과 Full 공식 baseline 반영 |
+| 2026-07-28 | Candidate B Final Quick·Full 결과와 계약 미통과 상태 반영 |

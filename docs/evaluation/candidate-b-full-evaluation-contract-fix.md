@@ -1,8 +1,8 @@
 # Candidate B Full Evaluation 계약 수정
 
-- 문서 상태: `review`
+- 문서 상태: `implemented`
 - 마지막 검토일: 2026-07-28
-- 작업 범위: Evaluation Framework 계약 수정과 기존 checkpoint evaluation-only 재평가 준비
+- 작업 범위: Evaluation Framework 계약 수정과 기존 checkpoint evaluation-only 재평가
 - 학습 작업: `forbidden`
 
 ## 확인된 사실
@@ -60,18 +60,19 @@ position과 stability는 prompt mismatch만으로 폐기하지 않는다. Synthe
 - Candidate A historical prompt: `historical_prompt_unverified`
 - 현재 repository prompt: `current_prompt_only`
 - Candidate B Final Quick: 현재 repository prompt와 일치
-- Candidate B Full generation: 같은 현재 prompt로 실행 예정
+- Candidate B Full generation: 같은 현재 prompt로 실행 완료
 
 Historical snapshot을 추정하거나 재구성하지 않는다. Candidate A 기존 result fingerprint는 변경하지 않는다.
 
-## 완료 전 경계
+## 완료 결과
 
-수정 PR이 develop에 병합되고 evaluation-only branch의 clean immutable commit이 확정되기 전에는 새 Full
-Evaluation을 실행하지 않는다. Full 완료 전 Candidate B 공식 상태는
-`training_completed_quick_completed_full_blocked`로 유지한다.
+수정 PR #33은 develop commit `79a88b00ae02325119fd7b04f9d1a90f4abaa27d`로 squash merge됐다.
+Evaluation ID `candidate-b-final-full-20260728-03`은 same-artifact Quick reference 검증을 통과해 완료됐고
+기존 failure `-01`/`-02`는 보존됐다. 결과는 [Candidate B Full](./candidate-b-final-full-result.md)을 따른다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-28 | Candidate B same-artifact Quick, Full baseline 분리와 prompt comparability 계약 작성 |
+| 2026-07-28 | PR #33 병합, Candidate B Full evaluation-only 완료와 기존 failure 보존 확인 |
