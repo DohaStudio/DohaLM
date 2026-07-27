@@ -375,21 +375,43 @@ def distribution_comparison(quick: dict[str, Any], full: dict[str, Any]) -> dict
     }
 
 
-def run_diagnostic(config: EvaluationConfig, registry: ArtifactRegistry, *, diagnostic_id: str) -> dict[str, Any]:
+def _reference_evaluation_id(reference: str, artifact_id: str) -> str:
+    parts = reference.split(":", 1)
+    if len(parts) != 2 or parts[0] != artifact_id or not parts[1]:
+        raise EvaluationError(
+            "BASELINE_REFERENCE_INVALID",
+            "diagnostic references must use the selected artifact",
+        )
+    return parts[1]
+
+
+def run_diagnostic(
+    config: EvaluationConfig,
+    registry: ArtifactRegistry,
+    *,
+    diagnostic_id: str,
+    artifact_id: str = "candidate-a-final",
+    quick_reference: str = "candidate-a-final:initial-pilot-candidate-a-quick-20260727-01",
+    full_reference: str = "candidate-a-final:candidate-a-final-full-20260727-01",
+) -> dict[str, Any]:
     output = config.external_path(f"{config.output_root}/diagnostics/eos-quick-policy/{diagnostic_id}")
     if output.exists():
         raise EvaluationError("EVALUATION_OUTPUT_EXISTS", "diagnostic output already exists")
-    artifact = registry.get("candidate-a-final")
-    inspection = registry.inspect(config, "candidate-a-final", require_eligible=True)
+    quick_evaluation_id = _reference_evaluation_id(quick_reference, artifact_id)
+    full_evaluation_id = _reference_evaluation_id(full_reference, artifact_id)
+    artifact = registry.get(artifact_id)
+    inspection = registry.inspect(config, artifact_id, require_eligible=True)
     if inspection["status"] != "eligible":
         raise EvaluationError("ARTIFACT_EVALUATION_BLOCKED", "Candidate A Final is not eligible")
-    quick = load_completed_result(config, "candidate-a-final:initial-pilot-candidate-a-quick-20260727-01")
-    full = load_completed_result(config, "candidate-a-final:candidate-a-final-full-20260727-01")
+    quick = load_completed_result(config, quick_reference)
+    full = load_completed_result(config, full_reference)
+    if quick["manifest"].get("profile") != "quick" or full["manifest"].get("profile") != "full":
+        raise EvaluationError("BASELINE_REFERENCE_INVALID", "diagnostic requires same-artifact Quick and Full results")
     quick["per_sequence"] = json.loads(config.external_path(
-        f"{config.output_root}/candidate-a-final/initial-pilot-candidate-a-quick-20260727-01/metrics/per-sequence.json"
+        f"{config.output_root}/{artifact_id}/{quick_evaluation_id}/metrics/per-sequence.json"
     ).read_text(encoding="utf-8"))
     full["per_sequence"] = json.loads(config.external_path(
-        f"{config.output_root}/candidate-a-final/candidate-a-final-full-20260727-01/metrics/per-sequence.json"
+        f"{config.output_root}/{artifact_id}/{full_evaluation_id}/metrics/per-sequence.json"
     ).read_text(encoding="utf-8"))
     prepared = config.external_path(str(Path(config.dataset_manifest).parent).replace("\\", "/"))
     packed_path, corpus_path = prepared / "evaluation.jsonl", prepared / "evaluation-corpus.jsonl"
@@ -446,7 +468,7 @@ def run_diagnostic(config: EvaluationConfig, registry: ArtifactRegistry, *, diag
         "status": EVALUATION_POLICY_STATUS, "approval_date": EVALUATION_POLICY_APPROVAL_DATE,
         "baseline": [
             quick["manifest"]["result_fingerprint"], full["manifest"]["result_fingerprint"],
-            "initial-pilot-candidate-a-quick-20260727-01",
+            quick_evaluation_id,
         ],
         "required_evaluations": ["same Quick", "same Full internal", "same synthetic generation", "same EOS ranking", "same position-aware", "same token category"],
         "required_metrics": ["Full loss/perplexity/Top-1/5/10", "Korean accuracy", "EOS Top-1/5/10 and rank", "greedy EOS/max-length", "repetition/distinct-n", "position gap", "stability", "resource"],
@@ -461,6 +483,7 @@ def run_diagnostic(config: EvaluationConfig, registry: ArtifactRegistry, *, diag
     result_fingerprint = checksum_value(deterministic)
     manifest = {
         "schema_version": "1.0", "diagnostic_id": diagnostic_id, "status": "completed",
+        "artifact_id": artifact_id,
         "artifact_identity": artifact.identity_fingerprint, "dataset_identity": config.dataset_identity,
         "quick_result_fingerprint": quick["manifest"]["result_fingerprint"],
         "full_result_fingerprint": full["manifest"]["result_fingerprint"],
