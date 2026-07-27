@@ -124,20 +124,21 @@ def test_execution_is_explicitly_blocked() -> None:
     backend = manifest["execution_backend"]
     readiness = manifest["readiness"]
 
-    assert approval["status"] == "not_approved"
+    assert approval["status"] == "consumed_failed_attempt"
     assert approval["execution_allowed"] is False
-    assert approval["consumed"] is False
+    assert approval["consumed"] is True
     assert approval["automatic_extension"] is False
     assert approval["automatic_retry"] is False
     assert backend["status"] == "implemented_and_cpu_validated"
     assert backend["candidate_b_execution_supported"] is True
     assert backend["default_optimizer_or_backward_allowed"] is False
     assert readiness["execution_allowed"] is False
-    assert readiness["training_started"] is False
+    assert readiness["training_started"] is True
     assert readiness["backend_implemented"] is True
     assert readiness["cpu_validation_passed"] is True
-    assert readiness["blocker_count"] == len(readiness["blocking_codes"]) == 3
+    assert readiness["blocker_count"] == len(readiness["blocking_codes"]) == 4
     assert "CANDIDATE_B_EXECUTION_APPROVAL_MISSING" in readiness["blocking_codes"]
+    assert "CANDIDATE_B_NEW_RUN_ID_REQUIRED" in readiness["blocking_codes"]
     assert "CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING" in readiness["blocking_codes"]
 
 

@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-28
-- 승인 상태: `pending`
+- 승인 상태: `consumed_failed_attempt`; 새 실행은 `pending`
 - 관련 schema: [Approval schema](./candidate-b-approval.schema.yaml)
 - 공개 example: [Approval example](../../configs/candidate-b-approval.example.yaml)
 
@@ -24,8 +24,15 @@
 
 CPU test는 `synthetic_test_fixture`와 `SYNTHETIC-TEST-` run ID만 소비할 수 있다. 실제 approval을 fixture mode로 소비하는 호출은 차단한다.
 
+## 첫 실행 승인 소비 상태
+
+`CANDIDATE-B-APPROVAL-20260728-0001`은 `FULL-PRETRAIN-CANDIDATE-B-20260728-0001`의 optimizer step 1 직전에 정상적으로 atomic consume됐다. Run은 12,208 step 후 checkpoint validator 버그로 실패했으므로 Approval은 재사용할 수 없고 Run도 retry 또는 resume할 수 없다. 기존 Failure Manifest와 consumption record는 read-only 증거로 영구 유지한다.
+
+향후 실행 후보 identity는 `FULL-PRETRAIN-CANDIDATE-B-20260728-0002`와 `CANDIDATE-B-APPROVAL-20260728-0002`를 권장할 수 있지만 예약 예시일 뿐 issued 또는 approved 상태가 아니다. 새 immutable commit과 별도 사용자 승인이 없으면 생성·소비하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | 첫 single-use 승인 소비·실패 Run 재사용 금지와 후속 별도 승인 경계 기록 |
 | 2026-07-28 | Candidate B immutable single-use 승인 schema와 optimizer step 1 직전 atomic 소비 계약 구현 |

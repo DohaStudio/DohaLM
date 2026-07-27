@@ -182,6 +182,11 @@ class CheckpointManager:
     @staticmethod
     def _read_and_verify(path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         resolved = path.resolve()
+        if any((parent / "quarantine-policy.json").is_file() for parent in (resolved, *resolved.parents)):
+            raise TrainingError(
+                "CHECKPOINT_QUARANTINED",
+                "격리된 checkpoint는 inspect, resume 또는 evaluation에 사용할 수 없습니다.",
+            )
         if not resolved.is_dir() or {item.name for item in resolved.iterdir()} != set(REQUIRED_FILES):
             raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint 필수 파일이 누락되었거나 알 수 없는 파일이 있습니다.")
         try:

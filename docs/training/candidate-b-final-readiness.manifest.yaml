@@ -1,6 +1,6 @@
 schema_version: "1.0"
 readiness_id: candidate-b-final-readiness-20260728-01
-status: backend_ready_awaiting_commit_preflight_and_approval
+status: first_execution_failed_fix_validated_awaiting_separate_approval
 prepared_on: "2026-07-28"
 backend_implemented: true
 cpu_validation_passed: true
@@ -13,20 +13,33 @@ immutable_git_commit_pending: true
 execution_approval_pending: true
 execution_allowed: false
 candidate_b_training: not_approved
-training_started: false
-optimizer_steps: 0
-actual_approval_consumed: false
+training_started: true
+optimizer_steps: 12208
+actual_approval_consumed: true
 checkpoint_created: false
 full_evaluation_run: false
 blocking_codes:
   - CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING
+  - CANDIDATE_B_NEW_RUN_ID_REQUIRED
   - CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING
   - CANDIDATE_B_EXECUTION_APPROVAL_MISSING
+first_execution_attempt:
+  run_id: FULL-PRETRAIN-CANDIDATE-B-20260728-0001
+  approval_id: CANDIDATE-B-APPROVAL-20260728-0001
+  status: failed
+  failure_type: post_training_checkpoint_validation_bug
+  scheduled_tokens: 25001984
+  checkpoint_preserved: false
+  quick_evaluation: not_run
+  full_evaluation: not_run
+  official_candidate_b_result: unavailable
+  retry_allowed: false
+  resume_allowed: false
 fingerprints:
   candidate_b_design: "sha256:eea792a078b688682efe0a425794c18843fd10a34f15e595814c447d4d36313d"
   example_config: "sha256:4e4de0b21686a54467d12c02260196d028d1926f79a1977ff5c2ec321574f603"
   resolved_config: "sha256:bd6f3f2401c676dc154493997406d2e50f8c8d09b89c69f6d0daebfb52b05bcc"
-  backend_implementation: "sha256:d2b0cc95208d574c2047300c5d2fb4f700a36a9921778b7803201e5ec02564a4"
+  backend_implementation: "sha256:9893ecc893d9ac754a4b79c53544630456f71da95b4b19ada8cbfcfc5c046777"
   approval_schema: "sha256:a6579536d2197a613ddcb5d56a0fe38f90c666df2d499a97f87aed9948f77879"
   checkpoint_policy: "sha256:59e1cbfa2df42797a058727adfa1a25c533bc13b0f69f9c170ee7fe92cfbaf00"
   evaluation_hooks: "sha256:72bca478b3eb8377a4dc44d6268479ee0b2fe25ce04fb279d665590dbf568162"
@@ -36,9 +49,10 @@ fingerprints:
 scope_restrictions:
   gpu_training: not_run
   candidate_b_execution: not_approved
+  rerun: awaiting_separate_approval
   resume: not_approved
   retry: not_approved
   extension: not_approved
   publication: not_approved
 readiness_fingerprint_scope: manifest_without_readiness_fingerprint
-readiness_fingerprint: "sha256:22184ef524c0bf1c9766844e3b91a451862d02113966f0916206c1542f4d44a2"
+readiness_fingerprint: "sha256:bc63c7ace8f78b1760a3b0defb5703ebef85e2c1876e7519cc9fffcd43b70602"
