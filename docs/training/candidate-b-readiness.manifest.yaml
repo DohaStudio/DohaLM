@@ -1,11 +1,11 @@
 schema_version: "1.0"
 manifest_type: "candidate_b_readiness_and_execution_approval_design"
-manifest_status: "backend_ready_awaiting_commit_preflight_and_approval"
+manifest_status: "first_execution_failed_fix_validated_awaiting_separate_approval"
 prepared_on: "2026-07-28"
 
 source:
   design_branch: "feat/candidate-b-design"
-  immutable_git_commit: null
+  immutable_git_commit: "bdcf85d4fd60aefb15178ec4041735737bb86b1b"
   working_tree_clean_at_start: true
 
 identity:
@@ -128,7 +128,7 @@ resource_budget:
 
 execution_backend:
   status: "implemented_and_cpu_validated"
-  backend_identity: "sha256:d2b0cc95208d574c2047300c5d2fb4f700a36a9921778b7803201e5ec02564a4"
+  backend_identity: "sha256:9893ecc893d9ac754a4b79c53544630456f71da95b4b19ada8cbfcfc5c046777"
   candidate_b_execution_supported: true
   inspection_only: true
   explicit_execute_required: true
@@ -154,35 +154,52 @@ output_probe:
   outside_git: true
 
 execution_approval:
-  status: "not_approved"
+  status: "consumed_failed_attempt"
   execution_allowed: false
-  approved_by: null
-  approved_at: null
-  approved_git_commit: null
-  approved_config_fingerprint: null
-  approved_manifest_fingerprint: null
+  approved_by: "user"
+  approved_at: "2026-07-28"
+  approved_git_commit: "bdcf85d4fd60aefb15178ec4041735737bb86b1b"
+  approved_config_fingerprint: "sha256:bd6f3f2401c676dc154493997406d2e50f8c8d09b89c69f6d0daebfb52b05bcc"
+  approved_manifest_fingerprint: "sha256:7d4cc3eae44a61a2b09c9a718956f5f4ff375e1ce9a6fae0f241d2237a827a49"
   single_use: true
   consumption_event: "atomic_external_record_on_optimizer_step_1"
-  consumed: false
+  consumed: true
   consumed_at: null
-  consumed_by_run_id: null
+  consumed_by_run_id: "FULL-PRETRAIN-CANDIDATE-B-20260728-0001"
   automatic_extension: false
   automatic_retry: false
   resume_allowed: false
 
 readiness:
-  status: "backend_ready_awaiting_commit_preflight_and_approval"
+  status: "first_execution_failed_fix_validated_awaiting_separate_approval"
   execution_allowed: false
-  training_started: false
+  training_started: true
   backend_implemented: true
   cpu_validation_passed: true
   runtime_preflight_pending: true
   execution_approval_pending: true
-  blocker_count: 3
+  blocker_count: 4
   blocking_codes:
     - "CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING"
+    - "CANDIDATE_B_NEW_RUN_ID_REQUIRED"
     - "CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING"
     - "CANDIDATE_B_EXECUTION_APPROVAL_MISSING"
+
+first_execution_attempt:
+  run_id: "FULL-PRETRAIN-CANDIDATE-B-20260728-0001"
+  status: "failed"
+  failure_type: "post_training_checkpoint_validation_bug"
+  optimizer_steps_completed: 12208
+  scheduled_tokens_completed: 25001984
+  approval_id: "CANDIDATE-B-APPROVAL-20260728-0001"
+  approval_consumed: true
+  checkpoint_preserved: false
+  quick_evaluation: "not_run"
+  full_evaluation: "not_run"
+  official_candidate_b_result: "unavailable"
+  retry_allowed: false
+  resume_allowed: false
+  superseded: false
 
 scope_restrictions:
   candidate_b_training: "not_approved"

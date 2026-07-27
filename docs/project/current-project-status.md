@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 기준 시점: 2026-07-28
-- 기준 브랜치/commit: `feat/candidate-b-design` / `a6464becd1594febc0143bd8717bde0169bc1391`
+- 기준 브랜치/실패 실행 commit: `feat/candidate-b-design` / `bdcf85d4fd60aefb15178ec4041735737bb86b1b`
 - 관련 근거: [개발 Roadmap](../quality/development-roadmap.md), [Candidate A 결과](../training/full-pretraining-candidate-a-result.md), [Evaluation Framework](../evaluation/README.md), [Candidate B Readiness](../training/candidate-b-readiness.md)
 
 ## 1. 통합 상태
@@ -19,11 +19,12 @@
 | Candidate A 10M | `completed` | 4,883 step, 10,000,384 scheduled token |
 | Evaluation Framework | `completed` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Candidate A Full baseline | `approved` | ADR-007과 Final Full result |
-| Candidate B design/backend | `completed` | resolver·scope·approval·Git·probe·runtime·runner |
-| Candidate B training | `not_approved` | 실행 승인 없음 |
-| Candidate B execution | `not_approved` | `execution_allowed: false`; clean immutable Git 재확정·physical preflight·single-use 승인 대기 |
+| Candidate B design/backend | `fix_validated` | numeric checkpoint validation·quarantine 보존 정책 포함 |
+| Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
+| Candidate B training | `not_approved` | 기존 승인 소비; 새 실행 승인 없음 |
+| Candidate B rerun | `awaiting_separate_approval` | `execution_allowed: false`; 새 commit·Run ID·Approval 필요 |
 
-이 문서 감사 시작 시점에는 기준 commit이 upstream과 일치하고 worktree가 clean이었다. 현재 문서 최신화 변경은 아직 미커밋이므로 Candidate B 실행 직전에는 clean worktree와 새 immutable commit/upstream 일치를 다시 확정해야 한다. 버전 관리된 readiness YAML은 backend commit 전 snapshot으로 유지되며 이번 문서 작업에서 변경하지 않는다.
+첫 실행의 Failure Manifest와 approval consumption record는 외부 제한 경로에서 read-only로 보존한다. 실행은 12,208 step에 도달했지만 checkpoint가 제거돼 Quick/Full Evaluation과 공식 Candidate B 결과는 없다. 이번 수정은 새 실행 승인이 아니며 병합 후에도 `execution_allowed: false`를 유지한다.
 
 ## 2. Gate 최신 상태
 
@@ -67,11 +68,12 @@
 - Initialization: fresh seed 17, Candidate A checkpoint/state 재사용 금지.
 - Checkpoint: 4,883 / 9,766 / 12,208.
 - Quick: start / 4,883 / final. Full: training 종료 후 final evaluation-only 1회.
-- Backend, resolved config, CPU smoke와 output probe는 완료됐다.
-- [조사 시작 관측] HEAD와 upstream은 `a6464bec...1391`로 일치하고 worktree는 clean이어서 backend의 pre-commit blocker는 당시 해소돼 있었다.
-- [현재 blocker] 이 문서 변경을 포함한 clean immutable Git identity 재확정, `CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING`, `CANDIDATE_B_EXECUTION_APPROVAL_MISSING`.
-- [정합성 주의] versioned readiness manifest와 status 문자열은 commit 전 snapshot을 보존하므로 `awaiting_commit`을 포함한다. YAML은 이번 문서 작업 범위에서 수정하지 않는다.
-- `execution_allowed: false`, training `not_approved`, training started `false`다.
+- 첫 실행: `FULL-PRETRAIN-CANDIDATE-B-20260728-0001`, 12,208 step 도달 후 `failed`.
+- 첫 Approval: `CANDIDATE-B-APPROVAL-20260728-0001`, atomic consumed, 재사용 불가.
+- 실패 원인: checkpoint 이름의 lexicographic ordering; checkpoint는 기존 cleanup으로 미보존.
+- 보완: numeric ordering·invalid/missing/duplicate/unexpected/final/metadata 진단과 향후 quarantine 정책 구현.
+- Quick/Full Evaluation: `not_run`; 공식 Candidate B 결과: `unavailable`.
+- `execution_allowed: false`, training `not_approved`, rerun `awaiting_separate_approval`.
 
 ## 7. 미승인·미착수
 
@@ -83,13 +85,14 @@
 
 ## 8. 다음 권장 작업
 
-1. 이 장기 전략 문서 검토와 승인 여부 결정
-2. Candidate B 실행 직전 physical preflight
-3. 확정 commit·Run ID·resolved fingerprint에 결합된 single-use 실행 승인
-4. 별도 승인 후 Candidate B 단일 실행과 post-training Full Evaluation
+1. 수정·테스트가 병합된 새 immutable commit 후보 검토
+2. 별도 새 Run ID와 single-use Approval 발급 여부 결정
+3. 별도 승인 시 실행 직전 physical preflight와 모든 fingerprint 재검증
+4. 새 실행이 정상 완료된 경우에만 Quick·Full Evaluation 수행
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B 첫 실행 실패·승인 소비·checkpoint 미보존과 validator/quarantine 보완 상태 반영 |
 | 2026-07-28 | Gate 0~7, tokenizer, Pilot, Candidate A, Evaluation과 Candidate B 현재 blocker 통합 snapshot 작성 |

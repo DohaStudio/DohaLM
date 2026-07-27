@@ -4,6 +4,7 @@ import datetime as dt
 import json
 from collections import namedtuple
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -23,7 +24,10 @@ from src.training.candidate_b import (
 from src.training.candidate_b_backend import (
     CandidateBApprovalConsumer,
     CandidateBRuntimeMonitor,
+    _preserve_or_cleanup_failed_staging,
+    analyze_candidate_b_checkpoint_schedule,
     candidate_b_execution_plan,
+    parse_candidate_b_checkpoint_step,
     run_candidate_b_cpu_smoke,
 )
 from src.training.errors import TrainingError
@@ -335,6 +339,126 @@ def test_checkpoint_metadata_schema_and_resume_denial() -> None:
     metadata["resume_allowed"] = True
     with pytest.raises(TrainingError, match="CANDIDATE_B_CHECKPOINT_SCHEMA_INVALID"):
         validate_candidate_b_checkpoint_metadata(metadata, document)
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (["checkpoint-12208", "checkpoint-4883", "checkpoint-9766"], [4_883, 9_766, 12_208]),
+        (["checkpoint-100", "checkpoint-9", "checkpoint-10"], [9, 10, 100]),
+        (["checkpoint-101", "checkpoint-99", "checkpoint-100"], [99, 100, 101]),
+        (["checkpoint-10000", "checkpoint-999", "checkpoint-1000"], [999, 1_000, 10_000]),
+    ],
+)
+def test_checkpoint_steps_are_parsed_and_sorted_numerically(names, expected) -> None:
+    maximum = max(expected)
+    assert sorted(parse_candidate_b_checkpoint_step(name, maximum_step=maximum) for name in names) == expected
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "checkpoint-final", "checkpoint-abc", "checkpoint--1", "checkpoint-1.0",
+        "checkpoint-012208", "checkpoint-0", "checkpoint-", "other-1",
+        "checkpoint-1-extra", "checkpoint-12209",
+    ],
+)
+def test_invalid_checkpoint_names_fail_closed(name: str) -> None:
+    with pytest.raises(TrainingError, match="CANDIDATE_B_CHECKPOINT_NAME_INVALID"):
+        parse_candidate_b_checkpoint_step(name)
+
+
+@pytest.mark.parametrize(
+    ("names", "metadata", "status", "code"),
+    [
+        (
+            ["checkpoint-12208", "checkpoint-4883", "checkpoint-9766"],
+            {"checkpoint-4883": 4_883, "checkpoint-9766": 9_766, "checkpoint-12208": 12_208},
+            "valid", None,
+        ),
+        (
+            ["checkpoint-4883", "checkpoint-12208"], {},
+            "checkpoint_missing", "CANDIDATE_B_CHECKPOINT_MISSING",
+        ),
+        (
+            ["checkpoint-4883", "checkpoint-9766", "checkpoint-9766", "checkpoint-12208"], {},
+            "checkpoint_duplicate", "CANDIDATE_B_CHECKPOINT_DUPLICATE",
+        ),
+        (
+            ["checkpoint-4883", "checkpoint-7000", "checkpoint-9766", "checkpoint-12208"], {},
+            "checkpoint_unexpected", "CANDIDATE_B_CHECKPOINT_UNEXPECTED",
+        ),
+        (
+            ["checkpoint-4883", "checkpoint-9766"], {},
+            "final_checkpoint_missing", "CANDIDATE_B_FINAL_CHECKPOINT_MISSING",
+        ),
+        (
+            ["checkpoint-4883", "checkpoint-9766", "checkpoint-12208"],
+            {"checkpoint-4883": 4_883, "checkpoint-9766": 7_000, "checkpoint-12208": 12_208},
+            "checkpoint_metadata_mismatch", "CANDIDATE_B_CHECKPOINT_METADATA_MISMATCH",
+        ),
+    ],
+)
+def test_checkpoint_schedule_diagnostics(names, metadata, status, code) -> None:
+    report = analyze_candidate_b_checkpoint_schedule(names, metadata_steps=metadata)
+    assert report["status"] == status
+    assert report["failure_code"] == code
+
+
+def test_post_checkpoint_failure_is_atomically_quarantined(tmp_path: Path) -> None:
+    output = tmp_path / "analysis/training/candidate-b/runs/RUN-2"
+    staging = output.parent / ".candidate-b-staging-test"
+    checkpoint = staging / "checkpoint-4883"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "evidence.bin").write_bytes(b"forensic evidence")
+    document = resolved()
+    document["run_id"] = "RUN-2"
+    approval = {"approval_id": "APPROVAL-2", "git_commit": "1" * 40}
+    consumer = SimpleNamespace(consumed=True)
+    report = analyze_candidate_b_checkpoint_schedule(["checkpoint-4883"])
+    report["complete_checkpoint_steps"] = [4_883]
+
+    failure = _preserve_or_cleanup_failed_staging(
+        staging=staging,
+        output=output,
+        resolved=document,
+        approval=approval,
+        consumer=consumer,
+        exc=TrainingError("SYNTHETIC_POST_VALIDATION", "synthetic"),
+        step=12_208,
+        checkpoint_report=report,
+    )
+
+    quarantine = tmp_path / "analysis/training/candidate-b/quarantine/RUN-2"
+    assert not staging.exists()
+    assert (quarantine / "checkpoint-4883/evidence.bin").read_bytes() == b"forensic evidence"
+    assert (quarantine / "quarantine-policy.json").is_file()
+    assert (quarantine / "quarantine-checksums.json").is_file()
+    assert failure["quarantine_status"] == "quarantined"
+    assert failure["resume_allowed"] is False
+    assert failure["evaluation_allowed"] is False
+    assert failure["publication_allowed"] is False
+
+
+def test_pre_checkpoint_failure_removes_empty_staging(tmp_path: Path) -> None:
+    output = tmp_path / "analysis/training/candidate-b/runs/RUN-3"
+    staging = output.parent / ".candidate-b-staging-test"
+    staging.mkdir(parents=True)
+    document = resolved()
+    document["run_id"] = "RUN-3"
+    failure = _preserve_or_cleanup_failed_staging(
+        staging=staging,
+        output=output,
+        resolved=document,
+        approval={"approval_id": "APPROVAL-3", "git_commit": "1" * 40},
+        consumer=SimpleNamespace(consumed=False),
+        exc=TrainingError("SYNTHETIC_PREFLIGHT", "synthetic"),
+        step=0,
+        checkpoint_report=None,
+    )
+    assert not staging.exists()
+    assert failure["staging_preserved"] is False
+    assert failure["quarantine_status"] == "not_applicable"
 
 
 def test_readiness_can_only_be_true_for_complete_test_fixture(tmp_path: Path) -> None:

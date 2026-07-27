@@ -6,7 +6,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A 10M Token Full Pretraining과 Evaluation Framework 마일스톤을 완료했습니다. Candidate A Final Full이 공식 internal baseline이며 Candidate B training은 `not_approved`입니다.
+현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A 10M Token Full Pretraining과 Evaluation Framework 마일스톤을 완료했습니다. Candidate A Final Full이 공식 internal baseline입니다. Candidate B 첫 실행은 12,208 step 후 checkpoint validator 버그로 실패했고 공식 결과는 없으며, 새 실행은 `not_approved`입니다.
 
 | 영역 | 상태 |
 |---|---|

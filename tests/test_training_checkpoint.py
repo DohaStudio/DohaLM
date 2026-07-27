@@ -44,6 +44,18 @@ def test_checkpoint_inspection_exposes_no_absolute_path(tmp_path):
         assert str(tmp_path) not in (checkpoint / name).read_text(encoding="utf-8")
 
 
+def test_quarantined_checkpoint_cannot_be_inspected_or_loaded(tmp_path):
+    trainer, checkpoint = saved_checkpoint(tmp_path)
+    (checkpoint.parent / "quarantine-policy.json").write_text(
+        json.dumps({"status": "quarantined", "not_for_resume": True}),
+        encoding="utf-8",
+    )
+    with pytest.raises(TrainingError, match="CHECKPOINT_QUARANTINED"):
+        CheckpointManager.inspect(checkpoint)
+    with pytest.raises(TrainingError, match="CHECKPOINT_QUARANTINED"):
+        trainer.resume_from(checkpoint, restore_rng=False)
+
+
 def test_existing_checkpoint_is_never_overwritten(tmp_path):
     trainer, checkpoint = saved_checkpoint(tmp_path)
     before = {path.name: file_checksum(path) for path in checkpoint.iterdir()}

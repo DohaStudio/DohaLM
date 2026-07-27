@@ -2,37 +2,36 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-28
-- 상태: `backend_implemented_execution_blocked`
+- 상태: `first_execution_failed_fix_validated_awaiting_separate_approval`
 - 실행 허용: `false`
 - 학습 승인: `not_approved`
 - 결과 manifest: [Final readiness manifest](./candidate-b-final-readiness.manifest.yaml)
 
-## 완료된 조건
+## 첫 실행 결과와 보완 상태
 
-- Candidate B runner·resolver·scope·approval·Git·output·runtime·checkpoint·evaluation hook backend 구현
-- Resolved config 생성 및 fingerprint `sha256:bd6f3f24...b05bcc` 고정
-- CPU synthetic validation 통과, optimizer/backward/실제 approval/checkpoint/output 0건
-- 외부 output write·fsync·rename·checksum·delete probe 통과 및 잔존 probe 0건
-- Python 3.12.5, Torch 2.7.1+cu118, SentencePiece 0.2.2, CUDA availability와 RTX 3060 Ti read-only 확인
-- CUDA allocation smoke·GPU training 미실행
+- 첫 single-use Approval은 optimizer step 1 직전에 소비됐고 실행은 12,208 step에 도달했다.
+- Checkpoint 이름의 문자열 정렬 때문에 정상 schedule이 실패로 판정됐고 기존 staging cleanup으로 checkpoint가 보존되지 않았다.
+- Numeric parser·schedule diagnostics와 post-checkpoint quarantine 정책을 구현하고 CPU fixture 회귀 테스트를 추가했다.
+- 기존 실패 Run은 `failed`, Approval은 `consumed`, Quick/Full은 `not_run`, 공식 Candidate B 결과는 `unavailable`로 유지한다.
+- Dataset·split·tokenizer·packing·model·budget·평가 계약과 Candidate A baseline은 변경하지 않았다.
 
-## 남은 blocker
+## 현재 blocker
 
-버전 관리된 결과 manifest의 상태는 backend commit 전 snapshot이다. 실제 backend commit `a6464be`는 upstream에 존재하지만 현재 문서 최신화가 미커밋이므로 실행 identity는 다시 고정해야 한다.
+1. `CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING`: 이번 수정이 develop에 병합된 새 immutable commit을 별도로 선택해야 한다.
+2. `CANDIDATE_B_NEW_RUN_ID_REQUIRED`: 실패 Run ID는 재사용하지 않는다.
+3. `CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING`: 새 실행 직전에 다시 확인해야 한다.
+4. `CANDIDATE_B_EXECUTION_APPROVAL_MISSING`: 새 Run/commit을 묶은 single-use 승인이 없다.
 
-1. `CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING`: 현재 문서 변경을 포함한 clean immutable commit과 upstream 일치를 실행 전에 재확정해야 한다.
-2. `CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING`: 전원·냉각·환기·절전·재시작·다른 GPU 작업을 실행 직전에 확인해야 한다.
-3. `CANDIDATE_B_EXECUTION_APPROVAL_MISSING`: 정확한 commit·resolved fingerprint·Run ID를 묶은 single-use 사용자 승인이 없다.
-
-세 조건이 모두 해소돼도 실행 전 backend가 clean tree, upstream HEAD 일치, remote HEAD 존재, output 충돌·disk와 approval 미소비를 다시 검사한다. 승인·preflight는 자동 생성하거나 추정하지 않는다.
+모든 조건이 해소돼도 실행 전 backend가 clean tree, upstream HEAD 일치, remote HEAD 존재, output 충돌·disk와 approval 미소비를 다시 검사한다. 승인·preflight는 자동 생성하거나 추정하지 않는다.
 
 ## 현재 경계
 
-`execution_allowed: false`, Candidate B training `not_approved`, runtime preflight `pending`이다. 실제 Candidate B Dataset을 열거나 optimizer, backward, checkpoint, Quick/Full Evaluation을 실행하지 않았다.
+`execution_allowed: false`, Candidate B training `not_approved`, rerun `awaiting_separate_approval`이다. 이번 보완 작업에서는 optimizer·backward·GPU 학습·checkpoint·Approval 생성/소비·Quick/Full Evaluation을 0건 수행했다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | 첫 실행 실패와 numeric validator·quarantine 보완 후 별도 재실행 승인 대기 상태 반영 |
 | 2026-07-28 | Backend commit 존재와 versioned manifest의 pre-commit snapshot 경계를 정합화함 |
 | 2026-07-28 | Backend·CPU·output probe 완료와 commit·physical·approval 잔여 blocker 확정 |

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import shutil
 import time
 import uuid
@@ -23,6 +24,7 @@ from .candidate_b import (
     MAX_STEPS,
     SCHEDULED_TOKENS,
     TOKENS_PER_STEP,
+    candidate_b_backend_identity,
     candidate_b_checkpoint_contract,
     candidate_b_evaluation_hooks,
     require_candidate_b_execution,
@@ -30,6 +32,7 @@ from .candidate_b import (
     validate_candidate_b_approval,
     validate_candidate_b_scope,
 )
+from .checkpoint import CheckpointManager
 from .collator import CausalLMCollator
 from .config import TrainingConfig
 from .dataloader import create_dataloader
@@ -38,6 +41,236 @@ from .errors import TrainingError
 from .full_pretraining_backend import _directory_bytes, _write_json
 from .metrics import TrainingMetric
 from .trainer import Trainer, seed_everything
+
+
+CHECKPOINT_NAME_PATTERN = re.compile(r"checkpoint-([1-9][0-9]*)")
+
+
+def parse_candidate_b_checkpoint_step(name: str, *, maximum_step: int = MAX_STEPS) -> int:
+    """Parse a canonical positive checkpoint step without accepting aliases."""
+    match = CHECKPOINT_NAME_PATTERN.fullmatch(name)
+    if match is None:
+        raise TrainingError("CANDIDATE_B_CHECKPOINT_NAME_INVALID", f"Invalid checkpoint name: {name}")
+    step = int(match.group(1))
+    if step > maximum_step:
+        raise TrainingError("CANDIDATE_B_CHECKPOINT_NAME_INVALID", f"Checkpoint step exceeds {maximum_step}: {name}")
+    return step
+
+
+def analyze_candidate_b_checkpoint_schedule(
+    names: list[str],
+    *,
+    metadata_steps: dict[str, int] | None = None,
+    metadata_errors: dict[str, str] | None = None,
+    expected_steps: tuple[int, ...] = CHECKPOINT_STEPS,
+) -> dict[str, Any]:
+    """Return an order-independent, diagnostic checkpoint schedule report."""
+    parsed_pairs: list[tuple[str, int]] = []
+    invalid_names: list[str] = []
+    for name in names:
+        try:
+            parsed_pairs.append((name, parse_candidate_b_checkpoint_step(name, maximum_step=max(expected_steps))))
+        except TrainingError:
+            invalid_names.append(name)
+
+    parsed_steps = sorted(step for _name, step in parsed_pairs)
+    duplicate_steps = sorted({step for step in parsed_steps if parsed_steps.count(step) > 1})
+    expected = sorted(expected_steps)
+    missing_steps = sorted(set(expected) - set(parsed_steps))
+    unexpected_steps = sorted(set(parsed_steps) - set(expected))
+    mismatches: list[dict[str, Any]] = []
+    metadata_steps = metadata_steps or {}
+    for name, directory_step in parsed_pairs:
+        metadata_step = metadata_steps.get(name)
+        if metadata_step is not None and metadata_step != directory_step:
+            mismatches.append({
+                "checkpoint_name": name,
+                "directory_step": directory_step,
+                "metadata_step": metadata_step,
+            })
+    for name, code in sorted((metadata_errors or {}).items()):
+        mismatches.append({"checkpoint_name": name, "error_code": code})
+
+    final_step = max(expected)
+    if invalid_names:
+        status, failure_code = "checkpoint_name_invalid", "CANDIDATE_B_CHECKPOINT_NAME_INVALID"
+    elif duplicate_steps:
+        status, failure_code = "checkpoint_duplicate", "CANDIDATE_B_CHECKPOINT_DUPLICATE"
+    elif mismatches:
+        status, failure_code = "checkpoint_metadata_mismatch", "CANDIDATE_B_CHECKPOINT_METADATA_MISMATCH"
+    elif unexpected_steps:
+        status, failure_code = "checkpoint_unexpected", "CANDIDATE_B_CHECKPOINT_UNEXPECTED"
+    elif final_step in missing_steps:
+        status, failure_code = "final_checkpoint_missing", "CANDIDATE_B_FINAL_CHECKPOINT_MISSING"
+    elif missing_steps:
+        status, failure_code = "checkpoint_missing", "CANDIDATE_B_CHECKPOINT_MISSING"
+    else:
+        status, failure_code = "valid", None
+    return {
+        "status": status,
+        "failure_code": failure_code,
+        "expected_checkpoint_steps": expected,
+        "discovered_checkpoint_names": sorted(names),
+        "parsed_checkpoint_steps": parsed_steps,
+        "invalid_checkpoint_names": sorted(invalid_names),
+        "duplicate_checkpoint_steps": duplicate_steps,
+        "missing_checkpoint_steps": missing_steps,
+        "unexpected_checkpoint_steps": unexpected_steps,
+        "checkpoint_metadata_mismatches": mismatches,
+    }
+
+
+def inspect_candidate_b_checkpoint_schedule(staging: Path) -> dict[str, Any]:
+    """Inspect Candidate B checkpoint directories, checksums, and metadata."""
+    names = [path.name for path in staging.iterdir() if path.is_dir() and path.name.startswith("checkpoint")]
+    metadata_steps: dict[str, int] = {}
+    metadata_errors: dict[str, str] = {}
+    complete_steps: list[int] = []
+    preservable_names: list[str] = []
+    for name in names:
+        checkpoint_path = staging / name
+        if (checkpoint_path / "manifest.json").is_file() or (checkpoint_path / "checksums.json").is_file():
+            preservable_names.append(name)
+        try:
+            step = parse_candidate_b_checkpoint_step(name)
+            inspection = CheckpointManager.inspect(checkpoint_path)
+            metadata_steps[name] = inspection.global_step
+            if inspection.global_step == step:
+                complete_steps.append(step)
+        except TrainingError as exc:
+            metadata_errors[name] = exc.code
+    report = analyze_candidate_b_checkpoint_schedule(
+        names,
+        metadata_steps=metadata_steps,
+        metadata_errors=metadata_errors,
+    )
+    report["complete_checkpoint_steps"] = sorted(complete_steps)
+    report["preservable_checkpoint_names"] = sorted(preservable_names)
+    return report
+
+
+def _write_quarantine_checksum_manifest(staging: Path) -> None:
+    files = {
+        path.relative_to(staging).as_posix(): file_checksum(path)
+        for path in sorted(staging.rglob("*"))
+        if path.is_file() and path.name != "quarantine-checksums.json"
+    }
+    _write_json(staging / "quarantine-checksums.json", {"algorithm": "sha256", "files": files})
+
+
+def _failure_document(
+    *,
+    resolved: dict[str, Any],
+    approval: dict[str, Any],
+    consumer: "CandidateBApprovalConsumer",
+    exc: Exception,
+    step: int,
+    checkpoint_report: dict[str, Any] | None,
+    quarantine_logical_path: str | None,
+    quarantine_status: str,
+    staging_preserved: bool,
+) -> dict[str, Any]:
+    report = checkpoint_report or {}
+    failure_code = getattr(exc, "code", type(exc).__name__)
+    checkpoint_failure_codes = {
+        "CANDIDATE_B_CHECKPOINT_NAME_INVALID",
+        "CANDIDATE_B_CHECKPOINT_DUPLICATE",
+        "CANDIDATE_B_CHECKPOINT_METADATA_MISMATCH",
+        "CANDIDATE_B_CHECKPOINT_UNEXPECTED",
+        "CANDIDATE_B_FINAL_CHECKPOINT_MISSING",
+        "CANDIDATE_B_CHECKPOINT_MISSING",
+    }
+    document = {
+        "schema_version": "2.0",
+        "status": "failed",
+        "failure_stage": (
+            "post_training_checkpoint_validation" if failure_code in checkpoint_failure_codes else "training"
+        ),
+        "failure_code": failure_code,
+        "failure_message": str(exc),
+        "run_id": resolved["run_id"],
+        "approval_id": approval["approval_id"],
+        "approval_consumed": consumer.consumed,
+        "optimizer_steps_completed": step,
+        "scheduled_tokens_completed": step * TOKENS_PER_STEP,
+        "expected_checkpoint_steps": report.get("expected_checkpoint_steps", list(CHECKPOINT_STEPS)),
+        "discovered_checkpoint_names": report.get("discovered_checkpoint_names", []),
+        "discovered_checkpoint_steps": report.get("parsed_checkpoint_steps", []),
+        "parsed_checkpoint_steps": report.get("parsed_checkpoint_steps", []),
+        "invalid_checkpoint_names": report.get("invalid_checkpoint_names", []),
+        "checkpoint_metadata_mismatches": report.get("checkpoint_metadata_mismatches", []),
+        "staging_preserved": staging_preserved,
+        "quarantine_path": quarantine_logical_path,
+        "quarantine_status": quarantine_status,
+        "retry_allowed": False,
+        "resume_allowed": False,
+        "evaluation_allowed": False,
+        "publication_allowed": False,
+        "immutable_git_commit": approval.get("git_commit"),
+        "backend_identity": candidate_b_backend_identity(),
+        "config_fingerprint": checksum_value(resolved),
+        "actual_text_values_stored": False,
+    }
+    return {**document, "failure_fingerprint": checksum_value(document)}
+
+
+def _preserve_or_cleanup_failed_staging(
+    *,
+    staging: Path,
+    output: Path,
+    resolved: dict[str, Any],
+    approval: dict[str, Any],
+    consumer: "CandidateBApprovalConsumer",
+    exc: Exception,
+    step: int,
+    checkpoint_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    complete = (checkpoint_report or {}).get("complete_checkpoint_steps", [])
+    preservable = (checkpoint_report or {}).get("preservable_checkpoint_names", [])
+    quarantine = output.parent.parent / "quarantine" / resolved["run_id"]
+    quarantine_logical = f"analysis/training/candidate-b/quarantine/{resolved['run_id']}"
+    if staging.exists() and (complete or preservable):
+        if quarantine.exists():
+            return _failure_document(
+                resolved=resolved, approval=approval, consumer=consumer, exc=exc, step=step,
+                checkpoint_report=checkpoint_report, quarantine_logical_path=None,
+                quarantine_status="collision_staging_retained", staging_preserved=True,
+            )
+        policy = {
+            "schema_version": "1.0",
+            "status": "quarantined",
+            "run_id": resolved["run_id"],
+            "not_for_resume": True,
+            "not_for_evaluation": True,
+            "not_for_publication": True,
+            "manual_review_required": True,
+            "approval_reuse_allowed": False,
+        }
+        preliminary = _failure_document(
+            resolved=resolved, approval=approval, consumer=consumer, exc=exc, step=step,
+            checkpoint_report=checkpoint_report, quarantine_logical_path=quarantine_logical,
+            quarantine_status="quarantined", staging_preserved=True,
+        )
+        try:
+            _write_json(staging / "checkpoint-validation-report.json", checkpoint_report)
+            _write_json(staging / "quarantine-policy.json", policy)
+            _write_json(staging / "failure-manifest.json", preliminary)
+            _write_quarantine_checksum_manifest(staging)
+            quarantine.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(staging, quarantine)
+            return preliminary
+        except (OSError, TrainingError):
+            return _failure_document(
+                resolved=resolved, approval=approval, consumer=consumer, exc=exc, step=step,
+                checkpoint_report=checkpoint_report, quarantine_logical_path=None,
+                quarantine_status="preservation_failed_staging_retained", staging_preserved=True,
+            )
+    _safe_remove_staging(staging, output.parent)
+    return _failure_document(
+        resolved=resolved, approval=approval, consumer=consumer, exc=exc, step=step,
+        checkpoint_report=checkpoint_report, quarantine_logical_path=None,
+        quarantine_status="not_applicable", staging_preserved=False,
+    )
 
 
 class CandidateBApprovalConsumer:
@@ -298,6 +531,7 @@ def run_candidate_b(
 
     started = time.perf_counter()
     trainer: Trainer | None = None
+    checkpoint_report: dict[str, Any] | None = None
     consumer = CandidateBApprovalConsumer(
         approval=approval,
         approval_path=approval_path,
@@ -357,10 +591,12 @@ def run_candidate_b(
             state=trainer.state,
             dataset_metadata=trainer.dataset_metadata,
         )
-        actual_checkpoints = sorted(path.name for path in staging.glob("checkpoint-*") if path.is_dir())
-        expected_checkpoints = [f"checkpoint-{step}" for step in CHECKPOINT_STEPS]
-        if actual_checkpoints != expected_checkpoints:
-            raise TrainingError("CANDIDATE_B_CHECKPOINT_SCHEDULE_MISMATCH", "Candidate B checkpoint schedule mismatch.")
+        checkpoint_report = inspect_candidate_b_checkpoint_schedule(staging)
+        if checkpoint_report["status"] != "valid":
+            raise TrainingError(
+                checkpoint_report["failure_code"],
+                f"Candidate B checkpoint validation failed: {checkpoint_report['status']}",
+            )
         contracts = [candidate_b_checkpoint_contract(step, resolved) for step in CHECKPOINT_STEPS]
         _write_json(staging / "candidate-b-evaluation-hooks.json", candidate_b_evaluation_hooks())
         _write_json(staging / "candidate-b-checkpoint-contracts.json", {"contracts": contracts})
@@ -388,17 +624,17 @@ def run_candidate_b(
         return summary
     except Exception as exc:
         step = trainer.state.global_step if trainer is not None else 0
-        _safe_remove_staging(staging, output.parent)
-        _write_json(failure_path, {
-            "schema_version": "1.0",
-            "status": "failed",
-            "run_id": resolved["run_id"],
-            "approval_consumed": consumer.consumed,
-            "global_step": step,
-            "error_type": type(exc).__name__,
-            "error_code": getattr(exc, "code", None),
-            "automatic_retry": False,
-            "automatic_resume": False,
-            "actual_text_values_stored": False,
-        })
+        if checkpoint_report is None and staging.exists():
+            checkpoint_report = inspect_candidate_b_checkpoint_schedule(staging)
+        failure = _preserve_or_cleanup_failed_staging(
+            staging=staging,
+            output=output,
+            resolved=resolved,
+            approval=approval,
+            consumer=consumer,
+            exc=exc,
+            step=step,
+            checkpoint_report=checkpoint_report,
+        )
+        _write_json(failure_path, failure)
         raise
