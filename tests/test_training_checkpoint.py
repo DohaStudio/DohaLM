@@ -83,6 +83,16 @@ def test_manifest_records_lineage_fingerprints(tmp_path):
     assert manifest["model_config_fingerprint"] == trainer.state.model_config_fingerprint
 
 
+def test_resume_rejects_dataset_lineage_metadata_change(tmp_path):
+    config = training_config(max_steps=2, save_every=1)
+    trainer, _ = build_tiny_trainer(tmp_path / "run", config=config)
+    trainer.train(target_steps=1)
+    resumed, _ = build_tiny_trainer(tmp_path / "run", config=config, resume=True)
+    resumed.dataset_metadata = {"kind": "changed-lineage"}
+    with pytest.raises(TrainingError, match="CHECKPOINT_DATASET_MISMATCH"):
+        resumed.resume_from(tmp_path / "run" / "checkpoint-1", restore_rng=False)
+
+
 def test_rng_state_round_trip_cpu_and_python():
     random.seed(99); torch.manual_seed(99)
     state = capture_rng_state()

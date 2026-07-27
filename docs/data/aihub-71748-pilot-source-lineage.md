@@ -1,5 +1,11 @@
 # AIHUB-71748 Pilot Source Lineage와 Canonical Selection Contract
 
+## Current execution result (2026-07-27)
+
+- [확정] 이 계약으로 검증된 canonical pilot-v2는 승인된 100-step Pilot에 사용됐고 실행은 완료됐다.
+- [확정] Pilot 승인과 후속 Candidate A 10M single-use 승인은 모두 `consumed`이며 자동 연장·추가 학습은 `not_approved`다.
+- [근거] [100-step 결과](../training/pilot-pretraining-100-v2-result.md)
+
 ## 1. 결론
 
 - 문서 상태: `review`

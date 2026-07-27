@@ -37,7 +37,7 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [Pilot Corpus 준비](./data/pilot-corpus-preparation.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [Pilot 테스트](./quality/pilot-pretraining-testing.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md) → [재현성 정책](./quality/reproducibility-policy.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Full Readiness](./training/full-pretraining-readiness.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md)
 
 ### 2.6 Codex 작업
 
@@ -104,7 +104,7 @@
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 승인된 `operating-16k-v2/unigram-16k`이고 제한 Tiny Overfit은 `approved`지만 PII·Pilot/전체 Pretraining·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
+- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical pilot-v2 100-step Pilot은 완료됐다. 해당 승인은 소비됐고 Full Pretraining·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력

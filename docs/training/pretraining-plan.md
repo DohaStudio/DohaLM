@@ -9,7 +9,7 @@
 - [확정] 기준 장비는 단일 `RTX 3060 Ti 8GB`다.
 - [확정] 모델은 [모델 아키텍처](../architecture/model-architecture.md), 토큰 방식은 [토크나이저 설계](./tokenizer-design.md), Phase 2 입력·산출물·호환성은 [토크나이저 상세 계약](./phase2-tokenizer-contract.md)을 따른다.
 - [확정] 합성 token 전용 [Trainer Foundation](./trainer-foundation.md)과 [checkpoint/resume](./checkpoint-and-resume.md)는 구현·검증됐다. 승인된 실제 학습 데이터·운영 tokenizer·사전학습 checkpoint는 존재하지 않으며, 이 문서의 실제 사전학습 절차는 실행 계획이다.
-- [확정] 100-step 이하 로컬 검증의 구현 계약과 현재 상태는 [학생용 Pilot Pretraining](./pilot-pretraining.md)을 따른다. Stage A 코드는 구현됐지만 사용자 지정 corpus를 사용하는 Stage B는 아직 실행하지 않았다.
+- [확정] 100-step 이하 로컬 검증의 구현 계약은 [학생용 Pilot Pretraining](./pilot-pretraining.md)을 따른다. Canonical Pilot과 [Candidate A 10M 단일 실행](./full-pretraining-candidate-a-result.md)은 완료됐고 자동 연장·추가 학습은 미승인이다.
 - [확정] 사전학습 후보와 목적별 승인은 [데이터셋 후보 등록부](../data/dataset-candidate-registry.md), [라이선스 검토](../data/dataset-license-review.md), [승인 로그](../data/dataset-approval-log.md)에서 분리해 관리한다.
 - [후순위] `DohaLM-Small` 사전학습은 Tiny의 정확성·메모리·처리량 측정 후 진행한다.
 
@@ -186,7 +186,7 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 ## 13. 검토 필요 사항
 
-- [검증 필요] 데이터 규모, token budget 및 train/validation 비율
+- [검증 필요] [Full Pretraining 실행 계획](./full-pretraining-execution-plan.md)의 A 10M, B 25M, C 1 epoch 중 첫 실행 budget 사용자 승인
 - [검증 필요] learning rate, warmup, weight decay 및 gradient clipping threshold
 - [검증 필요] micro-batch, accumulation step, checkpointing 활성화 여부
 - [검증 필요] 평가·저장 주기와 정량 중단 기준
@@ -195,6 +195,8 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] canonical 100-step Pilot 실측 기반 Full Pretraining budget·evaluation·checkpoint·초기화·안전·승인 패키지를 연결하고 실행 미승인을 유지함 |
+| 2026-07-27 | [확정] Candidate A 10M single-use 실행을 4,883 step에서 완료하고 추가 학습 미승인을 유지함 |
 | 2026-07-24 | [확정] [Pilot Pretraining 준비 검증](./pilot-pretraining-readiness.md)을 연결하고 Gate·tokenizer·corpus·split·평가 제외·config·storage가 명시 승인되기 전 실제 pilot을 차단함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 batch·cosine·sampler resume·VRAM/처리량·100-step overfit 후보 결과를 연결하고 실제 사전학습과 구분함 |
 | 2026-07-24 | [확정] 합성 Trainer Foundation·CPU/CUDA FP16·checkpoint/resume·50-step loss 감소 결과를 실제 사전학습과 구분해 반영함 |

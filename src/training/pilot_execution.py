@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-import re
-import os
-import shutil
-import uuid
 import hashlib
+import os
+import re
+import shutil
+import subprocess
+import uuid
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from src.data.checksums import checksum_value, file_checksum
+from src.runtime.paths import repository_root
 
 from .errors import TrainingError
 from .pilot_config import PilotPretrainingConfig
@@ -23,6 +25,7 @@ from .pilot_pretraining import _lineage, resolve_pilot_path
 FINGERPRINT_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 SMOKE_MAX_OPTIMIZER_STEPS = 5
+PILOT_MAX_OPTIMIZER_STEPS = 100
 MINIMUM_FREE_BYTES = 5 * 1024**3
 
 
@@ -72,6 +75,16 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     return value
 
 
+def _git_value(*args: str) -> str:
+    result = subprocess.run(
+        ["git", *args], cwd=repository_root(), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False,
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
 def inspect_pilot_execution(config_path: Path, manifest_path: Path, roadmap_path: Path | None = None) -> dict[str, Any]:
     """Inspect a plan without resolving data paths, loading a model, or starting training."""
 
@@ -98,15 +111,30 @@ def inspect_pilot_execution(config_path: Path, manifest_path: Path, roadmap_path
         blockers.append("TOKENIZER_FINGERPRINT_MISSING")
     smoke_only = approval.get("status") == "approved_smoke_only"
     runtime_revalidation = approval.get("purpose") == "pilot_v2_runtime_revalidation"
-    if not smoke_only or approval.get("maximum_optimizer_steps") != SMOKE_MAX_OPTIMIZER_STEPS or not approval.get("approved_by") or not approval.get("approved_at"):
+    pilot_100 = (
+        approval.get("status") == "approved_pilot_100_steps"
+        and approval.get("purpose") == "canonical_pilot_v2_100_step"
+        and approval.get("maximum_optimizer_steps") == PILOT_MAX_OPTIMIZER_STEPS
+        and approval.get("pilot_100_step_status") == "approved"
+        and approval.get("full_pretraining_status") == "not_approved"
+        and config.max_steps == PILOT_MAX_OPTIMIZER_STEPS
+    )
+    valid_smoke = (
+        smoke_only
+        and approval.get("maximum_optimizer_steps") == SMOKE_MAX_OPTIMIZER_STEPS
+        and config.max_steps <= SMOKE_MAX_OPTIMIZER_STEPS
+        and approval.get("pilot_100_step_status") == "not_approved"
+    )
+    if not (valid_smoke or pilot_100) or not approval.get("approved_by") or not approval.get("approved_at"):
         blockers.append("PILOT_EXECUTION_NOT_APPROVED")
-    if config.max_steps > SMOKE_MAX_OPTIMIZER_STEPS or approval.get("pilot_100_step_status") != "not_approved":
+    if not (config.max_steps <= SMOKE_MAX_OPTIMIZER_STEPS or config.max_steps == PILOT_MAX_OPTIMIZER_STEPS):
         blockers.append("PILOT_SMOKE_SCOPE_EXCEEDED")
     if approval.get("execution_completed") is True:
-        blockers.append("PILOT_SMOKE_ALREADY_COMPLETED")
+        blockers.append("PILOT_EXECUTION_ALREADY_COMPLETED")
     readiness_codes = readiness.get("blocking_codes") or []
     allowed_readiness_codes = ["RUNTIME_REVALIDATION_REQUIRED"] if runtime_revalidation else []
-    if readiness.get("status") not in {"ready_for_smoke_execution", "ready_awaiting_final_execution_approval"} or readiness_codes != allowed_readiness_codes:
+    allowed_readiness_statuses = {"ready_for_smoke_execution", "ready_awaiting_final_execution_approval"}
+    if readiness.get("status") not in allowed_readiness_statuses or readiness_codes != allowed_readiness_codes:
         blockers.append("PILOT_READINESS_NOT_SATISFIED")
     if actual_readiness is not None:
         if readiness.get("evidence_fingerprint") != actual_readiness.get("evidence_fingerprint"):
@@ -118,8 +146,12 @@ def inspect_pilot_execution(config_path: Path, manifest_path: Path, roadmap_path
         blockers.append("PILOT_STORAGE_NOT_VERIFIED")
     if not isinstance(source.get("git_commit"), str) or COMMIT_PATTERN.fullmatch(source["git_commit"]) is None:
         blockers.append("GIT_COMMIT_MISSING")
+    elif source["git_commit"] != _git_value("rev-parse", "HEAD"):
+        blockers.append("GIT_COMMIT_MISMATCH")
     if not isinstance(source.get("git_branch"), str) or not source["git_branch"]:
         blockers.append("GIT_BRANCH_MISSING")
+    elif source["git_branch"] != _git_value("branch", "--show-current"):
+        blockers.append("GIT_BRANCH_MISMATCH")
     for key in ("python_version", "torch_version", "cuda_version", "gpu_name"):
         if not environment.get(key):
             blockers.append(f"ENVIRONMENT_{key.upper()}_MISSING")
@@ -129,11 +161,31 @@ def inspect_pilot_execution(config_path: Path, manifest_path: Path, roadmap_path
             blockers.append("PILOT_DATASET_FINGERPRINT_MISMATCH")
         if identity.get("tokenizer_fingerprint") != actual_lineage["tokenizer_fingerprint"]:
             blockers.append("TOKENIZER_FINGERPRINT_MISMATCH")
+        if pilot_100:
+            identity_fields = {
+                "dataset_version": "dataset_version",
+                "pilot_dataset_fingerprint": "pilot_dataset_fingerprint",
+                "split_fingerprint": "split_fingerprint",
+                "pii_fingerprint": "pii_fingerprint",
+                "canonical_selection_contract": "canonical_selection_contract",
+                "contract_fingerprint": "canonical_contract_fingerprint",
+                "source_lineage_fingerprint": "source_lineage_fingerprint",
+                "tokenization_fingerprint": "tokenization_fingerprint",
+                "packing_fingerprint": "packing_fingerprint",
+                "tokenizer_model_checksum": "tokenizer_model_checksum",
+                "tokenizer_vocab_checksum": "tokenizer_vocab_checksum",
+            }
+            for manifest_key, lineage_key in identity_fields.items():
+                if identity.get(manifest_key) != actual_lineage.get(lineage_key):
+                    blockers.append(f"{manifest_key.upper()}_MISMATCH")
         prepared_root = resolve_pilot_path(config, config.corpus_manifest).parent
         if not (prepared_root / "COMPLETE.json").is_file():
             blockers.append("PILOT_DATASET_INCOMPLETE")
     except (OSError, RuntimeError, ValueError):
         blockers.append("PILOT_ARTIFACT_VALIDATION_FAILED")
+    output_path = resolve_pilot_path(config, config.output_dir)
+    if output_path.exists():
+        blockers.append("PILOT_OUTPUT_EXISTS")
 
     return {
         "schema_version": "1.0",
@@ -147,7 +199,7 @@ def inspect_pilot_execution(config_path: Path, manifest_path: Path, roadmap_path
         "effective_batch_size": config.effective_batch_size,
         "inspection_only": True,
         "training_started": False,
-        "execution_profile": "resource_smoke_max_5_steps" if config.max_steps <= 5 else "candidate_100_step_not_approved",
+        "execution_profile": "resource_smoke_max_5_steps" if config.max_steps <= 5 else "canonical_pilot_v2_100_steps",
         "readiness_blocking_codes": [item["code"] for item in actual_readiness["blocking_reasons"]] if actual_readiness else [],
     }
 

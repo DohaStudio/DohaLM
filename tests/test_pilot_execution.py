@@ -54,14 +54,14 @@ def test_plan_is_blocked_without_dataset_and_execution_approval(tmp_path: Path) 
         require_pilot_execution_approval(report)
 
 
-def test_100_step_config_remains_blocked_even_with_generic_approval(tmp_path: Path) -> None:
+def test_100_step_config_remains_blocked_with_generic_approval(tmp_path: Path) -> None:
     config_path = Path("configs/pilot-pretraining.example.yaml")
     manifest_path = tmp_path / "manifest.yaml"
     write_manifest(manifest_path, manifest(config_path, approved=True))
     report = inspect_pilot_execution(config_path, manifest_path)
     assert report["status"] == "blocked"
     assert report["execution_allowed"] is False
-    assert "PILOT_SMOKE_SCOPE_EXCEEDED" in report["blocking_codes"]
+    assert "PILOT_EXECUTION_NOT_APPROVED" in report["blocking_codes"]
     assert report["inspection_only"] is True and report["training_started"] is False
     with pytest.raises(TrainingError, match="PILOT_EXECUTION_BLOCKED"):
         require_pilot_execution_approval(report)
@@ -74,3 +74,60 @@ def test_changed_config_is_detected(tmp_path: Path) -> None:
     manifest_path = tmp_path / "manifest.yaml"
     write_manifest(manifest_path, value)
     assert "CONFIG_FINGERPRINT_MISMATCH" in inspect_pilot_execution(config_path, manifest_path)["blocking_codes"]
+
+
+def test_exact_100_step_manifest_is_allowed_only_for_canonical_profile(tmp_path: Path, monkeypatch) -> None:
+    config_path = Path("configs/pilot-pretraining-100-v2.example.yaml")
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    (prepared / "COMPLETE.json").write_text("{}", encoding="utf-8")
+    output = tmp_path / "new-output"
+    lineage = {
+        "dataset_fingerprint": FINGERPRINT,
+        "pilot_dataset_fingerprint": FINGERPRINT,
+        "dataset_version": "pilot-v2",
+        "split_fingerprint": FINGERPRINT,
+        "pii_fingerprint": FINGERPRINT,
+        "canonical_selection_contract": "aihub-71748-training-selection-v1",
+        "canonical_contract_fingerprint": FINGERPRINT,
+        "source_lineage_fingerprint": FINGERPRINT,
+        "tokenization_fingerprint": FINGERPRINT,
+        "packing_fingerprint": FINGERPRINT,
+        "tokenizer_fingerprint": FINGERPRINT,
+        "tokenizer_model_checksum": FINGERPRINT,
+        "tokenizer_vocab_checksum": FINGERPRINT,
+    }
+    value = manifest(config_path, approved=True)
+    value["identity"].update({
+        "training_dataset_fingerprint": FINGERPRINT,
+        **{key: lineage[key] for key in (
+            "pilot_dataset_fingerprint", "dataset_version", "split_fingerprint", "pii_fingerprint",
+            "canonical_selection_contract", "source_lineage_fingerprint", "tokenization_fingerprint",
+            "packing_fingerprint", "tokenizer_model_checksum", "tokenizer_vocab_checksum",
+        )},
+        "contract_fingerprint": FINGERPRINT,
+    })
+    value["source"] = {"git_commit": "a" * 40, "git_branch": "feat/pilot-pretraining"}
+    value["execution_approval"] = {
+        "status": "approved_pilot_100_steps", "purpose": "canonical_pilot_v2_100_step",
+        "approved_by": "user", "approved_at": "2026-07-27",
+        "maximum_optimizer_steps": 100, "pilot_100_step_status": "approved",
+        "full_pretraining_status": "not_approved",
+    }
+    value["readiness"] = {"status": "ready_awaiting_final_execution_approval", "blocking_codes": [], "evidence_fingerprint": FINGERPRINT}
+    value["storage"] = {"capacity_verified": True, "output_path_write_verified": True}
+    manifest_path = tmp_path / "manifest.yaml"
+    write_manifest(manifest_path, value)
+    monkeypatch.setattr("src.training.pilot_execution._lineage", lambda _config: lineage)
+    monkeypatch.setattr("src.training.pilot_execution._git_value", lambda *args: "a" * 40 if args[0] == "rev-parse" else "feat/pilot-pretraining")
+    monkeypatch.setattr("src.training.pilot_execution.validate_pilot_readiness", lambda *_args: {
+        "eligible": True, "blocking_reasons": [], "evidence_fingerprint": FINGERPRINT,
+    })
+    monkeypatch.setattr(
+        "src.training.pilot_execution.resolve_pilot_path",
+        lambda config, value: output if value == config.output_dir else prepared / "dataset-manifest.json",
+    )
+    report = inspect_pilot_execution(config_path, manifest_path, tmp_path / "roadmap.md")
+    assert report["execution_allowed"] is True
+    assert report["execution_profile"] == "canonical_pilot_v2_100_steps"
+    assert report["max_steps"] == 100

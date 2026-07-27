@@ -26,6 +26,15 @@ class TrainingMetric:
     peak_memory_allocated: int
     peak_memory_reserved: int
     amp_step_skipped: bool = False
+    micro_step: int = 0
+    amp_scale: float = 1.0
+    sampler_cursor: int | None = None
+    equivalent_epoch: float = 0.0
+    cpu_working_set_bytes: int | None = None
+    remaining_disk_bytes: int | None = None
+    run_output_bytes: int | None = None
+    elapsed_wall_clock: float = 0.0
+    timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -1,0 +1,276 @@
+schema_version: "1.0"
+manifest_type: "full_pretraining_execution_approval_candidate"
+manifest_status: "candidate_a_execution_completed"
+prepared_on: "2026-07-27"
+
+source:
+  git_branch: "feat/pilot-pretraining"
+  git_commit: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
+  working_tree_clean_before_pilot_package_changes: true
+
+gates:
+  "0": "approved"
+  "1": "passed"
+  "2": "passed"
+  "3": "passed"
+  "4": "passed"
+  "5": "passed"
+  "6": "passed"
+  "7": "passed"
+
+pilot_evidence:
+  run_id: "PILOT-100-V2-20260727-0001"
+  status: "completed_pilot_100_steps"
+  runtime_validation: "passed"
+  checkpoint_resume: "passed"
+  execution_approval: "consumed"
+  run_summary_sha256: "sha256:bbd6bf4b631adc263708395a98da21e7daee9962b0a4361eea3c87c5df55dee5"
+  checkpoint_promoted: false
+
+identity:
+  dataset_id: "AIHUB-71748"
+  dataset_version: "pilot-v2"
+  source_split: "Training"
+  canonical_selection_contract: "aihub-71748-training-selection-v1"
+  canonical_contract_fingerprint: "sha256:bea1f19b1571e062096bd1d9dbd7b2c4144f2e9bf8f578448b190e3a60eb4293"
+  source_record_count: 107226
+  pilot_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  training_lineage_fingerprint: "sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6"
+  source_lineage_fingerprint: "sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f"
+  pii_fingerprint: "sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed"
+  split_fingerprint: "sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f"
+  tokenization_fingerprint: "sha256:a0fbc78d4e7e55e7e79bd72362946964514d111993bd8889d312f8d6efceef6c"
+  packing_fingerprint: "sha256:e7ad635dafa3f18a77a243ec17b2bcb9d5f29c72e081ad161bd63b2218e0680b"
+  tokenizer_id: "operating-16k-v2/unigram-16k"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  tokenizer_model_checksum: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
+  tokenizer_vocab_checksum: "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7cbcdfab11b"
+  vocabulary_size: 16000
+  special_token_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+  model_name: "DohaLM-Tiny"
+  model_parameters: 16889856
+  model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
+  config_path: "configs/full-pretraining.example.yaml"
+  config_fingerprint: "sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5"
+
+budget:
+  candidate: "candidate_a_10m"
+  token_budget: 10000000
+  scheduled_tokens: 10000384
+  maximum_steps: 4883
+  maximum_epochs: 0.14024222267534303
+  approval_status: "approved"
+
+initialization:
+  mode: "fresh_seed_17"
+  seed: 17
+  pilot_checkpoint_used: false
+  artifact_fingerprint: null
+  initialization_fingerprint: "sha256:c580d1786efc2aa85ebb4c9ada4cf28ac280b3367beeee69cd263dc25b7a3356"
+  approval_status: "approved"
+
+training_config:
+  optimizer: "AdamW"
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  scheduler: "cosine"
+  warmup_steps: 10
+  min_lr_ratio: 0.1
+  micro_batch_size: 2
+  gradient_accumulation_steps: 4
+  effective_batch_size: 8
+  context_length: 256
+  max_grad_norm: 1.0
+  precision: "fp16_amp"
+  seed: 17
+  approval_status: "approved"
+
+evaluation_policy:
+  mode: "full_internal"
+  records: 4799
+  packed_sequences: 14329
+  target_tokens: 3653719
+  fingerprint: "sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790"
+  sampling_seed: null
+  include_initial: true
+  include_final: true
+  schedule: ["start", "final"]
+  original_validation_used: false
+  generated_samples: false
+  approval_status: "approved"
+
+checkpoint_policy:
+  interval_tokens: 5000000
+  interval_steps: 2442
+  save_final: true
+  expected_checkpoint_count: 2
+  atomic_publish: true
+  checksum_manifest: true
+  resume_verification: "required"
+  approval_status: "approved"
+
+retention_policy:
+  maximum_retained: 2
+  keep_mid: true
+  keep_final: true
+  keep_jsonl_log: true
+  keep_aggregate_metrics: true
+  keep_resolved_config: true
+  keep_environment_manifest: true
+  keep_checksum_manifest: true
+  keep_failure_report: true
+  store_text_or_token_ids: false
+  automatic_deletion_during_run: false
+  post_run_deletion: "separate_user_approval_required"
+  approval_status: "approved"
+
+disk_budget:
+  run_budget_bytes: 2147483648
+  minimum_free_bytes_before_start: 10737418240
+  minimum_free_bytes_during_run: 5368709120
+  atomic_staging_bytes: 202789742
+  approval_status: "approved"
+
+wall_clock_budget:
+  planned_seconds: 1800
+  hard_stop_seconds: 2700
+  approval_status: "approved"
+
+system_safety:
+  maximum_reserved_vram_bytes: 7516192768
+  maximum_cpu_working_set_bytes: 4294967296
+  repeated_amp_skip_limit: 3
+  loss_spike_multiplier: 4.0
+  loss_spike_consecutive_steps: 10
+  evaluation_spike_multiplier: 1.5
+  evaluation_spike_consecutive_checks: 2
+  gradient_norm_spike_multiplier: 4.0
+  gradient_norm_spike_consecutive_steps: 10
+  rolling_window_steps: 100
+  thermal_monitoring: "manual_or_external_tool_review_required"
+  windows_sleep_prevention: "required_before_execution"
+  plugged_power: "required_before_execution"
+  adequate_cooling_and_ventilation: "required_before_execution"
+  no_other_long_gpu_task: "required_before_execution"
+  automatic_retry: false
+  approval_status: "approved"
+
+storage:
+  logical_output: "configured_external_root/analysis/full-pretraining/AIHUB-71748/runs/FULL-PRETRAIN-CANDIDATE-A-20260727-0001"
+  disk_budget_verified: true
+  output_path_write_verified: true
+  atomic_rename_verified: true
+  read_checksum_verified: true
+  probe_deleted: true
+  available_bytes: 992166322176
+  probe_checksum: "sha256:7696857e43a54bd72e07f261fe255d5660a7f8b7b7990020d9a6091ed0117a9c"
+  git_tracked_outputs_allowed: false
+
+environment:
+  python_version: "3.12.5"
+  torch_version: "2.7.1+cu118"
+  cuda_version: "11.8"
+  cuda_driver_version: "610.62"
+  gpu_name: "NVIDIA GeForce RTX 3060 Ti"
+  gpu_vram_bytes: 8589410304
+
+readiness:
+  status: "candidate_a_execution_completed"
+  execution_allowed: false
+  training_started: true
+  execution_backend_implemented: true
+  readiness_fingerprint: "sha256:b50590c592a28fc2f508f1a3fefa37630531f17dacd79833fc3b3c852e622893"
+  blocker_count: 4
+  reexecution_blocked: true
+  output_probe_status: "passed"
+  disk_budget_approval_status: "approved"
+
+execution_backend:
+  status: "implemented_and_validated"
+  default_mode: "inspection_only"
+  dry_run_supported: true
+  explicit_execute_required: true
+  candidate_a_only: true
+  single_use_approval_consumption: true
+  existing_output_rejected: true
+  full_run_resume_only: true
+  actual_text_values_stored: false
+
+publication:
+  commercial_use: "not_approved"
+  original_dataset_redistribution: "not_approved"
+  derived_dataset_redistribution: "not_approved"
+  model_checkpoint_publication: "not_approved"
+  tokenizer_publication: "not_approved"
+  config_publication: "review_required"
+  aggregate_metrics_publication: "review_required"
+  raw_log_publication: "not_approved"
+  dataset_fingerprint_publication: "review_required"
+  pii_detail_publication: "not_approved"
+  generated_sample_publication: "not_approved"
+
+execution_approval:
+  status: "consumed"
+  full_pretraining_execution: "completed_single_use"
+  full_pretraining_scope: "candidate_a_10m_tokens"
+  execution_allowed: false
+  approved_by: "사용자"
+  approval_method: "명시적 사용자 승인"
+  approval_target: "Candidate A 10M Token Full Pretraining"
+  approved_at: "2026-07-27T19:35:33+09:00"
+  approved_branch: "feat/pilot-pretraining"
+  approved_git_commit: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
+  approved_readiness_fingerprint: "sha256:fc5c74313d31070a1304e61d93ad94117c03cc59b606329144888fecb3073683"
+  approved_config_fingerprint: "sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5"
+  approved_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  approved_tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  candidate: "A"
+  automatic_extension: false
+  automatic_retry: false
+  resume_allowed: false
+  execution_preflight:
+    windows_sleep_disabled: true
+    no_restart_or_update_scheduled: true
+    plugged_power: true
+    adequate_cooling_and_ventilation: true
+    nvidia_gpu_recognized: true
+    cuda_available: true
+    no_other_long_gpu_task: true
+    gpu_temperature_status: "confirmed_49_celsius"
+    physical_confirmation_source: "사용자 직접 확인"
+  consumed: true
+  approval_consumed_at: "2026-07-27T19:38:29+09:00"
+  consumed_by_run_id: "FULL-PRETRAIN-CANDIDATE-A-20260727-0001"
+  consumed_at_optimizer_step: 1
+  execution_started: true
+  execution_completed: true
+  execution_completed_at: "2026-07-27T19:58:34+09:00"
+  approval_consumption: "single_use_on_optimizer_step_1"
+  automatic_extension: "not_approved"
+  automatic_retry: "not_approved"
+  full_pretraining_backend: "implemented_and_validated"
+
+execution_result:
+  run_id: "FULL-PRETRAIN-CANDIDATE-A-20260727-0001"
+  status: "completed"
+  runtime_validation: "passed"
+  checkpoint_validation: "passed"
+  global_step: 4883
+  scheduled_tokens: 10000384
+  equivalent_epoch: 0.14024222267534303
+  elapsed_seconds: 1310.1837164000026
+  checkpoint_count: 2
+  run_summary_sha256: "sha256:560e22fa0df7db643520f3bbd2b6f3834fe3dc5b8ab5b5cbe612b3c8f03571b1"
+  automatic_extension: false
+  retry_approval_required: true
+  additional_training: "not_approved"
+
+scope_restrictions:
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  api: "not_approved"
+  frontend: "not_approved"
+  deployment: "not_approved"
+  checkpoint_publication: "not_approved"
+  gate_status_change: "not_approved"

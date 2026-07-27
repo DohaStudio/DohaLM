@@ -1,5 +1,13 @@
 # AIHUB-71748 Pilot Pretraining 실행 준비 계획
 
+## Current execution result (2026-07-27)
+
+- [확정] 사용자 최종 승인에 따라 canonical pilot-v2를 정확히 100 optimizer step 실행했다.
+- [확정] checkpoint 25/50/75/100, 전체 내부 평가, checksum, load-only resume와 8종 mismatch fail-closed 검증을 완료했다.
+- [확정] 이 결과가 아래의 실행 전 계획 상태보다 우선한다.
+- [확정] Full Pretraining과 자동 연장은 계속 차단하며 새로운 Gate 상태 변경은 없다.
+- [근거] [100-step 결과](./pilot-pretraining-100-v2-result.md), [승인·결과 manifest](./pilot-pretraining-100-v2.manifest.yaml)
+
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-27
 - 선행 문서: [Pilot 준비 검증](./pilot-pretraining-readiness.md), [학생용 Pilot](./pilot-pretraining.md), [Gate 7 검증](./aihub-71748-gate7-tiny-overfit.md)
