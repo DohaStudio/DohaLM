@@ -38,6 +38,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--readiness-manifest", default="docs/training/candidate-b-readiness.manifest.yaml")
     parser.add_argument("--resolved-config", default="configs/candidate-b-resolved.yaml")
     parser.add_argument("--approval", default="configs/candidate-b-approval.yaml")
+    parser.add_argument(
+        "--physical-preflight",
+        default="artifacts/candidate-b-physical-preflight.yaml",
+        help="operator-confirmed physical preflight evidence (Git ignored)",
+    )
     parser.add_argument("--cpu-validation-result", default="docs/training/candidate-b-cpu-validation.manifest.yaml")
     parser.add_argument("--output-probe-result", default="docs/training/candidate-b-output-probe.manifest.yaml")
     parser.add_argument("--probe-output", action="store_true")
@@ -58,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         readiness_manifest_path = _repository_path(args.readiness_manifest)
         resolved_path = _repository_path(args.resolved_config)
         approval_path = _repository_path(args.approval)
+        physical_preflight_path = _repository_path(args.physical_preflight)
         cpu_validation_path = _repository_path(args.cpu_validation_result)
         output_probe_path = _repository_path(args.output_probe_result)
 
@@ -91,6 +97,14 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         runtime = inspect_candidate_b_runtime() if args.mode == "preflight" else None
+        physical_preflight = None
+        if physical_preflight_path.is_file():
+            physical_preflight = yaml.safe_load(physical_preflight_path.read_text(encoding="utf-8"))
+            if not isinstance(physical_preflight, dict):
+                raise TrainingError(
+                    "CANDIDATE_B_PHYSICAL_PREFLIGHT_INVALID",
+                    "physical preflight evidence must be a YAML mapping.",
+                )
         cpu_validation = yaml.safe_load(cpu_validation_path.read_text(encoding="utf-8")) if cpu_validation_path.is_file() else None
         probe = (
             probe_candidate_b_output(resolved) if args.probe_output
@@ -102,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
             approval_path=approval_path if approval_path.is_file() else None,
             cpu_validation=cpu_validation,
             output_probe=probe,
-            physical_preflight=None,
+            physical_preflight=physical_preflight,
         )
         if args.mode == "preflight":
             print_result({**report, "runtime": runtime}, json_output=args.json)

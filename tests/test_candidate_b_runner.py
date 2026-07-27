@@ -73,6 +73,33 @@ def test_preflight_is_read_only_and_physical_confirmation_stays_false(monkeypatc
     assert '"gpu_training_started": false' in output
 
 
+def test_physical_preflight_manifest_is_passed_to_readiness(tmp_path: Path, monkeypatch) -> None:
+    physical_path = tmp_path / "physical.yaml"
+    physical = {
+        "plugged_power": True,
+        "adequate_cooling_and_ventilation": True,
+        "windows_sleep_disabled": True,
+        "no_restart_or_update_scheduled": True,
+        "no_other_long_gpu_task": True,
+    }
+    physical_path.write_text("\n".join(f"{key}: true" for key in physical) + "\n", encoding="utf-8")
+    original = cli._repository_path
+    monkeypatch.setattr(
+        cli,
+        "_repository_path",
+        lambda value: physical_path if value == "physical.yaml" else original(value),
+    )
+    captured = {}
+
+    def inspect(**kwargs):
+        captured.update(kwargs)
+        return {"execution_allowed": False, "status": "backend_blocked", "blocking_codes": []}
+
+    monkeypatch.setattr(cli, "inspect_candidate_b_readiness", inspect)
+    assert cli.main(["inspect", "--resolved-config", RESOLVED, "--physical-preflight", "physical.yaml"]) == 0
+    assert captured["physical_preflight"] == physical
+
+
 def test_resolve_config_refuses_existing_output(tmp_path: Path, monkeypatch) -> None:
     output = tmp_path / "resolved.yaml"
     output.write_text("existing", encoding="utf-8")
@@ -82,6 +109,7 @@ def test_resolve_config_refuses_existing_output(tmp_path: Path, monkeypatch) -> 
         "docs/training/candidate-b-readiness.manifest.yaml": Path("docs/training/candidate-b-readiness.manifest.yaml"),
         "configs/candidate-b-resolved.yaml": output,
         "configs/candidate-b-approval.yaml": tmp_path / "approval.yaml",
+        "artifacts/candidate-b-physical-preflight.yaml": tmp_path / "physical.yaml",
         "docs/training/candidate-b-cpu-validation.manifest.yaml": Path("docs/training/candidate-b-cpu-validation.manifest.yaml"),
         "docs/training/candidate-b-output-probe.manifest.yaml": Path("docs/training/candidate-b-output-probe.manifest.yaml"),
     }
