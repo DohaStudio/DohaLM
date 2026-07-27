@@ -38,7 +38,7 @@
 - Framework implementation, Candidate A Quick/Full, checkpoint Quick comparison, EOS diagnostic: `completed`
 - Quick representativeness, EOS success, Candidate B evaluation contract: `approved` (2026-07-27)
 - Quick v2: `planned_awaiting_separate_approval`
-- Candidate B design/backend: `review_backend_ready_awaiting_commit_preflight_and_approval`
+- Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B training: `not_approved`
 - 배포: `not_applicable`
 

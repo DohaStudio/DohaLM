@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-28
-- Readiness 상태: `backend_ready_awaiting_commit_preflight_and_approval`
+- Readiness 상태: `backend_implemented_execution_blocked`
 - 실행 허용: `false`
 - 관련 문서: [Candidate B 설계](./candidate-b-design.md), [설계 manifest](./candidate-b-readiness.manifest.yaml), [Candidate B 평가 계약](../evaluation/candidate-b-evaluation-contract.md)
 
@@ -27,14 +27,14 @@
 | B-RDY-08 | GPU·시간·Disk 설계 예산 | `projection_and_probe_passed` | Candidate A 실측 외삽·외부 output probe 통과; runtime 학습 미검증 |
 | B-RDY-09 | Candidate B execution backend | `passed` | resolver·scope·approval·Git·probe·monitor·runner CPU 검증 |
 | B-RDY-10 | Resolved config·Run ID·output 고정 | `passed` | Run ID와 fingerprint 고정; 절대경로 미포함 |
-| B-RDY-11 | Immutable Git commit | `blocked` | 현재 설계 변경이 아직 미커밋 상태 |
+| B-RDY-11 | Immutable Git commit | `blocked` | backend commit `a6464be`는 upstream에 존재하나 현재 문서 변경이 미커밋이므로 실행 identity 재고정 필요 |
 | B-RDY-12 | Output probe·free disk | `passed` | write·fsync·rename·checksum·delete·10GiB 기준 통과 |
 | B-RDY-13 | 물리적·시스템 preflight | `blocked` | 전원·냉각·환기·절전·CUDA·GPU 점유 확인 필요 |
 | B-RDY-14 | Single-use Candidate B 실행 승인 | `blocked` | 별도 사용자 승인 필요 |
 
 ## 3. Fail Closed blocker
 
-현재 blocker는 다음 3개다.
+현재 문서 worktree 기준 blocker는 다음 3개다. 버전 관리된 YAML의 `backend_ready_awaiting_commit_preflight_and_approval`은 backend commit 전 snapshot이며 이번 문서 정합화 범위에서 변경하지 않는다.
 
 1. `CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING`
 2. `CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING`
@@ -66,5 +66,6 @@ Candidate B backend·CPU validation·output probe는 완료했다. Quick/Full �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Backend commit 이후 현재 문서 변경을 반영해 clean immutable Git 재확정 경계를 명시함 |
 | 2026-07-28 | Candidate B 설계 완료와 실행 차단 blocker·별도 승인 패키지 요구사항 기록 |
 | 2026-07-28 | Backend·resolved config·CPU validation·output probe 완료와 blocker 3개로 축소 |

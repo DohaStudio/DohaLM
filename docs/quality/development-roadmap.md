@@ -125,7 +125,8 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] EOS success, Quick 대표성 및 Candidate B 평가 계약은 2026-07-27 사용자 승인 완료
 - [검증 필요] Quick v2 archive lineage와 층화 subset 설계·생성 승인
 - [확정] Candidate B design·backend·CPU validation·output probe 완료, `execution_allowed: false`
-- [검증 필요] Candidate B immutable commit·물리 preflight·single-use training 실행 승인
+- [검증 필요] Candidate B 실행 시 clean immutable Git identity 재확정·물리 preflight·single-use training 실행 승인
+- [제안] Gate 이후 장기 확장은 [Foundation Model Strategy](../project/foundation-model-strategy.md)와 [Model Family Roadmap](../project/model-family-roadmap.md)의 Track A~D를 사용하되, 기존 Gate 상태나 Candidate 실행 권한을 자동 변경하지 않는다.
 - [검증 필요] 각 Gate 정량 합격선과 허용 회귀 폭
 - [검증 필요] 일정·담당자·승인 기록 schema
 - [검증 필요] Phase 병행 범위와 `DohaLM-Small` 진입 조건
@@ -136,7 +137,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-07-28 | [확정] Candidate B backend·CPU fail-closed·output probe 완료와 commit·physical·approval 잔여 blocker 반영 |
+| 2026-07-28 | [확정] Candidate B backend commit 이후에도 실행 직전 clean immutable Git 재확정·physical·approval가 필요함을 반영 |
 | 2026-07-27 | [확정] ADR-007, Candidate A Full baseline, EOS·Quick 대표성·Candidate B 평가 계약 승인과 Quick v2/Candidate B 비승인 경계 반영 |
 | 2026-07-27 | [확정] 실제 Training 64문서의 1,000-step packed memorization·exact continuation·checkpoint/resume 증거와 사용자 최종 승인으로 Gate 7을 `passed`로 변경하고 Pretraining 미승인을 유지함 |
 | 2026-07-26 | [확정] v2 Unigram 최종 운영 승인과 재현성 판정 기준을 근거로 Gate 3을 `passed`로 변경하고 Gate 7 미승인을 유지함 |

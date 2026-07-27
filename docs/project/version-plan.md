@@ -1,7 +1,7 @@
 # DohaLM 버전 계획
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-28
 - 선행 문서: [개발 로드맵](../quality/development-roadmap.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md)
 - 후속 문서: 실제 릴리스 계획 및 태그 정책 `[검증 필요]`
 - 구현 전 필수 여부: 릴리스 계획 수립 시 필수
@@ -13,6 +13,12 @@
 - [확정] 버전 완료는 [Definition of Done](../governance/definition-of-done.md)과 해당 단계 게이트를 모두 통과한 경우에만 선언한다.
 - [확정] `DohaLM-Tiny`의 재현 가능한 학습 파이프라인을 먼저 완성한 뒤 추론 API와 채팅 UI를 진행한다.
 - [검증 필요] 실제 배포 전 버전 규칙, 변경 로그 형식, 호환성 보장 범위는 별도로 승인한다.
+
+### 1.1 저장소 이정표와 Model Family version의 분리
+
+- [확정] 아래 `v0.x`·`v1.x`는 저장소 품질 이정표이며 실제 model artifact release나 Git tag가 아니다.
+- [제안] Foundation·Instruct·Chat·Code·SQL·Recruit·Game·Agent·Vision의 제품 계보와 scale/version 규칙은 [Foundation Model Strategy](./foundation-model-strategy.md), [Model Family Roadmap](./model-family-roadmap.md), [Model Lineage](./model-lineage.md)에서 별도로 관리한다.
+- [검증 필요] 새 scale·architecture·checkpoint compatibility 또는 공개 범위를 확정할 때는 ADR과 release 승인을 별도로 거친다.
 
 ## 2. 권장 버전 이정표
 
@@ -54,6 +60,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | 저장소 이정표와 장기 Model Family·artifact version 체계를 분리함 |
 | 2026-07-23 | [확정] Gate 2 승인에 따라 v0.2 권장 이정표에 DATA-001~016과 75개 테스트·CLI 검증 범위를 반영함; tag·release는 생성하지 않음 |
 | 2026-07-23 | [확정] v0.3 권장 이정표에 Phase 2 상세 계약의 Unigram·16,000·special token·fingerprint·artifact·한국어 평가·호환성 범위를 연결함; release·tag는 생성하지 않음 |
 | 2026-07-23 | [확정] Gate 1 승인에 따라 v0.1 권장 이정표에 Phase 0 기반·43개 테스트·CPU/CUDA smoke 근거를 반영함 |

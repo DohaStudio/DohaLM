@@ -5,13 +5,13 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-27 |
+| 마지막 검토일 | 2026-07-28 |
 | 선행 문서 | [데이터셋 후보 등록부](./dataset-candidate-registry.md), [데이터셋 라이선스 검토](./dataset-license-review.md), [데이터 전략](./data-strategy.md) |
 | 후속 문서·작업 | 공식 조건·취득 계보 검토, 목적별 승인 기록 |
 | 구현 전 필수 여부 | 실제 데이터 처리·학습 전 예 |
 
 - [확정] 후보 등록과 데이터 사용 승인은 서로 다른 사건이다.
-- [확정] 현재 로그는 로컬 보유·라이선스·tokenizer development와 최종 운영 tokenizer 승인을 포함한다. Pretraining·모델 학습·공개·재배포 승인은 포함하지 않는다.
+- [확정] 현재 로그는 로컬 보유·라이선스·tokenizer development와 최종 운영 tokenizer 승인, 그리고 과거 Pilot·Candidate A에서 소비된 한정 실행 승인의 계보를 함께 해석한다. 현재 열려 있는 추가 Pretraining·SFT·공개·재배포 승인은 없다.
 
 ## 2. 기록 schema
 
@@ -120,6 +120,7 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] 과거 Pilot·Candidate A 한정 승인 소비와 현재 추가 학습 미승인 경계를 명시함 |
 | 2026-07-27 | [확정] 사용자 승인 범위에서 canonical pilot-v2 Runtime Smoke를 정확히 5 optimizer step 실행하고 checkpoint checksum·load-only resume·mismatch 차단을 검증함; 100-step·Full Pretraining은 미승인 유지 |
 | 2026-07-27 | [확정] Pilot v1의 quota control-flow bug로 추가된 48건을 전수 분류하고 canonical pilot-v2 107,226건을 생성·검증함; Source lineage blocker는 해소하되 추가 Smoke·100-step 실행은 미승인 유지 |
 | 2026-07-27 | [확정] AIHUB-71748 Training `contents`의 제한 100-step Pilot corpus 목적, PII 후보 9,480건 자동 제외, 95/5 내부 split과 5-step 자원 Smoke를 승인·검증함; 100-step 실행·Full Pretraining·재배포는 미승인 유지 |

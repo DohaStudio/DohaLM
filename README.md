@@ -22,7 +22,15 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 추론 API | 스캐폴드만 존재, 미구현 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
 
-Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gate 3은 승인된 v2 Unigram을 근거로 2026-07-26 `passed`가 됐습니다. Gate 7은 동일 64문서의 packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume와 571개 테스트를 근거로 2026-07-27 사용자 승인되어 `passed`입니다. 이 결과는 memorization 검증이며 Pilot Pretraining readiness는 다른 미승인 조건 때문에 계속 `blocked`입니다.
+Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gate 3은 승인된 v2 Unigram을 근거로 2026-07-26 `passed`가 됐습니다. Gate 7은 동일 64문서의 packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume와 571개 테스트를 근거로 2026-07-27 사용자 승인되어 `passed`입니다. 이 결과는 memorization 검증이며, 이후 별도 승인으로 canonical Pilot과 Candidate A를 완료했습니다.
+
+현재 상태의 단일 요약은 [Current Project Status](docs/project/current-project-status.md)를 따릅니다. 장기 방향은 [Foundation Model Strategy](docs/project/foundation-model-strategy.md), [Model Family Roadmap](docs/project/model-family-roadmap.md), [Model Lineage](docs/project/model-lineage.md), [Domain Model Strategy](docs/project/domain-model-strategy.md)에 정리되어 있습니다. 이 문서들은 장기 제안이며 승인된 Tiny 사양이나 Candidate A baseline, Candidate B 실행 권한을 변경하지 않습니다.
+
+## DohaLM Model Family
+
+DohaLM은 한국어 Foundation Model 기반과 재현 가능한 학습·평가·계보 체계를 장기 목표로 합니다. 현재는 `DohaLM Base Tiny` 개발 단계이며, 승인된 Base를 바탕으로 Instruct, Chat, Code, SQL, Recruit, Game, Agent 계열을 검토하고 Vision/Multimodal은 장기 계획으로 둡니다. Candidate A/B는 이 domain family가 아니라 Base 개발 후보 체계입니다.
+
+자세한 내용은 [Foundation Model Strategy](docs/project/foundation-model-strategy.md), [Model Family Roadmap](docs/project/model-family-roadmap.md), [Model Lineage](docs/project/model-lineage.md), [Domain Model Strategy](docs/project/domain-model-strategy.md), [Current Project Status](docs/project/current-project-status.md)를 참조하세요.
 
 ## 프로젝트 목표
 
@@ -107,7 +115,7 @@ checkpoints/   로컬 체크포인트 경로
 
 ## 빠른 시작
 
-Phase 0 도구와 합성 token 기반 모델·학습 smoke는 다음과 같이 실행합니다. 실제 corpus 사전학습·SFT 명령은 아직 제공하지 않습니다.
+Phase 0 도구와 합성 token 기반 모델·학습 smoke는 다음과 같이 실행합니다. 실제 corpus용 Pilot·Candidate 실행 backend는 별도 fail-closed 승인 계약을 따르며, SFT 실행은 아직 승인되지 않았습니다.
 
 Windows PowerShell:
 
@@ -166,11 +174,11 @@ python -m pytest -q
 
 ## 데이터 및 라이선스
 
-현재 승인된 학습 데이터는 없습니다. 출처, 이용조건, 개인정보·민감정보, 재배포 가능성 및 평가 누수를 확인해 `approved`로 등록된 데이터만 사용하며, 원본 데이터와 대용량 파생 산출물은 Git에 커밋하지 않습니다. 세부 기준은 [데이터 전략](docs/data/data-strategy.md)과 [데이터 라이선스 정책](docs/data/data-license-policy.md)을 따릅니다.
+AIHUB-71748은 학생·비상업 연구 범위로 승인됐고, 고정된 canonical `pilot-v2` 파생 corpus는 별도 승인 아래 Pilot과 Candidate A에 사용됐습니다. 다만 source package registry는 제공자 version·취득 증빙 미확정으로 `reviewing`이며, 상업 이용과 원본·파생 데이터 재배포 및 새로운 목적의 데이터 사용은 승인되지 않았습니다. 원본 데이터와 대용량 파생 산출물은 Git에 커밋하지 않습니다. 세부 기준은 [데이터 전략](docs/data/data-strategy.md), [데이터셋 레지스트리](docs/data/dataset-registry.md), [데이터 라이선스 정책](docs/data/data-license-policy.md)을 따릅니다.
 
 ## 제한 사항
 
-- DohaLM-Tiny 전체 forward·shifted loss·최소 greedy generation, Trainer Foundation과 실제 Tiny 규모의 합성 CUDA FP16·checkpoint/resume·VRAM은 검증됐지만, 실제 tokenizer·승인 corpus를 사용한 사전학습과 장시간 운영 안정성은 검증되지 않았습니다.
+- DohaLM-Tiny 전체 forward·shifted loss·greedy generation, 운영 tokenizer, 실제 corpus Tiny Overfit, canonical Pilot과 Candidate A 10M 실행은 검증됐습니다. 이 결과는 단일 8GB GPU의 제한된 내부 실험이며 장시간·대규모 운영 안정성이나 일반 성능을 보장하지 않습니다.
 - 학습 hyperparameter, 토크나이저 세부 옵션과 정량 평가 합격선은 아직 확정되지 않았습니다.
 - DohaLM-Small 상세 구조, API·Frontend·배포 설계 및 외부 제출은 후순위입니다.
 - 테스트와 재현 증거 없이 구현 또는 학습 완료로 처리하지 않습니다.

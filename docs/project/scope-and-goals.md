@@ -3,7 +3,7 @@
 ## 문서 상태
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-23
+- 마지막 검토일: 2026-07-28
 - [확정] 이 문서는 프로젝트 범위와 목표를 정의하며 구현 완료를 의미하지 않는다.
 - [확정] Tiny 세부 구조는 [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), 토크나이저 방식은 [ADR-003](../decisions/ADR-003-tokenizer-method.md)을 따른다.
 
@@ -12,7 +12,9 @@
 - [확정] 프로젝트명은 `DohaLM`이다.
 - [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
 - [확정] 모델명은 `DohaLM-Tiny`와 `DohaLM-Small`로 통일한다.
-- [확정] 현재 저장소에는 실행 가능한 모델 또는 학습 코드가 없으며 모든 기능 상태는 미구현이다.
+- [확정] 현재 저장소에는 실행 가능한 DohaLM-Tiny·Trainer·평가 코드가 있고 Gate 1~7, Pilot, Candidate A 10M과 Evaluation Framework가 완료됐다.
+
+현재 사실 상태는 [Current Project Status](./current-project-status.md), 장기 Foundation·Model Family 확장 범위는 [Foundation Model Strategy](./foundation-model-strategy.md)와 [Model Family Roadmap](./model-family-roadmap.md)를 따른다. 장기 제안은 Tiny 승인 사양이나 아직 미확정인 Small 상세 구조를 확정하지 않는다.
 
 ## 전체 목표
 

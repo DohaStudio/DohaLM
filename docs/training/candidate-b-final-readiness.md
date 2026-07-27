@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-28
-- 상태: `backend_ready_awaiting_commit_preflight_and_approval`
+- 상태: `backend_implemented_execution_blocked`
 - 실행 허용: `false`
 - 학습 승인: `not_approved`
 - 결과 manifest: [Final readiness manifest](./candidate-b-final-readiness.manifest.yaml)
@@ -18,7 +18,9 @@
 
 ## 남은 blocker
 
-1. `CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING`: 현재 변경이 미커밋이고 feature branch upstream이 없다.
+버전 관리된 결과 manifest의 상태는 backend commit 전 snapshot이다. 실제 backend commit `a6464be`는 upstream에 존재하지만 현재 문서 최신화가 미커밋이므로 실행 identity는 다시 고정해야 한다.
+
+1. `CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING`: 현재 문서 변경을 포함한 clean immutable commit과 upstream 일치를 실행 전에 재확정해야 한다.
 2. `CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING`: 전원·냉각·환기·절전·재시작·다른 GPU 작업을 실행 직전에 확인해야 한다.
 3. `CANDIDATE_B_EXECUTION_APPROVAL_MISSING`: 정확한 commit·resolved fingerprint·Run ID를 묶은 single-use 사용자 승인이 없다.
 
@@ -32,4 +34,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Backend commit 존재와 versioned manifest의 pre-commit snapshot 경계를 정합화함 |
 | 2026-07-28 | Backend·CPU·output probe 완료와 commit·physical·approval 잔여 blocker 확정 |
