@@ -66,9 +66,10 @@
 | CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — 실제 Tiny optimizer·cosine·AMP·Python/torch RNG·명시적 sampler state와 bitwise resume 통과; NumPy·실제 corpus worker sampler는 미구현 |
 | GEN-001 | 생성 | 고정 seed 최소 생성·stop token | Regression test | 예 | 재현 정책 범위 내 출력·정상 종료 | sampling·EOS·position 수정 | 예 | `pass` — 합성 token greedy 결정론·batch EOS·context·mode 복원 통과 |
 | GEN-002 | 생성 | 반복·빈 응답·특수문자·언어 붕괴 | Manual/Component test | 예 | 상태형 결과와 실패 sample 기록 | 생성 설정·모델 원인 분석 | 일부 | `planned` |
-| EVAL-001 | 평가 | training/validation loss와 perplexity 집계 | Unit test | 예 | 유효 token 가중 mean과 지수 일치 | mask·집계 수정 | 예 | `planned` |
-| EVAL-002 | 평가 | 동일 split/tokenizer/context 비교 계약 | Static/Integration test | 예 | 호환되지 않는 비교 차단 | evaluation metadata 수정 | 예 | `planned` |
-| EVAL-003 | 평가 | throughput·latency·peak VRAM 측정 | Performance/GPU test | 예 | 조건·단위·warm-up과 값 기록 | 측정 범위·동기화 수정 | 예 | `planned` |
+| EVAL-001 | 평가 | token-weighted loss와 overflow-safe perplexity, Top-k | Unit/GPU test | 예 | 유효 token mean, overflow 상태와 Top-1/5/10 기록 | mask·집계 수정 | 예 | `pass` — Candidate A Quick 및 14,329-sequence Full GPU 평가 통과 |
+| EVAL-002 | 평가 | 동일 split/tokenizer/context/artifact 비교 계약 | Static/Integration test | 예 | checksum·fingerprint·승인 불일치와 비교 불가 차단 | registry·metadata 수정 | 예 | `implemented` — logical registry와 fail-closed status |
+| EVAL-003 | 평가 | position·generation·continuation·resource 측정 | Performance/GPU test | 예 | packed/rebased 분리, text-free 통계, 시간·VRAM 기록 | 측정 범위·동기화 수정 | 일부 | `pass` — Quick/Full GPU, EOS·범주·position·resource 및 불변성 검증 통과 |
+| EVAL-004 | 평가 정책 | EOS success·Quick 대표성·Candidate B 계약 상태와 baseline | Unit/Static | 예 | 세 정책 `approved`, Candidate B `not_approved`, Quick v2 별도 승인 | 상태·문서·상수 정합화 | 예 | `pass` — ADR-007과 승인 상수·문서·baseline 정합성 검증 |
 | SFT-001 | SFT | chat template·role·assistant loss mask 정렬 | Unit test | 예 | target 위치와 ignore_index 일치 | serializer·mask 수정 | 예 | `planned` |
 | SFT-002 | SFT | SFT 전후 동일 평가·누수 검사 | Integration test | 예 | parent·prompt·split·설정 고정 | 결과 invalid·split 재검토 | 일부 | `planned` |
 | API-001 | API | request/response·validation·오류 schema | Integration test | 후순위 필수 | 명세와 상태 code 일치 | API 명세·구현 수정 | 예 | `planned` |
@@ -106,6 +107,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] ADR-007과 EOS·Quick 대표성·Candidate B 평가 계약 승인 상태 검증 추가 |
+| 2026-07-27 | [확정] Candidate A Final Full Evaluation, EOS 4,799/4,782 reconciliation, ranking·decoding·Quick 대표성 진단과 승인 상태 검증을 포함한 전체 650개 테스트 통과를 반영함 |
 | 2026-07-27 | [확정] Full Pretraining readiness 신규 18개·전체 601개와 execution_allowed false·output probe 결과를 반영함 |
 | 2026-07-24 | [확정] 514개 테스트와 지정 evidence·proposal fingerprint에 대한 사용자 승인으로 Gate 4·5·6 `passed`를 반영함 |
 | 2026-07-24 | [확정] Gate evidence·Pilot readiness 신규 12개와 전체 514개 통과, 실제 bundle checksum·status proposal·fail-closed blocker 검증을 반영함 |

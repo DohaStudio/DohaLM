@@ -1,0 +1,36 @@
+schema_version: "1.0"
+evaluation_id: "example-quick-evaluation"
+profile: "quick"
+artifact_id: "candidate-a-final"
+artifact_identity_fingerprint: "sha256:<artifact-identity>"
+checkpoint_identity:
+  global_step: 4883
+dataset_identity:
+  dataset_version: "pilot-v2"
+  evaluation_fingerprint: "sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790"
+evaluation_subset_identity:
+  selection: "sha256_rank_v1"
+  selected_sequences: 128
+  index_fingerprint: "sha256:<index-fingerprint>"
+tokenizer_fingerprint: "sha256:<tokenizer-fingerprint>"
+model_fingerprint: "sha256:<model-fingerprint>"
+config_fingerprint: "sha256:<evaluation-config-fingerprint>"
+prompt_set_fingerprint: "sha256:<synthetic-prompt-set-fingerprint>"
+git_branch: "feat/evaluation-framework"
+git_commit: "<commit>"
+python_version: "<version>"
+torch_version: "<version>"
+cuda_version: "<version>"
+gpu: "<device>"
+precision: "fp16"
+seed: 17
+started_at: "<ISO-8601>"
+completed_at: "<ISO-8601>"
+metrics_enabled: [perplexity, next_token, position_aware, generation, continuation, stability]
+generation_enabled: true
+text_storage: false
+token_id_storage: false
+output_logical_path: "analysis/evaluation/candidate-a-final/<evaluation-id>"
+status: "completed"
+failure_code: null
+result_fingerprint: "sha256:<result-fingerprint>"

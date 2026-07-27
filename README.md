@@ -6,7 +6,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 1~7을 통과했습니다. Phase 1 DATA-001~016, 운영 16k v2 Unigram, Phase 3·4 모델, Phase 5 Trainer Foundation과 실제 Tiny 규모 CUDA 학습·실제 corpus overfit 검증은 구현·테스트됐습니다. Pilot과 전체 Pretraining은 승인되지 않았습니다.
+현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A 10M Token Full Pretraining과 Evaluation Framework 마일스톤을 완료했습니다. Candidate A Final Full이 공식 internal baseline이며 Candidate B training은 `not_approved`입니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -15,9 +15,9 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | Phase 1 데이터 파이프라인 | DATA-001~016 `verified`, Gate 2 `passed` |
 | 모델 코드 | Phase 3 구성요소와 Phase 4 전체 forward·loss·greedy generation 구현·검증, Gate 4·5 `passed` |
 | 학습 기반 | Trainer와 실제 Tiny 규모 sampler·cosine·FP16 AMP·checkpoint/resume·VRAM 측정, 제한 실제 corpus 1,000-step packed overfit 검증 완료, Gate 6·7 `passed` |
-| 데이터 | AIHUB-71748 학생·비상업 tokenizer development와 제한 Tiny Overfit만 승인, Pretraining·PII·재배포 미승인 |
+| 데이터 | AIHUB-71748 학생·비상업 연구 범위, internal evaluation 고정 split 사용; 원래 Validation·재배포 미승인 |
 | 토크나이저 | 운영 `operating-16k-v2/unigram-16k` 승인, vocabulary 16,000·Gate 3 `passed` |
-| 사전학습 | 미실행 |
+| 사전학습 | canonical Pilot 100-step과 Candidate A 10M Token 완료; 추가 학습 미승인 |
 | SFT | 미실행 |
 | 추론 API | 스캐폴드만 존재, 미구현 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
@@ -85,6 +85,7 @@ checkpoints/   로컬 체크포인트 경로
 - [범위와 목표](docs/project/scope-and-goals.md)
 - [개발 로드맵](docs/quality/development-roadmap.md)
 - [개발 규칙](docs/governance/development-rules.md)
+- [Evaluation Framework](docs/evaluation/README.md)
 
 ## 환경 요구사항
 

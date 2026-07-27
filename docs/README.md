@@ -37,7 +37,9 @@
 
 ### 2.5 학습과 평가
 
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Full Readiness](./training/full-pretraining-readiness.md) → [사전학습 계획](./training/pretraining-plan.md) → [평가 계획](./evaluation/evaluation-plan.md) → [실험 관리](./training/experiment-management.md)
+[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [실험 관리](./training/experiment-management.md)
+
+Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B training은 `not_approved`다.
 
 ### 2.6 Codex 작업
 
@@ -71,7 +73,7 @@
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
 | 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1·adapter 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [수동 경로 mapping](./data/analysis/manual-path-mapping.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md), [Corpus Adapter 계약](./data/corpus-adapter-contract.md) |
 | 학습 | 토크나이저, 합성 Trainer Foundation, 실제 Tiny 규모 합성 검증, 사전학습·SFT와 실험 관리 | [Trainer Foundation](./training/trainer-foundation.md), [Tiny 실규모 검증](./training/tiny-training-validation.md), [Sampler와 재개](./training/sampler-state-and-resume.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
-| 평가 | 평가 계약, Benchmark와 생성 품질 | [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
+| 평가 | 재현 가능한 checkpoint 비교, 내부 평가, 생성 안정성 | [Evaluation Framework](./evaluation/README.md), [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
 | 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
 
@@ -92,6 +94,7 @@
 | [ADR-004](./decisions/ADR-004-data-governance.md) | 데이터 거버넌스 | `approved` |
 | [ADR-005](./decisions/ADR-005-evaluation-and-experiment-policy.md) | 평가·실험 관리 정책 | `approved` |
 | [ADR-006](./decisions/ADR-006-development-quality-gates.md) | 개발 단계와 품질 Gate | `approved` |
+| [ADR-007](./decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md) | Evaluation baseline과 Candidate 비교 정책 | `approved` |
 
 ## 6. 현재 상태
 

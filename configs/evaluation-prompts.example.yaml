@@ -1,0 +1,14 @@
+schema_version: "1.0"
+source: synthetic
+pii_free: true
+prompts:
+  - {prompt_id: ko-short-01, category: korean_continuation, language: ko, text: "오늘의 작은 기록은", maximum_generation_length: 16}
+  - {prompt_id: ko-explain-01, category: explanation, language: ko, text: "빛이 생기는 과정을 간단히 설명하면", maximum_generation_length: 16}
+  - {prompt_id: mixed-01, category: mixed_language, language: ko-en, text: "한국어와 English를 함께 쓰면", maximum_generation_length: 16}
+  - {prompt_id: number-01, category: number_date, language: ko, text: "2026년 7월 27일의 값은 42이고", maximum_generation_length: 16}
+  - {prompt_id: symbol-01, category: symbols, language: ko, text: "괄호( ), 대괄호[ ], 기호 #와 %를 포함하면", maximum_generation_length: 16}
+  - {prompt_id: multiline-01, category: multiline, language: ko, text: "첫째 줄입니다.\n둘째 줄에서는", maximum_generation_length: 16}
+  - {prompt_id: code-01, category: code_shape, language: en, text: "def add(a, b):\n    return", maximum_generation_length: 16}
+  - {prompt_id: url-shape-01, category: synthetic_url_shape, language: en, text: "https://example.invalid/path?q=", maximum_generation_length: 16}
+  - {prompt_id: email-shape-01, category: synthetic_email_shape, language: en, text: "nobody@example.invalid wrote", maximum_generation_length: 16}
+  - {prompt_id: repeat-01, category: repetition_probe, language: ko, text: "반복 반복 반복 이후에는", maximum_generation_length: 16}

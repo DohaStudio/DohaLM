@@ -81,6 +81,12 @@
 - [확정] `completed`는 성능이 좋다는 의미가 아니라 계획한 실행·기록이 정상 종료됐다는 의미다.
 - [확정] 누수·잘못된 설정이 발견된 실험은 결과가 있어도 `invalid`이며 Done 성공 근거로 사용하지 않는다.
 
+### Candidate 평가 Done
+
+- [확정] Candidate 공식 완료 판정에는 동일 identity의 Full Evaluation이 필요하며 Quick만으로 완료 처리하지 않는다.
+- [확정] Candidate B는 승인된 [평가 계약](../evaluation/candidate-b-evaluation-contract.md)의 EOS·범주·position·stability·불변성·privacy·lineage 지표를 모두 보고한다.
+- [확정] 임의 종합 점수 대신 지표별 필수 통과와 참고 결과를 구분한다.
+
 ## 7. API·Frontend·배포 Done 경계
 
 - [후순위] API는 schema·오류·lifecycle·streaming·model load test를 통과해야 한다.
@@ -105,4 +111,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | ADR-007에 따른 Candidate 공식 Full Evaluation과 Candidate B 평가 Done 기준 추가 |
 | 2026-07-23 | [확정] 공통·문서·모델·학습·실험의 검증 기반 완료 조건 정의 |
