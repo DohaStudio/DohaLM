@@ -12,6 +12,7 @@ from src.evaluation.diagnostics import (
     _ks,
     _psi,
     _rank_summary,
+    _reference_evaluation_id,
     classify_eos_offset,
     inspect_packed_rows,
 )
@@ -102,6 +103,22 @@ def test_eos_rank_summary_includes_logit_probability_margin_and_bands() -> None:
     assert report["rank_6_10_rate"] == 0.25
     assert report["rank_11_plus_rate"] == 0.25
     assert report["logit_distribution"]["median"] == 0.0
+
+
+def test_diagnostic_references_must_use_selected_artifact() -> None:
+    assert _reference_evaluation_id(
+        "candidate-b-final:candidate-b-final-full-20260728-03",
+        "candidate-b-final",
+    ) == "candidate-b-final-full-20260728-03"
+    try:
+        _reference_evaluation_id(
+            "candidate-a-final:candidate-a-final-full-20260727-01",
+            "candidate-b-final",
+        )
+    except Exception as exc:
+        assert getattr(exc, "code", None) == "BASELINE_REFERENCE_INVALID"
+    else:
+        raise AssertionError("cross-artifact diagnostic reference was accepted")
 
 
 def test_distribution_distances_are_zero_for_equal_inputs() -> None:

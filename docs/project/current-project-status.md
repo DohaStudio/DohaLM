@@ -23,10 +23,11 @@
 | Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
 | Candidate B Run 0002 training | `completed` | 12,208 step, 25,001,984 token, retry/resume/extension 없음 |
 | Candidate B Final Quick | `completed` | 기존 final checkpoint evaluation-only 결과 |
-| Candidate B Final Full | `blocked_by_evaluator_contract_fix` | 학습·checkpoint 문제가 아닌 same-artifact reference 버그 |
+| Candidate B Final Full | `completed` | same-artifact Quick reference, 불변성·checksum 검증 통과 |
+| Candidate B official result | `evaluated_contract_not_passed` | teacher-forced 개선, greedy EOS·maximum-length 조건 미충족 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
-Run 0002 checkpoint 4,883/9,766/12,208과 Final Quick는 완료됐고 Full은 evaluator 계약 수정 전까지 차단한다.
+Run 0002 checkpoint 4,883/9,766/12,208, Final Quick·Full과 EOS ranking 진단이 완료됐다.
 Candidate B 학습은 다시 실행하지 않는다.
 
 ## 2. Gate 최신 상태
@@ -75,7 +76,8 @@ Candidate B 학습은 다시 실행하지 않는다.
 - 첫 Approval: `CANDIDATE-B-APPROVAL-20260728-0001`, atomic consumed, 재사용 불가.
 - 실패 원인: checkpoint 이름의 lexicographic ordering; checkpoint는 기존 cleanup으로 미보존.
 - 보완: numeric ordering·invalid/missing/duplicate/unexpected/final/metadata 진단과 향후 quarantine 정책 구현.
-- Quick Evaluation: `completed`; Full Evaluation: `blocked_by_evaluator_contract_fix`.
+- Quick Evaluation: `completed`; Full Evaluation: `completed`; EOS diagnostic: `completed`.
+- Teacher-forced loss·Top-k·EOS rank는 Candidate A보다 개선됐지만 greedy EOS 0%와 maximum-length 100%로 계약 미통과.
 - Training Run 0002: `completed`; 추가 training/retry/resume/extension: `not_approved`.
 
 ## 7. 미승인·미착수
@@ -88,15 +90,15 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 ## 8. 다음 권장 작업
 
-1. same-artifact Quick reference 계약 수정과 회귀 검증
-2. 수정 PR을 `develop`에 병합한 뒤 clean evaluation-only branch 확정
-3. 기존 Final checkpoint와 Candidate B Final Quick를 사용해 새 Evaluation ID로 Full 1회 수행
-4. Candidate A/B의 완료된 Full 결과만 별도 비교하고 문서·leaderboard를 갱신
+1. Candidate B 결과와 baseline 유지 여부 사용자 검토
+2. EOS 종료 개선을 위한 decoding·학습·데이터 정책 중 어느 범위를 검토할지 별도 결정
+3. 정책 변경 시 ADR 영향, 새 Candidate identity와 별도 실행 승인 패키지 작성
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교 완료와 계약 미통과 판정 반영 |
 | 2026-07-28 | Candidate B Run 0002 학습·checkpoint·Quick 완료와 Full evaluator blocker 반영 |
 | 2026-07-28 | Candidate B 첫 실행 실패·승인 소비·checkpoint 미보존과 validator/quarantine 보완 상태 반영 |
 | 2026-07-28 | Gate 0~7, tokenizer, Pilot, Candidate A, Evaluation과 Candidate B 현재 blocker 통합 snapshot 작성 |

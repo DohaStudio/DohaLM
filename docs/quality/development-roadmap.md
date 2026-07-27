@@ -126,7 +126,8 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [검증 필요] Quick v2 archive lineage와 층화 subset 설계·생성 승인
 - [확정] Candidate B 첫 실행은 12,208 step 후 checkpoint 문자열 정렬 버그로 실패했으며 공식 결과·Quick·Full은 없음
 - [확정] Candidate B Run 0002는 12,208 step·25,001,984 token으로 정상 완료됐고 세 checkpoint와 Final Quick가 검증됨
-- [진행 중] Candidate B Final Full은 same-artifact Quick reference 계약 수정 후 기존 checkpoint로 evaluation-only 재평가
+- [확정] Candidate B Final Full·EOS ranking은 기존 checkpoint evaluation-only로 완료; checkpoint·model 불변
+- [검증 필요] Candidate B는 teacher-forced 개선에도 greedy EOS 0%·maximum-length 100%로 승인 계약 미통과
 - [확정] Numeric checkpoint validator와 post-checkpoint quarantine 정책 보완; Run 0002 학습 승인은 소비됐고 재사용 불가
 - [확정] Candidate B 추가 training에는 새 immutable Git identity·Run ID·물리 preflight·single-use training 실행 승인이 필요하지만 현재 작업에는 포함하지 않음
 - [제안] Gate 이후 장기 확장은 [Foundation Model Strategy](../project/foundation-model-strategy.md)와 [Model Family Roadmap](../project/model-family-roadmap.md)의 Track A~D를 사용하되, 기존 Gate 상태나 Candidate 실행 권한을 자동 변경하지 않는다.
@@ -140,6 +141,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B Full·EOS ranking 완료와 Candidate A/B 비교·계약 미통과 반영 |
 | 2026-07-28 | Candidate B Run 0002 성공과 Full Evaluation 계약 버그 수정 단계 반영 |
 | 2026-07-28 | [확정] Candidate B 첫 실행 실패·승인 소비와 checkpoint validator/quarantine 보완, rerun 별도 승인 경계 반영 |
 | 2026-07-28 | [확정] Candidate B backend commit 이후에도 실행 직전 clean immutable Git 재확정·physical·approval가 필요함을 반영 |

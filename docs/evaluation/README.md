@@ -22,6 +22,8 @@
 - [Quick·Full 대표성 정책](./quick-full-representativeness-policy.md)
 - [Candidate B 평가 계약](./candidate-b-evaluation-contract.md)
 - [Candidate B Full Evaluation 계약 수정](./candidate-b-full-evaluation-contract-fix.md)
+- [Candidate B Final Full 결과](./candidate-b-final-full-result.md)
+- [Candidate A/B Full 비교](./candidate-a-b-full-comparison.md)
 - [평가 manifest 예시](./evaluation-manifest.example.yaml)
 - [외부 benchmark 정책](./benchmark-policy.md)
 
@@ -40,13 +42,14 @@
 - Quick representativeness, EOS success, Candidate B evaluation contract: `approved` (2026-07-27)
 - Quick v2: `planned_awaiting_separate_approval`
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
-- Candidate B Run 0002 training: `completed`; Final Quick: `completed`; Full: `blocked_by_evaluator_contract_fix`
+- Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
 - 배포: `not_applicable`
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B Full·EOS ranking 완료, Candidate A/B 비교와 계약 미통과 판정 연결 |
 | 2026-07-28 | Candidate B Run 0002 학습·Quick 완료와 Full same-artifact reference 수정 상태 연결 |
 | 2026-07-28 | Candidate B backend ready와 실제 평가 미실행·학습 미승인 경계 반영 |
 | 2026-07-28 | Candidate B 25M readiness package 작성과 training 미승인·실행 차단 상태 반영 |
