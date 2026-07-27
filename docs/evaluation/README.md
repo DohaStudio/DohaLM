@@ -1,7 +1,7 @@
 # DohaLM 평가 프레임워크
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-27
+- 마지막 검토일: 2026-07-28
 - 태그: `evaluation`, `reproducibility`, `privacy`, `checkpoint`
 
 이 디렉터리는 동일한 내부 평가 데이터와 운영 tokenizer로 DohaLM-Tiny 산출물을 비교하는 계약을 설명한다. 평가 실행은 `model.eval()`과 `torch.inference_mode()`만 사용하며 optimizer, scheduler, backward 또는 parameter 갱신을 허용하지 않는다.
@@ -38,7 +38,7 @@
 - Framework implementation, Candidate A Quick/Full, checkpoint Quick comparison, EOS diagnostic: `completed`
 - Quick representativeness, EOS success, Candidate B evaluation contract: `approved` (2026-07-27)
 - Quick v2: `planned_awaiting_separate_approval`
-- Candidate B design: `not_started`
+- Candidate B design/backend: `review_backend_ready_awaiting_commit_preflight_and_approval`
 - Candidate B training: `not_approved`
 - 배포: `not_applicable`
 
@@ -46,6 +46,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B backend ready와 실제 평가 미실행·학습 미승인 경계 반영 |
+| 2026-07-28 | Candidate B 25M readiness package 작성과 training 미승인·실행 차단 상태 반영 |
 | 2026-07-27 | 평가 프레임워크 문서 인덱스와 공개 경계 작성 |
 | 2026-07-27 | Candidate A Final Quick 결과 연결 |
 | 2026-07-27 | Initial·Pilot·Candidate A 동일 Quick 비교 결과 연결 |

@@ -1,0 +1,44 @@
+schema_version: "1.0"
+readiness_id: candidate-b-final-readiness-20260728-01
+status: backend_ready_awaiting_commit_preflight_and_approval
+prepared_on: "2026-07-28"
+backend_implemented: true
+cpu_validation_passed: true
+resolved_config_present: true
+resolved_config_fingerprint: "sha256:bd6f3f2401c676dc154493997406d2e50f8c8d09b89c69f6d0daebfb52b05bcc"
+output_probe_passed: true
+runtime_read_only_inspected: true
+runtime_preflight_pending: true
+immutable_git_commit_pending: true
+execution_approval_pending: true
+execution_allowed: false
+candidate_b_training: not_approved
+training_started: false
+optimizer_steps: 0
+actual_approval_consumed: false
+checkpoint_created: false
+full_evaluation_run: false
+blocking_codes:
+  - CANDIDATE_B_IMMUTABLE_GIT_COMMIT_PENDING
+  - CANDIDATE_B_PHYSICAL_PREFLIGHT_MISSING
+  - CANDIDATE_B_EXECUTION_APPROVAL_MISSING
+fingerprints:
+  candidate_b_design: "sha256:eea792a078b688682efe0a425794c18843fd10a34f15e595814c447d4d36313d"
+  example_config: "sha256:4e4de0b21686a54467d12c02260196d028d1926f79a1977ff5c2ec321574f603"
+  resolved_config: "sha256:bd6f3f2401c676dc154493997406d2e50f8c8d09b89c69f6d0daebfb52b05bcc"
+  backend_implementation: "sha256:d2b0cc95208d574c2047300c5d2fb4f700a36a9921778b7803201e5ec02564a4"
+  approval_schema: "sha256:a6579536d2197a613ddcb5d56a0fe38f90c666df2d499a97f87aed9948f77879"
+  checkpoint_policy: "sha256:59e1cbfa2df42797a058727adfa1a25c533bc13b0f69f9c170ee7fe92cfbaf00"
+  evaluation_hooks: "sha256:72bca478b3eb8377a4dc44d6268479ee0b2fe25ce04fb279d665590dbf568162"
+  runtime_budget: "sha256:252a3fd45a3069bdcfa626e9dfc1e0cf6ac2555a30a44b0d9cd4a5dfcac45a5b"
+  cpu_smoke_result: "sha256:4b55ed990407ace7982aa6f537782355ee8573d821187052478efdf16b5d405a"
+  backend_inspection_result: "sha256:2c053a8634c4b05acd53f0c3bb30b8c835d55556631fdac338b90514769fe089"
+scope_restrictions:
+  gpu_training: not_run
+  candidate_b_execution: not_approved
+  resume: not_approved
+  retry: not_approved
+  extension: not_approved
+  publication: not_approved
+readiness_fingerprint_scope: manifest_without_readiness_fingerprint
+readiness_fingerprint: "sha256:22184ef524c0bf1c9766844e3b91a451862d02113966f0916206c1542f4d44a2"

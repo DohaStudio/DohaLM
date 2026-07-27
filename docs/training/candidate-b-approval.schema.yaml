@@ -1,0 +1,70 @@
+schema_version: "1.0"
+schema_type: candidate_b_execution_approval
+additional_properties: false
+required:
+  - approval_id
+  - approval_type
+  - candidate_id
+  - run_id
+  - approved_action
+  - approved_optimizer_steps
+  - approved_scheduled_tokens
+  - approved_token_budget
+  - resolved_config_fingerprint
+  - dataset_fingerprint
+  - split_fingerprint
+  - packing_fingerprint
+  - tokenizer_fingerprint
+  - model_fingerprint
+  - initialization_fingerprint
+  - git_branch
+  - git_commit
+  - git_remote
+  - git_remote_branch
+  - git_tree_clean
+  - repository_identity
+  - output_logical_root
+  - approval_status
+  - issued_at
+  - expiry_policy
+  - single_use
+  - consumed
+  - consumed_at
+  - consumed_step
+  - publication_allowed
+  - resume_allowed
+  - retry_allowed
+  - extension_allowed
+constants:
+  approval_type: candidate_b_execution
+  candidate_id: candidate-b
+  approved_action: candidate_b_full_pretraining
+  approved_optimizer_steps: 12208
+  approved_scheduled_tokens: 25001984
+  approved_token_budget: 25000000
+  single_use: true
+  consumed: false
+  consumed_at: null
+  consumed_step: null
+  publication_allowed: false
+  resume_allowed: false
+  retry_allowed: false
+  extension_allowed: false
+fingerprint_fields:
+  - resolved_config_fingerprint
+  - dataset_fingerprint
+  - split_fingerprint
+  - packing_fingerprint
+  - tokenizer_fingerprint
+  - model_fingerprint
+  - initialization_fingerprint
+commit_policy:
+  detached_head_allowed: false
+  clean_tree_required: true
+  upstream_match_required: true
+  remote_head_required: true
+consumption_policy:
+  timing: immediately_before_optimizer_step_1
+  atomic_external_record: true
+  manifest_mutation: false
+  retry_after_consumption: false

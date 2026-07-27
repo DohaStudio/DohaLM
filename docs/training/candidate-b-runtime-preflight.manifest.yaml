@@ -1,0 +1,23 @@
+schema_version: "1.0"
+preflight_id: candidate-b-runtime-read-only-20260728-01
+status: runtime_read_only_inspected_physical_pending
+inspected_on: "2026-07-28"
+python_version: "3.12.5"
+python_supported: true
+virtual_environment: true
+torch_version: "2.7.1+cu118"
+sentencepiece_version: "0.2.2"
+pyyaml_version: "6.0.3"
+cuda_available: true
+gpu_name: NVIDIA GeForce RTX 3060 Ti
+gpu_capability: [8, 6]
+gpu_total_vram_bytes: 8589410304
+gpu_free_vram_bytes_observed: 7486832640
+cuda_allocation_smoke_run: false
+gpu_training_started: false
+cpu_count: 12
+timeout_support: true
+physical_preflight_passed: false
+runtime_fingerprint: "sha256:5dbe595bb8bc7b655d19ec59b635ec69d09d0299bb46b53cb05b8d4d4e984db1"
+manifest_fingerprint_scope: manifest_without_manifest_fingerprint
+manifest_fingerprint: "sha256:1ad0325d6ccbea6c2cb4e4d6ddaedb50db4dba284ad5efda49f3aac80d33cb64"

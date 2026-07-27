@@ -5,6 +5,9 @@ configs/aihub-71748-path-mapping.yaml
 configs/aihub-71748-private-preview.yaml
 configs/pilot-pretrain.yaml
 configs/pilot-pretraining.yaml
+configs/candidate-b.local.yaml
+configs/candidate-b-resolved.yaml
+configs/candidate-b-approval.yaml
 __pycache__/
 *.py[cod]
 *.egg-info/

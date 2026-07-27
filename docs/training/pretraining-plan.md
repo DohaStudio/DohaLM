@@ -1,7 +1,7 @@
 # DohaLM 사전학습 계획
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-07-24
+- 마지막 검토일: 2026-07-28
 
 ## 1. 목적과 전제
 
@@ -186,7 +186,7 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 ## 13. 검토 필요 사항
 
-- [검증 필요] [Full Pretraining 실행 계획](./full-pretraining-execution-plan.md)의 A 10M, B 25M, C 1 epoch 중 첫 실행 budget 사용자 승인
+- [검증 필요] Candidate A 10M은 완료됐다. [Candidate B 최종 Readiness](./candidate-b-final-readiness.md)의 B 25M backend·CPU·output probe는 완료됐지만 immutable commit·물리 preflight·실행 승인이 없으므로 training은 금지한다. C 1 epoch는 미설계·미승인이다.
 - [검증 필요] learning rate, warmup, weight decay 및 gradient clipping threshold
 - [검증 필요] micro-batch, accumulation step, checkpointing 활성화 여부
 - [검증 필요] 평가·저장 주기와 정량 중단 기준
@@ -195,6 +195,8 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] Candidate B backend·CPU validation·output probe 완료와 실행 승인 전 fail-closed 경계 연결 |
+| 2026-07-28 | [확정] Candidate B 25M readiness package와 `execution_allowed: false` 경계를 연결함 |
 | 2026-07-27 | [확정] canonical 100-step Pilot 실측 기반 Full Pretraining budget·evaluation·checkpoint·초기화·안전·승인 패키지를 연결하고 실행 미승인을 유지함 |
 | 2026-07-27 | [확정] Candidate A 10M single-use 실행을 4,883 step에서 완료하고 추가 학습 미승인을 유지함 |
 | 2026-07-24 | [확정] [Pilot Pretraining 준비 검증](./pilot-pretraining-readiness.md)을 연결하고 Gate·tokenizer·corpus·split·평가 제외·config·storage가 명시 승인되기 전 실제 pilot을 차단함 |

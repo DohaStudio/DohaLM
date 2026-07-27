@@ -61,6 +61,7 @@
 | TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `passed` — 실제 Training 64문서 packed CUDA FP16 1,000-step loss·top-1·exact continuation·resume 검증과 사용자 Gate 7 승인 |
 | TRN-005 | Pilot | local-only corpus·16k tokenizer·split/packing·validation·checkpoint/resume·generation | Unit/Integration/GPU | 예 | Stage A 회귀 통과, Stage B 100-step 이하 증거 | 실제 실행 중단·계보와 권리·OOM 원인 재검토 | 예 | `pass` — canonical pilot-v2 100-step FP16 실행, full internal evaluation, checkpoint 25/50/75/100 checksum·load-only resume·8종 mismatch 차단 통과 |
 | TRN-006 | Full readiness | token/step budget·identity·초기화·평가·checkpoint·retention·Disk·single-use 승인 | Unit/Static | 예 | 미승인·mismatch·재실행 fail-closed, inspection-only | 정책·승인·실행 backend 보완 | 예/일부 | `partial` — 신규 18개와 전체 601개 통과; output probe 통과, execution_allowed false, 실제 Full 학습 미실행 |
+| TRN-007 | Candidate B readiness | 25M scope·resolved config·Git/upstream·approval·single-use pre-step·output·runtime·checkpoint·runner | Unit/Static/CPU | 예 | backend·CPU·probe 통과, commit·physical·approval 전 실행 차단 | mismatch 수정 후 새 readiness | 예 | `pass` — synthetic CPU forward·fail-closed·Candidate A/Evaluation 회귀 통과, optimizer/실제 approval/checkpoint 0건 |
 | CKPT-001 | Checkpoint | 필수 key·format·hash·atomic save | Component test | 예 | 완전한 checkpoint만 노출 | 저장 로직·schema 수정 | 예 | `pass` — 8-file bundle·SHA-256·sibling staging·overwrite/부분 노출 차단 통과 |
 | CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `pass` — strict file load·model state round-trip·embedding/LM Head alias 유지 통과 |
 | CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — 실제 Tiny optimizer·cosine·AMP·Python/torch RNG·명시적 sampler state와 bitwise resume 통과; NumPy·실제 corpus worker sampler는 미구현 |
@@ -107,6 +108,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] TRN-007 Candidate B resolver·approval·Git·output·runtime·runner CPU fail-closed 검증 추가 |
 | 2026-07-27 | [확정] ADR-007과 EOS·Quick 대표성·Candidate B 평가 계약 승인 상태 검증 추가 |
 | 2026-07-27 | [확정] Candidate A Final Full Evaluation, EOS 4,799/4,782 reconciliation, ranking·decoding·Quick 대표성 진단과 승인 상태 검증을 포함한 전체 650개 테스트 통과를 반영함 |
 | 2026-07-27 | [확정] Full Pretraining readiness 신규 18개·전체 601개와 execution_allowed false·output probe 결과를 반영함 |
