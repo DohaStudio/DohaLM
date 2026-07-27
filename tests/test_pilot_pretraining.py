@@ -41,6 +41,9 @@ def test_metrics_capture_throughput_memory_and_gradient(tmp_path):
     metric = trainer.train().metrics[0]
     assert metric.tokens_per_second > 0 and metric.gradient_norm >= 0
     assert metric.peak_memory_allocated == metric.peak_memory_reserved == 0
+    assert metric.micro_step == 1 and metric.sampler_cursor is None
+    assert metric.amp_scale == 1.0 and metric.equivalent_epoch > 0
+    assert metric.remaining_disk_bytes is not None and metric.timestamp
 
 
 def test_stage_a_full_orchestration_with_synthetic_sentencepiece(monkeypatch, tmp_path):

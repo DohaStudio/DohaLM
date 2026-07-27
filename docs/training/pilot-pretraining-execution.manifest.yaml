@@ -100,3 +100,15 @@ scope_restrictions:
   api: "not_approved"
   frontend: "not_approved"
   deployment: "not_approved"
+
+latest_execution:
+  approval_manifest: "pilot-pretraining-100-v2.manifest.yaml"
+  result_document: "pilot-pretraining-100-v2-result.md"
+  run_id: "PILOT-100-V2-20260727-0001"
+  status: "completed_pilot_100_steps"
+  runtime_validation: "passed"
+  checkpoint_resume: "passed"
+  execution_approval: "consumed"
+  full_pretraining: "not_approved"
+  automatic_extension: "not_approved"
+  gate_status_change: "none"

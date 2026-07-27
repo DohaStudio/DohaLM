@@ -15,6 +15,17 @@ dataset:
   license_status: "approved_student_noncommercial"
   purpose: "pilot_pretraining_max_100_steps_candidate"
 
+pilot_execution_evidence:
+  run_id: "PILOT-100-V2-20260727-0001"
+  status: "completed_pilot_100_steps"
+  optimizer_steps: 100
+  runtime_validation: "passed"
+  checkpoint_resume: "passed"
+  execution_approval: "consumed"
+  result_document: "../training/pilot-pretraining-100-v2-result.md"
+  full_pretraining: "not_approved"
+  automatic_extension: "not_approved"
+
 source_lineage:
   status: "verified"
   canonical_selection_contract: "aihub-71748-training-selection-v1"

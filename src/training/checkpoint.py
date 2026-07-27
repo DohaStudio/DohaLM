@@ -234,6 +234,7 @@ class CheckpointManager:
         dataset_fingerprint: str,
         tokenizer_fingerprint: str,
         device: torch.device,
+        dataset_metadata: dict[str, Any] | None = None,
         restore_rng: bool = True,
     ) -> TrainingState:
         manifest, config, state_document = cls._read_and_verify(path)
@@ -250,6 +251,8 @@ class CheckpointManager:
             raise TrainingError("CHECKPOINT_TOKENIZER_MISMATCH", "tokenizer fingerprint가 일치하지 않습니다.")
         if manifest.get("dataset_fingerprint") != dataset_fingerprint:
             raise TrainingError("CHECKPOINT_DATASET_MISMATCH", "dataset fingerprint가 일치하지 않습니다.")
+        if dataset_metadata is not None and config.get("synthetic_dataset") != dataset_metadata:
+            raise TrainingError("CHECKPOINT_DATASET_MISMATCH", "dataset lineage metadata가 checkpoint와 일치하지 않습니다.")
         try:
             model.load_state_dict(torch.load(path / "model.pt", map_location=device, weights_only=True), strict=True)
             optimizer.load_state_dict(torch.load(path / "optimizer.pt", map_location=device, weights_only=True))

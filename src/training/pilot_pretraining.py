@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-import json
 import hashlib
+import json
 import math
+import shutil
 import time
+from typing import Any
 
 import torch
 
@@ -16,6 +17,7 @@ from src.data.aihub_71748_tokenizer_corpus import resolve_local_paths
 from src.data.tokenized_dataset import TokenizedJsonlDataset
 from src.model import DohaLMTiny
 from src.runtime.paths import repository_root, resolve_repository_path
+from src.runtime.environment import collect_environment
 from src.tokenizer import DohaTokenizer, validate_pilot_tokenizer
 from src.tokenizer.operating import validate_operating_candidate
 
@@ -63,7 +65,7 @@ def _lineage(config: PilotPretrainingConfig) -> dict[str, Any]:
     tokenizer_fingerprint = tokenizer_manifest.get("tokenizer_fingerprint")
     if tokenizer_manifest.get("model_checksum") != checksums["tokenizer_model"] or not isinstance(tokenizer_fingerprint, str):
         raise TrainingError("PILOT_TOKENIZER_MISMATCH", "운영 tokenizer model checksum 또는 fingerprint가 일치하지 않습니다.")
-    return {
+    lineage = {
         "schema_version": "1.0",
         "checksums": checksums,
         "dataset_fingerprint": checksum_value({key: checksums[key] for key in ("train_dataset", "validation_dataset", "corpus_manifest", "split_manifest")}),
@@ -74,6 +76,93 @@ def _lineage(config: PilotPretrainingConfig) -> dict[str, Any]:
         "redistribution_allowed": False,
         "model_release_allowed": False,
     }
+    prepared_root = files["corpus_manifest"].parent
+    metadata_paths = {
+        "source_lineage_manifest": prepared_root / "source-lineage.manifest.json",
+        "tokenization_manifest": prepared_root / "tokenization-manifest.json",
+        "packing_manifest": prepared_root / "packing-manifest.json",
+        "pii_manifest": prepared_root / "pii-review.manifest.json",
+        "fingerprints": prepared_root / "fingerprints.json",
+    }
+    if not all(path.is_file() for path in metadata_paths.values()):
+        return lineage
+    try:
+        dataset = json.loads(files["corpus_manifest"].read_text(encoding="utf-8"))
+        split = json.loads(files["split_manifest"].read_text(encoding="utf-8"))
+        source = json.loads(metadata_paths["source_lineage_manifest"].read_text(encoding="utf-8"))
+        tokenization = json.loads(metadata_paths["tokenization_manifest"].read_text(encoding="utf-8"))
+        packing = json.loads(metadata_paths["packing_manifest"].read_text(encoding="utf-8"))
+        pii = json.loads(metadata_paths["pii_manifest"].read_text(encoding="utf-8"))
+        fingerprints = json.loads(metadata_paths["fingerprints"].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise TrainingError("PILOT_LINEAGE_MISMATCH", "Pilot lineage metadata를 읽을 수 없습니다.") from exc
+    audit_contract = {
+        "contract_version": "aihub-71748-training-selection-v1",
+        "archive_order": "relative_path_ascending",
+        "entry_order": "json_filename_ascending",
+        "quota_exception_policy": "stop_current_archive",
+        "normalization": "NFC_LF_trailing_horizontal_whitespace_removed",
+        "deduplication": "global_first_normalized_utf8_sha256_kept",
+    }
+    tokenizer_vocab = files["tokenizer_model"].with_name("tokenizer.vocab")
+    expected = {
+        "dataset_id": "AIHUB-71748",
+        "dataset_version": "pilot-v2",
+        "source_split": "Training",
+        "text_field": "data_info[].contents",
+        "pilot_dataset_fingerprint": fingerprints.get("dataset"),
+        "split_fingerprint": fingerprints.get("split"),
+        "pii_fingerprint": fingerprints.get("pii"),
+        "source_lineage_verified": True,
+        "tokenizer_fingerprint": tokenizer_fingerprint,
+    }
+    if (
+        dataset.get("dataset_id") != expected["dataset_id"]
+        or dataset.get("dataset_version") != expected["dataset_version"]
+        or dataset.get("source_split") != expected["source_split"]
+        or dataset.get("text_field") != expected["text_field"]
+        or dataset.get("dataset_fingerprint") != expected["pilot_dataset_fingerprint"]
+        or dataset.get("split_fingerprint") != expected["split_fingerprint"]
+        or dataset.get("pii_result_fingerprint") != expected["pii_fingerprint"]
+        or dataset.get("source_lineage_verified") is not True
+        or dataset.get("tokenizer_fingerprint") != tokenizer_fingerprint
+        or split.get("split_fingerprint") != expected["split_fingerprint"]
+        or split.get("original_validation_used") is not False
+        or split.get("exact_duplicate_cross_split") != 0
+        or split.get("source_id_cross_split") != 0
+        or tokenization.get("unknown_tokens") != 0
+        or tokenization.get("out_of_range_ids") != 0
+        or tokenization.get("empty_sequences") != 0
+        or tokenization.get("split_mixing") is not False
+        or tokenization.get("vocab_size") != 16_000
+        or tokenization.get("special_token_ids") != list(range(8))
+        or packing.get("split_mixing") is not False
+        or pii.get("result_fingerprint") != expected["pii_fingerprint"]
+        or source.get("status") != "verified"
+        or source.get("source_record_count") != 107_226
+        or source.get("selection_contract", {}).get("version") != audit_contract["contract_version"]
+        or source.get("selection_contract_fingerprint") != checksum_value(source.get("selection_contract"))
+        or not tokenizer_vocab.is_file()
+    ):
+        raise TrainingError("PILOT_LINEAGE_MISMATCH", "Pilot dataset·split·PII·tokenization·packing·source identity가 일치하지 않습니다.")
+    lineage.update({
+        **expected,
+        "training_lineage_fingerprint": lineage["dataset_fingerprint"],
+        "canonical_selection_contract": audit_contract["contract_version"],
+        "canonical_contract_fingerprint": checksum_value(audit_contract),
+        "prepared_selection_contract_fingerprint": source["selection_contract_fingerprint"],
+        "source_lineage_fingerprint": file_checksum(metadata_paths["source_lineage_manifest"]),
+        "source_corpus_fingerprint": source["source_corpus_fingerprint"],
+        "source_corpus_sha256": source["source_corpus_sha256"],
+        "source_record_count": source["source_record_count"],
+        "tokenization_fingerprint": file_checksum(metadata_paths["tokenization_manifest"]),
+        "packing_fingerprint": file_checksum(metadata_paths["packing_manifest"]),
+        "tokenizer_vocab_checksum": file_checksum(tokenizer_vocab),
+        "train_records": dataset["statistics"]["train"]["records"],
+        "evaluation_records": dataset["statistics"]["evaluation"]["records"],
+        "original_validation_used": False,
+    })
+    return lineage
 
 
 def _generation(model: DohaLMTiny, tokenizer: DohaTokenizer, prompt: str, *, device: torch.device, max_new_tokens: int) -> dict[str, Any]:
@@ -125,8 +214,8 @@ def build_pilot_trainer(config: PilotPretrainingConfig, *, resume: bool = False)
 
 
 def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
-    if config.max_steps > 5:
-        raise TrainingError("PILOT_SMOKE_SCOPE_EXCEEDED", "이 실행 경로는 최대 5 optimizer step Smoke만 허용합니다.")
+    if config.max_steps > 5 and config.max_steps != 100:
+        raise TrainingError("PILOT_SCOPE_EXCEEDED", "Pilot 실행은 최대 5-step Smoke 또는 정확히 100-step 승인 실행만 허용합니다.")
     from .gate7_overfit import _process_memory
 
     run_started = time.perf_counter()
@@ -150,11 +239,14 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
     validation_history: list[dict[str, Any]] = [{"global_step": trainer.state.global_step, **initial_validation.to_dict()}]
     all_metrics: list[dict[str, Any]] = []
     checkpoints: list[str] = []
+    checkpoint_save_seconds: dict[str, float | None] = {}
     while trainer.state.global_step < config.max_steps:
         target = min(config.max_steps, ((trainer.state.global_step // config.validation_every) + 1) * config.validation_every)
         result = trainer.train(target_steps=target)
         all_metrics.extend(metric.to_dict() for metric in result.metrics)
         checkpoints.extend(result.checkpoints)
+        for checkpoint in result.checkpoints:
+            checkpoint_save_seconds[checkpoint] = trainer.checkpoints.last_save_seconds
         validation = evaluate_language_model(
             trainer.model, validation_loader, device=trainer.device, use_amp=trainer.amp_enabled, max_batches=config.validation_max_batches
         )
@@ -165,6 +257,8 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         for path in sorted(trainer.output_root.glob("checkpoint-*"))
         if path.is_dir()
     }
+    if config.max_steps == 100 and checkpoints != ["checkpoint-25", "checkpoint-50", "checkpoint-75", "checkpoint-100"]:
+        raise TrainingError("PILOT_CHECKPOINT_POLICY_MISMATCH", "100-step Pilot checkpoint 집합이 승인 정책과 일치하지 않습니다.")
     checkpoint_path = trainer.output_root / f"checkpoint-{trainer.state.global_step}"
     checkpoint_inspection = CheckpointManager.inspect(checkpoint_path).to_dict() if checkpoint_path.is_dir() else None
     metric_log = trainer.output_root / "pilot-training-metrics.jsonl"
@@ -172,7 +266,7 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
     process_memory = _process_memory()
     elapsed = time.perf_counter() - run_started
     summary = {
-        "status": "completed_resource_smoke",
+        "status": "completed_pilot_100_steps" if config.max_steps == 100 else "completed_resource_smoke",
         "global_step": trainer.state.global_step,
         "training_metrics": all_metrics,
         "validation": validation_history,
@@ -182,6 +276,7 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         "checkpoint_sizes_bytes": checkpoint_sizes,
         "checkpoint": checkpoint_inspection,
         "checkpoint_save_seconds": trainer.checkpoints.last_save_seconds,
+        "checkpoint_save_seconds_by_name": checkpoint_save_seconds,
         "metric_log_bytes": metric_log.stat().st_size if metric_log.is_file() else 0,
         "elapsed_seconds": elapsed,
         "mean_tokens_per_second": sum(item["tokens_per_second"] for item in all_metrics) / len(all_metrics),
@@ -198,14 +293,56 @@ def run_pilot_pretraining(config: PilotPretrainingConfig) -> dict[str, Any]:
         "effective_batch_size": config.effective_batch_size,
         "gate_effect": "none",
         "approval_effect": "none",
-        "pilot_100_step_execution_allowed": False,
+        "pilot_100_step_execution_allowed": config.max_steps == 100,
+        "full_pretraining_allowed": False,
+        "automatic_extension_allowed": False,
     }
-    write_pilot_json(trainer.output_root / "pilot-run-summary.json", summary)
     resolved_config = config.to_dict()
     resolved_config["prompt_sha256"] = f"sha256:{hashlib.sha256(config.prompt.encode('utf-8')).hexdigest()}"
     resolved_config["prompt_text_stored"] = False
     resolved_config.pop("prompt", None)
     write_pilot_json(trainer.output_root / "pilot-config-resolved.json", resolved_config)
+    write_pilot_json(trainer.output_root / "pilot-environment-manifest.json", collect_environment(repository_root()))
+    write_pilot_json(trainer.output_root / "pilot-dataset-reference-manifest.json", lineage)
+    write_pilot_json(trainer.output_root / "pilot-evaluation-metrics.json", {"schema_version": "1.0", "evaluations": validation_history})
+    write_pilot_json(trainer.output_root / "pilot-resource-report.json", {
+        "schema_version": "1.0",
+        "elapsed_seconds": elapsed,
+        "mean_tokens_per_second": summary["mean_tokens_per_second"],
+        "mean_optimizer_step_seconds": summary["mean_optimizer_step_seconds"],
+        "peak_vram_allocated_bytes": summary["peak_vram_allocated_bytes"],
+        "peak_vram_reserved_bytes": summary["peak_vram_reserved_bytes"],
+        "peak_cpu_working_set_bytes": summary["peak_cpu_working_set_bytes"],
+        "remaining_disk_bytes": shutil.disk_usage(trainer.output_root).free,
+    })
+    checkpoint_checksums = {
+        name: {
+            "bundle_bytes": checkpoint_sizes[name],
+            "checksums_manifest_sha256": file_checksum(trainer.output_root / name / "checksums.json"),
+        }
+        for name in checkpoints
+    }
+    write_pilot_json(trainer.output_root / "pilot-checkpoint-checksum-manifest.json", {
+        "schema_version": "1.0", "checkpoints": checkpoint_checksums,
+    })
+    write_pilot_json(trainer.output_root / "pilot-execution-manifest.json", {
+        "schema_version": "1.0", "run_id": trainer.output_root.name,
+        "status": summary["status"], "global_step": trainer.state.global_step,
+        "dataset_fingerprint": lineage["dataset_fingerprint"],
+        "tokenizer_fingerprint": lineage["tokenizer_fingerprint"],
+        "training_config_fingerprint": config.to_training_config().fingerprint(),
+        "model_fingerprint": checksum_value(config.model.to_dict()),
+        "full_pretraining_allowed": False, "automatic_extension_allowed": False,
+        "actual_text_values_stored": False,
+    })
+    write_pilot_json(trainer.output_root / "pilot-completion-report.json", {
+        "schema_version": "1.0", "status": "completed",
+        "global_step": trainer.state.global_step, "checkpoint_count": len(checkpoints),
+        "nonfinite_metric_count": summary["nonfinite_metric_count"],
+        "amp_skip_count": summary["amp_skip_count"], "oom_count": 0,
+        "full_pretraining_effect": "none", "gate_effect": "none",
+    })
+    write_pilot_json(trainer.output_root / "pilot-run-summary.json", summary)
     return summary
 
 

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import ctypes
 import math
+import os
 import random
+import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import torch
 from torch import Tensor, nn
@@ -23,6 +27,36 @@ from .optimizer import OptimizerStats, create_optimizer
 from .sampler_state import StatefulBatchSampler
 from .scheduler import create_scheduler
 from .state import TrainingState, utc_now
+
+
+def _working_set_bytes() -> int | None:
+    if os.name != "nt":
+        return None
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", ctypes.c_ulong),
+            ("PageFaultCount", ctypes.c_ulong),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    counters = ProcessMemoryCounters()
+    counters.cb = ctypes.sizeof(counters)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+    psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(ProcessMemoryCounters), ctypes.c_ulong]
+    psapi.GetProcessMemoryInfo.restype = ctypes.c_int
+    if not psapi.GetProcessMemoryInfo(kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
+        return None
+    return int(counters.WorkingSetSize)
 
 
 def seed_everything(seed: int) -> None:
@@ -79,6 +113,7 @@ class Trainer:
         self.tokenizer_fingerprint = tokenizer_fingerprint
         self.dataset_metadata = dataset_metadata or {}
         self.output_root = output_root.resolve()
+        self._session_started = time.perf_counter()
         if resume:
             if not self.output_root.is_dir():
                 raise TrainingError("RESUME_STATE_MISMATCH", "resume output 경로가 존재하지 않습니다.")
@@ -173,7 +208,12 @@ class Trainer:
         torch.cuda.synchronize(self.device)
         return torch.cuda.max_memory_allocated(self.device), torch.cuda.max_memory_reserved(self.device)
 
-    def train(self, *, target_steps: int | None = None) -> TrainingResult:
+    def train(
+        self,
+        *,
+        target_steps: int | None = None,
+        metric_observer: Callable[[TrainingMetric], None] | None = None,
+    ) -> TrainingResult:
         target = self.config.max_steps if target_steps is None else target_steps
         if target <= self.state.global_step or target > self.config.max_steps:
             raise TrainingError("INVALID_TRAINING_CONFIG", "target_steps는 현재 step보다 크고 max_steps 이하여야 합니다.")
@@ -262,6 +302,17 @@ class Trainer:
                 peak_memory_allocated=allocated,
                 peak_memory_reserved=reserved,
                 amp_step_skipped=amp_step_skipped,
+                micro_step=self.state.micro_step,
+                amp_scale=float(self.scaler.get_scale()),
+                sampler_cursor=(self.state.sampler_state or {}).get("sample_offset"),
+                equivalent_epoch=self.state.records_seen / max(1, len(self.dataloader.dataset)),
+                cpu_working_set_bytes=_working_set_bytes(),
+                remaining_disk_bytes=shutil.disk_usage(self.output_root).free,
+                run_output_bytes=sum(
+                    path.stat().st_size for path in self.output_root.rglob("*") if path.is_file()
+                ),
+                elapsed_wall_clock=time.perf_counter() - self._session_started,
+                timestamp=utc_now(),
             )
             self.state.last_loss = mean_loss
             self.state.last_learning_rate = learning_rate
@@ -270,6 +321,8 @@ class Trainer:
             if first_loss is None:
                 first_loss = mean_loss
             collected.append(metric)
+            if metric_observer is not None:
+                metric_observer(metric)
             if self.state.global_step % self.config.log_every == 0:
                 self.metric_logger.write(metric)
             if self.state.global_step % self.config.save_every == 0:
@@ -305,6 +358,7 @@ class Trainer:
             training_config=self.config,
             dataset_fingerprint=self.dataset_fingerprint,
             tokenizer_fingerprint=self.tokenizer_fingerprint,
+            dataset_metadata=self.dataset_metadata,
             device=self.device,
             restore_rng=restore_rng,
         )

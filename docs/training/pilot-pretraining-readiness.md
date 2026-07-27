@@ -1,5 +1,13 @@
 # Pilot Pretraining 준비 검증
 
+## Current execution result (2026-07-27)
+
+- [확정] canonical pilot-v2 기반 100-step Pilot은 사용자 승인 범위에서 완료됐다.
+- [확정] 실행 상태는 `completed_pilot_100_steps`, runtime과 checkpoint/resume 검증은 `passed`, 해당 실행 승인은 `consumed`다.
+- [확정] 이 결과가 아래의 실행 전 계획 상태보다 우선한다.
+- [확정] Full Pretraining, 자동 연장, 추가 optimizer step은 계속 `not_approved`이며 Gate 상태는 변경하지 않았다.
+- [근거] [100-step 결과](./pilot-pretraining-100-v2-result.md), [승인·결과 manifest](./pilot-pretraining-100-v2.manifest.yaml)
+
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-27
 - 선행 문서: [사전학습 계획](./pretraining-plan.md), [Gate 4·5·6 Evidence 검토](../quality/gate4-6-evidence-review.md), [데이터셋 승인 로그](../data/dataset-approval-log.md)

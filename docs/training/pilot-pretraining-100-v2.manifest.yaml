@@ -1,0 +1,140 @@
+schema_version: "1.0"
+manifest_type: "canonical_pilot_v2_100_step_execution"
+manifest_status: "completed_execution_evidence"
+prepared_on: "2026-07-27"
+
+execution_approval:
+  status: "consumed"
+  purpose: "canonical_pilot_v2_100_step"
+  approved_by: "user"
+  approved_at: "2026-07-27"
+  maximum_optimizer_steps: 100
+  pilot_100_step_status: "completed"
+  full_pretraining_status: "not_approved"
+  automatic_extension_status: "not_approved"
+  checkpoint_promotable: false
+  execution_started: true
+  execution_completed: true
+
+source:
+  approval_baseline_git_commit: "556f395092b5065874552a116db801d1b5999bdc"
+  git_commit: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
+  git_branch: "feat/pilot-pretraining"
+  working_tree_clean_before_current_changes: true
+  baseline_difference_reason: "current commit is the user-requested Pilot v2 readiness and runtime validation publication"
+
+identity:
+  dataset_id: "AIHUB-71748"
+  dataset_version: "pilot-v2"
+  source_split: "Training"
+  canonical_selection_contract: "aihub-71748-training-selection-v1"
+  contract_fingerprint: "sha256:bea1f19b1571e062096bd1d9dbd7b2c4144f2e9bf8f578448b190e3a60eb4293"
+  prepared_selection_contract_fingerprint: "sha256:3df6d9a21659d95c87df97926941dabd0fc77ccbfd3d45d223518ecb26e5668e"
+  source_lineage_fingerprint: "sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f"
+  source_corpus_fingerprint: "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
+  source_record_count: 107226
+  pilot_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  training_dataset_fingerprint: "sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6"
+  split_fingerprint: "sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f"
+  pii_fingerprint: "sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed"
+  tokenization_fingerprint: "sha256:a0fbc78d4e7e55e7e79bd72362946964514d111993bd8889d312f8d6efceef6c"
+  packing_fingerprint: "sha256:e7ad635dafa3f18a77a243ec17b2bcb9d5f29c72e081ad161bd63b2218e0680b"
+  tokenizer_id: "operating-16k-v2/unigram-16k"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  tokenizer_model_checksum: "sha256:11e536f275b9377794a52c8f3f5fadfe358f631c4b7af51bf9e371d2124fff0a"
+  tokenizer_vocab_checksum: "sha256:9030a0cdc2fba938ac2a3fc8d0f7ae259d22b30ab22a2c57edb3d7cbcdfab11b"
+  config_path: "configs/pilot-pretraining-100-v2.example.yaml"
+  config_fingerprint: "sha256:9d78f5dbc668eafaa44d558364405e266db9e4c7626ac0b749c2c5c2b81d967f"
+  training_config_fingerprint: "sha256:31136e924cd63a29c428400dd955dc956564de770e7295d692ec2c67c60b72c0"
+  training_resume_fingerprint: "sha256:e3e68400ad34526f631593621a496c0750303f27de408a8234fbcf12d55ddba2"
+  model_name: "DohaLM-Tiny"
+  model_parameters: 16889856
+  model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
+
+environment:
+  python_version: "3.12.5"
+  torch_version: "2.7.1+cu118"
+  cuda_version: "11.8"
+  cuda_driver_version: "610.62"
+  gpu_name: "NVIDIA GeForce RTX 3060 Ti"
+  gpu_vram_bytes: 8589410304
+
+readiness:
+  status: "completed_pilot_100_steps"
+  validator_status: "ready_for_user_approval"
+  evidence_fingerprint: "sha256:f2c5e89c4ea5de10a777dcb4a6be690ee517b873ffdaca95f5703d1324af664f"
+  blocking_codes: []
+  runtime_smoke_status: "passed_pilot_v2_5_optimizer_steps"
+
+storage:
+  logical_root: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/runs/PILOT-100-V2-20260727-0001"
+  capacity_verified: true
+  output_path_write_verified: true
+  atomic_rename_verified: true
+  checksum_write_verified: true
+  probe_deleted: true
+  probe_checksum: "sha256:1f34ac305d60f0bc1c9d82fdf1d8fb91cbbd12057de75e2e75e2827e3a43800e"
+  available_bytes_observed: 992967262208
+  minimum_free_bytes_before_start: 5368709120
+  git_tracked_outputs_allowed: false
+
+training:
+  optimizer: "AdamW"
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  scheduler: "cosine"
+  warmup_steps: 10
+  micro_batch_size: 2
+  gradient_accumulation_steps: 4
+  effective_batch_size: 8
+  context_length: 256
+  maximum_optimizer_steps: 100
+  checkpoint_interval: 25
+  evaluation_interval: 10
+  logging_interval: 1
+  precision: "fp16_amp"
+  seed: 17
+
+checkpoint_policy:
+  planned_steps: [25, 50, 75, 100]
+  maximum_count: 4
+  automatic_deletion_during_run: false
+  start_from_smoke_checkpoint: false
+  checkpoint_promotable: false
+
+scope_restrictions:
+  optimizer_steps_above_100: "not_approved"
+  full_pretraining: "not_approved"
+  automatic_extension: "not_approved"
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  api: "not_approved"
+  frontend: "not_approved"
+  deployment: "not_approved"
+  gate_status_change: "not_approved"
+
+result:
+  run_id: "PILOT-100-V2-20260727-0001"
+  logical_path: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/runs/PILOT-100-V2-20260727-0001"
+  status: "completed_pilot_100_steps"
+  global_step: 100
+  optimizer_step: 100
+  micro_step: 400
+  records_seen: 800
+  tokens_seen: 204800
+  elapsed_seconds: 928.4914839999983
+  checkpoint_steps: [25, 50, 75, 100]
+  checkpoint_checksum_status: "passed"
+  load_only_resume_status: "passed"
+  mismatch_fail_closed_status: "passed"
+  runtime_validation_status: "passed"
+  amp_skip_count: 0
+  nonfinite_metric_count: 0
+  oom_count: 0
+  output_bytes: 811315448
+  remaining_disk_bytes_at_completion: 992156565504
+  run_summary_sha256: "sha256:bbd6bf4b631adc263708395a98da21e7daee9962b0a4361eea3c87c5df55dee5"
+  full_pretraining_status: "not_approved"
+  automatic_extension_status: "not_approved"
+  gate_status_change: "none"
