@@ -30,6 +30,8 @@ BLOCKER_MESSAGES = {
     "SPLIT_NOT_VERIFIED": "train/validation split이 검증되지 않았습니다.",
     "EVALUATION_EXCLUSION_MISSING": "evaluation 제외 증거가 없습니다.",
     "DATASET_FINGERPRINT_MISSING": "dataset fingerprint가 없습니다.",
+    "SOURCE_LINEAGE_NOT_VERIFIED": "Pilot source selection이 승인된 corpus 계보와 일치하지 않습니다.",
+    "RUNTIME_REVALIDATION_REQUIRED": "검증된 Pilot dataset identity에 대한 별도 runtime 재검증 승인이 필요합니다.",
     "STORAGE_NOT_VERIFIED": "출력 저장공간이 검증되지 않았습니다.",
     "CHECKPOINT_RETENTION_NOT_APPROVED": "checkpoint 보존 정책이 승인되지 않았습니다.",
     "TRAINING_CONFIG_NOT_APPROVED": "training config가 승인되지 않았습니다.",
@@ -65,9 +67,9 @@ def evaluate_pilot_readiness(value: dict[str, Any]) -> dict[str, Any]:
         failures.append("TOKENIZER_VOCAB_MISMATCH")
     if tokenizer.get("special_token_ids") != list(range(8)):
         failures.append("SPECIAL_TOKEN_IDS_INVALID")
-    if corpus.get("approval_status") != "approved_tokenizer_development":
+    if corpus.get("approval_status") != "approved_pilot_pretraining":
         failures.append("CORPUS_NOT_APPROVED")
-    if corpus.get("license_status") != "approved":
+    if corpus.get("license_status") not in ("approved", "approved_student_noncommercial"):
         failures.append("LICENSE_NOT_APPROVED")
     if corpus.get("pii_status") not in ("clear", "approved_conditional"):
         failures.append("PII_NOT_CLEARED")
@@ -79,6 +81,10 @@ def evaluate_pilot_readiness(value: dict[str, Any]) -> dict[str, Any]:
         failures.append("EVALUATION_EXCLUSION_MISSING")
     if not _is_fingerprint(corpus.get("dataset_fingerprint")):
         failures.append("DATASET_FINGERPRINT_MISSING")
+    if corpus.get("source_lineage_verified") is not True:
+        failures.append("SOURCE_LINEAGE_NOT_VERIFIED")
+    if training.get("runtime_smoke_dataset_fingerprint") != corpus.get("dataset_fingerprint"):
+        failures.append("RUNTIME_REVALIDATION_REQUIRED")
     if storage.get("verified") is not True:
         failures.append("STORAGE_NOT_VERIFIED")
     if training.get("checkpoint_retention_approved") is not True:
@@ -94,9 +100,14 @@ def evaluate_pilot_readiness(value: dict[str, Any]) -> dict[str, Any]:
     if training.get("resume_procedure_documented") is not True:
         failures.append("RESUME_PROCEDURE_MISSING")
 
+    only_runtime_revalidation = failures == ["RUNTIME_REVALIDATION_REQUIRED"]
     result = {
         "schema_version": "1.0",
-        "status": "ready_for_user_approval" if not failures else "blocked",
+        "status": (
+            "ready_for_user_approval" if not failures
+            else "ready_awaiting_runtime_revalidation_and_final_execution_approval" if only_runtime_revalidation
+            else "blocked"
+        ),
         "eligible": not failures,
         "blocking_reasons": [{"code": code, "message": BLOCKER_MESSAGES[code]} for code in failures],
         "user_approval_required": True,

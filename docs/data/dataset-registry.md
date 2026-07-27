@@ -132,6 +132,9 @@ notes: "문서 양식 설명 전용이며 실제 사용 금지"
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] canonical `pilot-v2` 전용 5-step Runtime Smoke 통과와 checkpoint 비승격 상태를 등록하고 100-step Pilot 미승인을 유지함 |
+| 2026-07-27 | [확정] superseded `pilot-v1`과 canonical `pilot-v2`의 artifact 관계, source lineage·dataset·split·PII fingerprint를 등록함 |
+| 2026-07-27 | [확정] AIHUB-71748 `pilot-v1`의 dataset·split·PII fingerprint와 외부 Git 비관리 저장 위치를 등록하고 목적을 제한 Pilot 후보로 승인함; source manifest eligibility와 재배포는 변경하지 않음 |
 | 2026-07-26 | [확정] AIHUB-71748 학생·비상업 라이선스 범위와 최소 schema 검토 결과를 연결하고 registry `reviewing`을 유지함 |
 | 2026-07-26 | [확정] AIHUB-71748 원본 ZIP 55개 개별 SHA-256 inventory와 inventory artifact digest를 package 계보에 연결함 |
 | 2026-07-26 | [확정] AIHUB-71748 로컬 제한 package의 파일 수·용량·inventory fingerprint와 미확정 취득일·version·ZIP SHA-256을 분리 기록함 |

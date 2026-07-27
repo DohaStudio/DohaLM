@@ -1,0 +1,113 @@
+schema_version: "1.0"
+manifest_type: "pilot_v2_runtime_revalidation_smoke"
+manifest_status: "approved_smoke_only"
+prepared_on: "2026-07-27"
+
+execution_approval:
+  status: "approved_smoke_only"
+  purpose: "pilot_v2_runtime_revalidation"
+  approved_by: "user"
+  approved_at: "2026-07-27"
+  maximum_optimizer_steps: 5
+  pilot_100_step_status: "not_approved"
+  full_pretraining_status: "not_approved"
+  checkpoint_promotable: false
+  execution_started: true
+  execution_completed: true
+  completed_optimizer_steps: 5
+
+source:
+  git_commit: "556f395092b5065874552a116db801d1b5999bdc"
+  git_branch: "feat/pilot-pretraining"
+  working_tree_clean: false
+
+identity:
+  dataset_id: "AIHUB-71748"
+  dataset_version: "pilot-v2"
+  source_split: "Training"
+  canonical_selection_contract: "aihub-71748-training-selection-v1"
+  contract_fingerprint: "sha256:bea1f19b1571e062096bd1d9dbd7b2c4144f2e9bf8f578448b190e3a60eb4293"
+  pilot_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
+  training_dataset_fingerprint: "sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6"
+  split_fingerprint: "sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f"
+  pii_fingerprint: "sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  config_path: "configs/pilot-pretraining-v2-smoke.example.yaml"
+  config_fingerprint: "sha256:cdb5c9d536c82a90872a1690cf109d118b2c31eff9c83d6d3c178914734712cc"
+  model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
+
+environment:
+  python_version: "3.12.5"
+  torch_version: "2.7.1+cu118"
+  cuda_version: "11.8"
+  cuda_driver_version: "610.62"
+  gpu_name: "NVIDIA GeForce RTX 3060 Ti"
+  gpu_vram_bytes: 8589410304
+
+readiness:
+  status: "ready_for_smoke_execution"
+  evidence_fingerprint: "sha256:4b7d1890b968e855ebd9f53d75803be126f5e4132dbf57904f2e53c70fe5e52e"
+  blocking_codes: ["RUNTIME_REVALIDATION_REQUIRED"]
+
+storage:
+  logical_root: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/runs/SMOKE-PILOT-V2-0001"
+  capacity_verified: true
+  output_path_write_verified: true
+  atomic_rename_verified: true
+  probe_deleted: true
+  available_bytes_observed: 993164939264
+  minimum_free_bytes_before_start: 5368709120
+
+smoke_policy:
+  optimizer_steps: 5
+  warmup_steps: 5
+  micro_batch_size: 2
+  gradient_accumulation_steps: 4
+  effective_batch_size: 8
+  evaluation_batches_before_and_after: 8
+  checkpoint_steps: [5]
+  checkpoint_promotable: false
+  reuse_for_100_step_pilot: "not_allowed"
+  actual_text_values_stored: false
+
+scope_restrictions:
+  pilot_100_step_execution: "not_approved"
+  full_pretraining: "not_approved"
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  gate_status_change: "not_approved"
+
+result:
+  status: "passed"
+  run_id: "SMOKE-PILOT-V2-0001"
+  output_scope: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/runs/SMOKE-PILOT-V2-0001"
+  global_step: 5
+  summary_sha256: "sha256:d04a1388dc3b94049fd7faead48d23305efa47fada8f9fbaff6402d59583cc3c"
+  output_bytes: 202799718
+  checkpoint: "checkpoint-5"
+  checkpoint_bytes: 202788185
+  checkpoint_checksums_sha256: "sha256:3fc27c1f560819ae4b00136c1e5a459ebbe14282dc51bc87791489ce2c698dbc"
+  checkpoint_checksum_valid: true
+  checkpoint_atomic_publish_valid: true
+  checkpoint_promotable: false
+  load_only_resume_valid: true
+  mismatch_fail_closed_valid: true
+  nonfinite_metric_count: 0
+  amp_skip_count: 0
+  peak_vram_allocated_bytes: 524190208
+  peak_vram_reserved_bytes: 593494016
+  peak_cpu_working_set_bytes: 1015390208
+  elapsed_seconds: 6.393106500006979
+  available_bytes_after: 992973340672
+  actual_text_values_stored: false
+  gate_effect: "none"
+  approval_effect: "none"
+
+post_execution_readiness:
+  status: "ready_awaiting_final_execution_approval"
+  validator_status: "ready_for_user_approval"
+  evidence_fingerprint: "sha256:f2c5e89c4ea5de10a777dcb4a6be690ee517b873ffdaca95f5703d1324af664f"
+  blocking_codes: []
+  runtime_revalidation_required: false
+  pilot_100_step_status: "not_approved"

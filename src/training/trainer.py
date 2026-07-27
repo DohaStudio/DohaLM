@@ -226,8 +226,10 @@ class Trainer:
                 after_clip = self._gradient_norm()
                 if not math.isfinite(after_clip):
                     raise TrainingError("NON_FINITE_GRADIENT", "clipping 후 gradient가 NaN 또는 Inf입니다.")
+                scale_before = self.scaler.get_scale()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+                amp_step_skipped = self.amp_enabled and self.scaler.get_scale() < scale_before
                 self.scheduler.step()
                 self.optimizer.zero_grad(set_to_none=True)
             except Exception:
@@ -259,6 +261,7 @@ class Trainer:
                 tokens_per_second=step_tokens / elapsed,
                 peak_memory_allocated=allocated,
                 peak_memory_reserved=reserved,
+                amp_step_skipped=amp_step_skipped,
             )
             self.state.last_loss = mean_loss
             self.state.last_learning_rate = learning_rate

@@ -18,8 +18,11 @@ def test_actual_sentencepiece_encode_generate_decode(tmp_path):
     result = _generation(model, tokenizer, "안녕하세요", device=torch.device("cpu"), max_new_tokens=3)
     assert result["prompt_token_count"] > 0
     assert 0 < result["generated_token_count"] <= 3
-    assert all(0 <= token < 256 for token in result["token_ids"])
-    assert isinstance(result["decoded"], str)
+    assert "token_ids" not in result
+    assert result["decoded_text_stored"] is False
+    assert result["decoded_sha256"].startswith("sha256:")
+    assert result["token_ids_stored"] is False
+    assert result["token_ids_sha256"].startswith("sha256:")
 
 
 def test_generation_respects_context_limit_by_truncating_prompt(tmp_path):

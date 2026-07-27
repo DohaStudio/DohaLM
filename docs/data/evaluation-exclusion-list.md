@@ -69,6 +69,7 @@ AIHUB-110:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-27 | [확정] Pilot `pilot-v1`은 AI Hub 원래 Validation을 사용하지 않고 Training 내부 5% evaluation 4,800문서를 학습 DataLoader에서 제외하며 document/source ID 교차 0건을 검증함 |
 | 2026-07-26 | [확정] AIHUB-71748 `Validation/**` 전체를 tokenizer development에서 제외하고 Training 내부 contamination은 `pending_review`로 유지함 |
 | 2026-07-26 | [확정] AIHUB-71748 로컬 package 존재를 반영하되 본문·fingerprint·contamination 미검사로 모든 제외 판정을 `pending_review`로 유지함 |
 | 2026-07-23 | [확정] AIHUB-71748·110·86·71477·653의 평가 제외·holdout·누수 검사 후보를 등록함 |

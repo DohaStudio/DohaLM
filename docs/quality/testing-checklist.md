@@ -59,7 +59,7 @@
 | TRN-002 | 학습 | FP16 AMP·GradScaler·NaN/Inf | GPU test | 예 | finite update와 scaler 상태 기록 | precision·연산·중단 처리 검토 | 예 | `pass` — RTX 3060 Ti FP16 autocast·GradScaler·finite gradient·비유한값 차단 통과 |
 | TRN-003 | 학습 | gradient accumulation·clipping 순서 | Component test | 예 | update 주기·정규화·unscale 순서 일치 | trainer 수정 | 예 | `pass` — loss normalization·누적 경계·unscale 후 clipping·scheduler cadence 통과 |
 | TRN-004 | 학습 | 단일 batch·극소량 overfit | GPU/Smoke test | 예 | 기준선 후 승인된 loss 감소 | data·loss·mask·optimizer 진단 | 예 | `passed` — 실제 Training 64문서 packed CUDA FP16 1,000-step loss·top-1·exact continuation·resume 검증과 사용자 Gate 7 승인 |
-| TRN-005 | Pilot | local-only corpus·16k tokenizer·split/packing·validation·checkpoint/resume·generation | Unit/Integration/GPU | 예 | Stage A 회귀 통과, Stage B 100-step 이하 증거 | 실제 실행 중단·계보와 권리·OOM 원인 재검토 | 예/일부 | `partial` — Gate 7은 `passed`지만 Stage B용 corpus 목적·PII·split·config·storage와 Pilot 승인은 미완료 |
+| TRN-005 | Pilot | local-only corpus·16k tokenizer·split/packing·validation·checkpoint/resume·generation | Unit/Integration/GPU | 예 | Stage A 회귀 통과, Stage B 100-step 이하 증거 | 실제 실행 중단·계보와 권리·OOM 원인 재검토 | 예/일부 | `partial` — canonical pilot-v2 5-step Runtime Smoke·checkpoint load-only·mismatch 검증과 581개 회귀 통과; 100-step 최종 실행은 미승인 |
 | CKPT-001 | Checkpoint | 필수 key·format·hash·atomic save | Component test | 예 | 완전한 checkpoint만 노출 | 저장 로직·schema 수정 | 예 | `pass` — 8-file bundle·SHA-256·sibling staging·overwrite/부분 노출 차단 통과 |
 | CKPT-002 | Checkpoint | round-trip logits와 weight alias | Regression test | 예 | 허용 범위 내 동일, tying 유지 | load·migration 수정 | 예 | `pass` — strict file load·model state round-trip·embedding/LM Head alias 유지 통과 |
 | CKPT-003 | Checkpoint | optimizer·scheduler·AMP·RNG·sampler resume | Integration test | 예 | 중단 없는 기준과 연속성 | 누락 state·step 수정 | 예 | `partial` — 실제 Tiny optimizer·cosine·AMP·Python/torch RNG·명시적 sampler state와 bitwise resume 통과; NumPy·실제 corpus worker sampler는 미구현 |
@@ -96,6 +96,7 @@
 - [확정] Phase 5 합성 Trainer Foundation 신규 99개를 포함한 전체 464개 테스트가 통과했고 CPU·RTX 3060 Ti FP16 smoke, checkpoint/resume와 반복 batch loss 감소를 확인했다. 이 결과만으로 Gate 7 통과나 실제 사전학습 성공을 의미하지 않는다.
 - [확정] Gate 6 준비 확장에서 신규 38개를 포함한 전체 502개가 통과했고 실제 Tiny 합성 batch probe·10-step bitwise resume·100-step loss 감소를 확인했다. 이후 514개 전체 테스트와 통합 evidence에 대한 사용자 승인으로 Gate 6은 `passed`, Gate 7은 `planned`다.
 - [확정] 후속 실제 Training 64문서 1,000-step packed overfit, exact continuation, checkpoint/resume와 전체 571개 테스트를 근거로 2026-07-27 사용자 승인 후 Gate 7은 `passed`다. Pilot·전체 Pretraining은 미승인이다.
+- [확정] canonical pilot-v2 전용 5-step Runtime Smoke에서 finite loss·AMP·VRAM·evaluation·checkpoint checksum·load-only resume·mismatch 차단을 확인했고 전체 581개 테스트가 통과했다. 100-step Pilot은 미승인이다.
 - [확정] Gate evidence·Pilot readiness 신규 12개를 포함한 전체 514개가 통과했고 누락·count/tying·checksum·resume/sampler·finite·overfit·source·승인 차단·경로 비노출·fingerprint 결정론 회귀를 확인했다.
 - [검증 필요] 후속 구현 test와 CI mapping은 해당 단계에서 정한다.
 

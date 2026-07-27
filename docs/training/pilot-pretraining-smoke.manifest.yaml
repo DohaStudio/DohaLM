@@ -1,0 +1,88 @@
+schema_version: "1.0"
+manifest_type: "pilot_pretraining_resource_smoke"
+manifest_status: "approved_smoke_only"
+prepared_on: "2026-07-27"
+
+execution_approval:
+  status: "approved_smoke_only"
+  approved_by: "user"
+  approved_at: "2026-07-27"
+  maximum_optimizer_steps: 5
+  pilot_100_step_status: "not_approved"
+  full_pretraining_status: "not_approved"
+  execution_started: true
+  execution_completed: true
+
+source:
+  git_commit: "556f395092b5065874552a116db801d1b5999bdc"
+  git_branch: "feat/pilot-pretraining"
+  working_tree_clean: false
+
+identity:
+  dataset_id: "AIHUB-71748"
+  source_split: "Training"
+  dataset_version: "pilot-v1"
+  pilot_dataset_fingerprint: "sha256:1f585de3bc1c4a60de51577b37aaad7bf070240f8dfcc474b4de8eb458108191"
+  training_dataset_fingerprint: "sha256:b235176595b5ab8c25ef9d0812d272fab1e93f02e7c972ce43d6ecc48cdf45ed"
+  split_fingerprint: "sha256:3541c92da478486511a116bcc37340d855e45ef8d4c2bc641f366b9925b9075d"
+  pii_fingerprint: "sha256:1670228dbd5fb010cdfe7697fd75c793ac49df4637eae41b7c44741b9e91578d"
+  tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
+  config_path: "configs/pilot-pretraining-smoke.example.yaml"
+  config_fingerprint: "sha256:cccff48c5fdaea7c93abbb063ea83d8c5f4a03010157143f7773ec8219d1fe97"
+  model_name: "DohaLM-Tiny"
+  model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
+
+environment:
+  python_version: "3.12.5"
+  torch_version: "2.7.1+cu118"
+  cuda_version: "11.8"
+  cuda_driver_version: "610.62"
+  gpu_name: "NVIDIA GeForce RTX 3060 Ti"
+  gpu_vram_bytes: 8589410304
+
+readiness:
+  status: "blocked_after_execution_lineage_audit"
+  evidence_fingerprint: "sha256:5da887ed5af9bf7f4e713d497f03091079534f216c5c6034a5d8f90592ed1ab1"
+  blocking_codes: ["SOURCE_LINEAGE_NOT_VERIFIED"]
+
+storage:
+  logical_root: "configured_external_root/analysis/pilot-pretraining"
+  capacity_verified: true
+  output_path_write_verified: true
+  atomic_rename_verified: true
+  probe_deleted: true
+  available_bytes_observed: 994569031680
+  minimum_free_bytes_before_start: 5368709120
+
+smoke_policy:
+  optimizer_steps: 5
+  warmup_steps: 5
+  warmup_note: "Smoke max_steps보다 긴 후보 warmup 10은 TrainingConfig 계약상 불가하므로 Smoke에서만 5로 제한"
+  checkpoint_steps: [5]
+  checkpoint_promotion: "not_allowed"
+  reuse_for_100_step_pilot: "not_allowed"
+  evaluation: "before_and_after"
+  logging_interval: 1
+
+result:
+  status: "passed_resource_smoke"
+  runtime_resource_smoke: "passed"
+  source_dataset_lineage: "superseded_or_unverified"
+  pilot_training_evidence: "not_eligible"
+  final_optimizer_step: 5
+  output_scope: "configured_external_root/analysis/pilot-pretraining/AIHUB-71748/runs/SMOKE-0001"
+  summary_sha256: "sha256:224e2bc0b68aa0d73707b129f91faed3f9e4715f3e254e7ddd95583daf8593d5"
+  checkpoint: "checkpoint-5"
+  checkpoint_status: "smoke_only_not_promotable"
+  amp_skip_count: 0
+  nonfinite_count: 0
+  oom_count: 0
+  pilot_100_step_status: "not_approved"
+
+scope_restrictions:
+  pilot_100_step_execution: "not_approved"
+  full_pretraining: "not_approved"
+  sft: "not_approved"
+  rlhf: "not_approved"
+  preference_training: "not_approved"
+  gate_status_change: "not_approved"
