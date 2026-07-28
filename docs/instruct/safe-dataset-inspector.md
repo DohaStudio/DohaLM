@@ -194,7 +194,7 @@ Synthetic validation은 실제 Dataset 재열람, Join, PII, 중복, 누수 또�
 safe_inspector:
   implementation: completed
   synthetic_validation: completed
-  real_dataset_validation: completed_for_data_id_join_only
+  real_dataset_validation: completed_for_data_id_join_and_pii_aggregate
 AIHUB_71748:
   schema_inspection: completed_with_incident
   join_integrity_scan: completed
@@ -210,5 +210,6 @@ overall:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 고정 field path PII 후보 집계에 output guard를 적용하고 원문 누출 0건 확인 |
 | 2026-07-29 | 승인된 SFTdata/SFTlabel `data_id` Join에 output guard를 적용하고 원문 누출 0건 확인 |
 | 2026-07-28 | 원문 비출력 safe representation, output guard, logging 금지, synthetic-only 사고 회귀와 실제 Dataset 적용 전 승인 조건 구현 |

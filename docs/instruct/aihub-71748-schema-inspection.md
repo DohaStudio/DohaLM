@@ -201,7 +201,7 @@ dataset: not_selected
 dataset_processing: not_approved
 join_scan: completed
 join_contract: passed
-pii_scan: not_started
+pii_scan: completed_pending_policy_decision
 duplicate_scan: not_started
 leakage_scan: not_started
 sft_backend: not_started
@@ -217,6 +217,7 @@ Schema 구조와 mapping 후보는 정리됐고 [Safe Dataset Inspector](./safe-
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 제한 PII 후보 scan 완료와 Dataset 선택·처리 미승인 경계 연결 |
 | 2026-07-29 | `data_id` 제한 Join Integrity 통과 결과와 남은 PII·중복·누수 blocker 연결 |
 | 2026-07-28 | Safe Dataset Inspector synthetic 검증 완료와 실제 payload 재열람·Join 미승인 상태 연결 |
 | 2026-07-28 | SFTdata/SFTlabel 4개 ZIP member의 read-only schema·type·길이·category·split 집계와 category value 출력 incident 기록 |
