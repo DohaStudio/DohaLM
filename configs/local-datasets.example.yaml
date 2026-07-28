@@ -4,6 +4,13 @@ datasets:
   entries:
     AIHUB-71748:
       root: "extracted/AIHUB-71748"
+      dataset_id: "AIHUB-71748"
+      component: "SFT"
+      root_type: "external"
+      repository_internal: false
+      read_only: true
+      raw_immutable: true
+      processed_root: "processed/instruct/AIHUB-71748"
 
     AIHUB-653:
       root: "extracted/AIHUB-653"

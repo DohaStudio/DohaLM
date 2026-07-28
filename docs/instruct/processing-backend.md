@@ -2,16 +2,16 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-29
-- 구현 상태: `implemented_synthetic_validated`
+- 구현 상태: `implemented_real_backend_synthetic_validated`
 - 실제 처리 실행: `not_approved`
 - `execution_allowed`: `false`
 - 관련 결정: [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 범위
 
-이 backend는 SFT Dataset Processing 계약을 코드로 검증하기 위한 메모리 전용 구현이다. 현재 공개 진입점은
-`process_synthetic_records` 하나이며 파일 경로, ZIP, Dataset root를 입력받지 않는다. 입력은 최대 100개의
-Synthetic record로 제한되고 각 record의 `metadata.synthetic`은 반드시 `true`여야 한다.
+기존 메모리 전용 `process_synthetic_records` 계약은 유지한다. AIHUB-71748 전용 실제 Backend는 별도 모듈로
+추가됐으며 [상세 계약](./aihub-71748-real-processing-backend.md)에 따라 외부 Mapping, bounded ZIP stream,
+one-to-one join, process-local signal, atomic writer를 제공한다. 실제 실행 권한은 부여되지 않았다.
 
 실제 AIHUB-71748 접근, 변환, 필터링, 저장, Manifest 파일 생성, Tokenization 및 SFT Training은 이 구현의
 승인 범위가 아니다.
@@ -36,6 +36,12 @@ flowchart LR
 | `processing_statistics.py` | Record 식별자가 없는 불변 aggregate 통계 |
 | `processing_manifest.py` | Manifest와 승인·입력 identity의 메모리 내 schema |
 | `aihub_71748_manifest.py` | AIHUB-71748 비소비 Manifest identity·Rule·threshold·권한 검증 |
+| `aihub_71748_mapping.py` | 외부 local Mapping resolution과 경로 분리 검증 |
+| `aihub_71748_reader.py` | SFT ZIP discovery와 bounded streaming parser |
+| `aihub_71748_processor.py` | Join, process-local policy signal과 12단계 Manifest dispatch |
+| `output_writer.py` | Synthetic 검증된 staging·checksum·atomic finalization |
+| `approval.py`, `run_contract.py` | Single-use Approval lifecycle와 Run 0001 재사용 차단 |
+| `runtime_monitor.py` | 원문 비출력 aggregate runtime guardrail |
 
 ## Rule Engine
 
@@ -86,7 +92,7 @@ Manifest의 Approval 값이 채워졌거나 processing·tokenization·training·
 ## Readiness
 
 ```yaml
-processing_backend: implemented_synthetic_validated
+processing_backend: implemented_real_backend_synthetic_validated
 processing_execution: not_approved
 processing_manifest: completed_non_executable
 processed_dataset: not_created
@@ -103,4 +109,5 @@ Approval을 사용하는 실제 Dataset Processing 실행 승인이 별도로 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 실제 Backend·Mapping 계약을 Synthetic로 검증하고 Run 0001 재사용 차단 |
 | 2026-07-29 | AIHUB-71748 canonical Manifest validator와 실행 권한 차단 계약 추가 |
