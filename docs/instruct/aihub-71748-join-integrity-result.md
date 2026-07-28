@@ -118,7 +118,7 @@ safety:
 
 Join key 구조 blocker는 발견되지 않았다. 그러나 다음 독립 blocker는 그대로 남는다.
 
-1. PII Scan 미승인·미실행.
+1. PII 후보 scan은 완료됐으나 처리 정책과 threshold는 미결정.
 2. Content Duplicate 및 Near Duplicate Scan 미승인·미실행.
 3. Leakage 및 Benchmark Contamination Scan 미승인·미실행.
 4. Dataset 선택·처리 미승인.
@@ -132,7 +132,7 @@ AIHUB_71748_SFT:
   safe_inspector: validated_for_data_id_join_only
   join_integrity_scan: completed
   join_contract: passed
-  pii_scan: not_approved
+  pii_scan: completed_pending_policy_decision
   duplicate_content_scan: not_approved
   leakage_scan: not_approved
   dataset_selection: not_selected
@@ -145,11 +145,12 @@ overall:
 
 ## 17. 다음 승인
 
-[승인 필요] 다음 단계는 별도 PII Scan 계획·범위 승인이다. 이번 Join 결과만으로 Dataset 선택, processing 또는
-SFT 실행을 승인할 수 없다.
+[승인 필요] 후속 단계는 [PII 후보 결과](./aihub-71748-pii-scan-result.md)의 처리 정책 결정이다. Join과 PII 후보
+집계만으로 Dataset 선택, processing 또는 SFT 실행을 승인할 수 없다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 후속 PII 후보 scan 완료와 정책 결정 미완료 상태 연결 |
 | 2026-07-29 | SFTdata/SFTlabel `data_id` 제한 Join Integrity 두 회 결정론 scan 및 안전 집계 결과 기록 |

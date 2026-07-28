@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 최종 검토일: 2026-07-29
-- 실행 상태: `join_integrity_completed_other_scans_not_approved`
+- 실행 상태: `join_and_pii_completed_other_scans_not_approved`
 - Dataset 선택: `not_selected`
 - 관련 문서: [이용조건 검토](./aihub-71748-sft-terms-review.md), [AI Hub 후보 검토](./aihub-dataset-candidate-review.md), [Instruction Schema](./instruction-schema.md)
 
@@ -273,7 +273,7 @@ AIHUB_71748_SFT:
   terms_review: verification_required
   schema_plan: completed
   join_validation: passed
-  pii_validation: not_executed
+  pii_validation: completed_pending_policy_decision
   duplicate_validation: not_executed
   leakage_validation: not_executed
   quality_validation: not_executed
@@ -290,5 +290,6 @@ overall:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 제한 PII 후보 scan 완료와 정책 결정·후속 scan 미승인 상태 반영 |
 | 2026-07-29 | 승인된 `data_id` 제한 Join Integrity 통과와 다른 scan 미승인 상태 반영 |
 | 2026-07-28 | AIHUB-71748 SFT component의 원문 비출력 join·schema·PII·중복·누수·품질 검증 및 별도 승인 계약 작성 |
