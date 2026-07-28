@@ -31,6 +31,8 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT Near Duplicate Scan 결과](./aihub-71748-near-duplicate-result.md)
 - [AIHUB-71748 SFT Near Duplicate 처리 정책](./aihub-71748-near-duplicate-policy.md)
 - [AIHUB-71748 SFT Leakage / Benchmark Contamination Scan 결과](./aihub-71748-leakage-result.md)
+- [AIHUB-71748 SFT Leakage 처리 정책](./aihub-71748-leakage-policy.md)
+- [AIHUB-71748 SFT Dataset Readiness](./aihub-71748-readiness.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -55,6 +57,7 @@ checkpoint 생성과 publication을 수행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Leakage 처리 정책·Processing Label·Dataset Readiness Matrix와 Approval Gate 등록 |
 | 2026-07-29 | Near Duplicate 유형·구간·Cross-split·canonical 처리 후보와 Fail Closed 정책 등록 |
 | 2026-07-29 | 승인된 1회 SFT Leakage Scan과 repository prompt 비교·local Benchmark 부재 결과 등록 |
 | 2026-07-29 | 새 독립 승인 Run 0002의 Near Duplicate 1회 aggregate-only 결과와 미승인 처리 경계 등록 |
