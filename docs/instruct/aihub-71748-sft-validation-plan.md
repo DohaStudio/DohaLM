@@ -1,8 +1,8 @@
 # AIHUB-71748 SFT 원문 비출력 검증 계획
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-07-28
-- 실행 상태: `not_executed`
+- 최종 검토일: 2026-07-29
+- 실행 상태: `join_integrity_completed_other_scans_not_approved`
 - Dataset 선택: `not_selected`
 - 관련 문서: [이용조건 검토](./aihub-71748-sft-terms-review.md), [AI Hub 후보 검토](./aihub-dataset-candidate-review.md), [Instruction Schema](./instruction-schema.md)
 
@@ -58,7 +58,7 @@ category count, empty와 whitespace 여부만 계산한다. 로그 formatter와 
 
 1. 원본 package의 55 ZIP checksum inventory와 전체 digest가 기존 manifest와 일치한다.
 2. external dataset root가 Git 밖이며 원본 read-only와 출력 경로 분리가 확인된다.
-3. Training의 SFT source/label만 allowlist하고 Validation과 다른 component는 denylist한다.
+3. 승인된 Join Integrity에 한해 Training·Validation의 SFT source/label만 allowlist하고 다른 component는 denylist한다.
 4. 실행 도구와 resolved policy의 Git commit·fingerprint를 고정한다.
 5. 출력 schema는 집계만 허용하고 record text field를 구조적으로 거부한다.
 6. 각 scan의 별도 승인이 모두 존재하며 미소비·미만료 상태다.
@@ -82,17 +82,16 @@ join key 1차 후보는 기존 제한 schema에서 관찰된 `data_id`다. 실�
 
 ```yaml
 join_integrity:
-  data_records: null
-  label_records: null
-  unique_data_keys: null
-  unique_label_keys: null
-  matched_keys: null
-  orphan_data_keys: null
-  orphan_label_keys: null
-  duplicate_data_keys: null
-  duplicate_label_keys: null
-  one_to_one_ratio: null
-  status: not_executed
+  training_records_each: 10580
+  validation_records_each: 1322
+  training_matched_keys: 10580
+  validation_matched_keys: 1322
+  orphan_data_keys: 0
+  orphan_label_keys: 0
+  duplicate_data_keys: 0
+  duplicate_label_keys: 0
+  one_to_one_ratio: 1.0
+  status: passed
 ```
 
 join loss가 0이 아니거나 관계가 one-to-one으로 확인되지 않으면 mapping 승인을 중단한다. 허용 오차는
@@ -261,10 +260,11 @@ terms evidence
 계획 단계 완료 조건은 검사 항목, 원문 비출력 계약, 승인 경계와 report schema가 문서화되는 것이다. 실제
 dataset 적격 조건은 아직 승인되지 않았다.
 
-- Join·PII·duplicate·leakage·quality threshold: `threshold_not_approved`
+- Join contract: `passed`
+- PII·duplicate·leakage·quality threshold: `threshold_not_approved`
 - Benchmark registry: `incomplete`
 - Dataset selection: `not_selected`
-- Scan result: `not_executed`
+- Scan result: `join_completed_other_scans_not_executed`
 
 ## 14. Readiness
 
@@ -272,7 +272,7 @@ dataset 적격 조건은 아직 승인되지 않았다.
 AIHUB_71748_SFT:
   terms_review: verification_required
   schema_plan: completed
-  join_validation: not_executed
+  join_validation: passed
   pii_validation: not_executed
   duplicate_validation: not_executed
   leakage_validation: not_executed
@@ -290,4 +290,5 @@ overall:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 승인된 `data_id` 제한 Join Integrity 통과와 다른 scan 미승인 상태 반영 |
 | 2026-07-28 | AIHUB-71748 SFT component의 원문 비출력 join·schema·PII·중복·누수·품질 검증 및 별도 승인 계약 작성 |

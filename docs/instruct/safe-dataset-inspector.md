@@ -4,7 +4,7 @@
 - 최종 검토일: 2026-07-28
 - 구현: `src/data/safety/inspector.py`
 - Synthetic validation: `completed`
-- Real dataset validation: `not_approved`
+- Real dataset validation: `completed_for_data_id_join_only`
 - 관련 문서: [AIHUB-71748 Schema Inspection](./aihub-71748-schema-inspection.md), [SFT 검증 계획](./aihub-71748-sft-validation-plan.md), [ADR-004](../decisions/ADR-004-data-governance.md)
 
 ## 1. 배경과 사고 요약
@@ -194,11 +194,11 @@ Synthetic validation은 실제 Dataset 재열람, Join, PII, 중복, 누수 또�
 safe_inspector:
   implementation: completed
   synthetic_validation: completed
-  real_dataset_validation: not_approved
+  real_dataset_validation: completed_for_data_id_join_only
 AIHUB_71748:
   schema_inspection: completed_with_incident
-  join_integrity_scan: not_approved
-  payload_reread: not_approved
+  join_integrity_scan: completed
+  payload_reread: completed_for_data_id_join_only
 overall:
   dataset: not_selected
   dataset_processing: not_approved
@@ -210,4 +210,5 @@ overall:
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 승인된 SFTdata/SFTlabel `data_id` Join에 output guard를 적용하고 원문 누출 0건 확인 |
 | 2026-07-28 | 원문 비출력 safe representation, output guard, logging 금지, synthetic-only 사고 회귀와 실제 Dataset 적용 전 승인 조건 구현 |

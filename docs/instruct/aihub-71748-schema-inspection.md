@@ -178,7 +178,8 @@ filter 정책 승인 전 metadata에도 신뢰해 사용할 수 없으며 prompt
 1. `data_category.main`에 정상 category와 원문성 장문이 혼재하고 Training 119건, Validation 19건이
    canonical 두 종류와 일치하지 않는다.
 2. Dataset 내부에 명시적인 `instruction`, `input`, `system`, `split`, `quality`, `safety` field가 없다.
-3. SFTdata에는 answer가 없고 SFTlabel에만 존재하므로 `data_id` Join Integrity가 필수지만 미실행이다.
+3. SFTdata에는 answer가 없고 SFTlabel에만 존재한다. 후속 제한 검사에서 `data_id` Join Integrity는 통과했지만
+   이는 answer 내용이나 품질 검증이 아니다.
 4. Record shape는 split별 1종이지만 명시적 schema version field가 없어 provider schema version은 미확정이다.
 5. Validation은 존재하므로 학습 제외·평가 격리 계약이 필요하다.
 6. PII, duplicate, leakage, answer quality와 unsafe content는 모두 미검사다.
@@ -195,10 +196,11 @@ inspection_incident: raw_value_stdout_once
 original_text_output_requirement: failed
 safe_inspector_implementation: completed
 safe_inspector_synthetic_validation: completed
-payload_reread: not_approved
+payload_reread: completed_for_data_id_join_only
 dataset: not_selected
 dataset_processing: not_approved
-join_scan: not_started
+join_scan: completed
+join_contract: passed
 pii_scan: not_started
 duplicate_scan: not_started
 leakage_scan: not_started
@@ -207,13 +209,14 @@ training: not_approved
 execution_allowed: false
 ```
 
-Schema 구조와 mapping 후보는 정리됐고 [Safe Dataset Inspector](./safe-dataset-inspector.md)의 synthetic-only
-회귀가 완료됐다. Dataset 적격성은 판정할 수 없으며 다음 단계는 실제 payload 재열람과 Join Integrity의
-별도 승인이지 Dataset Processing이나 SFT 실행이 아니다.
+Schema 구조와 mapping 후보는 정리됐고 [Safe Dataset Inspector](./safe-dataset-inspector.md)의 synthetic 회귀와
+[제한 Join Integrity](./aihub-71748-join-integrity-result.md)가 완료됐다. Dataset 적격성은 아직 판정할 수 없으며
+다음 단계는 별도 PII Scan 승인이지 Dataset Processing이나 SFT 실행이 아니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | `data_id` 제한 Join Integrity 통과 결과와 남은 PII·중복·누수 blocker 연결 |
 | 2026-07-28 | Safe Dataset Inspector synthetic 검증 완료와 실제 payload 재열람·Join 미승인 상태 연결 |
 | 2026-07-28 | SFTdata/SFTlabel 4개 ZIP member의 read-only schema·type·길이·category·split 집계와 category value 출력 incident 기록 |
