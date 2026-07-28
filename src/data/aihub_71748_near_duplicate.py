@@ -336,6 +336,8 @@ def _build_groups(
     groups: list[_ValueGroup] = []
     raw_exact = 0
     normalized_exact = 0
+    raw_exact_groups = 0
+    normalized_exact_groups = 0
     memory_estimate = 0
     for normalized in sorted(normalized_to_ordinals):
         ordinals = normalized_to_ordinals[normalized]
@@ -344,6 +346,8 @@ def _build_groups(
         raw_pairs = sum(count * (count - 1) // 2 for count in raw_counts.values())
         raw_exact += raw_pairs
         normalized_exact += total_pairs - raw_pairs
+        raw_exact_groups += sum(count > 1 for count in raw_counts.values())
+        normalized_exact_groups += int(len(ordinals) > 1 and len(raw_counts) > 1)
         fingerprint = _fingerprint_normalized(normalized)
         groups.append(_ValueGroup(fingerprint, tuple(ordinals)))
         memory_estimate += (
@@ -356,7 +360,9 @@ def _build_groups(
             monitor.check("cheap_signature", memory_estimate)
     monitor.check("cheap_signature", memory_estimate)
     return groups, {
+        "raw_exact_excluded_groups": raw_exact_groups,
         "raw_exact_excluded_pairs": raw_exact,
+        "normalized_exact_excluded_groups": normalized_exact_groups,
         "normalized_exact_excluded_pairs": normalized_exact,
     }, memory_estimate
 
@@ -499,32 +505,69 @@ def _analyze_field(
     return summary, accepted, metrics
 
 
+def _score_summary(scores: dict[tuple[int, int], float]) -> dict[str, Any]:
+    groups, records = _connected_groups(scores)
+    return {
+        "candidate_groups": groups,
+        "candidate_records": records,
+        "candidate_pairs": len(scores),
+        "blocked_candidate_pairs": sum(
+            score >= BLOCKED_CANDIDATE_THRESHOLD for score in scores.values()
+        ),
+    }
+
+
+def _cross_split_scores(
+    scores: dict[tuple[int, int], float], splits: list[str]
+) -> dict[tuple[int, int], float]:
+    return {
+        pair: score for pair, score in scores.items() if splits[pair[0]] != splits[pair[1]]
+    }
+
+
+def _pair_exact_exclusions(
+    questions: list[str], answers: list[str]
+) -> dict[str, int]:
+    raw_counts: Counter[tuple[str, str]] = Counter(zip(questions, answers))
+    normalized_raw_counts: dict[tuple[str, str], Counter[tuple[str, str]]] = defaultdict(Counter)
+    for question, answer in zip(questions, answers):
+        normalized_raw_counts[
+            (normalize_near_duplicate_text(question), normalize_near_duplicate_text(answer))
+        ][(question, answer)] += 1
+
+    raw_pairs = sum(count * (count - 1) // 2 for count in raw_counts.values())
+    normalized_pairs = 0
+    normalized_groups = 0
+    for variants in normalized_raw_counts.values():
+        total = sum(variants.values())
+        total_pairs = total * (total - 1) // 2
+        variant_raw_pairs = sum(count * (count - 1) // 2 for count in variants.values())
+        normalized_pairs += total_pairs - variant_raw_pairs
+        normalized_groups += int(total > 1 and len(variants) > 1)
+    return {
+        "raw_exact_excluded_groups": sum(count > 1 for count in raw_counts.values()),
+        "raw_exact_excluded_pairs": raw_pairs,
+        "normalized_exact_excluded_groups": normalized_groups,
+        "normalized_exact_excluded_pairs": normalized_pairs,
+    }
+
+
 def _pair_summary(
     question_scores: dict[tuple[int, int], float],
     answer_scores: dict[tuple[int, int], float],
     splits: list[str],
-) -> tuple[dict[str, Any], dict[str, Any], dict[tuple[int, int], float], dict[tuple[int, int], float]]:
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], dict[tuple[int, int], float], dict[str, dict[tuple[int, int], float]]]:
     pair_scores = {
         pair: min(question_scores[pair], answer_scores[pair])
         for pair in question_scores.keys() & answer_scores.keys()
     }
     cross_scores = {
-        pair: score for pair, score in pair_scores.items() if splits[pair[0]] != splits[pair[1]]
+        "question": _cross_split_scores(question_scores, splits),
+        "answer": _cross_split_scores(answer_scores, splits),
+        "qa_pair": _cross_split_scores(pair_scores, splits),
     }
-    pair_groups, pair_records = _connected_groups(pair_scores)
-    cross_groups, cross_records = _connected_groups(cross_scores)
-    pair_summary = {
-        "candidate_groups": pair_groups,
-        "candidate_records": pair_records,
-        "candidate_pairs": len(pair_scores),
-        "blocked_candidate_pairs": sum(score >= BLOCKED_CANDIDATE_THRESHOLD for score in pair_scores.values()),
-    }
-    cross_summary = {
-        "candidate_groups": cross_groups,
-        "candidate_records": cross_records,
-        "candidate_pairs": len(cross_scores),
-        "blocked_candidate_pairs": sum(score >= BLOCKED_CANDIDATE_THRESHOLD for score in cross_scores.values()),
-    }
+    pair_summary = _score_summary(pair_scores)
+    cross_summary = {name: _score_summary(scores) for name, scores in cross_scores.items()}
     return pair_summary, cross_summary, pair_scores, cross_scores
 
 
@@ -535,13 +578,14 @@ def summarize_near_duplicates(
     contract: NearDuplicatePerformanceContract = DEFAULT_PERFORMANCE_CONTRACT,
     clock: Callable[[], float] = time.monotonic,
     cancelled: Callable[[], bool] = lambda: False,
+    _monitor: _RuntimeMonitor | None = None,
 ) -> dict[str, Any]:
     """Analyze bounded synthetic or already-approved records without returning values."""
 
     contract.validate()
     if not isinstance(execution_id, str) or not _SAFE_EXECUTION_ID.fullmatch(execution_id):
         raise NearDuplicateScanError("INVALID_EXECUTION_ID")
-    monitor = _RuntimeMonitor(contract, clock=clock, cancelled=cancelled)
+    monitor = _monitor or _RuntimeMonitor(contract, clock=clock, cancelled=cancelled)
     splits: list[str] = []
     questions: list[str] = []
     answers: list[str] = []
@@ -582,6 +626,11 @@ def summarize_near_duplicates(
     pair_summary, cross_summary, pair_scores, cross_scores = _pair_summary(
         question_scores, answer_scores, splits
     )
+    pair_summary = {
+        "scanned": len(questions),
+        **_pair_exact_exclusions(questions, answers),
+        **pair_summary,
+    }
     monitor.check("completed")
 
     result = {
@@ -622,7 +671,9 @@ def summarize_near_duplicates(
                 "question": _histogram(question_scores.values()),
                 "answer": _histogram(answer_scores.values()),
                 "qa_pair": _histogram(pair_scores.values()),
-                "cross_split": _histogram(cross_scores.values()),
+                "cross_split_question": _histogram(cross_scores["question"].values()),
+                "cross_split_answer": _histogram(cross_scores["answer"].values()),
+                "cross_split_qa_pair": _histogram(cross_scores["qa_pair"].values()),
             }
         },
         "performance": {
@@ -631,6 +682,9 @@ def summarize_near_duplicates(
             "full_pair_matrix": False,
             "question": question_metrics,
             "answer": answer_metrics,
+            "raw_candidate_pairs": question_metrics["raw_candidate_pairs"] + answer_metrics["raw_candidate_pairs"],
+            "deduplicated_candidate_pairs": question_metrics["deduplicated_candidate_pairs"] + answer_metrics["deduplicated_candidate_pairs"],
+            "expensive_comparisons": question_metrics["expensive_comparisons"] + answer_metrics["expensive_comparisons"],
             "total_expensive_comparisons": question_metrics["expensive_comparisons"] + answer_metrics["expensive_comparisons"],
             "peak_memory_estimate_bytes": monitor.peak_memory_estimate_bytes,
             "elapsed_seconds": monitor.elapsed_seconds(),
@@ -684,8 +738,13 @@ def _scan_once(
     clock: Callable[[], float],
     cancelled: Callable[[], bool],
 ) -> dict[str, Any]:
+    monitor = _RuntimeMonitor(contract, clock=clock, cancelled=cancelled)
+    monitor.check("archive_contract")
     archives = _archive_contract(package_root)
+    monitor.check("archive_contract")
     records: dict[str, list[tuple[str, str]]] = {"training": [], "validation": []}
+    loaded_records = 0
+    loaded_memory_estimate = 0
     try:
         for split in ("training", "validation"):
             with zipfile.ZipFile(archives[(split, "sftdata")]) as data_archive, zipfile.ZipFile(
@@ -704,16 +763,24 @@ def _scan_once(
                         question = _string_field(data_record, "sftdata", ("question",))
                         answer = _string_field(label_record, "sftlabel", ("answer", "contents"))
                         records[split].append((question, answer))
+                        loaded_records += 1
+                        loaded_memory_estimate += (
+                            sys.getsizeof(question) + sys.getsizeof(answer) + 72
+                        )
                         data_record.clear()
                         label_record.clear()
+                        if loaded_records % 128 == 0:
+                            monitor.check("archive_stream_read", loaded_memory_estimate)
             if len(records[split]) != EXPECTED_RECORDS[split]:
                 raise NearDuplicateScanError("RECORD_COUNT_DRIFT")
+        monitor.check("archive_stream_read", loaded_memory_estimate)
         return summarize_near_duplicates(
             records,
             execution_id=execution_id,
             contract=contract,
             clock=clock,
             cancelled=cancelled,
+            _monitor=monitor,
         )
     except NearDuplicateScanError:
         raise

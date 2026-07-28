@@ -101,6 +101,25 @@ def test_runtime_budget_fails_closed_with_injected_clock():
         )
 
 
+def test_real_scan_runtime_budget_starts_before_archive_contract(tmp_path, monkeypatch):
+    monkeypatch.setattr(module.Path, "is_dir", lambda _self: True)
+    monkeypatch.setattr(module, "_archive_contract", lambda _root: {})
+    ticks = iter([0.0, 0.0, 1.0])
+    contract = NearDuplicatePerformanceContract(runtime_budget_seconds=0.5)
+    result = module.scan_aihub_71748_near_duplicates(
+        tmp_path,
+        execution_id="SYNTHETIC_ARCHIVE_TIMEOUT",
+        contract=contract,
+        clock=lambda: next(ticks),
+    )
+    assert result == {
+        "status": "blocked",
+        "error_code": "RUNTIME_BUDGET_EXCEEDED",
+        "full_scan_count": 1,
+        "execution_allowed": False,
+    }
+
+
 def test_cancellation_is_fail_closed_without_workers_or_temp_files():
     with pytest.raises(NearDuplicateScanError, match="^SCAN_CANCELLED$"):
         summarize_near_duplicates(

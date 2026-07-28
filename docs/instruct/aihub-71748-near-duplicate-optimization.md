@@ -4,9 +4,9 @@
 - 마지막 검토일: 2026-07-29
 - Dataset ID: `AIHUB-71748`
 - 최적화 상태: `completed_synthetic_only`
-- 실제 scan 상태: `failed_closed_runtime_timeout`
-- Retry 상태: `ready_for_separate_approval`
-- 관련 문서: [Exact Duplicate 결과](./aihub-71748-exact-duplicate-result.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- 실제 scan 상태: `attempt_1_failed_attempt_2_completed`
+- 재실행 승인 상태: `consumed_completed`
+- 관련 문서: [Near Duplicate 결과](./aihub-71748-near-duplicate-result.md), [Exact Duplicate 결과](./aihub-71748-exact-duplicate-result.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. Scope
 
@@ -14,8 +14,8 @@
 정밀 비교, 상한과 cancellation 계약을 Synthetic-only로 개선했다. Dataset·ZIP·JSON payload, 실제 질문·답변,
 PII·Exact Duplicate·Leakage scan, Dataset 처리와 학습에는 접근하지 않았다.
 
-[확정] 성공 결과 문서 `aihub-71748-near-duplicate-result.md`는 생성하지 않았다. 실제 scan은 새 execution ID와
-별도 사용자 승인 전에는 실행할 수 없다.
+[확정] 이 문서 작성 당시 실제 성공 결과는 없었으나, 후속 독립 승인 Run 0002가 1회 완료됐다. 결과와 후속
+미승인 경계는 [Near Duplicate 결과](./aihub-71748-near-duplicate-result.md)를 따른다.
 
 ## 2. 첫 번째 실행 실패
 
@@ -219,19 +219,20 @@ retry_readiness:
   deterministic_repeat_passed: true
   raw_output_leak: false
   actual_dataset_access: false
-  status: ready_for_separate_approval
+  status: consumed_by_completed_run_0002
 ```
 
-[확정] Ready는 재실행 승인이 아니다. 첫 승인과 execution ID는 소비됐으며 새 execution ID와 별도 사용자 승인 없이는
-실제 scan을 실행하지 않는다.
+[확정] Ready 자체는 재실행 승인이 아니었다. 이후 사용자가 새 execution ID를 별도로 승인했고 Run 0002가 정확히
+한 번 완료됐다. 승인 소비와 실제 집계는 결과 문서에 기록한다.
 
 ## 19. 상태
 
 ```yaml
 near_duplicate_scan:
   attempt_1: failed_closed_runtime_timeout
-  completed_result: false
-  retry: not_approved
+  attempt_2: completed
+  completed_result: true
+  retry: not_applicable_independent_execution
 near_duplicate_optimization:
   status: completed_synthetic_only
 near_duplicate_policy:
@@ -248,12 +249,12 @@ execution_allowed: false
 
 ## 20. 다음 승인 조건
 
-[승인 필요] 향후 실제 scan은 이 최적화 revision을 immutable commit으로 고정하고 새 execution ID, runtime budget,
-single-use 승인, 외부 종료 시 자식 process 정리 방식을 다시 검증한 뒤 별도로 승인해야 한다. Leakage Scan,
+[승인 필요] 후속 작업은 Near Duplicate threshold와 Cross-split 후보 처리 정책 확정 또는 별도 Leakage Scan 승인이다.
 Dataset 선택·처리, Adapter·Tokenizer·SFT 학습은 계속 승인되지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 후속 독립 승인 Run 0002 완료 결과와 정책·Leakage·처리 미승인 경계 연결 |
 | 2026-07-29 | 첫 timeout 이력 보존, bounded 후보·정밀 비교·cancellation 계약과 12,000 Synthetic 검증 기록 |
