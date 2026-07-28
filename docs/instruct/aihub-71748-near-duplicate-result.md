@@ -176,8 +176,10 @@ Dataset·ZIP·JSON을 수정·복사·이동·삭제하지 않았고 원문·부
 | Review candidate | 0.90 | `not_approved` | 없음 |
 | Blocked candidate | 0.97 | `not_approved` | 없음 |
 
-[확정] `blocked_candidate`는 정책 제안 구간 이름이며 Dataset 자동 차단이나 제거 승인이 아니다. Near Duplicate
-처리 정책, Cross-split 조치, Leakage Scan, Dataset 선택·처리와 SFT는 각각 별도 승인이 필요하다.
+[확정] `blocked_candidate`는 정책 제안 구간 이름이며 Dataset 자동 차단이나 제거 승인이 아니다. 후속
+[Near Duplicate 처리 정책](./aihub-71748-near-duplicate-policy.md)은 모든 구간을 `REVIEW_REQUIRED`로 유지한다.
+Threshold, Cross-split 실제 조치, Dataset Processing은 계속 미승인이다. 최종 처리 결정에는 별도 Leakage Scan
+결과와 사용자 승인이 필요하다.
 
 ## 13. Readiness
 
@@ -186,7 +188,8 @@ AIHUB_71748_SFT:
   exact_duplicate_scan: completed
   exact_duplicate_policy: completed
   near_duplicate_scan: completed
-  near_duplicate_policy: proposed_not_approved
+  near_duplicate_policy: completed
+  near_duplicate_processing: proposed_not_approved
   leakage_scan: not_approved
   dataset_selection: not_selected
   dataset_processing: not_approved
@@ -198,12 +201,13 @@ overall:
 
 ## 14. 다음 승인
 
-[승인 필요] 다음 단계는 Near Duplicate threshold와 Cross-split 후보 처리 정책을 확정하거나, 별도 범위·입력·출력
-계약으로 Leakage Scan을 승인하는 것이다. 이 결과만으로 Dataset 선택·처리, Adapter, Tokenization 또는 SFT를
+[승인 필요] 다음 단계는 별도 범위·입력·출력 계약의 Leakage Scan이다. 이후 Near Duplicate threshold와
+Cross-split 후보 처리 정책을 확정해야 한다. 이 결과만으로 Dataset 선택·처리, Adapter, Tokenization 또는 SFT를
 시작할 수 없다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 후속 Near Duplicate 처리 정책 연결과 threshold·processing·Leakage 미승인 경계 보완 |
 | 2026-07-29 | 새 독립 승인 Run 0002의 1회 aggregate-only Near Duplicate Scan 결과와 안전·상한 검증 기록 |

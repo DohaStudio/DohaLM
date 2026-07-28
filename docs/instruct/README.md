@@ -29,6 +29,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT Exact Duplicate 처리 정책](./aihub-71748-exact-duplicate-policy.md)
 - [AIHUB-71748 SFT Near Duplicate Scanner 최적화](./aihub-71748-near-duplicate-optimization.md)
 - [AIHUB-71748 SFT Near Duplicate Scan 결과](./aihub-71748-near-duplicate-result.md)
+- [AIHUB-71748 SFT Near Duplicate 처리 정책](./aihub-71748-near-duplicate-policy.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -53,6 +54,7 @@ checkpoint 생성과 publication을 수행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Near Duplicate 유형·구간·Cross-split·canonical 처리 후보와 Fail Closed 정책 등록 |
 | 2026-07-29 | 새 독립 승인 Run 0002의 Near Duplicate 1회 aggregate-only 결과와 미승인 처리 경계 등록 |
 | 2026-07-29 | Near Duplicate 첫 timeout 보존과 bounded 후보 비교·12,000 Synthetic retry readiness 등록 |
 | 2026-07-29 | AIHUB-71748 Exact Duplicate 유형·처리 후보·Fail Closed 정책과 미승인 처리 경계 등록 |
