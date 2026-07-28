@@ -1,4 +1,4 @@
-"""Synthetic-only SFT Dataset Processing backend contracts."""
+"""SFT processing contracts; real execution remains separately approved."""
 
 from .aihub_71748_manifest import (
     AIHub71748ManifestError,
@@ -28,6 +28,34 @@ from .processing_rules import (
 )
 from .processing_statistics import ProcessingStatistics, RuleImpact
 from .processing_validation import ProcessingValidationError
+from .aihub_71748_mapping import (
+    DatasetMappingError,
+    ResolvedDatasetMapping,
+    canonical_mapping_contract,
+    resolve_dataset_mapping,
+    validate_mapping_contract,
+)
+from .aihub_71748_processor import (
+    AIHub71748ProcessingError,
+    JoinedRecord,
+    ProcessedRecords,
+    join_source_records,
+    load_blocked_evaluation_prompts,
+    execute_approved_processing,
+    process_joined_records,
+    recompute_record_signals,
+)
+from .aihub_71748_reader import (
+    AIHub71748ReaderError,
+    SourceArchive,
+    SourceRecord,
+    discover_sft_sources,
+    iter_source_records,
+)
+from .approval import ApprovalRecord, ProcessingApprovalError
+from .output_writer import OutputWriterError, write_atomic_outputs
+from .run_contract import ProcessingRunContract, RunContractError
+from .runtime_monitor import RuntimeBudget, RuntimeMonitor, RuntimeMonitorError
 
 __all__ = [
     "AIHub71748ManifestError",
@@ -54,4 +82,31 @@ __all__ = [
     "default_processing_rules",
     "process_synthetic_records",
     "validate_aihub_71748_processing_manifest",
+    "AIHub71748ProcessingError",
+    "AIHub71748ReaderError",
+    "ApprovalRecord",
+    "DatasetMappingError",
+    "JoinedRecord",
+    "OutputWriterError",
+    "ProcessedRecords",
+    "ProcessingApprovalError",
+    "ProcessingRunContract",
+    "ResolvedDatasetMapping",
+    "RunContractError",
+    "RuntimeBudget",
+    "RuntimeMonitor",
+    "RuntimeMonitorError",
+    "SourceArchive",
+    "SourceRecord",
+    "canonical_mapping_contract",
+    "discover_sft_sources",
+    "iter_source_records",
+    "join_source_records",
+    "load_blocked_evaluation_prompts",
+    "execute_approved_processing",
+    "process_joined_records",
+    "recompute_record_signals",
+    "resolve_dataset_mapping",
+    "validate_mapping_contract",
+    "write_atomic_outputs",
 ]

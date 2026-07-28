@@ -1,0 +1,15 @@
+dataset_id: AIHUB-71748
+component: SFT
+root: "${DOHALM_DATASET_ROOT}/AIHUB-71748"
+root_type: external
+repository_internal: false
+read_only: true
+provider: AI_Hub
+allowed_components:
+  - SFTdata
+  - SFTlabel
+allowed_splits:
+  - Training
+  - Validation
+raw_immutable: true
+processed_root: "${DOHALM_DATASET_ROOT}/processed/instruct/AIHUB-71748"

@@ -54,7 +54,8 @@
 | [instruct/aihub-71748-readiness.md](./instruct/aihub-71748-readiness.md) | Schema·Join·PII·Duplicate·Leakage·Benchmark·License의 종합 Readiness Matrix와 Approval Gate | 모든 AIHUB-71748 SFT 검증 결과·정책, ADR-004·010 | 별도 Processing Manifest·실행 승인 | `review` | Dataset 처리 승인 전 필수 | 2026-07-29 | dataset conditionally selected; processing not_approved; execution false |
 | [instruct/aihub-71748-selection-approval-package.md](./instruct/aihub-71748-selection-approval-package.md) | AIHUB-71748 SFT 선택안·근거·조건·승인 schema와 Fail Closed 정책 | Dataset Readiness, ADR-004·010 | Selection Decision·Processing Manifest 설계 | `review` | Dataset 선택 승인 전 필수 | 2026-07-29 | CONDITIONALLY_SELECTED approved; processing not_approved |
 | [instruct/aihub-71748-selection-decision.md](./instruct/aihub-71748-selection-decision.md) | AIHUB-71748 SFT 공식 조건부 선정 Approval Record와 처리 금지 경계 | Selection Approval Package, ADR-004·010 | 조건 충족 검토·Processing Manifest 설계 승인 | `approved` | Dataset 처리 설계 전 필수 | 2026-07-29 | Terms·Benchmark·threshold·Processing 미승인 |
-| [instruct/processing-backend.md](./instruct/processing-backend.md) | 메모리 전용 Synthetic Processing Engine·Rule·Validation·Statistics와 Fail Closed 경계 | Selection Decision, ADR-004·010 | 실제 Manifest와 Processing 별도 승인 | `review` | Processing 코드 변경 전 필수 | 2026-07-29 | synthetic validated; execution false |
+| [instruct/processing-backend.md](./instruct/processing-backend.md) | Synthetic Engine과 AIHUB-71748 실제 Processing Backend의 Fail Closed 경계 | Selection Decision, ADR-004·010 | Run별 실제 Processing 별도 승인 | `review` | Processing 코드 변경 전 필수 | 2026-07-29 | real backend synthetic validated; execution false |
+| [instruct/aihub-71748-real-processing-backend.md](./instruct/aihub-71748-real-processing-backend.md) | 외부 Mapping, ZIP stream, join, process-local signal, atomic output와 Run 재사용 차단 | Processing Manifest, ADR-004·010 | Run 0002 별도 승인 | `review` | 실제 Processing 승인 전 필수 | 2026-07-29 | Run 0001 retired; Run 0002 not approved |
 | [instruct/processing-manifest-schema.md](./instruct/processing-manifest-schema.md) | Synthetic input과 AIHUB-71748 비소비 identity·Rule·output·statistics·approval Manifest schema | Processing Backend, ADR-004·010 | 별도 Processing 실행 승인 | `review` | Processing Manifest 설계 전 필수 | 2026-07-29 | AIHUB-71748 manifest completed; execution false |
 | [instruct/aihub-71748-processing-manifest.md](./instruct/aihub-71748-processing-manifest.md) | AIHUB-71748 SFT identity·Rule 순서·threshold·output·Approval의 canonical 비소비 계약 | Selection Decision, Processing Backend, ADR-004·010 | 별도 single-use Processing 실행 승인 | `approved` | AIHUB-71748 Processing 승인 전 필수 | 2026-07-29 | manifest completed; execution false |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
@@ -265,6 +266,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] AIHUB-71748 실제 Processing Backend·외부 Mapping 계약과 Run 0001 폐기·Run 0002 미승인 상태 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 SFT 공식 조건부 선정 Approval Record와 Processing·Training 미승인 상태 반영 |
 | 2026-07-29 | [확정] AIHUB-71748 Dataset Selection Approval Package와 추천 전용 조건부 선택 흐름 등록 |
 | 2026-07-29 | [확정] Near Duplicate 유형·구간·Cross-split·canonical 처리 후보와 순수 Fail Closed 정책 등록 |

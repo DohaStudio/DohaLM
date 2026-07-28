@@ -212,6 +212,10 @@ sft_training: not_approved
 execution_allowed: false
 ```
 
+[확정] Run 0001은 local Mapping 필수 field 부족으로 Approval 생성 전 Mapping Gate에서 Fail Closed됐으며 재사용할
+수 없다. [실제 Backend와 Mapping 계약](./aihub-71748-real-processing-backend.md)은 구현·Synthetic 검증됐지만
+Run 0002와 Approval 0002는 아직 승인되지 않았다.
+
 ## 18. Next Approval
 
 [승인 필요] 다음 단계는 새 Run ID와 single-use Approval을 발급하는 별도 Dataset Processing 실행 승인이다.
@@ -222,4 +226,5 @@ Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0001 Mapping Gate Fail Closed·폐기와 실제 Backend/Mapping 구현 상태 연결; Run 0002 미승인 유지 |
 | 2026-07-29 | AIHUB-71748 SFT Manifest identity·Rule·threshold·output·Approval 계약 확정; 실행 미승인 유지 |

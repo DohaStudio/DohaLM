@@ -38,6 +38,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [SFT Dataset Processing Backend](./processing-backend.md)
 - [SFT Processing Manifest Schema](./processing-manifest-schema.md)
 - [AIHUB-71748 SFT Processing Manifest](./aihub-71748-processing-manifest.md)
+- [AIHUB-71748 실제 Processing Backend와 Mapping 계약](./aihub-71748-real-processing-backend.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -53,15 +54,15 @@ training: not_approved
 backend: not_started
 dataset: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
-processing_backend: implemented_synthetic_validated
+processing_backend: implemented_real_backend_synthetic_validated
 processing_manifest: completed_non_executable
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
 ```
 
-여기서 `backend: not_started`는 SFT 학습 Backend 상태다. Dataset Processing Backend는 Synthetic 전용으로
-구현·검증됐으며 실제 Processing 실행 권한을 부여하지 않는다.
+여기서 `backend: not_started`는 SFT 학습 Backend 상태다. Dataset Processing Backend는 실제 ZIP을 처리할 수 있는
+구조까지 구현됐지만 Synthetic로만 실행 검증됐으며 실제 Processing 실행 권한을 부여하지 않는다.
 
 별도 사용자 승인 전에는 dataset 다운로드·생성·변환, SFT, optimizer, backward, evaluation 실행,
 checkpoint 생성과 publication을 수행하지 않는다.
@@ -74,6 +75,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 외부 Mapping·실제 Processing Backend 구현과 Run 0001 폐기·Run 0002 미승인 경계 등록 |
 | 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Training 미승인 경계 등록 |
 | 2026-07-29 | Dataset Selection Approval Package와 추천 전용 `CONDITIONALLY_SELECTED` 흐름 등록 |
 | 2026-07-29 | Leakage 처리 정책·Processing Label·Dataset Readiness Matrix와 Approval Gate 등록 |
