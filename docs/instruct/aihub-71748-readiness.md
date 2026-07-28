@@ -4,8 +4,8 @@
 - 마지막 검토일: 2026-07-29
 - Dataset ID: `AIHUB-71748`
 - Readiness 설계 상태: `completed`
-- Dataset 선택 상태: `not_selected`
-- 관련 문서: [Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [Leakage 결과](./aihub-71748-leakage-result.md), [PII 정책](./aihub-71748-pii-policy.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Near Duplicate 정책](./aihub-71748-near-duplicate-policy.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- Dataset 선택 상태: `CONDITIONALLY_SELECTED`
+- 관련 문서: [Selection Decision](./aihub-71748-selection-decision.md), [Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [Leakage 결과](./aihub-71748-leakage-result.md), [PII 정책](./aihub-71748-pii-policy.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Near Duplicate 정책](./aihub-71748-near-duplicate-policy.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. Scope
 
@@ -89,7 +89,7 @@ flowchart TD
     Approval -->|미승인| Closed[Fail Closed]
 ```
 
-[확정] 현재 위치는 Policy 설계 완료 후 `Approval` 대기다. Approval 이후 Dataset Processing은 별도 승인 전까지
+[확정] Dataset Selection은 `CONDITIONALLY_SELECTED`로 승인됐지만 Dataset Processing은 별도 승인 전까지
 금지된다. 앞 단계 완료는 다음 단계의 자동 승인이 아니다.
 
 ## 8. 현재 Blocker
@@ -98,7 +98,7 @@ flowchart TD
 2. PII threshold·수동 검토·처리 방식이 미승인이다.
 3. Exact/Near/Leakage 후보의 canonical·merge·Validation 제외와 threshold가 미승인이다.
 4. 고정 local 외부 Benchmark source와 version 계약이 없다.
-5. Dataset 선택과 Dataset Processing이 미승인이다.
+5. Dataset은 조건부 선정됐지만 Dataset Processing은 미승인이다.
 
 [확정] 기존 결과에서 확인된 blocker만 종합했으며 새로운 blocker를 만들지 않았다.
 
@@ -112,26 +112,29 @@ flowchart TD
 
 ```yaml
 dataset_readiness: completed
-dataset_selection: not_selected
+dataset_selection: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
+processing_manifest: not_started
+processing_backend: not_started
 sft_backend: not_started
 sft_training: not_approved
 execution_allowed: false
 ```
 
-[제안] [Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md)의 현재 권장안은
-`CONDITIONALLY_SELECTED`이며 `recommendation_only`다. 이는 선택 승인이 아니므로 Dataset 선택 상태
-`not_selected`, Dataset Processing·SFT Training 미승인과 `execution_allowed: false`를 그대로 유지한다.
+[확정] [Selection Decision](./aihub-71748-selection-decision.md)에 따라 Dataset 선택 상태는
+`CONDITIONALLY_SELECTED`다. 이는 Dataset Processing·SFT Training 승인이 아니며 `execution_allowed: false`를
+그대로 유지한다.
 
 ## 11. 다음 단계
 
-[승인 필요] 다음 단계는 Dataset Processing 실행이 아니라, 위 blocker를 근거로 한 Dataset 선택·처리 정책의
-별도 사용자 승인 결정이다. 승인 시에도 immutable source, Processing version, split 격리, label manifest와
-검증 계획을 새 범위로 확정해야 한다.
+[승인 필요] 다음 단계는 Dataset Processing 실행이 아니라 Terms Evidence, Benchmark Source와 미승인 threshold를
+검토하고 Processing Manifest 설계 범위를 별도로 승인하는 것이다. immutable source, Processing version, split
+격리, label manifest와 검증 계획도 새 범위에서 확정해야 한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 공식 `CONDITIONALLY_SELECTED` 결정과 Processing·Training 미승인 상태 반영 |
 | 2026-07-29 | Dataset Selection Approval Package 연결과 조건부 선택 권장안의 비승인 경계 명시 |
 | 2026-07-29 | 기존 Schema·Join·PII·Exact·Near·Leakage 결과를 종합한 Readiness Matrix와 Approval Gate 설계 |

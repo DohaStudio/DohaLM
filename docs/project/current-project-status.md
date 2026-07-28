@@ -1,7 +1,7 @@
 # DohaLM Current Project Status
 
 - 문서 상태: `review`
-- 기준 시점: 2026-07-28
+- 기준 시점: 2026-07-29
 - 기준 학습 commit: Run 0001 `bdcf85d4fd60aefb15178ec4041735737bb86b1b` / Run 0002 `4c2eced3bf70551fbf7bc8ebde6666062584d92b`
 - 관련 근거: [개발 Roadmap](../quality/development-roadmap.md), [Candidate A 결과](../training/full-pretraining-candidate-a-result.md), [Evaluation Framework](../evaluation/README.md), [Candidate B Readiness](../training/candidate-b-readiness.md)
 
@@ -33,7 +33,7 @@
 | Current official Base baseline | `candidate_b` | Full·EOS teacher-forced·position·stability 개선, generation 비악화 |
 | Candidate B derivative parent | `approved_experimental` | 실제 파생 학습·publication은 미승인 |
 | DohaLM Instruct | `design_completed` | ADR-010·schema·template·evaluation·safety·readiness 문서 |
-| Instruct execution | `not_approved` | dataset not_selected, backend not_started, execution_allowed false |
+| Instruct execution | `not_approved` | AIHUB-71748 SFT conditionally selected, processing·backend not_started, execution_allowed false |
 | Chat·Code·SQL·Recruit·Game·Agent | `not_started` | 각 family 별도 design·data·학습 승인 필요 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
@@ -105,20 +105,20 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Model/checkpoint/tokenizer/dataset publication과 deployment
 - Service decoding 채택·구현, Instruct·Chat EOS numeric thresholds
 - Instruct·Chat·Domain CPT·EOS-aware SFT 실행과 data contract
-- Instruction dataset 선택·다운로드·생성, SFT backend와 Instruct evaluation 실행
+- Instruction dataset processing·다운로드·생성, SFT backend와 Instruct evaluation 실행
 
 ## 8. Instruct Project
 
 - Parent: Candidate B Final, immutable, `approved_experimental`.
 - Version 후보: `dohalm-instruct-tiny-v1`; 실제 model artifact는 `not_created`.
-- Dataset: `not_selected`; schema·category·license·PII·누수 계약만 설계 완료.
+- Dataset: AIHUB-71748 SFT Component `CONDITIONALLY_SELECTED`; Processing·Manifest·Backend는 미승인·미착수.
 - Prompt·Evaluation·Tool Calling·Safety: framework 설계 완료, 구현·수치 threshold 미승인.
 - Chat lineage: `Base → Instruct → Chat`; Chat project는 `not_started`.
 - Readiness: `design_completed`, `execution_allowed: false`, training·publication `not_approved`.
 
 ## 9. 다음 권장 작업
 
-1. Instruction dataset 후보의 license·PII·schema mapping을 read-only로 검토할지 사용자 결정
+1. AIHUB-71748 조건부 선정 조건과 Processing Manifest 설계 범위를 별도 승인
 2. Prompt serialization·mask·EOS와 evaluation numeric 계약 별도 승인
 3. Backend 구현·CPU fail-closed 검증은 별도 작업으로 승인
 
@@ -126,6 +126,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Backend·Training 미승인 상태 반영 |
 | 2026-07-28 | ADR-010 DohaLM Instruct design_completed·execution_not_approved 상태 반영 |
 | 2026-07-28 | ADR-009 Candidate B current Base baseline 승격과 experimental derivative parent 적격성 반영 |
 | 2026-07-28 | ADR-008·모델 단계별 EOS 정책 승인과 Candidate B 재평가·derivative parent 미승인 경계 반영 |

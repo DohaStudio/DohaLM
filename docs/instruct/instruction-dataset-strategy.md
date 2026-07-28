@@ -1,14 +1,15 @@
 # Instruction Dataset 전략
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
-- Dataset 상태: `not_selected`
+- 마지막 검토일: 2026-07-29
+- Dataset 상태: AIHUB-71748 SFT `CONDITIONALLY_SELECTED`
 - 목적별 사용 승인: `not_approved`
+- 관련 승인: [AIHUB-71748 Selection Decision](./aihub-71748-selection-decision.md)
 
 ## 원칙
 
-[확정] 이번 단계에서는 dataset을 다운로드·생성·표본화·변환하지 않는다. 후보마다 source, 취득 근거,
-license, 목적별 SFT 허용, 수정·파생·재배포 범위, PII와 저작권을 검토한 뒤 별도 승인을 받아야 한다.
+[확정] AIHUB-71748 SFT Component의 조건부 선정 이후에도 dataset을 다운로드·생성·표본화·변환하지 않는다.
+source, 취득 근거, license, 목적별 SFT 허용, 수정·파생·재배포 범위, PII와 저작권은 별도 승인을 받아야 한다.
 Validation·benchmark·evaluation prompt와 정답은 학습에서 제외한다.
 
 ## Category
@@ -55,7 +56,7 @@ Validation·benchmark·evaluation prompt와 정답은 학습에서 제외한다.
 
 ## 미결정 사항
 
-- [검증 필요] 실제 후보 dataset과 공식 이용조건
+- [검증 필요] AIHUB-71748 SFT 공식 이용조건과 처리 범위 증빙
 - [검증 필요] category별 표본 수·비율·quality threshold
 - [검증 필요] split seed·group key·dedup algorithm
 - [검증 필요] loss mask와 multi-turn serialization 대상
@@ -64,4 +65,5 @@ Validation·benchmark·evaluation prompt와 정답은 학습에서 제외한다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 SFT 조건부 선정과 목적별 사용·처리 미승인 경계 반영 |
 | 2026-07-28 | Instruction category·license·PII·중복·누수·filtering 승인 전략 작성 |
