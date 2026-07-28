@@ -5,7 +5,7 @@
 - Dataset ID: `AIHUB-71748`
 - Readiness 설계 상태: `completed`
 - Dataset 선택 상태: `not_selected`
-- 관련 문서: [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [Leakage 결과](./aihub-71748-leakage-result.md), [PII 정책](./aihub-71748-pii-policy.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Near Duplicate 정책](./aihub-71748-near-duplicate-policy.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- 관련 문서: [Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [Leakage 결과](./aihub-71748-leakage-result.md), [PII 정책](./aihub-71748-pii-policy.md), [Exact Duplicate 정책](./aihub-71748-exact-duplicate-policy.md), [Near Duplicate 정책](./aihub-71748-near-duplicate-policy.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. Scope
 
@@ -119,6 +119,10 @@ sft_training: not_approved
 execution_allowed: false
 ```
 
+[제안] [Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md)의 현재 권장안은
+`CONDITIONALLY_SELECTED`이며 `recommendation_only`다. 이는 선택 승인이 아니므로 Dataset 선택 상태
+`not_selected`, Dataset Processing·SFT Training 미승인과 `execution_allowed: false`를 그대로 유지한다.
+
 ## 11. 다음 단계
 
 [승인 필요] 다음 단계는 Dataset Processing 실행이 아니라, 위 blocker를 근거로 한 Dataset 선택·처리 정책의
@@ -129,4 +133,5 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Dataset Selection Approval Package 연결과 조건부 선택 권장안의 비승인 경계 명시 |
 | 2026-07-29 | 기존 Schema·Join·PII·Exact·Near·Leakage 결과를 종합한 Readiness Matrix와 Approval Gate 설계 |

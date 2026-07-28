@@ -52,6 +52,7 @@
 | [instruct/aihub-71748-leakage-result.md](./instruct/aihub-71748-leakage-result.md) | Train/Validation Exact·Normalized·기존 Near 교차 결과와 repository evaluation prompt 비교 | Near Duplicate 결과·정책, Safe Inspector, ADR-004·010 | Leakage 처리 정책·외부 Benchmark source 계약·Dataset Processing 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | scan completed; 1,741 review candidates; external benchmark not_available_local; execution false |
 | [instruct/aihub-71748-leakage-policy.md](./instruct/aihub-71748-leakage-policy.md) | 여섯 Leakage 유형·Answer Exact 해석 경계·Processing Label과 Dataset 승인 영향 | Leakage·Exact·Near 결과와 정책, ADR-004·010 | Dataset Readiness·별도 Dataset 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | policy completed; processing·threshold not_approved |
 | [instruct/aihub-71748-readiness.md](./instruct/aihub-71748-readiness.md) | Schema·Join·PII·Duplicate·Leakage·Benchmark·License의 종합 Readiness Matrix와 Approval Gate | 모든 AIHUB-71748 SFT 검증 결과·정책, ADR-004·010 | 별도 Dataset 선택·Processing 승인 | `review` | Dataset 승인 전 필수 | 2026-07-29 | readiness completed; dataset not_selected; execution false |
+| [instruct/aihub-71748-selection-approval-package.md](./instruct/aihub-71748-selection-approval-package.md) | AIHUB-71748 SFT 선택안·근거·조건·승인 schema와 Fail Closed 정책 | Dataset Readiness, ADR-004·010 | 별도 사용자 선택 승인·Processing Manifest 설계 | `review` | Dataset 선택 승인 전 필수 | 2026-07-29 | CONDITIONALLY_SELECTED recommendation_only; dataset not_selected |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
 | [instruct/instruction-prompt-template.md](./instruct/instruction-prompt-template.md) | Base·Instruction·JSON·Markdown·Tool·Chat placeholder template | Schema, ADR-003·010 | serialization·mask 검증 | `review` | SFT config 전 필수 | 2026-07-28 | delimiter·mask·EOS 미확정 |
 | [instruct/instruction-evaluation.md](./instruct/instruction-evaluation.md) | Instruction·format·structured output·safety·EOS 평가 framework | ADR-005·008·010 | 평가 dataset·numeric 계약 | `review` | Instruct 평가 전 필수 | 2026-07-28 | threshold proposed |
@@ -260,6 +261,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] AIHUB-71748 Dataset Selection Approval Package와 추천 전용 조건부 선택 흐름 등록 |
 | 2026-07-29 | [확정] Near Duplicate 유형·구간·Cross-split·canonical 처리 후보와 순수 Fail Closed 정책 등록 |
 | 2026-07-29 | [확정] 새 독립 승인 Run 0002의 Near Duplicate 1회 aggregate-only 결과와 안전·상한 검증 등록 |
 | 2026-07-29 | [확정] Near Duplicate 첫 timeout·bounded 최적화·12,000 Synthetic retry readiness와 재실행 미승인 등록 |
