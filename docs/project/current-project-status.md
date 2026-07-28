@@ -18,6 +18,8 @@
 | Pilot 100-step | `completed` | 100 optimizer step, 204,800 token, approval consumed |
 | Candidate A 10M | `completed` | 4,883 step, 10,000,384 scheduled token |
 | Evaluation Framework | `completed` | Quick·Full·EOS·position·category·stability·privacy·lineage |
+| Foundation framework | `completed` | Base data·tokenizer·training·evaluation·lineage·approval 체계 |
+| DohaLM Base Tiny | `completed` | Candidate B current baseline, Candidate A historical baseline |
 | Candidate A Full baseline | `historical` | ADR-007 당시 baseline; ADR-009 이후 회귀 비교용 보존 |
 | Candidate B design/backend | `fix_validated` | numeric checkpoint validation·quarantine 보존 정책 포함 |
 | Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
@@ -30,6 +32,9 @@
 | Candidate B ADR-008 reassessment | `approved_as_base_baseline` | ADR-009; historical 계약 판정과 분리 |
 | Current official Base baseline | `candidate_b` | Full·EOS teacher-forced·position·stability 개선, generation 비악화 |
 | Candidate B derivative parent | `approved_experimental` | 실제 파생 학습·publication은 미승인 |
+| DohaLM Instruct | `design_completed` | ADR-010·schema·template·evaluation·safety·readiness 문서 |
+| Instruct execution | `not_approved` | dataset not_selected, backend not_started, execution_allowed false |
+| Chat·Code·SQL·Recruit·Game·Agent | `not_started` | 각 family 별도 design·data·학습 승인 필요 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
 Run 0002 checkpoint 4,883/9,766/12,208, Final Quick·Full과 EOS ranking 진단이 완료됐다.
@@ -100,17 +105,28 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Model/checkpoint/tokenizer/dataset publication과 deployment
 - Service decoding 채택·구현, Instruct·Chat EOS numeric thresholds
 - Instruct·Chat·Domain CPT·EOS-aware SFT 실행과 data contract
+- Instruction dataset 선택·다운로드·생성, SFT backend와 Instruct evaluation 실행
 
-## 8. 다음 권장 작업
+## 8. Instruct Project
 
-1. Instruct·Chat·Domain별 data·evaluation·termination 계약 설계 여부 사용자 검토
-2. Service decoding은 Instruct·Chat 단계에서 별도 검토
-3. 실제 파생 학습·publication은 별도 실행 승인 패키지 작성
+- Parent: Candidate B Final, immutable, `approved_experimental`.
+- Version 후보: `dohalm-instruct-tiny-v1`; 실제 model artifact는 `not_created`.
+- Dataset: `not_selected`; schema·category·license·PII·누수 계약만 설계 완료.
+- Prompt·Evaluation·Tool Calling·Safety: framework 설계 완료, 구현·수치 threshold 미승인.
+- Chat lineage: `Base → Instruct → Chat`; Chat project는 `not_started`.
+- Readiness: `design_completed`, `execution_allowed: false`, training·publication `not_approved`.
+
+## 9. 다음 권장 작업
+
+1. Instruction dataset 후보의 license·PII·schema mapping을 read-only로 검토할지 사용자 결정
+2. Prompt serialization·mask·EOS와 evaluation numeric 계약 별도 승인
+3. Backend 구현·CPU fail-closed 검증은 별도 작업으로 승인
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 DohaLM Instruct design_completed·execution_not_approved 상태 반영 |
 | 2026-07-28 | ADR-009 Candidate B current Base baseline 승격과 experimental derivative parent 적격성 반영 |
 | 2026-07-28 | ADR-008·모델 단계별 EOS 정책 승인과 Candidate B 재평가·derivative parent 미승인 경계 반영 |
 | 2026-07-28 | 동일 Candidate A/B EOS generation·decoding 진단 완료와 공식 상태 불변 반영 |

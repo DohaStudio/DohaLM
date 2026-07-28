@@ -30,9 +30,10 @@
 
 | 구분 | 범위 | 상태 |
 |---|---|---|
-| 현재 | DohaLM-Tiny, 운영 16k tokenizer, canonical lineage, Candidate B current baseline, Candidate A historical baseline | `in_progress` |
+| 현재 Foundation·Base Tiny | 운영 16k tokenizer, canonical lineage, Candidate B current baseline, Candidate A historical baseline | `completed` |
 | Base 재평가 | Candidate B ADR-008 reassessment·experimental parent 적격성 | `approved` |
-| 파생 언어 모델 | Instruct, Chat, Code, SQL, Recruit, Game, Agent | `long_term_planned` |
+| Instruct | Candidate B parent 기반 전략·schema·evaluation·safety·readiness | `design_completed_execution_not_approved` |
+| 기타 파생 언어 모델 | Chat, Code, SQL, Recruit, Game, Agent | `not_started` / `long_term_planned` |
 | Multimodal | Vision encoder·LLM 연결, image-text alignment | `long_term_planned` |
 | 공개·배포 | model card, license, safety, lineage, evaluation, publication approval | `not_approved` |
 
@@ -95,9 +96,12 @@ flowchart LR
   training과 publication은 `not_approved`다.
 - 장기 Family 계획은 Dataset·Tokenizer·Packing·EOS·Evaluation 계약의 변경 승인이 아니다.
 - EOS 종료 계약은 [승인 정책](../evaluation/eos-success-policy.md)에서 Base·Instruct·Chat과 service decoding을 분리한다.
+- ADR-010은 Instruct 설계만 승인한다. Candidate B Base는 immutable이고 dataset·backend·SFT·evaluation 실행과
+  Chat 생성은 승인되지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 Instruct design_completed·execution_not_approved 경계 반영 |
 | 2026-07-28 | Foundation Model 장기 비전, immutable Base 원칙, 파생·scale·승인 경계 초안 작성 |

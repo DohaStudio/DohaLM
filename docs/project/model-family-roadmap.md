@@ -27,9 +27,9 @@ flowchart TD
 
 | Family | Primary purpose | 기본 Parent | Training method 후보 | Data category | Main evaluation | Current status | Release scope | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `in_progress` | `not_approved` | Candidate B current baseline; Candidate A historical baseline |
-| Instruct | 지시 이해·형식 준수·task 수행 | 승인된 Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·응답 종료·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·학습 미승인 |
-| Chat | 다중 턴 대화·맥락 유지 | Instruct 우선 후보 | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·응답 종료·service decoding 분리·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·service 정책 미승인 |
+| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `completed` | `not_approved` | Candidate B current baseline; Candidate A historical baseline |
+| Instruct | 지시 이해·형식 준수·task 수행 | Candidate B immutable Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·응답 종료·safety | `design_completed` | `not_approved` | ADR-010; dataset/backend/training 미승인 |
+| Chat | 다중 턴 대화·맥락 유지 | 승인된 Instruct | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·응답 종료·service decoding 분리·safety | `not_started` | `not_approved` | Base 직접 파생 금지; 별도 ADR 필요 |
 | Code | 생성·설명·debug·test | Base 또는 Code CPT | code CPT, code SFT | source·docs·tests·fix pairs | compile·unit test·functional·security | `long_term_planned` | `not_approved` | 라이선스·secret·benchmark 오염 검토 |
 | SQL | SQL 생성·수정·교육 | Base 또는 domain CPT | SQL CPT/SFT | schema·query·explanation | parse·execution·result·dialect | `long_term_planned` | `not_approved` | dialect별 평가 분리 |
 | Recruit | JD·지원 문서·면접 보조 | Base/Instruct | domain CPT/SFT | JD·career writing | relevance·factuality·privacy·bias | `long_term_planned` | `not_approved` | 채용 의사결정 자동화와 구분 |
@@ -61,8 +61,12 @@ flowchart TD
 `approved_experimental` Base parent 후보다. 이는 parent artifact 적격성만 승인하며 Track C의 data contract,
 수치 기준, 학습 실행 또는 publication을 시작하지 않는다.
 
+[확정] ADR-010으로 Instruct Track의 설계·Readiness 문서만 완료됐다. Chat은 승인된 Instruct를 parent로 하며
+아직 생성되지 않았다. Instruct의 `design_completed`는 dataset·backend·SFT·evaluation 실행 승인이 아니다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 Instruct design_completed와 Chat not_started·Instruct parent 경계 반영 |
 | 2026-07-28 | Base 중심 Model Family, 목적·parent·학습·데이터·평가·공개 경계 초안 작성 |

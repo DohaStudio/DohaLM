@@ -138,6 +138,8 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] Numeric checkpoint validator와 post-checkpoint quarantine 정책 보완; Run 0002 학습 승인은 소비됐고 재사용 불가
 - [확정] Candidate B 추가 training에는 새 immutable Git identity·Run ID·물리 preflight·single-use training 실행 승인이 필요하지만 현재 작업에는 포함하지 않음
 - [제안] Gate 이후 장기 확장은 [Foundation Model Strategy](../project/foundation-model-strategy.md)와 [Model Family Roadmap](../project/model-family-roadmap.md)의 Track A~D를 사용하되, 기존 Gate 상태나 Candidate 실행 권한을 자동 변경하지 않는다.
+- [확정] Track C Instruct 설계·Readiness는 ADR-010으로 `design_completed`다. Dataset은 `not_selected`, backend는
+  `not_started`, execution은 `not_approved`이며 Chat과 다른 family는 `not_started`다.
 - [검증 필요] 각 Gate 정량 합격선과 허용 회귀 폭
 - [검증 필요] 일정·담당자·승인 기록 schema
 - [검증 필요] Phase 병행 범위와 `DohaLM-Small` 진입 조건
@@ -148,6 +150,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 Instruct Project 설계·Readiness 완료와 실행 차단 상태 반영 |
 | 2026-07-28 | ADR-009 Candidate B current Base baseline과 experimental parent 결정 반영 |
 | 2026-07-28 | ADR-008·Base/Instruct/Chat EOS 계약 승인과 Candidate B historical 비소급 경계 반영 |
 | 2026-07-28 | EOS 다중 길이·decoding 진단 완료와 assisted-only 종료 제안 반영 |
