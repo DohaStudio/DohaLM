@@ -25,6 +25,7 @@
 - [Candidate B Final Full 결과](./candidate-b-final-full-result.md)
 - [Candidate A/B Full 비교](./candidate-a-b-full-comparison.md)
 - [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md) (`proposed`)
+- [EOS Generation·Decoding 진단 결과](./eos-generation-decoding-diagnostic-result.md)
 - [평가 manifest 예시](./evaluation-manifest.example.yaml)
 - [외부 benchmark 정책](./benchmark-policy.md)
 
@@ -46,13 +47,14 @@
 - Quick v2: `planned_awaiting_separate_approval`
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
-- EOS 다중 길이·decoding 진단 정책과 ADR-008: `proposed`; 공식 계약·상태 변경 없음
+- EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `proposed`, 공식 계약·상태 변경 없음
 - 배포: `not_applicable`
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate A/B 동일 prompt 다중 길이 진단 완료와 assisted-only 종료 제안 연결 |
 | 2026-07-28 | EOS 다중 길이·decoding 진단 설정과 proposed 정책·ADR 연결 |
 | 2026-07-28 | Candidate B Full·EOS ranking 완료, Candidate A/B 비교와 계약 미통과 판정 연결 |
 | 2026-07-28 | Candidate B Run 0002 학습·Quick 완료와 Full same-artifact reference 수정 상태 연결 |

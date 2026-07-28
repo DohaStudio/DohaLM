@@ -71,6 +71,10 @@ forced EOS, EOS logit bias, 길이 기반 강제 stop과 외부 문장 분리기
 - 기본 decoding 변경: `not_approved`
 - 추가 학습: `not_approved`
 
+동일 조건 진단은 [결과 문서](./eos-generation-decoding-diagnostic-result.md)에 기록했다. pure greedy는
+두 모델 모두 128 token까지 EOS 0%였고 Candidate B는 decoding-assisted profile에서만 종료가 관찰됐다.
+따라서 `decoding_assisted_termination_only`를 제안하되 공식 상태와 승인 계약은 변경하지 않는다.
+
 ## 재검토 조건
 
 동일 조건 진단 결과가 확보되고 사용자에게 정책 변경안이 승인되거나, Base/Chat 목적이 확정되거나,
@@ -80,4 +84,5 @@ evaluation identity·prompt taxonomy·privacy 계약이 변경될 때 재검토�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | 동일 조건 진단 결과와 `decoding_assisted_termination_only` 상태 제안 연결 |
 | 2026-07-28 | Candidate A/B 동일 조건의 다중 길이·decoding profile 진단 정책 초안 작성 |

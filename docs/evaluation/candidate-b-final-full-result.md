@@ -85,8 +85,13 @@ Candidate B Full 자체는 `completed`이고 teacher-forced 비교는 유효하�
 성공 조건을 충족하지 못했으므로 최종 상태는 `evaluated_contract_not_passed`이며 Candidate A 공식 baseline을
 자동 대체하지 않는다.
 
+후속 [동일 조건 EOS Generation·Decoding 진단](./eos-generation-decoding-diagnostic-result.md)에서도
+Candidate B pure greedy는 16/32/64/128 token 모두 EOS 0%였다. no-repeat bigram 등 보조 profile에서만
+종료가 나타나 `decoding_assisted_termination_only`를 제안하지만 공식 상태는 변경하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | 동일 A/B 다중 길이 진단 결과와 공식 상태 유지 근거 연결 |
 | 2026-07-28 | Candidate B Final Full·EOS ranking·불변성 및 계약 판정 기록 |
