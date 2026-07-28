@@ -38,12 +38,13 @@
 | [instruct/instruction-dataset-strategy.md](./instruct/instruction-dataset-strategy.md) | QA·JSON·Tool·Domain category와 license·PII·중복·누수 전략 | ADR-004·010 | 실제 후보 read-only 검토 | `review` | dataset 선택 전 필수 | 2026-07-28 | dataset not_selected |
 | [instruct/aihub-dataset-candidate-review.md](./instruct/aihub-dataset-candidate-review.md) | AI Hub 5종 local inventory·schema·PII·license·역할 적합성 검토 | ADR-004·010, Dataset Strategy | dataset별 승인·전체 검증 | `review` | dataset 선택 전 필수 | 2026-07-28 | dataset not_selected |
 | [instruct/aihub-71748-sft-terms-review.md](./instruct/aihub-71748-sft-terms-review.md) | AIHUB-71748 SFT 이용조건·취득 증빙·재배포·publication 검토 | ADR-004, License Review | 공식 증빙·목적별 승인 | `review` | SFT 검증 전 필수 | 2026-07-28 | terms verification_required |
-| [instruct/aihub-71748-sft-validation-plan.md](./instruct/aihub-71748-sft-validation-plan.md) | SFTdata/label 원문 비출력 join·PII·중복·누수·품질 검증 계획 | Terms Review, Instruction Schema | scan별 사용자 승인 | `review` | 실제 scan 전 필수 | 2026-07-29 | join passed, other scans not_approved |
+| [instruct/aihub-71748-sft-validation-plan.md](./instruct/aihub-71748-sft-validation-plan.md) | SFTdata/label 원문 비출력 join·PII·중복·누수·품질 검증 계획 | Terms Review, Instruction Schema | scan별 사용자 승인 | `review` | 실제 scan 전 필수 | 2026-07-29 | join·PII policy·exact duplicate completed; near/leakage not_approved |
 | [instruct/aihub-71748-schema-inspection.md](./instruct/aihub-71748-schema-inspection.md) | SFTdata/label schema·type·길이·category와 원문 출력 incident | SFT Validation Plan | Safe Inspector·Join 별도 승인 | `review` | Join 설계 전 필수 | 2026-07-28 | completed_with_incident |
 | [instruct/safe-dataset-inspector.md](./instruct/safe-dataset-inspector.md) | 원문 비출력 safe representation·output guard·synthetic 회귀 계약 | Schema Inspection, ADR-004 | 실제 payload 적용 승인 | `implemented` | 실제 Dataset scan 전 필수 | 2026-07-29 | validated for data_id join only |
 | [instruct/aihub-71748-join-integrity-result.md](./instruct/aihub-71748-join-integrity-result.md) | SFTdata/SFTlabel `data_id` read-only Join·중복·orphan·split 충돌·결정론 결과 | Validation Plan, Safe Inspector, ADR-004 | 별도 PII Scan 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | join passed, execution false |
 | [instruct/aihub-71748-pii-scan-result.md](./instruct/aihub-71748-pii-scan-result.md) | 허용 질문·답변 field의 PII·민감정보 후보 유형·위험도 원문 비출력 집계 | Join 결과, Safe Inspector, ADR-004 | PII 정책·후속 scan 별도 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | candidates detected; false positive policy completed, threshold proposed |
 | [instruct/aihub-71748-pii-policy.md](./instruct/aihub-71748-pii-policy.md) | PII 후보 false positive·식별자/민감 주제 분리·원문 비입력 판정 계층·threshold proposal | PII Scan 결과, ADR-004·010 | 별도 승인 Content/Near Duplicate·Leakage·PII 처리 결정 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | numeric threshold·manual review·processing not_approved |
+| [instruct/aihub-71748-exact-duplicate-result.md](./instruct/aihub-71748-exact-duplicate-result.md) | SFT question·answer·QA pair exact duplicate, split overlap와 component consistency 원문 비출력 집계 | Join 결과, PII 정책, Safe Inspector, ADR-004 | 별도 승인 Near Duplicate·Leakage·overlap 처리 결정 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | exact overlap detected; near/leakage·processing not_approved |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
 | [instruct/instruction-prompt-template.md](./instruct/instruction-prompt-template.md) | Base·Instruction·JSON·Markdown·Tool·Chat placeholder template | Schema, ADR-003·010 | serialization·mask 검증 | `review` | SFT config 전 필수 | 2026-07-28 | delimiter·mask·EOS 미확정 |
 | [instruct/instruction-evaluation.md](./instruct/instruction-evaluation.md) | Instruction·format·structured output·safety·EOS 평가 framework | ADR-005·008·010 | 평가 dataset·numeric 계약 | `review` | Instruct 평가 전 필수 | 2026-07-28 | threshold proposed |
@@ -252,6 +253,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] AIHUB-71748 Content Exact Duplicate 1회 scan과 split overlap·component consistency 결과 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 PII false positive·threshold proposal과 원문 비입력 정책 계층 문서 등록 |
 | 2026-07-28 | [확정] ADR-010과 DohaLM Instruct 전략·dataset·schema·template·evaluation·tool·safety·readiness 문서 등록 |
 | 2026-07-26 | [확정] v2 Unigram 운영 승인, artifact identity·functional reproduction과 Gate 3 `passed`를 문서 인덱스에 동기화함 |
