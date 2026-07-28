@@ -22,6 +22,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT 원문 비출력 검증 계획](./aihub-71748-sft-validation-plan.md)
 - [AIHUB-71748 SFT Schema Inspection](./aihub-71748-schema-inspection.md)
 - [Safe Dataset Inspector](./safe-dataset-inspector.md)
+- [AIHUB-71748 SFT Join Integrity 결과](./aihub-71748-join-integrity-result.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -46,6 +47,7 @@ checkpoint 생성과 publication을 수행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 SFTdata/SFTlabel `data_id` 제한 Join Integrity 계약 통과 결과 등록 |
 | 2026-07-28 | AIHUB-71748 Schema Inspection incident와 synthetic-only Safe Dataset Inspector 구현·회귀 문서 등록 |
 | 2026-07-28 | AIHUB-71748 SFT 이용조건과 원문 비출력 join·PII·중복·누수·품질 검증 계획 등록 |
 | 2026-07-28 | AI Hub dataset 5종의 read-only inventory, schema 적합성, PII·license blocker 검토 문서 등록 |
