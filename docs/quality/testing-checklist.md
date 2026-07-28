@@ -74,6 +74,7 @@
 | EVAL-004 | 평가 정책 | EOS success·Quick 대표성·Candidate B 계약 상태와 baseline | Unit/Static | 예 | 세 정책 `approved`, Candidate B `not_approved`, Quick v2 별도 승인 | 상태·문서·상수 정합화 | 예 | `pass` — ADR-007과 승인 상수·문서·baseline 정합성 검증 |
 | EVAL-005 | Candidate B Full reference | same-artifact Quick·Full baseline 분리·prompt comparability | Unit/Static/GPU Eval | 예 | cross-artifact·identity mismatch fail closed | 기존 checkpoint evaluation-only | 예 | `pass` — Full·EOS diagnostic 완료, checksum·불변성 통과 |
 | EVAL-006 | EOS generation·decoding 진단 | 4개 길이·11개 profile·15개 synthetic category·privacy·불변성 | Unit/Static/GPU Eval | 예 | 동일 A/B identity, text/token array 미저장, checkpoint/model 불변 | proposed 정책·ADR 승인 전 공식 상태 불변 | 예 | `pass` — GPU 341.208초, 13 checksum·A/B checkpoint/model 불변, result fingerprint 검증 |
+| EVAL-007 | 모델 단계별 EOS 정책 | ADR-008·Common/Base/Instruct/Chat·historical 상태·fingerprint | Unit/Static | 예 | 승인일 일치, pure/assisted 분리, Candidate B 비소급, 미승인 경계 유지 | 정책·상태·인덱스 변경 | 예 | `pass` — 정책 consistency·historical integrity 정적 회귀 추가 |
 | SFT-001 | SFT | chat template·role·assistant loss mask 정렬 | Unit test | 예 | target 위치와 ignore_index 일치 | serializer·mask 수정 | 예 | `planned` |
 | SFT-002 | SFT | SFT 전후 동일 평가·누수 검사 | Integration test | 예 | parent·prompt·split·설정 고정 | 결과 invalid·split 재검토 | 일부 | `planned` |
 | API-001 | API | request/response·validation·오류 schema | Integration test | 후순위 필수 | 명세와 상태 code 일치 | API 명세·구현 수정 | 예 | `planned` |
@@ -111,6 +112,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] EVAL-007 ADR-008·단계별 EOS 계약·historical fingerprint 불변 회귀 추가 |
 | 2026-07-28 | EVAL-006 GPU 동일 조건 진단·privacy·checksum·artifact 불변 검증 통과 |
 | 2026-07-28 | [제안] EVAL-006 다중 길이 EOS generation·decoding 진단 검증 항목 추가 |
 | 2026-07-28 | Candidate B Full·EOS rank 진단·불변성·전체 728 regression 통과 반영 |

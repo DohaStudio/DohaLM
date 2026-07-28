@@ -79,3 +79,6 @@
 |---|---|
 | 2026-07-27 | Candidate A Final EOS 4,782/4,799 reconciliation, 순위와 제한적 decoding 진단 기록 |
 | 2026-07-27 | 사용자 승인으로 EOS success baseline과 Candidate B 평가 조건을 `approved`로 변경 |
+[확정] 이 문서의 Candidate B 성공 조건은 2026-07-27 승인 당시 계약의 historical 기준이다. 2026-07-28
+승인된 [ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)과
+[EOS Success Policy](./eos-success-policy.md)는 향후 모델 단계별 계약이며 과거 판정을 소급 변경하지 않는다.

@@ -28,8 +28,11 @@
 - SQL: 자연어-SQL, schema-query, 설명, 오류-수정 pair와 SQLD 개념을 dialect별로 관리하며 실제 개인정보 DB dump는 사용하지 않는다.
 - Recruit: 이력서 구조·경력 기술·면접 질문·지원서 예시·직무 분석을 후보로 삼고 실제 사용자 데이터, 민감정보, 고용 편향과 기업 문서 저작권을 별도 승인한다.
 - Game: 분기 대화·quest·lore·character·world·rule·state interaction을 다루고 IP, 유해 콘텐츠와 player PII를 검사한다.
-- Chat: 일반 질의응답·multi-turn·요약·안전한 거절·style control을 다루고 역할 혼동·긴 문맥·일관성을 평가한다.
-- Agent: tool schema·selection·JSON·observation-action trace·failure recovery·permission handling을 다루고 injection·허위 tool result·secret·자동 실행 권한을 차단한다.
+- Chat: 일반 질의응답·multi-turn·요약·안전한 거절·style control을 다루고 역할 혼동·긴 문맥·일관성과
+  응답 종료를 평가한다. Service decoding은 모델 EOS 평가와 분리한다.
+- Agent: tool schema·selection·JSON·observation-action trace·failure recovery·permission handling을 다루고
+  injection·허위 tool result·secret·자동 실행 권한을 차단한다. 종료는 EOS뿐 아니라 tool call·workflow·권한
+  경계의 structured termination으로 평가한다.
 
 ## 3. Release 조건
 

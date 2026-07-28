@@ -30,8 +30,8 @@
 
 | 구분 | 범위 | 상태 |
 |---|---|---|
-| 현재 | DohaLM-Tiny, 운영 16k tokenizer, canonical dataset lineage, Pilot, Candidate A baseline, Candidate B readiness | `in_progress` |
-| 다음 Base 후보 | Candidate B 25M 단일 실행과 동일 Full 평가 | `awaiting_approval` |
+| 현재 | DohaLM-Tiny, 운영 16k tokenizer, canonical dataset lineage, Pilot, Candidate A baseline, Candidate B 평가 완료 | `in_progress` |
+| 다음 Base 후보 | Candidate B는 historical 계약 미통과; 재평가·parent 선정은 별도 승인 | `awaiting_separate_approval` |
 | 파생 언어 모델 | Instruct, Chat, Code, SQL, Recruit, Game, Agent | `long_term_planned` |
 | Multimodal | Vision encoder·LLM 연결, image-text alignment | `long_term_planned` |
 | 공개·배포 | model card, license, safety, lineage, evaluation, publication approval | `not_approved` |
@@ -40,7 +40,7 @@
 flowchart LR
     Current[Current: Tiny Base development]
     CandidateA[Candidate A completed]
-    CandidateB[Candidate B awaiting approval]
+    CandidateB[Candidate B evaluated contract not passed]
     LongTerm[Long-term Model Family]
     Domains[Instruct / Chat / Domain / Agent]
     Multimodal[Vision / Multimodal]
@@ -89,8 +89,10 @@ flowchart LR
 
 - Candidate A 완료 상태와 공식 Full baseline fingerprint를 변경하지 않는다.
 - Candidate B는 25,000,000 requested token, 25,001,984 scheduled token, 12,208 step, fresh seed 17을 유지한다.
-- Candidate B는 `execution_allowed: false`, training `not_approved`를 유지한다.
+- Candidate B Run 0002 training은 완료됐다. 추가 training은 `not_approved`, reassessment는
+  `awaiting_separate_approval`, derivative parent eligibility는 `proposed`다.
 - 장기 Family 계획은 Dataset·Tokenizer·Packing·EOS·Evaluation 계약의 변경 승인이 아니다.
+- EOS 종료 계약은 [승인 정책](../evaluation/eos-success-policy.md)에서 Base·Instruct·Chat과 service decoding을 분리한다.
 
 ## 변경 이력
 

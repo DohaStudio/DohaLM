@@ -1,14 +1,15 @@
 # EOS Generation·Decoding 진단 정책
 
 - 문서 상태: `review`
-- 정책 상태: `proposed`
+- 정책 상태: `approved`
+- 승인일: 2026-07-28
 - 마지막 검토일: 2026-07-28
 - 태그: `evaluation`, `generation`, `eos`, `decoding`, `privacy`
 - 관련 ADR: [ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)
 
 ## 목적과 적용 경계
 
-이 제안은 Base Model의 순수 EOS 생성 능력과 decoding 보조 효과를 분리해 측정한다. 승인된
+이 정책은 Base Model의 순수 EOS 생성 능력과 decoding 보조 효과를 분리해 측정한다. 승인된
 [Candidate B 평가 계약](./candidate-b-evaluation-contract.md)과 Candidate A 공식 Full baseline을
 자동 변경하지 않는다. 서비스 decoding, Chat/Instruct 종료 규칙과 강제 종료는 별도 승인 대상이다.
 
@@ -49,10 +50,10 @@ position, loop 상태와 종료 이유를 기록한다. profile·길이·categor
 sequence와 전체 token ID는 저장하지 않는다. EOS ID는 공개 special-token 계약의 단일 상수로 manifest에만
 기록한다. checkpoint, weight, dataset, 원본 runtime log는 Git에 포함하지 않는다.
 
-## 성공 기준 재검토 후보
+## 단계별 성공 기준
 
-현재 승인 계약의 greedy EOS `>0%`, maximum-length `<100%`는 그대로 유지한다. 진단 후 다음 항목을
-별도 승인으로 검토할 수 있다.
+Candidate B의 historical 계약에 적용된 greedy EOS `>0%`, maximum-length `<100%` 판정은 그대로
+보존한다. 향후 모델 단계에는 [EOS Success Policy](./eos-success-policy.md)를 적용한다.
 
 - 16-token 단일 horizon 대신 64/128-token 결과 병기
 - completion shape와 prompt category별 최소 기준
@@ -67,9 +68,10 @@ forced EOS, EOS logit bias, 길이 기반 강제 stop과 외부 문장 분리기
 
 - Candidate A 공식 baseline: 유지
 - Candidate B 공식 상태: `evaluated_contract_not_passed` 유지
-- 이 정책과 ADR-008: `proposed`
+- 이 정책과 ADR-008: `approved` (2026-07-28)
 - 기본 decoding 변경: `not_approved`
 - 추가 학습: `not_approved`
+- Candidate B 재평가: `awaiting_separate_approval`
 
 동일 조건 진단은 [결과 문서](./eos-generation-decoding-diagnostic-result.md)에 기록했다. pure greedy는
 두 모델 모두 128 token까지 EOS 0%였고 Candidate B는 decoding-assisted profile에서만 종료가 관찰됐다.
@@ -84,5 +86,6 @@ evaluation identity·prompt taxonomy·privacy 계약이 변경될 때 재검토�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008 승인과 Base·Instruct·Chat 단계별 EOS 계약, historical 비소급 경계 반영 |
 | 2026-07-28 | 동일 조건 진단 결과와 `decoding_assisted_termination_only` 상태 제안 연결 |
 | 2026-07-28 | Candidate A/B 동일 조건의 다중 길이·decoding profile 진단 정책 초안 작성 |

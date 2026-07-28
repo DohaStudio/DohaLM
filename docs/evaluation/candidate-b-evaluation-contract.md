@@ -6,7 +6,15 @@
 - 승인 범위: Candidate B 완료 후 필수 Evaluation Framework 검증
 - 대체 여부: `not_superseded`
 - 추가 학습 승인: `not_approved` (Run 0002 승인 소비·실행 완료)
-- 마지막 검토일: 2026-07-27
+- 마지막 검토일: 2026-07-28
+
+## Historical 적용 상태
+
+[확정] 이 계약은 2026-07-27 승인 당시 Candidate B에 적용된 historical 계약이다. Candidate B는 이 계약의
+synthetic greedy EOS 기준을 통과하지 못해 공식 상태 `evaluated_contract_not_passed`를 유지한다.
+[ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)과 향후
+[EOS Success Policy](./eos-success-policy.md)는 모델 단계별 계약을 정의하지만 이 판정을 소급 변경하지 않는다.
+공식 baseline 변경 또는 재평가는 `awaiting_separate_approval`이다.
 
 ## 고정 비교 조건
 
@@ -45,7 +53,7 @@ ADR 영향 검토가 필요하다.
 
 Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS 기준이 일반 정확도·반복·자원 성능과 충돌하거나, privacy·lineage 요건이 강화되면 재검토한다.
 
-[제안] 동일 synthetic prompt와 16/32/64/128-token horizon으로 Candidate A/B를 비교하는
+[확정] 동일 synthetic prompt와 16/32/64/128-token horizon으로 Candidate A/B를 비교하는
 [EOS Generation·Decoding 진단](./eos-generation-decoding-policy.md)은 재검토 근거만 제공한다. 결과가
 나와도 이 approved 계약과 Candidate B 공식 상태는 사용자 승인 없이 변경하지 않는다.
 
@@ -53,6 +61,7 @@ Evaluation identity 또는 Candidate A baseline이 바뀌거나, 승인된 EOS �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008 승인 후에도 당시 계약 판정과 공식 상태를 소급 변경하지 않는 historical 경계 명시 |
 | 2026-07-28 | proposed 다중 길이 EOS·decoding 진단을 계약 재검토 근거로만 연결 |
 | 2026-07-28 | Run 0002 완료 후 추가 training 미승인·승인 재사용 금지 경계 명시 |
 | 2026-07-28 | Candidate B same-artifact Quick reference, Full baseline 분리와 prompt comparability 계약 명시 |
