@@ -25,6 +25,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT Join Integrity 결과](./aihub-71748-join-integrity-result.md)
 - [AIHUB-71748 SFT 제한 PII Scan 결과](./aihub-71748-pii-scan-result.md)
 - [AIHUB-71748 SFT PII False Positive 및 Threshold 정책](./aihub-71748-pii-policy.md)
+- [AIHUB-71748 SFT Content Exact Duplicate Scan 결과](./aihub-71748-exact-duplicate-result.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -49,6 +50,7 @@ checkpoint 생성과 publication을 수행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 Content Exact Duplicate 1회 scan과 split overlap·component consistency 결과 등록 |
 | 2026-07-29 | AIHUB-71748 PII 민감 주제·식별자 분리, false positive·threshold proposal과 정책 계층 등록 |
 | 2026-07-29 | AIHUB-71748 제한 PII 후보 scan과 첫 Fail Closed·두 번째 독립 실행 결과 등록 |
 | 2026-07-29 | AIHUB-71748 SFTdata/SFTlabel `data_id` 제한 Join Integrity 계약 통과 결과 등록 |
