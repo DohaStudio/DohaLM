@@ -19,12 +19,13 @@
 - [Candidate A Final Full 결과](./candidate-a-final-full-result.md)
 - [Initial·Pilot·Candidate A 동일 Quick 비교](./initial-pilot-candidate-a-quick-comparison.md)
 - [EOS·불완전 블록 진단](./eos-incomplete-block-diagnostic.md)
+- [EOS Success Policy](./eos-success-policy.md) (`approved`, 2026-07-28)
 - [Quick·Full 대표성 정책](./quick-full-representativeness-policy.md)
 - [Candidate B 평가 계약](./candidate-b-evaluation-contract.md)
 - [Candidate B Full Evaluation 계약 수정](./candidate-b-full-evaluation-contract-fix.md)
 - [Candidate B Final Full 결과](./candidate-b-final-full-result.md)
 - [Candidate A/B Full 비교](./candidate-a-b-full-comparison.md)
-- [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md) (`proposed`)
+- [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md) (`approved`)
 - [EOS Generation·Decoding 진단 결과](./eos-generation-decoding-diagnostic-result.md)
 - [평가 manifest 예시](./evaluation-manifest.example.yaml)
 - [외부 benchmark 정책](./benchmark-policy.md)
@@ -47,13 +48,16 @@
 - Quick v2: `planned_awaiting_separate_approval`
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
-- EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `proposed`, 공식 계약·상태 변경 없음
+- EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `approved`, historical Candidate B 상태 변경 없음
+- Instruct·Chat EOS framework: `approved`; numeric thresholds·training: `proposed` / `not_approved`
+- Service decoding: `proposed`; implementation: `not_started`
 - 배포: `not_applicable`
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008과 Base·Instruct·Chat EOS Success Policy 승인, historical 비소급 경계 반영 |
 | 2026-07-28 | Candidate A/B 동일 prompt 다중 길이 진단 완료와 assisted-only 종료 제안 연결 |
 | 2026-07-28 | EOS 다중 길이·decoding 진단 설정과 proposed 정책·ADR 연결 |
 | 2026-07-28 | Candidate B Full·EOS ranking 완료, Candidate A/B 비교와 계약 미통과 판정 연결 |

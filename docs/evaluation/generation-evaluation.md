@@ -12,13 +12,15 @@
 
 현재 기본 전략은 deterministic greedy이며 sampling adapter는 후속 승인 전 비활성화한다. EOS 도달, 길이 제한 도달, empty, UNK/byte fallback/special token 비율, adjacent 및 repeated 4-gram, unique ratio, distinct-1/2/3, degenerate loop를 집계한다.
 
-[제안] [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md)은 기존 기본 전략을
+[확정] [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md)은 기존 기본 전략을
 변경하지 않고 16/32/64/128-token horizon과 sampling·반복 억제를 별도 진단한다. pure greedy 모델
-지표와 decoding-assisted 지표를 합산하지 않으며 정책과 ADR-008은 사용자 승인 전 `proposed`다.
+지표와 decoding-assisted 지표를 합산하지 않는다. 정책과 ADR-008은 2026-07-28 `approved`됐으며
+단계별 성공 기준은 [EOS Success Policy](./eos-success-policy.md)를 따른다.
 
 [확정] Candidate A Final 제한 진단에서는 sampling 6종이 반복·loop를 낮췄지만 모든 profile이 16-token 제한에서 EOS 0%였다. 이 결과는 기본 greedy 또는 decoding 정책을 변경하지 않으며 [진단 문서](./eos-incomplete-block-diagnostic.md)와 승인된 [Candidate B 계약](./candidate-b-evaluation-contract.md)의 근거로만 사용한다.
 
-[확정] EOS success policy는 2026-07-27 승인됐으며 Candidate A Full을 기준선으로 한다. Candidate B training과 기본 decoding 변경은 승인하지 않는다.
+[확정] Candidate A Full은 공식 Base baseline이다. Candidate B historical 판정은 소급 변경하지 않으며
+재평가와 기본 decoding 변경은 별도 승인 대상이다.
 
 결과에는 prompt ID hash, category, 입력 token 길이, 생성 token hash와 집계값만 저장한다. prompt text, decoded generation, 전체 token ID 배열은 저장하지 않는다. 실제 text 저장이 필요한 경우 별도 사용자 승인 없이는 fail-closed한다.
 
@@ -26,6 +28,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008과 모델 단계별 EOS Success Policy 승인 상태 반영 |
 | 2026-07-28 | 다중 길이·prompt category·decoding-assisted 진단 제안 연결; 기본 정책 불변 |
 | 2026-07-27 | synthetic prompt와 text-free generation statistics 구현 계약 반영 |
 | 2026-07-27 | FP32 제한 decoding 비교와 정책 비변경 경계 기록 |

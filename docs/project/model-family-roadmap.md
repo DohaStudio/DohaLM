@@ -27,9 +27,9 @@ flowchart TD
 
 | Family | Primary purpose | 기본 Parent | Training method 후보 | Data category | Main evaluation | Current status | Release scope | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·EOS·stability | `in_progress` | `not_approved` | Tiny 단계; Candidate A/B는 Base 후보 단계 |
-| Instruct | 지시 이해·형식 준수·task 수행 | 승인된 Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·safety | `long_term_planned` | `not_approved` | 현재 SFT 미승인 |
-| Chat | 다중 턴 대화·맥락 유지 | Instruct 우선 후보 | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·relevance·safety | `long_term_planned` | `not_approved` | Base 직접 파생 시 근거 필요 |
+| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `in_progress` | `not_approved` | Candidate A 공식 baseline; Candidate B historical 계약 미통과 |
+| Instruct | 지시 이해·형식 준수·task 수행 | 승인된 Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·응답 종료·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·학습 미승인 |
+| Chat | 다중 턴 대화·맥락 유지 | Instruct 우선 후보 | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·응답 종료·service decoding 분리·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·service 정책 미승인 |
 | Code | 생성·설명·debug·test | Base 또는 Code CPT | code CPT, code SFT | source·docs·tests·fix pairs | compile·unit test·functional·security | `long_term_planned` | `not_approved` | 라이선스·secret·benchmark 오염 검토 |
 | SQL | SQL 생성·수정·교육 | Base 또는 domain CPT | SQL CPT/SFT | schema·query·explanation | parse·execution·result·dialect | `long_term_planned` | `not_approved` | dialect별 평가 분리 |
 | Recruit | JD·지원 문서·면접 보조 | Base/Instruct | domain CPT/SFT | JD·career writing | relevance·factuality·privacy·bias | `long_term_planned` | `not_approved` | 채용 의사결정 자동화와 구분 |
@@ -41,7 +41,12 @@ flowchart TD
 - SQL dialect 후보는 ANSI SQL, MySQL, PostgreSQL과 Oracle이며 학습·평가는 dialect별로 구분한다.
 - Recruit는 이력서·경력기술서·자기소개서·JD 분석·면접 준비·지원 workflow를 지원 후보로 삼되 자동 채용 의사결정은 별도 고위험 범위로 둔다.
 - Game은 NPC dialogue, quest, lore, world building, 운영 보조와 player interaction을 후보로 삼는다.
-- Agent는 tool calling, structured output, planning, workflow와 외부 시스템 연동을 다루며 단순 Chat과 권한·실행 안전성 계약을 분리한다.
+- Agent는 일반 EOS뿐 아니라 tool call 종료·workflow completion·permission boundary를 구조적 종료 계약으로
+  다루며 단순 Chat과 권한·실행 안전성 계약을 분리한다.
+
+종료 계약은 [EOS Success Policy](../evaluation/eos-success-policy.md)를 따른다. Base는 greedy 종료를 필수
+진단하되 단일 실패 조건으로 사용하지 않고, Instruct·Chat은 응답 완결성을 필수로 하며 수치 임계값은
+`proposed`다. Service decoding은 모델 평가와 분리한다.
 
 ## 3. Roadmap Track
 

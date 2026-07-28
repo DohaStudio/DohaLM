@@ -26,6 +26,7 @@
 | Candidate B Final Full | `completed` | same-artifact Quick reference, 불변성·checksum 검증 통과 |
 | Candidate B official result | `evaluated_contract_not_passed` | teacher-forced 개선, greedy EOS·maximum-length 조건 미충족 |
 | EOS Generation·Decoding diagnostic | `completed` | 동일 A/B prompt, greedy 128 EOS 0%; assisted-only 종료 |
+| ADR-008·모델 단계별 EOS 정책 | `approved` | teacher-forced/generation, pure/assisted, Base/Instruct/Chat 계약 분리 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
 Run 0002 checkpoint 4,883/9,766/12,208, Final Quick·Full과 EOS ranking 진단이 완료됐다.
@@ -64,7 +65,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 - [확정] Candidate A Final Full은 공식 internal baseline이다.
 - [확정] Final Quick은 `approximately_representative`이며 optimistic bias가 있어 공식 판정은 Full을 사용한다.
 - [확정] EOS 4,799 input과 4,782 target 차이는 label shift에 따른 position-0 제외 17건으로 완전히 설명됐다.
-- [확정] EOS success policy, Quick representativeness policy와 Candidate B Evaluation Contract는 approved다.
+- [확정] ADR-008, 모델 단계별 EOS Success Policy, Quick representativeness policy와 Candidate B historical Evaluation Contract는 approved다.
 - Quick v2는 `planned_awaiting_separate_approval`이다.
 
 ## 6. Candidate B 현재 상태
@@ -81,14 +82,17 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Teacher-forced loss·Top-k·EOS rank는 Candidate A보다 개선됐지만 greedy EOS 0%와 maximum-length 100%로 계약 미통과.
 - 동일 조건 16/32/64/128-token 진단에서도 pure greedy EOS는 0%; 상태 제안은 `decoding_assisted_termination_only`, 공식 상태는 불변.
 - Training Run 0002: `completed`; 추가 training/retry/resume/extension: `not_approved`.
+- Official Base baseline: Candidate A Final Full; Candidate B: `official_base_baseline: false`.
+- Candidate B reassessment: `awaiting_separate_approval`; derivative parent eligibility: `proposed`.
 
 ## 7. 미승인·미착수
 
-- Candidate B training, Candidate C, Candidate B resume/retry/extension
+- Candidate B 추가 training, Candidate C, Candidate B resume/retry/extension
 - Quick v2 생성
 - SFT, RLHF, Preference Training
 - Instruct·Chat·Code·SQL·Recruit·Game·Agent·Vision/Multimodal 학습
 - Model/checkpoint/tokenizer/dataset publication과 deployment
+- Service decoding 채택·구현, Instruct·Chat EOS numeric thresholds
 
 ## 8. 다음 권장 작업
 
@@ -100,6 +104,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008·모델 단계별 EOS 정책 승인과 Candidate B 재평가·derivative parent 미승인 경계 반영 |
 | 2026-07-28 | 동일 Candidate A/B EOS generation·decoding 진단 완료와 공식 상태 불변 반영 |
 | 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교 완료와 계약 미통과 판정 반영 |
 | 2026-07-28 | Candidate B Run 0002 학습·checkpoint·Quick 완료와 Full evaluator blocker 반영 |

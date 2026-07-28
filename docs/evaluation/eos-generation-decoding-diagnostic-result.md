@@ -1,7 +1,8 @@
 # EOS Generation·Decoding 진단 결과
 
 - 문서 상태: `review`
-- 정책 상태: `proposed`
+- 실행 당시 정책 상태: `proposed`
+- 현재 정책 상태: `approved` (2026-07-28, 결과 fingerprint 불변)
 - 실행일: 2026-07-28
 - Diagnostic ID: `eos-generation-decoding-20260728-01`
 - 실행 commit: `2419608c7147da3e773ad96a63d0a313c7fce0d1`
@@ -73,9 +74,9 @@ Candidate B는 loop 전 step에서 mean EOS rank 3,685.44, probability 0.066351%
 - Decoding-assisted behavior: sampling과 특히 no-repeat bigram에서 종료가 나타나 모델이 EOS를 완전히
   배제한 것은 아니지만, 보조 정책이 없으면 종료하지 않는다.
 - 상태 제안: `decoding_assisted_termination_only`.
-- 공식 상태: 사용자 승인 전 `evaluated_contract_not_passed` 유지.
+- 공식 상태: historical `evaluated_contract_not_passed` 유지.
 - Candidate A: 공식 Full baseline 유지.
-- 정책·ADR-008: `proposed` 유지.
+- 정책·ADR-008: 진단 후 2026-07-28 `approved`; 이 결과의 historical 판정은 비소급.
 
 Base Model의 EOS 기준을 바꾸거나 no-repeat bigram을 서비스 기본값으로 채택하거나 추가 학습을 수행하는
 결정은 이 결과에 포함되지 않는다.
@@ -84,4 +85,5 @@ Base Model의 EOS 기준을 바꾸거나 no-repeat bigram을 서비스 기본값
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-008 승인과 historical 결과 비소급 상태를 메타데이터에 반영; 결과 fingerprint 불변 |
 | 2026-07-28 | 동일 A/B 다중 길이·decoding profile 진단과 상태 제안 기록 |

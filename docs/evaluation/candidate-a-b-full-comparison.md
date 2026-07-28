@@ -63,6 +63,9 @@ FP16/FP32 tolerance, deterministic repeat, NaN/Inf, checkpoint·model 불변성 
 Candidate B는 teacher-forced 품질과 EOS rank를 개선했지만 승인된 generation 종료 조건을 충족하지 못했다.
 따라서 `training: completed`, `full_evaluation: completed`,
 `official_candidate_b_result: evaluated_contract_not_passed`로 분리하며 Candidate A를 공식 baseline으로 유지한다.
+
+[확정] 2026-07-28 승인된 ADR-008과 모델 단계별 EOS 계약은 이 historical 비교와 공식 baseline을 소급
+변경하지 않는다. Candidate B 재평가와 derivative parent 선정은 별도 승인 대상이다.
 후속 decoding·EOS 정책 변경이나 추가 학습은 별도 사용자 승인과 ADR 영향 검토가 필요하다.
 
 [동일 조건 신규 진단](./eos-generation-decoding-diagnostic-result.md)은 historical prompt identity 문제를
