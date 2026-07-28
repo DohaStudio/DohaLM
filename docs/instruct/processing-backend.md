@@ -35,6 +35,7 @@ flowchart LR
 | `processing_validation.py` | Manifest, Rule, Output Schema, 승인 경계 검증 |
 | `processing_statistics.py` | Record 식별자가 없는 불변 aggregate 통계 |
 | `processing_manifest.py` | Manifest와 승인·입력 identity의 메모리 내 schema |
+| `aihub_71748_manifest.py` | AIHUB-71748 비소비 Manifest identity·Rule·threshold·권한 검증 |
 
 ## Rule Engine
 
@@ -79,17 +80,27 @@ flowchart LR
 
 오류 시 부분 결과, Manifest 파일, Processed Dataset 또는 실행 권한을 생성하지 않는다.
 
+AIHUB-71748 validator는 in-memory Mapping 하나만 받고 Dataset이나 runtime file에 접근하지 않는다. canonical
+Manifest의 Approval 값이 채워졌거나 processing·tokenization·training·execution 권한이 `true`면 Fail Closed한다.
+
 ## Readiness
 
 ```yaml
 processing_backend: implemented_synthetic_validated
 processing_execution: not_approved
-processing_manifest_generation: not_approved
+processing_manifest: completed_non_executable
 processed_dataset: not_created
 sft_backend: not_started
 training: not_approved
 execution_allowed: false
 ```
 
-다음 단계에는 실제 Dataset Processing이 아니라 Processing Manifest 인스턴스와 Rule threshold를 별도로
-검토·승인해야 한다. 그 승인만으로도 SFT Training은 허용되지 않는다.
+AIHUB-71748 Manifest와 Rule threshold는 비소비 계약으로 확정됐다. 다음 단계에는 새 Run ID와 single-use
+Approval을 사용하는 실제 Dataset Processing 실행 승인이 별도로 필요하며, 그 승인만으로도 SFT Training은
+허용되지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-29 | AIHUB-71748 canonical Manifest validator와 실행 권한 차단 계약 추가 |

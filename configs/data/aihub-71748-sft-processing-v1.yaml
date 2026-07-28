@@ -1,0 +1,319 @@
+manifest_identity:
+  manifest_type: sft_dataset_processing
+  manifest_version: 1
+  provider: AI_Hub
+  dataset_id: AIHUB-71748
+  component: SFT
+  input_components:
+    - SFTdata
+    - SFTlabel
+  allowed_splits:
+    - Training
+    - Validation
+  source_selection_status: CONDITIONALLY_SELECTED
+
+source_contract:
+  logical_root: "${DOHALM_DATASET_ROOT}/AIHUB-71748"
+  absolute_path_allowed: false
+  dataset_read_required_for_validation: false
+
+input_contract:
+  records:
+    Training: 10580
+    Validation: 1322
+    Total: 11902
+  join_key: data_id
+  join_relationship: one_to_one
+  required_fields:
+    SFTdata:
+      - data_id
+      - question
+      - question_count
+      - question_type
+      - data_category
+    SFTlabel:
+      - data_id
+      - question
+      - answer.contents
+      - answer.answer_count
+  component_question_consistency:
+    expected_matches: 11902
+    expected_mismatches: 0
+
+output_schema:
+  instruction:
+    source: SFTdata.question
+    type: string
+    required: true
+  input:
+    value: null
+    type:
+      - "null"
+      - string
+    required: false
+  output:
+    source: SFTlabel.answer.contents
+    type: string
+    required: true
+  system:
+    value: null
+    type:
+      - "null"
+      - string
+    required: false
+  metadata:
+    training_input: false
+    fields:
+      provider:
+        value: AI_Hub
+      dataset_id:
+        value: AIHUB-71748
+      component:
+        value: SFT
+      source_record_id:
+        source: data_id
+        persistence: internal_only
+      source_split:
+        source: archive_derived_split
+      question_type:
+        source: question_type
+      data_category:
+        source: data_category
+
+rule_order:
+  - INPUT_IDENTITY_VALIDATION
+  - SCHEMA_VALIDATION
+  - JOIN_VALIDATION
+  - OUTPUT_SCHEMA_MAPPING
+  - PII_POLICY
+  - EXACT_DUPLICATE_POLICY
+  - NEAR_DUPLICATE_POLICY
+  - LEAKAGE_POLICY
+  - VALIDATION_SPLIT_POLICY
+  - FINAL_SCHEMA_VALIDATION
+  - STATISTICS_VALIDATION
+  - MANIFEST_FINALIZATION
+
+processing_rules:
+  SCHEMA_MAPPING:
+    enabled: true
+    action: map_to_sft_schema
+  PII_POLICY:
+    enabled: true
+    status: approved_for_processing_manifest
+    sensitive_topic_only:
+      action: KEEP
+      condition: no_direct_identifier
+    single_direct_identifier:
+      action: REVIEW_REQUIRED
+    multiple_direct_identifiers:
+      action: BLOCKED
+    direct_identifier_with_sensitive_topic:
+      action: BLOCKED
+    critical_candidate:
+      action: BLOCKED
+  EXACT_DUPLICATE_POLICY:
+    enabled: true
+    status: approved_for_processing_manifest
+    exact_qa_duplicate_same_split:
+      action: CANONICAL_CANDIDATE
+      canonical_order:
+        - source_order
+        - first_record
+    exact_qa_duplicate_cross_split:
+      action:
+        Training: KEEP
+        Validation: VALIDATION_EXCLUSION_CANDIDATE
+    question_conflict:
+      action: BLOCKED
+    answer_reuse:
+      action: KEEP
+  NEAR_DUPLICATE_POLICY:
+    enabled: true
+    status: approved_for_processing_manifest
+    near_duplicate_same_split:
+      similarity_0_90_to_0_97:
+        action: KEEP
+      similarity_0_97_to_1_00:
+        action: REVIEW_REQUIRED
+    cross_split_question_near_duplicate:
+      similarity_0_90_to_0_97:
+        action: REVIEW_REQUIRED
+      similarity_0_97_to_1_00:
+        action:
+          Training: KEEP
+          Validation: VALIDATION_EXCLUSION_CANDIDATE
+    cross_split_answer_near_duplicate:
+      action: REVIEW_REQUIRED
+    qa_pair_near_duplicate:
+      action:
+        Training: KEEP
+        Validation: VALIDATION_EXCLUSION_CANDIDATE
+  LEAKAGE_POLICY:
+    enabled: true
+    status: approved_for_processing_manifest
+    train_validation_qa_leak:
+      action:
+        Training: KEEP
+        Validation: VALIDATION_EXCLUSION_CANDIDATE
+    train_validation_question_leak:
+      exact_or_normalized:
+        action:
+          Training: KEEP
+          Validation: VALIDATION_EXCLUSION_CANDIDATE
+      near:
+        action: REVIEW_REQUIRED
+    train_validation_answer_leak:
+      action: KEEP
+    evaluation_prompt_leak:
+      action: BLOCKED
+    model_evaluation_prompt_leak:
+      action: BLOCKED
+    benchmark_contamination:
+      status: blocked_not_available
+      processing_effect: no_record_action
+      release_effect: benchmark_validation_required_before_final_release
+  VALIDATION_SPLIT_POLICY:
+    enabled: true
+    status: approved_for_processing_manifest
+    policy_ref: validation_policy
+
+validation_policy:
+  remove_exact_cross_split_qa: true
+  remove_normalized_cross_split_qa: true
+  remove_high_similarity_cross_split_qa: true
+  review_cross_split_question_near_duplicates: true
+  answer_only_overlap:
+    remove: false
+  minimum_validation_records: 1000
+
+review_required_handling:
+  general:
+    Training:
+      action: KEEP
+      internal_policy_label_required: true
+    Validation:
+      action: VALIDATION_EXCLUSION_CANDIDATE
+  pii_review_required:
+    Training:
+      action: VALIDATION_EXCLUSION_CANDIDATE
+    Validation:
+      action: VALIDATION_EXCLUSION_CANDIDATE
+  manual_source_text_review: false
+
+allowed_actions:
+  - KEEP
+  - CANONICAL_CANDIDATE
+  - REVIEW_REQUIRED
+  - VALIDATION_EXCLUSION_CANDIDATE
+  - BLOCKED
+  - UNRESOLVED
+
+prohibited_actions:
+  - automatic_mask
+  - automatic_merge
+  - rewrite
+  - synthetic_replace
+  - split_move
+  - label_generation_from_llm
+
+conflict_resolution:
+  strategy: most_restrictive_action
+  priority:
+    - BLOCKED
+    - VALIDATION_EXCLUSION_CANDIDATE
+    - REVIEW_REQUIRED
+    - CANONICAL_CANDIDATE
+    - KEEP
+  unknown_combination: fail_closed
+  merge_candidate_allowed: false
+
+thresholds:
+  near_duplicate:
+    review_min: 0.90
+    high_similarity_min: 0.97
+  critical_pii_maximum: 0
+  question_conflict_maximum_groups: 0
+
+expected_statistics:
+  input:
+    Training: 10580
+    Validation: 1322
+    Total: 11902
+  output:
+    exact_total: unknown_until_processing
+    minimum_training_records: 10000
+    minimum_validation_records: 1000
+    maximum_total_exclusion_rate: 0.10
+
+output_contract:
+  raw_root: "${DOHALM_DATASET_ROOT}/AIHUB-71748"
+  processed_root: "${DOHALM_DATASET_ROOT}/processed/instruct/AIHUB-71748"
+  run_root: "${DOHALM_DATASET_ROOT}/processed/instruct/AIHUB-71748/${PROCESSING_RUN_ID}"
+  overwrite_allowed: false
+  run_id_reuse_allowed: false
+  in_place_update_allowed: false
+
+allowed_outputs:
+  - train.jsonl
+  - validation.jsonl
+  - manifest.yaml
+  - statistics.json
+  - checksums.sha256
+  - processing-result.yaml
+
+processing_approval:
+  approval_id: null
+  processing_run_id: null
+  dataset_id: AIHUB-71748
+  component: SFT
+  manifest_version: 1
+  manifest_sha256: null
+  source_git_commit: null
+  backend_git_commit: null
+  approved_by: null
+  approved_at: null
+  maximum_runs: 1
+  retry_allowed: false
+  resume_allowed: false
+  overwrite_allowed: false
+  processing_allowed: false
+  tokenization_allowed: false
+  training_allowed: false
+  execution_allowed: false
+
+run_id_policy:
+  processing_run_id: AIHUB-71748-SFT-PROCESSING-YYYYMMDD-NNNN
+  approval_id: AIHUB-71748-SFT-PROCESSING-APPROVAL-YYYYMMDD-NNNN
+  single_use: true
+  new_explicit_user_approval_required: true
+
+fail_closed_error_codes:
+  - DATASET_IDENTITY_MISMATCH
+  - INPUT_RECORD_COUNT_MISMATCH
+  - INPUT_SCHEMA_MISMATCH
+  - JOIN_CONTRACT_MISMATCH
+  - UNKNOWN_RULE
+  - RULE_ORDER_MISMATCH
+  - RULE_CONFLICT
+  - UNKNOWN_ACTION
+  - INVALID_THRESHOLD
+  - OUTPUT_SCHEMA_MISMATCH
+  - OUTPUT_PATH_CONFLICT
+  - MISSING_APPROVAL
+  - APPROVAL_PERMISSION_ESCALATION
+  - TRAINING_SIZE_BELOW_MINIMUM
+  - VALIDATION_SIZE_BELOW_MINIMUM
+  - EXCLUSION_RATE_ABOVE_LIMIT
+  - UNKNOWN_POLICY_STATE
+
+status:
+  processing_manifest: completed
+  rule_thresholds: approved_for_processing_manifest
+  processing_backend: implemented
+  processing_execution: not_approved
+  processed_dataset: not_created
+  tokenization: not_started
+  sft_backend: not_started
+  sft_training: not_approved
+  execution_allowed: false

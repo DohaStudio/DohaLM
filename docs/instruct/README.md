@@ -37,6 +37,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT Dataset Selection Decision](./aihub-71748-selection-decision.md)
 - [SFT Dataset Processing Backend](./processing-backend.md)
 - [SFT Processing Manifest Schema](./processing-manifest-schema.md)
+- [AIHUB-71748 SFT Processing Manifest](./aihub-71748-processing-manifest.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -53,6 +54,8 @@ backend: not_started
 dataset: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
 processing_backend: implemented_synthetic_validated
+processing_manifest: completed_non_executable
+rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
 ```

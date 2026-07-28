@@ -1,5 +1,10 @@
 """Synthetic-only SFT Dataset Processing backend contracts."""
 
+from .aihub_71748_manifest import (
+    AIHub71748ManifestError,
+    AIHub71748ManifestValidation,
+    validate_aihub_71748_processing_manifest,
+)
 from .processing_engine import ProcessingResult, process_synthetic_records
 from .processing_manifest import (
     MANIFEST_VERSION,
@@ -25,6 +30,8 @@ from .processing_statistics import ProcessingStatistics, RuleImpact
 from .processing_validation import ProcessingValidationError
 
 __all__ = [
+    "AIHub71748ManifestError",
+    "AIHub71748ManifestValidation",
     "CANONICAL_SELECTION",
     "EXACT_DUPLICATE",
     "InputDatasetIdentity",
@@ -46,4 +53,5 @@ __all__ = [
     "VALIDATION_EXCLUSION",
     "default_processing_rules",
     "process_synthetic_records",
+    "validate_aihub_71748_processing_manifest",
 ]
