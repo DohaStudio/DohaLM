@@ -6,7 +6,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A 10M Token Full Pretraining과 Evaluation Framework 마일스톤을 완료했습니다. Candidate B Run 0002와 Final Quick·Full·EOS ranking도 완료됐습니다. Teacher-forced 지표는 개선됐지만 greedy EOS 종료 조건을 충족하지 못해 Candidate A Final Full을 공식 internal baseline으로 유지합니다.
+현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A/B 학습과 Evaluation Framework를 완료했습니다. ADR-009에 따라 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다. ADR-010으로 DohaLM Instruct 설계·Readiness 문서를 마련했지만 dataset·backend·SFT 실행은 승인되지 않았습니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -28,7 +28,7 @@ Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gat
 
 ## DohaLM Model Family
 
-DohaLM은 한국어 Foundation Model 기반과 재현 가능한 학습·평가·계보 체계를 장기 목표로 합니다. 현재는 `DohaLM Base Tiny` 개발 단계이며, 승인된 Base를 바탕으로 Instruct, Chat, Code, SQL, Recruit, Game, Agent 계열을 검토하고 Vision/Multimodal은 장기 계획으로 둡니다. Candidate A/B는 이 domain family가 아니라 Base 개발 후보 체계입니다.
+DohaLM은 한국어 Foundation Model 기반과 재현 가능한 학습·평가·계보 체계를 장기 목표로 합니다. 현재 공식 Base는 Candidate B이며 [DohaLM Instruct](docs/instruct/README.md)는 설계 완료·실행 미승인 상태입니다. Chat, Code, SQL, Recruit, Game, Agent는 아직 시작하지 않았고 Vision/Multimodal은 장기 계획입니다.
 
 자세한 내용은 [Foundation Model Strategy](docs/project/foundation-model-strategy.md), [Model Family Roadmap](docs/project/model-family-roadmap.md), [Model Lineage](docs/project/model-lineage.md), [Domain Model Strategy](docs/project/domain-model-strategy.md), [Current Project Status](docs/project/current-project-status.md)를 참조하세요.
 

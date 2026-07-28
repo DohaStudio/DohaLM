@@ -21,7 +21,7 @@
 
 ### 2.1 처음 보는 사람
 
-[프로젝트 개요](./project/overview.md) → [현재 프로젝트 상태](./project/current-project-status.md) → [범위와 목표](./project/scope-and-goals.md) → [Foundation Model Strategy](./project/foundation-model-strategy.md) → [Model Family Roadmap](./project/model-family-roadmap.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
+[프로젝트 개요](./project/overview.md) → [현재 프로젝트 상태](./project/current-project-status.md) → [범위와 목표](./project/scope-and-goals.md) → [Foundation Model Strategy](./project/foundation-model-strategy.md) → [Model Family Roadmap](./project/model-family-roadmap.md) → [DohaLM Instruct](./instruct/README.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
 
 장기 제품·연구 계보를 검토할 때는 [Model Lineage](./project/model-lineage.md)와 [Domain Model Strategy](./project/domain-model-strategy.md)를 함께 읽는다. 이 다섯 문서는 `review` 단계의 장기 제안이며 기존 승인 ADR이나 현재 실행 권한을 대체하지 않는다.
 
@@ -41,7 +41,9 @@
 
 [Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [Candidate B 설계](./training/candidate-b-design.md) → [Candidate B Backend](./training/candidate-b-backend.md) → [Candidate B 실패 Run](./training/candidate-b-failed-run-20260728-0001.md) → [Checkpoint 정책](./training/candidate-b-checkpoint-policy.md) → [Candidate B 최종 Readiness](./training/candidate-b-final-readiness.md) → [Candidate B Run 0002 결과](./training/candidate-b-execution-result.md) → [Candidate B Full 결과](./evaluation/candidate-b-final-full-result.md) → [Candidate A/B Full 비교](./evaluation/candidate-a-b-full-comparison.md) → [실험 관리](./training/experiment-management.md)
 
-Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성·Candidate B 평가 계약은 2026-07-27 승인됐다. Candidate B Run 0002는 12,208 step·25,001,984 token과 세 checkpoint로 정상 완료됐고 Final Quick·Full·EOS ranking도 완료됐다. Teacher-forced 개선에도 greedy EOS 종료 조건을 충족하지 못해 Candidate A baseline을 유지하며 추가 학습은 승인되지 않았다.
+Evaluation Framework와 Candidate A/B Full·EOS 진단은 완료됐다. ADR-009에 따라 Candidate B는 current Base
+baseline, Candidate A는 historical baseline이다. ADR-010으로 DohaLM Instruct 전략·schema·template·evaluation·
+safety·readiness 설계를 완료했지만 dataset·backend·SFT·publication은 승인되지 않았다.
 
 ### 2.6 Codex 작업
 
@@ -74,7 +76,7 @@ Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성�
 | 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
 | 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
 | 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1·adapter 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [수동 경로 mapping](./data/analysis/manual-path-mapping.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md), [Corpus Adapter 계약](./data/corpus-adapter-contract.md) |
-| 학습 | 토크나이저, 합성 Trainer Foundation, 실제 Tiny 규모 합성 검증, 사전학습·SFT와 실험 관리 | [Trainer Foundation](./training/trainer-foundation.md), [Tiny 실규모 검증](./training/tiny-training-validation.md), [Sampler와 재개](./training/sampler-state-and-resume.md), [사전학습 계획](./training/pretraining-plan.md), [실험 관리](./training/experiment-management.md) |
+| 학습 | 토크나이저, Base 사전학습, Instruct 설계와 실험 관리 | [Trainer Foundation](./training/trainer-foundation.md), [사전학습 계획](./training/pretraining-plan.md), [DohaLM Instruct](./instruct/README.md), [실험 관리](./training/experiment-management.md) |
 | 평가 | 재현 가능한 checkpoint 비교, 내부 평가, 생성 안정성 | [Evaluation Framework](./evaluation/README.md), [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
 | 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
 | 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
@@ -97,25 +99,31 @@ Evaluation Framework와 Candidate A Full baseline, EOS success·Quick 대표성�
 | [ADR-005](./decisions/ADR-005-evaluation-and-experiment-policy.md) | 평가·실험 관리 정책 | `approved` |
 | [ADR-006](./decisions/ADR-006-development-quality-gates.md) | 개발 단계와 품질 Gate | `approved` |
 | [ADR-007](./decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md) | Evaluation baseline과 Candidate 비교 정책 | `approved` |
+| [ADR-008](./decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md) | 모델 단계별 EOS 평가 정책 | `approved` |
+| [ADR-009](./decisions/ADR-009-candidate-b-official-reassessment.md) | Candidate B current Base baseline | `approved` |
+| [ADR-010](./decisions/ADR-010-dohalm-instruct-strategy.md) | DohaLM Instruct 전략·Readiness | `approved` |
 
 ## 6. 현재 상태
 
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
 - [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
-- [확정] Phase 3·4 모델, Trainer, 운영 tokenizer, 실제 corpus Tiny Overfit, canonical Pilot, Candidate A 10M과 Evaluation Framework는 구현·검증 또는 실행됐다. Candidate B Run 0001은 실패했지만 Run 0002 학습·Final Quick·Full·EOS ranking은 완료됐다. 공식 계약은 미통과이며 서비스·SFT와 추가 Candidate B training은 승인되지 않았다.
+- [확정] Base 개발·Candidate A/B·Evaluation은 완료됐다. Candidate B historical 계약 미통과는 보존하며
+  ADR-009 current Base baseline이다. Instruct는 ADR-010 `design_completed`, execution은 `not_approved`다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
 - [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
 - [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
 - [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer는 `operating-16k-v2/unigram-16k`이며 canonical Pilot, Candidate A 10M, Candidate B Run 0002와 Full 평가는 완료됐다. Candidate B는 계약 미통과이며 추가 training·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
+- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer와 Candidate B current
+  Base baseline은 고정됐다. Instruct dataset·backend·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
 - [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
 
 ## 7. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 DohaLM Instruct 설계 문서·Readiness와 실행 미승인 상태 연결 |
 | 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교와 계약 미통과 상태 연결 |
 | 2026-07-28 | Candidate B Run 0002 학습·Quick 완료와 Full Evaluation 계약 수정 단계 연결 |
 | 2026-07-28 | Candidate B 첫 실행 실패와 numeric validator·quarantine 보완, 재실행 미승인 경계 연결 |

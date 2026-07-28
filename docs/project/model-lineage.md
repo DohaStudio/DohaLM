@@ -61,11 +61,15 @@ flowchart LR
     CandidateA[Candidate A 10M Final]
     Baseline[Candidate A historical Base baseline]
     CandidateB[Candidate B current Base baseline]
+    Instruct[DohaLM Instruct Tiny v1<br/>design only]
+    Chat[DohaLM Chat Tiny v1<br/>not started]
 
     Initial --> Pilot
     Initial --> CandidateA --> Baseline
     Initial -. fresh seed 17, no weight reuse .-> CandidateB
     Baseline -. comparison baseline only .-> CandidateB
+    CandidateB -. separate SFT approval .-> Instruct
+    Instruct -. separate Chat approval .-> Chat
 ```
 
 - [확정] Candidate B는 Candidate A checkpoint를 parent weight로 사용하지 않는다.
@@ -74,6 +78,8 @@ flowchart LR
 - [확정] Candidate B는 ADR-009의 현재 official Base baseline이며 Candidate A는 historical baseline이다.
 - [확정] Candidate B derivative parent eligibility는 `approved_experimental`이다. Instruct·Chat·Domain 모델은
   아직 생성되지 않았고 실제 학습·publication은 `not_approved`다.
+- [확정] ADR-010은 `Candidate B Base → Instruct Tiny v1 → Chat Tiny v1` lineage를 승인했다. 현재 Instruct는
+  `design_completed`, Chat은 `not_started`이며 두 model artifact 모두 생성되지 않았다.
 - [확정] Base·Instruct·Chat·Agent의 종료 의미는 [EOS Success Policy](../evaluation/eos-success-policy.md)와
   [Model Family Roadmap](./model-family-roadmap.md)에 따라 분리한다.
 
@@ -81,4 +87,5 @@ flowchart LR
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-010 Instruct·Chat 설계 lineage와 미생성 상태 반영 |
 | 2026-07-28 | Base immutable 원칙, 필수 lineage metadata와 현재 Candidate 관계 초안 작성 |
