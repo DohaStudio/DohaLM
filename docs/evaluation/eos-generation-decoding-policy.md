@@ -10,8 +10,8 @@
 ## 목적과 적용 경계
 
 이 정책은 Base Model의 순수 EOS 생성 능력과 decoding 보조 효과를 분리해 측정한다. 승인된
-[Candidate B 평가 계약](./candidate-b-evaluation-contract.md)과 Candidate A 공식 Full baseline을
-자동 변경하지 않는다. 서비스 decoding, Chat/Instruct 종료 규칙과 강제 종료는 별도 승인 대상이다.
+[Candidate B 평가 계약](./candidate-b-evaluation-contract.md)의 historical 상태를 자동 변경하지 않는다.
+Current baseline은 ADR-009를 따르며 서비스 decoding, Chat/Instruct 종료 규칙과 강제 종료는 별도 승인 대상이다.
 
 평가는 Candidate A/B Final checkpoint의 `model.eval()`·`torch.inference_mode()` 추론만 허용한다.
 optimizer, scheduler, backward, gradient, 학습, checkpoint 수정은 금지한다.
@@ -66,12 +66,13 @@ forced EOS, EOS logit bias, 길이 기반 강제 stop과 외부 문장 분리기
 
 ## 현재 승인 상태
 
-- Candidate A 공식 baseline: 유지
+- Candidate A: historical baseline 유지
+- Candidate B current Base baseline: `approved` (ADR-009)
 - Candidate B 공식 상태: `evaluated_contract_not_passed` 유지
 - 이 정책과 ADR-008: `approved` (2026-07-28)
 - 기본 decoding 변경: `not_approved`
 - 추가 학습: `not_approved`
-- Candidate B 재평가: `awaiting_separate_approval`
+- Candidate B 재평가: `approved_as_base_baseline` (ADR-009)
 
 동일 조건 진단은 [결과 문서](./eos-generation-decoding-diagnostic-result.md)에 기록했다. pure greedy는
 두 모델 모두 128 token까지 EOS 0%였고 Candidate B는 decoding-assisted profile에서만 종료가 관찰됐다.

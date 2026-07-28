@@ -27,7 +27,7 @@ flowchart TD
 
 | Family | Primary purpose | 기본 Parent | Training method 후보 | Data category | Main evaluation | Current status | Release scope | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `in_progress` | `not_approved` | Candidate A 공식 baseline; Candidate B historical 계약 미통과 |
+| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `in_progress` | `not_approved` | Candidate B current baseline; Candidate A historical baseline |
 | Instruct | 지시 이해·형식 준수·task 수행 | 승인된 Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·응답 종료·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·학습 미승인 |
 | Chat | 다중 턴 대화·맥락 유지 | Instruct 우선 후보 | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·응답 종료·service decoding 분리·safety | `long_term_planned` | `not_approved` | EOS framework approved, 수치·service 정책 미승인 |
 | Code | 생성·설명·debug·test | Base 또는 Code CPT | code CPT, code SFT | source·docs·tests·fix pairs | compile·unit test·functional·security | `long_term_planned` | `not_approved` | 라이선스·secret·benchmark 오염 검토 |
@@ -56,6 +56,10 @@ flowchart TD
 - Track D — Release and Governance: model/dataset card, license, safety, lineage, evaluation, publication approval.
 
 현재 Candidate B는 Track A에만 속한다. 다른 Track은 자동으로 시작되지 않는다.
+
+[확정] ADR-009에 따라 Candidate B는 Instruct·Chat·Code·SQL·Recruit·Game·EOS-aware SFT의
+`approved_experimental` Base parent 후보다. 이는 parent artifact 적격성만 승인하며 Track C의 data contract,
+수치 기준, 학습 실행 또는 publication을 시작하지 않는다.
 
 ## 변경 이력
 

@@ -14,7 +14,9 @@
 synthetic greedy EOS 기준을 통과하지 못해 공식 상태 `evaluated_contract_not_passed`를 유지한다.
 [ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)과 향후
 [EOS Success Policy](./eos-success-policy.md)는 모델 단계별 계약을 정의하지만 이 판정을 소급 변경하지 않는다.
-공식 baseline 변경 또는 재평가는 `awaiting_separate_approval`이다.
+이 문서 작성 당시 공식 baseline 변경 또는 재평가는 `awaiting_separate_approval`이었다. 이후 별도
+[ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)가 historical 판정을 보존한 채 current
+reassessment를 `approved_as_base_baseline`으로 결정했다.
 
 ## 고정 비교 조건
 

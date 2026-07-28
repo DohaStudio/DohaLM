@@ -48,6 +48,11 @@ decoded text와 raw token sequence를 저장하지 않는다.
 - Service decoding policy: `proposed`; implementation: `not_started`
 - Candidate B reassessment: `awaiting_separate_approval`
 
+## 후속 결정
+
+[확정] 별도 승인된 [ADR-009](./ADR-009-candidate-b-official-reassessment.md)가 이 재평가 조건을 소비했다.
+Candidate B historical 상태는 불변이며 current reassessment는 `approved_as_base_baseline`이다.
+
 ## 승인 전 검증
 
 - Candidate A/B artifact와 Full evaluation identity 불변

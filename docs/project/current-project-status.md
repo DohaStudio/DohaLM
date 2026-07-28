@@ -18,7 +18,7 @@
 | Pilot 100-step | `completed` | 100 optimizer step, 204,800 token, approval consumed |
 | Candidate A 10M | `completed` | 4,883 step, 10,000,384 scheduled token |
 | Evaluation Framework | `completed` | Quick·Full·EOS·position·category·stability·privacy·lineage |
-| Candidate A Full baseline | `approved` | ADR-007과 Final Full result |
+| Candidate A Full baseline | `historical` | ADR-007 당시 baseline; ADR-009 이후 회귀 비교용 보존 |
 | Candidate B design/backend | `fix_validated` | numeric checkpoint validation·quarantine 보존 정책 포함 |
 | Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
 | Candidate B Run 0002 training | `completed` | 12,208 step, 25,001,984 token, retry/resume/extension 없음 |
@@ -27,6 +27,9 @@
 | Candidate B official result | `evaluated_contract_not_passed` | teacher-forced 개선, greedy EOS·maximum-length 조건 미충족 |
 | EOS Generation·Decoding diagnostic | `completed` | 동일 A/B prompt, greedy 128 EOS 0%; assisted-only 종료 |
 | ADR-008·모델 단계별 EOS 정책 | `approved` | teacher-forced/generation, pure/assisted, Base/Instruct/Chat 계약 분리 |
+| Candidate B ADR-008 reassessment | `approved_as_base_baseline` | ADR-009; historical 계약 판정과 분리 |
+| Current official Base baseline | `candidate_b` | Full·EOS teacher-forced·position·stability 개선, generation 비악화 |
+| Candidate B derivative parent | `approved_experimental` | 실제 파생 학습·publication은 미승인 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
 Run 0002 checkpoint 4,883/9,766/12,208, Final Quick·Full과 EOS ranking 진단이 완료됐다.
@@ -62,7 +65,8 @@ Candidate B 학습은 다시 실행하지 않는다.
 ## 5. Evaluation
 
 - [확정] Initial/Pilot/Candidate A Mid/Final 동일 Quick 비교와 Candidate A Final Full을 완료했다.
-- [확정] Candidate A Final Full은 공식 internal baseline이다.
+- [확정] Candidate A Final Full은 historical internal baseline이며 수치·fingerprint를 회귀 기준으로 보존한다.
+- [확정] Candidate B Final Full은 ADR-009에 따른 현재 공식 Base baseline이다.
 - [확정] Final Quick은 `approximately_representative`이며 optimistic bias가 있어 공식 판정은 Full을 사용한다.
 - [확정] EOS 4,799 input과 4,782 target 차이는 label shift에 따른 position-0 제외 17건으로 완전히 설명됐다.
 - [확정] ADR-008, 모델 단계별 EOS Success Policy, Quick representativeness policy와 Candidate B historical Evaluation Contract는 approved다.
@@ -82,8 +86,10 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Teacher-forced loss·Top-k·EOS rank는 Candidate A보다 개선됐지만 greedy EOS 0%와 maximum-length 100%로 계약 미통과.
 - 동일 조건 16/32/64/128-token 진단에서도 pure greedy EOS는 0%; 상태 제안은 `decoding_assisted_termination_only`, 공식 상태는 불변.
 - Training Run 0002: `completed`; 추가 training/retry/resume/extension: `not_approved`.
-- Official Base baseline: Candidate A Final Full; Candidate B: `official_base_baseline: false`.
-- Candidate B reassessment: `awaiting_separate_approval`; derivative parent eligibility: `proposed`.
+- Historical contract: Candidate B `evaluated_contract_not_passed`; ADR-008 reassessment:
+  `approved_as_base_baseline`.
+- Official Base baseline: Candidate B Final Full; Candidate A: `historical_base_baseline: true`.
+- Candidate B derivative parent eligibility: `approved_experimental`; 파생 학습·publication은 `not_approved`.
 
 ## 7. 미승인·미착수
 
@@ -93,17 +99,19 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Instruct·Chat·Code·SQL·Recruit·Game·Agent·Vision/Multimodal 학습
 - Model/checkpoint/tokenizer/dataset publication과 deployment
 - Service decoding 채택·구현, Instruct·Chat EOS numeric thresholds
+- Instruct·Chat·Domain CPT·EOS-aware SFT 실행과 data contract
 
 ## 8. 다음 권장 작업
 
-1. Candidate B 결과와 baseline 유지 여부 사용자 검토
-2. EOS 종료 개선을 위한 decoding·학습·데이터 정책 중 어느 범위를 검토할지 별도 결정
-3. 정책 변경 시 ADR 영향, 새 Candidate identity와 별도 실행 승인 패키지 작성
+1. Instruct·Chat·Domain별 data·evaluation·termination 계약 설계 여부 사용자 검토
+2. Service decoding은 Instruct·Chat 단계에서 별도 검토
+3. 실제 파생 학습·publication은 별도 실행 승인 패키지 작성
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 Candidate B current Base baseline 승격과 experimental derivative parent 적격성 반영 |
 | 2026-07-28 | ADR-008·모델 단계별 EOS 정책 승인과 Candidate B 재평가·derivative parent 미승인 경계 반영 |
 | 2026-07-28 | 동일 Candidate A/B EOS generation·decoding 진단 완료와 공식 상태 불변 반영 |
 | 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교 완료와 계약 미통과 판정 반영 |

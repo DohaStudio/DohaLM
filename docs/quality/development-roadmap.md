@@ -131,7 +131,10 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 - [확정] 동일 A/B synthetic prompt의 16/32/64/128-token 진단 완료; pure greedy 모두 EOS 0%, Candidate B는 decoding-assisted 종료만 관찰
 - [제안] Candidate B 상태 후보는 `decoding_assisted_termination_only`; 공식 상태는 사용자 승인 전 `evaluated_contract_not_passed`
 - [확정] ADR-008과 모델 단계별 EOS 정책은 2026-07-28 승인됐다. Candidate B historical 판정은 불변이며
-  reassessment는 `awaiting_separate_approval`, derivative parent eligibility는 `proposed`다.
+  ADR-009 reassessment는 `approved_as_base_baseline`, derivative parent eligibility는
+  `approved_experimental`이다.
+- [확정] Candidate B가 현재 Base baseline이고 Candidate A는 historical baseline이다. 추가 Base pretraining과
+  Candidate C는 현재 baseline 결정에 `not_required`이며 파생 학습은 별도 승인 전 `not_approved`다.
 - [확정] Numeric checkpoint validator와 post-checkpoint quarantine 정책 보완; Run 0002 학습 승인은 소비됐고 재사용 불가
 - [확정] Candidate B 추가 training에는 새 immutable Git identity·Run ID·물리 preflight·single-use training 실행 승인이 필요하지만 현재 작업에는 포함하지 않음
 - [제안] Gate 이후 장기 확장은 [Foundation Model Strategy](../project/foundation-model-strategy.md)와 [Model Family Roadmap](../project/model-family-roadmap.md)의 Track A~D를 사용하되, 기존 Gate 상태나 Candidate 실행 권한을 자동 변경하지 않는다.
@@ -145,6 +148,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 Candidate B current Base baseline과 experimental parent 결정 반영 |
 | 2026-07-28 | ADR-008·Base/Instruct/Chat EOS 계약 승인과 Candidate B historical 비소급 경계 반영 |
 | 2026-07-28 | EOS 다중 길이·decoding 진단 완료와 assisted-only 종료 제안 반영 |
 | 2026-07-28 | Candidate B Full·EOS ranking 완료와 Candidate A/B 비교·계약 미통과 반영 |

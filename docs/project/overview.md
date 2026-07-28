@@ -41,7 +41,7 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 | PyTorch 기반 모델 구현 | [확정] | 직접 구현 범위가 코드와 테스트로 확인됨 |
 | 데이터 처리 파이프라인 | [확정] | 원본 불변·계보·분할·누수·fingerprint 계약과 canonical pilot-v2 검증 완료 |
 | 사전학습 및 SFT 체크포인트 | [검증 필요] | 저장·복원 및 중단 후 재개가 검증됨 |
-| 평가 보고서 | [확정] | Candidate A Quick·Full, EOS 진단과 공식 internal baseline 기록 완료 |
+| 평가 보고서 | [확정] | Candidate A/B Quick·Full, EOS 진단과 ADR-009 current/historical baseline 기록 완료 |
 | FastAPI 및 Next.js 데모 | [후순위] | 로컬 환경에서 요청부터 생성 응답까지 연결됨 |
 | K-AI Leaderboard 검토서 | [후순위] | 당시 규정, 형식, 라이선스 및 성능 요건을 대조함 |
 

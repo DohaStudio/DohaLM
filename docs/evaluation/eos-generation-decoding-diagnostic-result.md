@@ -75,11 +75,14 @@ Candidate B는 loop 전 step에서 mean EOS rank 3,685.44, probability 0.066351%
   배제한 것은 아니지만, 보조 정책이 없으면 종료하지 않는다.
 - 상태 제안: `decoding_assisted_termination_only`.
 - 공식 상태: historical `evaluated_contract_not_passed` 유지.
-- Candidate A: 공식 Full baseline 유지.
+- 실행 당시 Candidate A: 공식 Full baseline 유지.
 - 정책·ADR-008: 진단 후 2026-07-28 `approved`; 이 결과의 historical 판정은 비소급.
 
 Base Model의 EOS 기준을 바꾸거나 no-repeat bigram을 서비스 기본값으로 채택하거나 추가 학습을 수행하는
 결정은 이 결과에 포함되지 않는다.
+
+[확정] 후속 [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)는 result fingerprint를
+변경하지 않고 Candidate B를 current Base baseline으로 승인했다. 이 진단의 historical 상태는 그대로다.
 
 ## 변경 이력
 

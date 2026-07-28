@@ -117,9 +117,16 @@ Candidate A Final Full 결과는 identity, 전체 범위, 안정성 및 불변�
 
 EOS·Quick 대표성과 Candidate B Evaluation Contract는 2026-07-27 승인됐다. Candidate B training은 `not_approved`이므로 설정·학습은 별도 승인 전 시작하지 않는다. 이번 작업에서는 packing·모델·decoding을 변경하지 않았다.
 
+## Current baseline status
+
+[확정] [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)에 따라 Candidate B가 현재 Base
+performance baseline으로 승격됐다. Candidate A는 `historical_base_baseline: true`이며 deprecated가 아니다.
+이 문서의 checkpoint·result fingerprint와 모든 수치는 변경하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | Candidate B current baseline 승격 후 Candidate A historical baseline 보존 상태 연결 |
 | 2026-07-27 | Candidate A Final 전체 internal evaluation, EOS 진단, Quick 비교 및 기준선 판단 기록 |
 | 2026-07-27 | Candidate A Full 공식 baseline과 Candidate A Quick 대표성 승인 반영 |

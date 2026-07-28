@@ -19,8 +19,8 @@
 
 [확정] Candidate A Final 제한 진단에서는 sampling 6종이 반복·loop를 낮췄지만 모든 profile이 16-token 제한에서 EOS 0%였다. 이 결과는 기본 greedy 또는 decoding 정책을 변경하지 않으며 [진단 문서](./eos-incomplete-block-diagnostic.md)와 승인된 [Candidate B 계약](./candidate-b-evaluation-contract.md)의 근거로만 사용한다.
 
-[확정] Candidate A Full은 공식 Base baseline이다. Candidate B historical 판정은 소급 변경하지 않으며
-재평가와 기본 decoding 변경은 별도 승인 대상이다.
+[확정] Candidate A Full은 historical Base baseline이다. Candidate B historical 판정은 소급 변경하지 않는다.
+ADR-009에 따른 current Base baseline은 Candidate B이며 기본 decoding 변경은 별도 승인 대상이다.
 
 결과에는 prompt ID hash, category, 입력 token 길이, 생성 token hash와 집계값만 저장한다. prompt text, decoded generation, 전체 token ID 배열은 저장하지 않는다. 실제 text 저장이 필요한 경우 별도 사용자 승인 없이는 fail-closed한다.
 

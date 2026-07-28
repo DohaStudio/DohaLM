@@ -23,14 +23,28 @@ Comparison ID는 `initial-pilot-candidate-a-quick-20260727-01`이며 상태는 `
 
 [확정] Candidate A Final Quick은 동일 Full 대비 `approximately_representative`이며 `biased_optimistic` 특성을 가진다. 공식 baseline은 Full 행이다. 기존 행의 수치·fingerprint·`completed` 실행 상태는 변경하지 않으며 대표성 판정은 [승인 정책](./quick-full-representativeness-policy.md)에 둔다.
 
-Candidate B는 Full teacher-forced 지표와 EOS rank를 개선했지만 greedy EOS 0%·maximum-length 100%로 승인
-계약을 통과하지 못했다. Candidate A를 공식 internal baseline으로 유지한다. Candidate A와 B의 generation은
-prompt identity가 달라 직접 비교하지 않는다.
+Candidate B는 Full teacher-forced 지표와 EOS rank를 개선했지만 당시 greedy EOS 0%·maximum-length 100%
+계약을 통과하지 못했다. 이 historical 판정은 유지한다. 당시 Candidate A/B generation은 prompt identity가
+달라 직접 비교하지 않았으며 이후 동일 prompt 진단은 별도 결과로 보존한다.
+
+## Governance status
+
+기존 metric 행의 Status는 실행 당시 계약에 따른 historical 상태로 보존한다. 현재 baseline과 parent 결정은
+[ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)에 따라 별도 필드로 관리한다.
+
+| Artifact | Historical evaluation contract | ADR-008 reassessment | Official Base baseline | Historical baseline | Derivative parent eligibility |
+|---|---|---|---|---|---|
+| Candidate A Final Full | `completed` | `not_applicable` | `false` | `true` | `comparison_reference` |
+| Candidate B Final Full | `evaluated_contract_not_passed` | `approved_as_base_baseline` | `true` | `false` | `approved_experimental` |
+
+[확정] Candidate B는 현재 공식 Base baseline이며 Candidate A는 historical baseline이다. 기존 leaderboard
+수치·result fingerprint와 Candidate B historical Status는 변경하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 current baseline·historical status·derivative parent governance 표 추가 |
 | 2026-07-27 | fingerprint-aware leaderboard 골격 작성 |
 | 2026-07-27 | Candidate A Final 128-sequence Quick 결과 반영 |
 | 2026-07-27 | Initial, Pilot, Candidate A Mid/Final 동일 Quick 비교군 반영 |
