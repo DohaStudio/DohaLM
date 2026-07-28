@@ -1,7 +1,7 @@
 # DohaLM Instruct Readiness
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-07-29
 - 설계 상태: `design_completed`
 - 실행 상태: `execution_not_approved`
 - `execution_allowed`: `false`
@@ -12,7 +12,7 @@
 |---|---|---|---|
 | Parent | `approved_experimental` | Candidate B, ADR-009 | immutable checkpoint 복사·identity manifest |
 | Lineage | `designed` | ADR-010·Instruct 전략 | model/run/version ID 확정 |
-| Dataset | `not_selected` | dataset 전략 | license·PII·목적·split·누수 승인 |
+| Dataset | `CONDITIONALLY_SELECTED` | [AIHUB-71748 Selection Decision](./aihub-71748-selection-decision.md) | Terms·Benchmark·PII·중복·누수 처리 승인 |
 | Schema | `designed_not_implemented` | instruction schema | validator·mapping·실제 record 검증 |
 | Prompt | `designed_not_serialized` | placeholder templates | delimiter·mask·EOS·truncation fingerprint |
 | Evaluation | `framework_designed` | instruction evaluation | dataset·rubric·numeric threshold 승인 |
@@ -39,18 +39,21 @@ design_status: design_completed
 readiness_package: documentation_complete
 execution_allowed: false
 backend: not_started
-dataset: not_selected
+dataset: CONDITIONALLY_SELECTED
+dataset_processing: not_approved
+processing_manifest: not_started
+processing_backend: not_started
 training: not_approved
 evaluation_execution: not_approved
 publication: not_approved
 ```
 
-[확정] 이 상태는 “학습 준비 완료”가 아니라 설계 문서 묶음이 작성됐음을 뜻한다. 다음 단계도 바로 학습이
-아니라 dataset 후보·license·PII와 template/evaluation numeric 계약의 별도 검토다.
+[확정] 이 상태는 “학습 준비 완료”가 아니다. AIHUB-71748 SFT Component는 조건부 선정됐지만 다음 단계도 바로
+학습이 아니라 Terms·Benchmark·PII·중복·누수 처리 조건과 template/evaluation numeric 계약의 별도 검토다.
 
 ## 다음 승인 후보
 
-1. Instruction dataset 후보 조사·read-only metadata 검토
+1. AIHUB-71748 조건부 선정 조건과 Processing Manifest 설계 범위 승인
 2. Schema validator와 prompt serialization 설계 승인
 3. Evaluation dataset·rubric·numeric threshold 승인
 4. Backend 구현·CPU fail-closed 검증 승인
@@ -62,4 +65,5 @@ publication: not_approved
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 SFT 조건부 선정과 Processing·Training 미승인 경계 반영 |
 | 2026-07-28 | Instruct 설계 readiness checklist·blocker·fail-closed 상태 작성 |

@@ -1,16 +1,17 @@
 # AI Hub Instruction Dataset 후보 Read-only 검토
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-07-28
+- 최종 검토일: 2026-07-29
 - 작업 유형: `data`, `documentation`
-- 결정 상태: `dataset:not_selected`, `execution_allowed:false`
-- 관련 결정: [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- 결정 상태: `AIHUB-71748/SFT:CONDITIONALLY_SELECTED`, `execution_allowed:false`
+- 관련 결정: [AIHUB-71748 Selection Decision](./aihub-71748-selection-decision.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. 범위
 
 이 문서는 `${DOHALM_DATASET_ROOT}/extracted` 아래의 AI Hub 패키지 5개를 DohaLM Instruct 후보로
 read-only 검토한 결과다. 다운로드, 압축 해제, 원본 변경, corpus·token array·학습 산출물 생성과 SFT 실행은
-범위에 포함하지 않았다. 검토 결과는 후보 선정을 위한 근거일 뿐 사용 승인이나 학습 승인이 아니다.
+범위에 포함하지 않았다. 이 검토 결과 자체는 후보 선정을 위한 근거일 뿐 사용 승인이나 학습 승인이 아니다.
+후속 공식 결정은 AIHUB-71748 SFT Component를 조건부 선정했으며 처리·학습 권한은 부여하지 않았다.
 
 ## 2. Read-only 정책과 조사 한계
 
@@ -205,7 +206,7 @@ Shortlist는 우선 검토 순서이며 dataset 선택이 아니다.
 ## 16. 최종 상태
 
 ```yaml
-dataset: not_selected
+dataset: AIHUB-71748/SFT/CONDITIONALLY_SELECTED
 dataset_acquisition: not_approved
 dataset_processing: not_approved
 sft_backend: not_started
@@ -213,6 +214,12 @@ sft_training: not_approved
 execution_allowed: false
 ```
 
-현재 추천은 AIHUB-71748 SFT를 첫 schema review 대상으로 유지하고 AIHUB-71477 correction을 보조 후보로
-검토하는 것이다. 어떤 dataset도 Instruct 학습에 선택되거나 승인되지 않았으며, 다운로드·변환·학습 실행은
-계속 금지한다.
+AIHUB-71748 SFT는 후속 [Selection Decision](./aihub-71748-selection-decision.md)에 따라 조건부 선정됐다.
+이는 Instruct 학습 사용 승인이 아니며 다운로드·변환·처리·학습 실행은 계속 금지한다. 다른 Dataset 후보의 상태는
+변경하지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-29 | 후속 AIHUB-71748 SFT 조건부 선정과 처리·학습 미승인 상태 연결 |

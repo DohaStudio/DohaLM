@@ -34,6 +34,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 SFT Leakage 처리 정책](./aihub-71748-leakage-policy.md)
 - [AIHUB-71748 SFT Dataset Readiness](./aihub-71748-readiness.md)
 - [AIHUB-71748 SFT Dataset Selection Approval Package](./aihub-71748-selection-approval-package.md)
+- [AIHUB-71748 SFT Dataset Selection Decision](./aihub-71748-selection-decision.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -47,7 +48,8 @@ design_status: design_completed
 execution_allowed: false
 training: not_approved
 backend: not_started
-dataset: not_selected
+dataset: CONDITIONALLY_SELECTED
+dataset_processing: not_approved
 publication: not_approved
 ```
 
@@ -55,13 +57,14 @@ publication: not_approved
 checkpoint 생성과 publication을 수행하지 않는다.
 
 Dataset 검토 흐름은 Candidate Review → Terms·Schema·Validation → PII·Duplicate·Leakage → Dataset Readiness →
-Selection Approval Package → 별도 사용자 선택 승인 → Processing Manifest 설계 순서다. 현재 권장안은
-`CONDITIONALLY_SELECTED`이지만 추천에 불과하며 실제 Dataset 상태는 `not_selected`다.
+Selection Approval Package → 별도 사용자 선택 승인 → Processing Manifest 설계 순서다. AIHUB-71748 SFT
+Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processing과 Training은 승인되지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Training 미승인 경계 등록 |
 | 2026-07-29 | Dataset Selection Approval Package와 추천 전용 `CONDITIONALLY_SELECTED` 흐름 등록 |
 | 2026-07-29 | Leakage 처리 정책·Processing Label·Dataset Readiness Matrix와 Approval Gate 등록 |
 | 2026-07-29 | Near Duplicate 유형·구간·Cross-split·canonical 처리 후보와 Fail Closed 정책 등록 |

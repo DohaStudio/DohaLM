@@ -4,21 +4,21 @@
 - 마지막 검토일: 2026-07-29
 - Dataset ID: `AIHUB-71748`
 - 패키지 상태: `completed`
-- 권장 상태: `CONDITIONALLY_SELECTED` (`recommendation_only`)
-- 실제 선택 상태: `not_selected`
-- 관련 문서: [Dataset Readiness](./aihub-71748-readiness.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- 권장 상태: `CONDITIONALLY_SELECTED` (`approved_as_official_selection`)
+- 실제 선택 상태: `CONDITIONALLY_SELECTED`
+- 관련 문서: [Selection Decision](./aihub-71748-selection-decision.md), [Dataset Readiness](./aihub-71748-readiness.md), [SFT 이용조건](./aihub-71748-sft-terms-review.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. Scope
 
 [확정] 이 패키지는 기존 검증·정책·Readiness의 고정 사실을 승인권자가 검토할 수 있게 정리한다. Dataset, ZIP,
-JSON, record와 기존 scan 산출물을 다시 읽거나 계산하지 않는다. Dataset 선택·처리·학습 승인 또는 실행을 생성하지
-않으며 최종 선택은 별도의 명시적 사용자 승인으로만 가능하다.
+JSON, record와 기존 scan 산출물을 다시 읽거나 계산하지 않는다. 자동 승인을 생성하지 않으며 공식 선택은 별도
+명시적 사용자 승인인 [Selection Decision](./aihub-71748-selection-decision.md)으로 기록한다.
 
 ## 2. 현재 상태
 
 ```yaml
 dataset_readiness: completed
-dataset_selection: not_selected
+dataset_selection: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
 processing_manifest: not_started
 processing_backend: not_started
@@ -76,13 +76,13 @@ blockers:
 
 ```yaml
 recommended_decision: CONDITIONALLY_SELECTED
-decision_status: recommendation_only
-dataset_selection: not_selected
+decision_status: approved_as_official_selection
+dataset_selection: CONDITIONALLY_SELECTED
 ```
 
-[제안] Schema, one-to-one Join, Safe Inspector와 component consistency가 통과했고 PII·Exact·Near·Leakage 후보
+[확정] Schema, one-to-one Join, Safe Inspector와 component consistency가 통과했고 PII·Exact·Near·Leakage 후보
 집계가 완료됐으므로 조건부 후보가 합리적이다. 치명적인 Join 오류가 없고 Dataset을 변경하지 않은 채 후속 검토가
-가능하다. 이는 승인이나 처리 시작 지시가 아니다.
+가능하다는 권장안이 공식 선택으로 승인됐다. 이는 처리 시작 지시가 아니다.
 
 ## 8. Selection Conditions
 
@@ -112,21 +112,37 @@ Dataset 후보 비교가 필요하면 `DEFERRED`가 적절하다.
 
 ## 11. Approval Decision Record
 
-다음 schema는 의도적으로 채우지 않는다.
+다음 승인 기록은 [Selection Decision](./aihub-71748-selection-decision.md)을 단일 기준으로 한다.
 
 ```yaml
 dataset_selection_decision:
   dataset_id: AIHUB-71748
   component: SFT
   decision:
-    value: not_selected
+    value: CONDITIONALLY_SELECTED
     allowed_values: [CONDITIONALLY_SELECTED, DEFERRED, REJECTED]
-  decision_by: null
-  decision_at: null
-  decision_reason_codes: []
-  conditions: []
-  evidence_commit: null
-  approval_id: null
+  decision_by: project_owner_explicit_approval
+  decision_at: 2026-07-29T06:01:16+09:00
+  decision_reason_codes:
+    - SCHEMA_VALIDATED
+    - JOIN_INTEGRITY_PASSED
+    - SAFE_INSPECTOR_VALIDATED
+    - PII_POLICY_PENDING
+    - DUPLICATE_POLICY_PENDING
+    - LEAKAGE_POLICY_PENDING
+    - TERMS_EVIDENCE_PENDING
+    - BENCHMARK_SOURCE_PENDING
+    - PROCESSING_MANIFEST_PENDING
+  conditions:
+    - Terms Evidence
+    - Benchmark Source
+    - PII Threshold
+    - Duplicate Threshold
+    - Leakage Threshold
+    - Processing Manifest
+    - Processing Backend Approval
+  evidence_commit: 9a5e0cac35f849a8ea55a28f15a5d9939236c4a4
+  approval_id: AIHUB-71748-SFT-SELECTION-APPROVAL-20260729-0001
   processing_allowed: false
   training_allowed: false
   execution_allowed: false
@@ -163,8 +179,8 @@ flowchart LR
     ProcessingDesign --> ProcessingApproval{Separate Processing Approval}
 ```
 
-[확정] 현재 흐름은 `Package`에서 멈춘다. `CONDITIONALLY_SELECTED`가 승인되더라도 Processing 설계와 실행은
-각각 별도 범위와 승인을 요구한다.
+[확정] 현재 흐름은 별도 사용자 결정에서 `CONDITIONALLY_SELECTED`가 승인된 상태다. Processing 설계와 실행은
+각각 별도 범위와 승인을 요구하므로 자동으로 `ProcessingDesign`으로 진행하지 않는다.
 
 ## 16. Fail Closed
 
@@ -177,8 +193,8 @@ Dataset ID 또는 component 불일치는 `recommendation: DEFERRED`, `decision_a
 ```yaml
 selection_approval_package: completed
 recommended_decision: CONDITIONALLY_SELECTED
-recommendation_status: recommendation_only
-dataset_selection: not_selected
+recommendation_status: approved_as_official_selection
+dataset_selection: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
 processing_manifest: not_started
 processing_backend: not_started
@@ -189,12 +205,13 @@ execution_allowed: false
 
 ## 18. Next Step
 
-[승인 필요] 다음 단계는 승인권자가 세 선택안 중 하나를 명시하고 immutable evidence commit, 승인자·시간, 조건,
-reason code와 별도 Selection Approval ID를 채우는 것이다. 이번 패키지는 실제 결정을 기록하지 않으며 Dataset
-Processing Manifest, Backend, Adapter, Tokenization과 SFT는 시작하지 않는다.
+[승인 필요] 조건부 선정은 완료됐지만 Terms Evidence, Benchmark Source와 PII·Duplicate·Leakage threshold는
+미승인이다. 이를 검토한 뒤 Processing Manifest 설계 범위를 별도로 승인해야 한다. Dataset Processing, Backend,
+Adapter, Tokenization과 SFT는 시작하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | 공식 `CONDITIONALLY_SELECTED` 승인과 Approval Record·처리 미승인 경계 반영 |
 | 2026-07-29 | AIHUB-71748 SFT 선택안·근거·조건·승인 schema와 Fail Closed 정책 패키지 작성 |
