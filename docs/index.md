@@ -46,6 +46,7 @@
 | [instruct/aihub-71748-pii-policy.md](./instruct/aihub-71748-pii-policy.md) | PII 후보 false positive·식별자/민감 주제 분리·원문 비입력 판정 계층·threshold proposal | PII Scan 결과, ADR-004·010 | 별도 승인 Content/Near Duplicate·Leakage·PII 처리 결정 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | numeric threshold·manual review·processing not_approved |
 | [instruct/aihub-71748-exact-duplicate-result.md](./instruct/aihub-71748-exact-duplicate-result.md) | SFT question·answer·QA pair exact duplicate, split overlap와 component consistency 원문 비출력 집계 | Join 결과, PII 정책, Safe Inspector, ADR-004 | 별도 승인 Near Duplicate·Leakage·overlap 처리 결정 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | exact overlap detected; near/leakage·processing not_approved |
 | [instruct/aihub-71748-exact-duplicate-policy.md](./instruct/aihub-71748-exact-duplicate-policy.md) | Exact Duplicate 유형·canonical/cross-split/answer reuse 처리 후보와 Fail Closed 정책 | Exact Duplicate 결과, PII 정책, ADR-004·010 | 별도 승인 Dataset Processing·Near Duplicate·Leakage | `review` | Dataset 처리 승인 전 필수 | 2026-07-29 | duplicate policy completed; processing proposed_not_approved |
+| [instruct/aihub-71748-near-duplicate-optimization.md](./instruct/aihub-71748-near-duplicate-optimization.md) | 첫 Near Duplicate timeout 보존과 bounded LSH·cheap filter·cancellation·12,000 Synthetic retry readiness | Exact Duplicate 결과·정책, Safe Inspector, ADR-004·010 | 새 execution ID와 별도 실제 scan 승인 | `review` | Near Duplicate 재승인 전 필수 | 2026-07-29 | attempt 1 failed; optimization synthetic-only; retry not_approved |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
 | [instruct/instruction-prompt-template.md](./instruct/instruction-prompt-template.md) | Base·Instruction·JSON·Markdown·Tool·Chat placeholder template | Schema, ADR-003·010 | serialization·mask 검증 | `review` | SFT config 전 필수 | 2026-07-28 | delimiter·mask·EOS 미확정 |
 | [instruct/instruction-evaluation.md](./instruct/instruction-evaluation.md) | Instruction·format·structured output·safety·EOS 평가 framework | ADR-005·008·010 | 평가 dataset·numeric 계약 | `review` | Instruct 평가 전 필수 | 2026-07-28 | threshold proposed |
@@ -254,6 +255,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] Near Duplicate 첫 timeout·bounded 최적화·12,000 Synthetic retry readiness와 재실행 미승인 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 Exact Duplicate 처리 후보·label·Fail Closed 정책과 처리 미승인 경계 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 Content Exact Duplicate 1회 scan과 split overlap·component consistency 결과 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 PII false positive·threshold proposal과 원문 비입력 정책 계층 문서 등록 |
