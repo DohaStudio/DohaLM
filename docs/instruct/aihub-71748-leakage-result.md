@@ -6,7 +6,7 @@
 - 실행 ID: `AIHUB-71748-LEAKAGE-SCAN-20260729-0001`
 - Scan 상태: `completed`
 - 정책 상태: `review_required`
-- 관련 문서: [Near Duplicate 결과](./aihub-71748-near-duplicate-result.md), [Near Duplicate 처리 정책](./aihub-71748-near-duplicate-policy.md), [SFT 검증 계획](./aihub-71748-sft-validation-plan.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+- 관련 문서: [Near Duplicate 결과](./aihub-71748-near-duplicate-result.md), [Near Duplicate 처리 정책](./aihub-71748-near-duplicate-policy.md), [Leakage 처리 정책](./aihub-71748-leakage-policy.md), [Dataset Readiness](./aihub-71748-readiness.md), [SFT 검증 계획](./aihub-71748-sft-validation-plan.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
 ## 1. Scope
 
@@ -149,8 +149,12 @@ overall:
 Validation 보존 방식과 외부 Benchmark source/version 계약을 별도로 승인해야 한다. 이번 결과만으로 Dataset 처리,
 Adapter, SFT Backend 또는 Training을 시작할 수 없다.
 
+[확정] 후속 [Leakage 처리 정책](./aihub-71748-leakage-policy.md)은 처리 후보와 승인 영향만 정의한다. Dataset은
+수정하지 않았고 Dataset Processing과 모든 수치 Threshold는 계속 `not_approved`다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Leakage 처리 정책과 Dataset Readiness를 연결하고 Dataset 비변경·Processing·Threshold 미승인 경계 명시 |
 | 2026-07-29 | 승인된 1회 aggregate-only Leakage Scan, repository prompt 비교와 local Benchmark 부재 기록 |
