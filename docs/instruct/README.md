@@ -17,6 +17,9 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [Instruct 전략](./instruct-strategy.md)
 - [Instruction Dataset 전략](./instruction-dataset-strategy.md)
 - [Instruction Schema](./instruction-schema.md)
+- [AI Hub Instruction Dataset 후보 Read-only 검토](./aihub-dataset-candidate-review.md)
+- [AIHUB-71748 SFT 이용조건 검토](./aihub-71748-sft-terms-review.md)
+- [AIHUB-71748 SFT 원문 비출력 검증 계획](./aihub-71748-sft-validation-plan.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -41,4 +44,6 @@ checkpoint 생성과 publication을 수행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | AIHUB-71748 SFT 이용조건과 원문 비출력 join·PII·중복·누수·품질 검증 계획 등록 |
+| 2026-07-28 | AI Hub dataset 5종의 read-only inventory, schema 적합성, PII·license blocker 검토 문서 등록 |
 | 2026-07-28 | DohaLM Instruct 설계·Readiness 문서 진입점 작성 |
