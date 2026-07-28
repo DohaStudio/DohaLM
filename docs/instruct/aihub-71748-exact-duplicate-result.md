@@ -5,7 +5,7 @@
 - Dataset ID: `AIHUB-71748`
 - 검사 상태: `completed`
 - 실제 Full Scan 횟수: `1`
-- 관련 문서: [SFT 검증 계획](./aihub-71748-sft-validation-plan.md), [Join Integrity 결과](./aihub-71748-join-integrity-result.md), [PII 판정 정책](./aihub-71748-pii-policy.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md)
+- 관련 문서: [SFT 검증 계획](./aihub-71748-sft-validation-plan.md), [Join Integrity 결과](./aihub-71748-join-integrity-result.md), [PII 판정 정책](./aihub-71748-pii-policy.md), [Exact Duplicate 처리 정책](./aihub-71748-exact-duplicate-policy.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [ADR-004](../decisions/ADR-004-data-governance.md)
 
 ## 1. Scope
 
@@ -150,8 +150,12 @@ overall:
 [승인 필요] 다음 권장 단계는 별도 범위의 Near Duplicate Scan 설계·실행 승인이다. 이후 Leakage Scan과 exact
 overlap 처리 정책을 각각 승인해야 한다. 현재 결과만으로 Dataset 선택·처리 또는 SFT를 승인할 수 없다.
 
+[확정] 후속 [Exact Duplicate 처리 정책](./aihub-71748-exact-duplicate-policy.md)은 처리 후보와 Fail Closed 경계만
+정의한다. Dataset Processing은 승인되지 않았고 Dataset 변경은 0건이다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Exact Duplicate 처리 정책 연결과 Dataset Processing 미승인·Dataset 비변경 상태 명시 |
 | 2026-07-29 | 승인된 1회 Content Exact Duplicate Scan의 원문 비출력 집계와 blocker 기록 |
