@@ -3,7 +3,7 @@
 - 문서 상태: `approved`
 - 결정일: 2026-07-27
 - 승인 상태: `approved`
-- 대체 여부: `not_superseded`
+- 대체 여부: baseline selection만 [ADR-009](./ADR-009-candidate-b-official-reassessment.md)로 후속 결정; 나머지 정책 유지
 - 관련 문서: [Candidate A Final Full 결과](../evaluation/candidate-a-final-full-result.md), [EOS 진단](../evaluation/eos-incomplete-block-diagnostic.md), [Quick 대표성 정책](../evaluation/quick-full-representativeness-policy.md), [Candidate B 평가 계약](../evaluation/candidate-b-evaluation-contract.md)
 
 ## 결정 배경
@@ -45,8 +45,14 @@ Candidate A Final의 동일 Quick와 전체 Full Evaluation에서 Quick이 성�
 - Candidate B 이후 EOS 개선 기준이 일반 Top-k·반복·자원 성능과 충돌한다.
 - 외부 공개·benchmark·release가 다른 평가 계약을 요구한다.
 
+## 후속 결정
+
+[확정] Candidate A를 공식 baseline으로 선택한 2026-07-27 결정은 historical 적용으로 보존한다. ADR-009가
+Candidate B를 현재 Base baseline으로 승격했으며 Quick/Full 역할, 동일 identity와 지표별 판정 정책은 계속 유효하다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 current baseline 변경과 ADR-007 historical 적용 범위 명시 |
 | 2026-07-27 | Candidate A Full baseline, Quick 대표성, EOS success와 Candidate B 평가 계약 승인 |

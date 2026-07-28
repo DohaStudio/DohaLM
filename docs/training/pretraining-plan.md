@@ -186,7 +186,9 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 ## 13. 검토 필요 사항
 
-- [검증 필요] Candidate A 10M은 완료됐다. Candidate B 첫 실행은 12,208 step 후 checkpoint validator 버그로 실패했고 checkpoint·Quick·Full·공식 결과가 없다. Numeric validator와 향후 quarantine 정책은 보완됐지만 기존 Run/Approval은 재사용할 수 없으며 새 immutable commit·Run ID·single-use 승인 전 training은 금지한다. C 1 epoch는 미설계·미승인이다.
+- [확정] Candidate A 10M과 Candidate B Run 0002 25M은 완료됐다. ADR-009에 따라 Candidate B가 현재 Base
+  baseline이고 Candidate A는 historical baseline이다. Candidate B additional Base pretraining과 Candidate C는
+  현재 결정에 `not_required`이며 새 학습은 별도 승인 전 금지한다.
 - [검증 필요] learning rate, warmup, weight decay 및 gradient clipping threshold
 - [검증 필요] micro-batch, accumulation step, checkpointing 활성화 여부
 - [검증 필요] 평가·저장 주기와 정량 중단 기준
@@ -195,6 +197,7 @@ Phase 5 합성 bundle의 구현 범위와 운영 계약의 남은 차이는 [체
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | [확정] Candidate B Run 0002 완료·ADR-009 current baseline과 추가 Base training not_required 반영 |
 | 2026-07-28 | [확정] Candidate B 첫 실행 실패·checkpoint 미보존과 numeric validator·quarantine 보완, rerun 미승인 반영 |
 | 2026-07-28 | [확정] Candidate B backend·CPU validation·output probe 완료와 실행 승인 전 fail-closed 경계 연결 |
 | 2026-07-28 | [확정] Candidate B 25M readiness package와 `execution_allowed: false` 경계를 연결함 |

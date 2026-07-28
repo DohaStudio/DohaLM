@@ -34,6 +34,10 @@
   injection·허위 tool result·secret·자동 실행 권한을 차단한다. 종료는 EOS뿐 아니라 tool call·workflow·권한
   경계의 structured termination으로 평가한다.
 
+[확정] Candidate B는 ADR-009에 따라 Code·SQL·Recruit·Game CPT 및 Instruct·Chat의
+`approved_experimental` Base parent 후보다. 이 적격성은 domain corpus·평가 set·학습·publication 승인이
+아니며 각 family의 Ready와 별도 사용자 승인을 요구한다.
+
 ## 3. Release 조건
 
 각 Domain은 최소한 다음이 필요하다.

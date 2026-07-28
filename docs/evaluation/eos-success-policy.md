@@ -71,13 +71,15 @@ Temperature, top-p/top-k, repetition penalty, no-repeat n-gram, stop sequence, �
 
 ## Historical 적용 경계
 
-[확정] Candidate A Final Full은 공식 Base baseline이다. Candidate B는 당시 승인된 계약에서
+[확정] Candidate A Final Full은 historical Base baseline이다. Candidate B는 당시 승인된 계약에서
 `evaluated_contract_not_passed`이며 `decoding_assisted_termination_only`로 진단됐다. 이 정책은 그 판정을
-소급 변경하지 않는다. Candidate B 재평가는 `awaiting_separate_approval`, derivative parent eligibility는
-`proposed`, publication·Instruct·Chat training은 `not_approved`다.
+소급 변경하지 않는다. 별도 [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)는 current
+reassessment를 `approved_as_base_baseline`, derivative parent eligibility를 `approved_experimental`로
+결정했다. Publication·Instruct·Chat training은 `not_approved`다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 current reassessment를 historical 판정과 분리해 연결 |
 | 2026-07-28 | ADR-008 승인에 따라 Common·Base·Instruct·Chat 계약과 historical 비소급 원칙 확정 |

@@ -49,6 +49,9 @@
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
 - EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `approved`, historical Candidate B 상태 변경 없음
+- Candidate B ADR-008 reassessment: `approved_as_base_baseline`; current Base baseline은 Candidate B,
+  Candidate A는 historical baseline
+- Candidate B derivative parent eligibility: `approved_experimental`; 실제 파생 학습·publication 미승인
 - Instruct·Chat EOS framework: `approved`; numeric thresholds·training: `proposed` / `not_approved`
 - Service decoding: `proposed`; implementation: `not_started`
 - 배포: `not_applicable`
@@ -57,6 +60,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009 Candidate B current baseline·experimental parent 결정과 historical 상태 분리 반영 |
 | 2026-07-28 | ADR-008과 Base·Instruct·Chat EOS Success Policy 승인, historical 비소급 경계 반영 |
 | 2026-07-28 | Candidate A/B 동일 prompt 다중 길이 진단 완료와 assisted-only 종료 제안 연결 |
 | 2026-07-28 | EOS 다중 길이·decoding 진단 설정과 proposed 정책·ADR 연결 |

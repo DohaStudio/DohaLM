@@ -46,11 +46,13 @@ def test_candidate_b_historical_decision_is_not_reclassified() -> None:
     for document in (contract, result, status, policy):
         assert "evaluated_contract_not_passed" in document
     assert "decoding_assisted_termination_only" in policy
-    assert "awaiting_separate_approval" in policy
+    assert "approved_as_base_baseline" in policy
     assert "derivative parent eligibility" in policy
-    assert "`proposed`" in policy
+    assert "approved_experimental" in policy
     assert "Candidate A Final Full" in policy
-    assert "official_base_baseline: false" in status
+    assert "Current official Base baseline" in status
+    assert "`candidate_b`" in status
+    assert "historical_base_baseline: true" in status
 
 
 def test_historical_fingerprints_and_checksums_remain_pinned() -> None:

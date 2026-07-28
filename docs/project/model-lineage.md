@@ -59,8 +59,8 @@ flowchart LR
     Initial[DohaLM-Tiny seed 17]
     Pilot[Pilot 100-step evidence]
     CandidateA[Candidate A 10M Final]
-    Baseline[Candidate A Final Full baseline]
-    CandidateB[Candidate B 25M candidate]
+    Baseline[Candidate A historical Base baseline]
+    CandidateB[Candidate B current Base baseline]
 
     Initial --> Pilot
     Initial --> CandidateA --> Baseline
@@ -69,10 +69,11 @@ flowchart LR
 ```
 
 - [확정] Candidate B는 Candidate A checkpoint를 parent weight로 사용하지 않는다.
-- [확정] Candidate A Final Full은 Candidate B의 공식 comparison baseline이지 initialization parent가 아니다.
+- [확정] Candidate A Final Full은 Candidate B의 historical comparison baseline이지 initialization parent가 아니다.
 - [확정] Candidate B Run 0002 training은 완료됐고 추가 training과 publication은 승인되지 않았다.
-- [확정] Candidate B의 official Base baseline 여부는 `false`, reassessment는 `awaiting_separate_approval`,
-  derivative parent eligibility는 `proposed`다.
+- [확정] Candidate B는 ADR-009의 현재 official Base baseline이며 Candidate A는 historical baseline이다.
+- [확정] Candidate B derivative parent eligibility는 `approved_experimental`이다. Instruct·Chat·Domain 모델은
+  아직 생성되지 않았고 실제 학습·publication은 `not_approved`다.
 - [확정] Base·Instruct·Chat·Agent의 종료 의미는 [EOS Success Policy](../evaluation/eos-success-policy.md)와
   [Model Family Roadmap](./model-family-roadmap.md)에 따라 분리한다.
 

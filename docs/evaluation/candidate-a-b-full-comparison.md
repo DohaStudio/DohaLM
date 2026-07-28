@@ -61,8 +61,8 @@ FP16/FP32 tolerance, deterministic repeat, NaN/Inf, checkpoint·model 불변성 
 ## 결론
 
 Candidate B는 teacher-forced 품질과 EOS rank를 개선했지만 승인된 generation 종료 조건을 충족하지 못했다.
-따라서 `training: completed`, `full_evaluation: completed`,
-`official_candidate_b_result: evaluated_contract_not_passed`로 분리하며 Candidate A를 공식 baseline으로 유지한다.
+따라서 당시에는 `training: completed`, `full_evaluation: completed`,
+`official_candidate_b_result: evaluated_contract_not_passed`로 분리하며 Candidate A를 공식 baseline으로 유지했다.
 
 [확정] 2026-07-28 승인된 ADR-008과 모델 단계별 EOS 계약은 이 historical 비교와 공식 baseline을 소급
 변경하지 않는다. Candidate B 재평가와 derivative parent 선정은 별도 승인 대상이다.
@@ -72,8 +72,24 @@ Candidate B는 teacher-forced 품질과 EOS rank를 개선했지만 승인된 ge
 해소했다. 두 모델 모두 128-token pure greedy EOS 0%였고 Candidate B는 assisted profile에서만 종료했다.
 이 근거는 기존 Full 수치나 Candidate A baseline을 변경하지 않는다.
 
+## ADR-008 공식 재평가
+
+[확정] [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)는 기존 수치와 historical 판정을
+변경하지 않고 ADR-008의 현재 Base 계약을 별도로 적용했다. Candidate B는 teacher-forced·position·stability
+필수 항목을 모두 개선하거나 비회귀했고, 동일 prompt generation에서 Candidate A보다 심각한 degeneration이
+증가하지 않았다. 따라서 다음 현재 상태를 승인한다.
+
+```text
+historical_evaluation_contract: evaluated_contract_not_passed
+adr008_reassessment_status: approved_as_base_baseline
+official_base_baseline: candidate_b
+candidate_a_historical_base_baseline: true
+derivative_parent_eligibility: approved_experimental
+```
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-28 | ADR-009의 historical/current 분리와 Candidate B 현재 Base baseline 승격 반영 |
 | 2026-07-28 | Candidate A/B 동일 Full teacher-forced 비교와 generation comparability·계약 판정 기록 |

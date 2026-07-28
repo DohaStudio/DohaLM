@@ -20,7 +20,7 @@ Artifact registry는 ID, stage, run, step/token/epoch, dataset/split/tokenizer/m
 
 임의 종합 점수나 가중치 순위를 만들지 않고 원 지표를 그대로 나열한다.
 
-[확정] 2026-07-27 승인된 [ADR-007](../decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md)에 따라 Quick은 개발 회귀·방향성 전용이고 Candidate 공식 baseline과 최종 비교에는 Full을 사용한다. Candidate A Final Quick은 `approximately_representative`이면서 `biased_optimistic`이며, 공식 baseline은 Candidate A Final Full이다.
+[확정] 2026-07-27 승인된 [ADR-007](../decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md)에 따라 Quick은 개발 회귀·방향성 전용이고 Candidate 공식 baseline과 최종 비교에는 Full을 사용한다. Candidate A Final Quick은 `approximately_representative`이면서 `biased_optimistic`이다. [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)에 따른 current Base baseline은 Candidate B Final Full이며 Candidate A Final Full은 historical baseline이다.
 
 ## 변경 이력
 
