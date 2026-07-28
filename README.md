@@ -6,7 +6,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 
 ## 현재 상태
 
-현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A/B 학습과 Evaluation Framework를 완료했습니다. ADR-009에 따라 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다. ADR-010으로 DohaLM Instruct 설계·Readiness를 마련했고 AIHUB-71748 SFT Component는 조건부 선정됐지만 Dataset Processing·Backend·SFT 실행은 승인되지 않았습니다.
+현재 저장소는 Gate 0 승인과 Gate 1~7 통과 상태입니다. 운영 16k v2 Unigram, DohaLM-Tiny, Trainer, 실제 corpus overfit, canonical pilot-v2 100-step, Candidate A/B 학습과 Evaluation Framework를 완료했습니다. ADR-009에 따라 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다. ADR-010으로 DohaLM Instruct 설계·Readiness를 마련했고 AIHUB-71748 SFT Component는 조건부 선정됐습니다. Processing Backend는 Synthetic 검증까지 구현됐지만 실제 Dataset Processing과 SFT 실행은 승인되지 않았습니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -18,7 +18,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 데이터 | AIHUB-71748 학생·비상업 연구 범위; SFT Component `CONDITIONALLY_SELECTED`, Processing·원래 Validation·재배포 미승인 |
 | 토크나이저 | 운영 `operating-16k-v2/unigram-16k` 승인, vocabulary 16,000·Gate 3 `passed` |
 | 사전학습 | canonical Pilot 100-step과 Candidate A 10M Token 완료; 추가 학습 미승인 |
-| SFT | AIHUB-71748 조건부 선정, Processing·Backend·Training 미승인·미실행 |
+| SFT | AIHUB-71748 조건부 선정, Processing Backend Synthetic 검증 완료, 실제 Processing·Training 미승인·미실행 |
 | 추론 API | 스캐폴드만 존재, 미구현 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
 

@@ -18,7 +18,8 @@
 | Evaluation | `framework_designed` | instruction evaluation | dataset·rubric·numeric threshold 승인 |
 | Safety | `framework_designed` | instruction safety | policy·red-team·severe failure 승인 |
 | Tool calling | `design_only` | tool strategy | registry·permission·validator·sandbox |
-| Backend | `not_started` | 없음 | 별도 backend 설계·CPU fail-closed 검증 |
+| Processing Backend | `implemented_synthetic_validated` | [Processing Backend](./processing-backend.md) | 실제 Manifest·Rule threshold·Processing 별도 승인 |
+| SFT Backend | `not_started` | 없음 | 별도 backend 설계·CPU fail-closed 검증 |
 | Training config | `not_created` | 없음 | budget·optimizer·scheduler·batch·seed 승인 |
 | Runtime | `not_inspected` | 없음 | GPU·disk·output·monitor preflight |
 | Approval | `not_issued` | 없음 | immutable commit·single-use execution approval |
@@ -42,7 +43,7 @@ backend: not_started
 dataset: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
 processing_manifest: not_started
-processing_backend: not_started
+processing_backend: implemented_synthetic_validated
 training: not_approved
 evaluation_execution: not_approved
 publication: not_approved
@@ -56,7 +57,7 @@ publication: not_approved
 1. AIHUB-71748 조건부 선정 조건과 Processing Manifest 설계 범위 승인
 2. Schema validator와 prompt serialization 설계 승인
 3. Evaluation dataset·rubric·numeric threshold 승인
-4. Backend 구현·CPU fail-closed 검증 승인
+4. SFT Backend 구현·CPU fail-closed 검증 승인
 5. 최종 runtime·single-use SFT 실행 승인
 
 각 항목은 독립 승인이고 1~4가 5를 자동 승인하지 않는다.
