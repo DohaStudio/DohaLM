@@ -61,7 +61,9 @@ def test_cross_split_near_pair_is_counted():
         training=[(question, answer)],
         validation=[(question + "!", answer + "!")],
     )
-    assert result["cross_split"]["candidate_groups"] == 1
+    assert result["cross_split"]["question"]["candidate_groups"] == 1
+    assert result["cross_split"]["answer"]["candidate_groups"] == 1
+    assert result["cross_split"]["qa_pair"]["candidate_groups"] == 1
     assert result["policy"]["label"] == "REVIEW_REQUIRED"
 
 
@@ -104,7 +106,23 @@ def test_raw_exact_values_are_separately_excluded():
     result = _summary(training=[("synthetic exact", "synthetic exact") for _ in range(2)])
     assert result["question"]["raw_exact_excluded_pairs"] == 1
     assert result["answer"]["raw_exact_excluded_pairs"] == 1
+    assert result["qa_pair"]["scanned"] == 2
+    assert result["qa_pair"]["raw_exact_excluded_groups"] == 1
+    assert result["qa_pair"]["raw_exact_excluded_pairs"] == 1
     assert result["qa_pair"]["candidate_groups"] == 0
+
+
+def test_normalized_exact_group_counts_are_aggregate_only():
+    result = _summary(
+        training=[
+            ("Synthetic question", "Synthetic answer"),
+            ("  Synthetic   question ", "Synthetic answer\n"),
+        ]
+    )
+    assert result["question"]["normalized_exact_excluded_groups"] == 1
+    assert result["answer"]["normalized_exact_excluded_groups"] == 1
+    assert result["qa_pair"]["normalized_exact_excluded_groups"] == 1
+    assert result["qa_pair"]["normalized_exact_excluded_pairs"] == 1
 
 
 def test_similarity_pipeline_is_bounded_and_numeric():
