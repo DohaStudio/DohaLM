@@ -3,13 +3,15 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-29
 - Schema version: `sft-processing-manifest-v1`
-- 실제 Manifest: `not_created`
+- AIHUB-71748 Manifest: `completed_non_executable`
 - 실제 처리 실행: `not_approved`
 
 ## 목적
 
 이 문서는 [Processing Backend](./processing-backend.md)가 검증하는 메모리 내 Manifest schema를 정의한다.
-현재 구현은 serializer나 file writer를 제공하지 않으므로 실제 Manifest를 생성하지 않는다.
+현재 구현은 serializer나 runtime file writer를 제공하지 않는다. AIHUB-71748의 canonical 비소비 계약은
+[`configs/data/aihub-71748-sft-processing-v1.yaml`](../../configs/data/aihub-71748-sft-processing-v1.yaml)에
+작성됐으며 Approval이 비어 있어 실행할 수 없다.
 
 ## 최상위 Schema
 
@@ -33,7 +35,8 @@
 | `component` | `SFT` |
 | `synthetic` | `true` |
 
-실제 `AIHUB-71748` identity는 현재 schema validator가 의도적으로 거부한다.
+기존 Synthetic record 실행 validator는 실제 `AIHUB-71748` identity를 계속 거부한다. 별도
+`validate_aihub_71748_processing_manifest`는 실제 Dataset을 읽지 않고 AIHUB-71748 계약 Mapping만 검증한다.
 
 ## Rule Set과 처리 순서
 
@@ -99,9 +102,15 @@ Version, identity, Rule 집합·순서, 통계 field, 출력 schema 또는 Appro
 ```yaml
 schema_implementation: completed
 synthetic_validation: passed
-actual_manifest: not_created
+aihub_71748_manifest: completed_non_executable
 processing_execution: not_approved
 processed_dataset: not_created
 training: not_approved
 execution_allowed: false
 ```
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-29 | AIHUB-71748 canonical 비소비 Manifest와 별도 Fail Closed validator 연결 |
