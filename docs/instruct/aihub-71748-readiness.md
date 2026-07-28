@@ -115,11 +115,14 @@ dataset_readiness: completed
 dataset_selection: CONDITIONALLY_SELECTED
 dataset_processing: not_approved
 processing_manifest: not_started
-processing_backend: not_started
+processing_backend: implemented_synthetic_validated
 sft_backend: not_started
 sft_training: not_approved
 execution_allowed: false
 ```
+
+[확정] Processing Backend와 Manifest schema는 Synthetic 입력만으로 구현·검증했다. 실제 AIHUB-71748
+Processing, Manifest 생성 및 Processed Dataset 생성은 승인되지 않았고 수행하지 않았다.
 
 [확정] [Selection Decision](./aihub-71748-selection-decision.md)에 따라 Dataset 선택 상태는
 `CONDITIONALLY_SELECTED`다. 이는 Dataset Processing·SFT Training 승인이 아니며 `execution_allowed: false`를

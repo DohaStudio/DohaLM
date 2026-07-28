@@ -33,7 +33,8 @@
 | Current official Base baseline | `candidate_b` | Full·EOS teacher-forced·position·stability 개선, generation 비악화 |
 | Candidate B derivative parent | `approved_experimental` | 실제 파생 학습·publication은 미승인 |
 | DohaLM Instruct | `design_completed` | ADR-010·schema·template·evaluation·safety·readiness 문서 |
-| Instruct execution | `not_approved` | AIHUB-71748 SFT conditionally selected, processing·backend not_started, execution_allowed false |
+| Instruct processing backend | `implemented_synthetic_validated` | 메모리 전용 Rule·Manifest schema·Validation·Statistics, 실제 Processing 미승인 |
+| Instruct execution | `not_approved` | AIHUB-71748 SFT conditionally selected, processing·SFT backend not_started, execution_allowed false |
 | Chat·Code·SQL·Recruit·Game·Agent | `not_started` | 각 family 별도 design·data·학습 승인 필요 |
 
 첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
@@ -111,7 +112,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 - Parent: Candidate B Final, immutable, `approved_experimental`.
 - Version 후보: `dohalm-instruct-tiny-v1`; 실제 model artifact는 `not_created`.
-- Dataset: AIHUB-71748 SFT Component `CONDITIONALLY_SELECTED`; Processing·Manifest·Backend는 미승인·미착수.
+- Dataset: AIHUB-71748 SFT Component `CONDITIONALLY_SELECTED`; Processing Backend는 Synthetic 검증 완료, 실제 Processing·Manifest 생성은 미승인·미실행.
 - Prompt·Evaluation·Tool Calling·Safety: framework 설계 완료, 구현·수치 threshold 미승인.
 - Chat lineage: `Base → Instruct → Chat`; Chat project는 `not_started`.
 - Readiness: `design_completed`, `execution_allowed: false`, training·publication `not_approved`.
@@ -120,7 +121,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 1. AIHUB-71748 조건부 선정 조건과 Processing Manifest 설계 범위를 별도 승인
 2. Prompt serialization·mask·EOS와 evaluation numeric 계약 별도 승인
-3. Backend 구현·CPU fail-closed 검증은 별도 작업으로 승인
+3. SFT Backend 구현·CPU fail-closed 검증은 별도 작업으로 승인
 
 ## 변경 이력
 
