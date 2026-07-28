@@ -1,0 +1,43 @@
+schema_version: "1.0"
+source: synthetic
+pii_free: true
+prompts:
+  - {prompt_id: incomplete-general-01, category: incomplete_general, completion_shape: incomplete, context_class: short, discourse_type: declarative, domain_like: false, text: "창문을 열자 조용한 바람이 불어오자"}
+  - {prompt_id: pre-completion-01, category: pre_completion, completion_shape: near_complete, context_class: short, discourse_type: declarative, domain_like: false, text: "실험의 작은 변화도 빠짐없이 기록하는 것이 중요"}
+  - {prompt_id: period-complete-01, category: period_complete, completion_shape: complete, context_class: short, discourse_type: declarative, domain_like: false, text: "오늘 관찰한 내용을 여기까지 정리했습니다."}
+  - prompt_id: paragraph-newline-01
+    category: paragraph_newline
+    completion_shape: complete
+    context_class: short
+    discourse_type: paragraph
+    domain_like: false
+    text: "첫 문단의 설명을 마칩니다.\n"
+  - {prompt_id: short-explanation-01, category: short_explanation, completion_shape: incomplete, context_class: short, discourse_type: explanatory, domain_like: false, text: "물이 얼음으로 변하는 이유는"}
+  - {prompt_id: long-explanation-01, category: long_explanation, completion_shape: incomplete, context_class: medium, discourse_type: explanatory, domain_like: false, text: "관찰 결과를 정확히 해석하려면 조건을 하나씩 분리하고 같은 기준으로 반복해서 측정해야 하며 마지막에는 서로 다른 결과가 생긴 원인을"}
+  - {prompt_id: question-01, category: question, completion_shape: complete, context_class: short, discourse_type: question, domain_like: false, text: "작은 모델의 평가 조건을 고정해야 하는 이유는 무엇인가요?"}
+  - prompt_id: dialogue-01
+    category: dialogue
+    completion_shape: incomplete
+    context_class: short
+    discourse_type: dialogue
+    domain_like: false
+    text: "가: 오늘 기록을 마쳤나요?\n나: 네, 마지막으로"
+  - prompt_id: list-01
+    category: list
+    completion_shape: incomplete
+    context_class: short
+    discourse_type: list
+    domain_like: false
+    text: "확인할 항목은 다음과 같습니다.\n1. 입력\n2. 출력\n3."
+  - prompt_id: code-end-01
+    category: code_block_end
+    completion_shape: complete
+    context_class: short
+    discourse_type: code
+    domain_like: true
+    text: "def square(value):\n    return value * value\n```"
+  - {prompt_id: sql-end-01, category: sql_statement_end, completion_shape: complete, context_class: short, discourse_type: sql, domain_like: true, text: "SELECT item_id FROM synthetic_items WHERE enabled = 1;"}
+  - {prompt_id: explicit-end-01, category: explicit_response_end, completion_shape: complete, context_class: short, discourse_type: declarative, domain_like: false, text: "요청한 설명은 이것으로 끝입니다. 응답 종료."}
+  - {prompt_id: minimal-01, category: minimal, completion_shape: incomplete, context_class: minimal, discourse_type: declarative, domain_like: false, text: "기록"}
+  - {prompt_id: long-context-01, category: long_context, completion_shape: incomplete, context_class: long, discourse_type: explanatory, domain_like: false, text: "하나의 결과를 해석할 때에는 입력 조건과 실행 환경과 비교 기준을 먼저 확인합니다. 그 다음에는 같은 설정에서 관찰된 수치를 나란히 놓고 차이가 우연인지 일관된 변화인지 살펴봅니다. 마지막으로 확인하지 않은 부분을 사실처럼 단정하지 않고 다음 검증 항목으로 남기면 결론은"}
+  - {prompt_id: repetition-probe-01, category: repetition_probe, completion_shape: incomplete, context_class: short, discourse_type: repetition, domain_like: false, text: "반복 반복 반복 이후에는 반복을 멈추고"}

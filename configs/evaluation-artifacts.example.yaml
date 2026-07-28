@@ -125,3 +125,28 @@ artifacts:
     approval_status: approved
     evaluation_eligibility: eligible
     publication_status: not_approved
+  candidate-b-final:
+    display_name: Candidate B Run 0002 final checkpoint
+    artifact_type: checkpoint
+    model_version: DohaLM-Tiny
+    training_stage: full_pretraining
+    run_id: FULL-PRETRAIN-CANDIDATE-B-20260728-0002
+    checkpoint_step: 12208
+    consumed_tokens: 25001984
+    equivalent_epoch: 0.35061991694052586
+    dataset_version: pilot-v2
+    dataset_fingerprint: sha256:a0677dc18dbc98371d349aef0f83ea610ab4a984657412bd1518b883a66bd3c6
+    source_lineage_fingerprint: sha256:a8bd36d00fbcb6989e64a9bd38b2666e2d8de9800e5f1ec390e9a660f56f7e6f
+    pii_fingerprint: sha256:91c6ad9827645249641d96e2da1d415124a4069ca45929150e9d49fb830ee3ed
+    split_fingerprint: sha256:dd71433c11a69345fed217620ba84b4ebc8b969b25400db07af9bc5ef0f4696f
+    tokenizer_version: operating-16k-v2/unigram-16k
+    tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+    model_fingerprint: sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106
+    config_fingerprint: sha256:7bda2d315d03aedaf9c8eb58ccaa189d8c02d4479bf6be2a6406e81b938c8727
+    checkpoint_training_config_fingerprint: sha256:ef80ccb24020f3bc5107d2e402e47c5ae5a81d985fcac887c686be3742a2326f
+    checkpoint_checksum: sha256:f3edc978db9d88e9de8e2e423a28291e9f35e2e163f0413c0e27e95facc55395
+    checkpoint_bundle_bytes: 202788585
+    logical_external_path: analysis/training/candidate-b/runs/FULL-PRETRAIN-CANDIDATE-B-20260728-0002/checkpoint-12208
+    approval_status: approved
+    evaluation_eligibility: eligible
+    publication_status: not_approved

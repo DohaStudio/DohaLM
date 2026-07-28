@@ -65,6 +65,10 @@ Candidate B는 teacher-forced 품질과 EOS rank를 개선했지만 승인된 ge
 `official_candidate_b_result: evaluated_contract_not_passed`로 분리하며 Candidate A를 공식 baseline으로 유지한다.
 후속 decoding·EOS 정책 변경이나 추가 학습은 별도 사용자 승인과 ADR 영향 검토가 필요하다.
 
+[동일 조건 신규 진단](./eos-generation-decoding-diagnostic-result.md)은 historical prompt identity 문제를
+해소했다. 두 모델 모두 128-token pure greedy EOS 0%였고 Candidate B는 assisted profile에서만 종료했다.
+이 근거는 기존 Full 수치나 Candidate A baseline을 변경하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
