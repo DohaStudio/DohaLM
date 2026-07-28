@@ -5,7 +5,7 @@
 - Dataset ID: `AIHUB-71748`
 - 실행 ID: `AIHUB-71748-PII-SCAN-20260729-0002`
 - 결과: `completed_candidates_detected`
-- 관련 문서: [검증 계획](./aihub-71748-sft-validation-plan.md), [Schema Inspection](./aihub-71748-schema-inspection.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [Join Integrity 결과](./aihub-71748-join-integrity-result.md), [ADR-004](../decisions/ADR-004-data-governance.md)
+- 관련 문서: [검증 계획](./aihub-71748-sft-validation-plan.md), [Schema Inspection](./aihub-71748-schema-inspection.md), [Safe Dataset Inspector](./safe-dataset-inspector.md), [Join Integrity 결과](./aihub-71748-join-integrity-result.md), [PII 판정 정책](./aihub-71748-pii-policy.md), [ADR-004](../decisions/ADR-004-data-governance.md)
 
 ## 1. Scope
 
@@ -152,6 +152,11 @@ safety:
 - 결과는 `pii_absent` 또는 `safe_to_train` 판정이 아니다.
 - 수동 원문 검토, 삭제 및 마스킹 기준으로 바로 사용할 수 없다.
 
+Occurrence는 개인정보 확정 건수가 아니다. 특히 의료·종교·가족·법률·금융 집계에는 개인과 무관한 민감 주제
+후보가 포함된다. Component 간 질문 중복 가능성이 있어 이 수치를 고유 문장 비율로 직접 해석하지 않는다.
+Threshold와 처리 후보는 별도 [PII False Positive 및 Threshold 정책](./aihub-71748-pii-policy.md)을 따르며,
+해당 정책도 Dataset 사용 승인을 부여하지 않는다.
+
 ## 15. Dataset 변경
 
 [확정] 원본 수정·복사·추출·JSON 재저장·정제·마스킹·필터링 및 파생 Dataset 생성은 모두 0건이다.
@@ -169,8 +174,11 @@ AIHUB_71748_SFT:
   safe_inspector: validated
   join_integrity_scan: completed
   join_contract: passed
-  pii_scan: completed
-  pii_review: pending_policy_decision
+  pii_scan: completed_candidates_detected
+  pii_false_positive_policy: completed
+  pii_threshold_policy: proposed_not_approved
+  manual_pii_review: not_approved
+  pii_processing: not_approved
   dataset_candidate_status: pending_policy_decision
   content_duplicate_scan: not_approved
   near_duplicate_scan: not_approved
@@ -187,11 +195,12 @@ Critical 후보가 0건이므로 자동 `review_required_before_next_scan` 상�
 
 ## 18. 다음 승인
 
-[승인 필요] 후보 유형별 false positive 처리와 PII 정책·threshold를 결정해야 한다. 이후 scan도 Content Duplicate,
-Near Duplicate, Leakage 각각 별도 승인이 필요하며 Dataset 선택·처리와 SFT는 계속 금지된다.
+[승인 필요] 수치 threshold와 실제 PII 처리·수동 검토는 아직 승인되지 않았다. Content Duplicate, Near Duplicate,
+Leakage 각각 별도 승인이 필요하며 Dataset 선택·처리와 SFT는 계속 금지된다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | occurrence·민감 주제·Component 중복 해석 제한과 별도 PII 정책 연결 |
 | 2026-07-29 | 첫 Fail Closed 이력을 보존하고 두 번째 독립 승인 PII 후보 scan의 안전 집계 결과 기록 |

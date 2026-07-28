@@ -1,7 +1,7 @@
 # DohaLM 문서 인덱스
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-07-29
 
 ## 1. 문서 상태 체계
 
@@ -42,7 +42,8 @@
 | [instruct/aihub-71748-schema-inspection.md](./instruct/aihub-71748-schema-inspection.md) | SFTdata/label schema·type·길이·category와 원문 출력 incident | SFT Validation Plan | Safe Inspector·Join 별도 승인 | `review` | Join 설계 전 필수 | 2026-07-28 | completed_with_incident |
 | [instruct/safe-dataset-inspector.md](./instruct/safe-dataset-inspector.md) | 원문 비출력 safe representation·output guard·synthetic 회귀 계약 | Schema Inspection, ADR-004 | 실제 payload 적용 승인 | `implemented` | 실제 Dataset scan 전 필수 | 2026-07-29 | validated for data_id join only |
 | [instruct/aihub-71748-join-integrity-result.md](./instruct/aihub-71748-join-integrity-result.md) | SFTdata/SFTlabel `data_id` read-only Join·중복·orphan·split 충돌·결정론 결과 | Validation Plan, Safe Inspector, ADR-004 | 별도 PII Scan 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | join passed, execution false |
-| [instruct/aihub-71748-pii-scan-result.md](./instruct/aihub-71748-pii-scan-result.md) | 허용 질문·답변 field의 PII·민감정보 후보 유형·위험도 원문 비출력 집계 | Join 결과, Safe Inspector, ADR-004 | PII 정책 결정·후속 scan 별도 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | candidates detected, policy pending |
+| [instruct/aihub-71748-pii-scan-result.md](./instruct/aihub-71748-pii-scan-result.md) | 허용 질문·답변 field의 PII·민감정보 후보 유형·위험도 원문 비출력 집계 | Join 결과, Safe Inspector, ADR-004 | PII 정책·후속 scan 별도 승인 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | candidates detected; false positive policy completed, threshold proposed |
+| [instruct/aihub-71748-pii-policy.md](./instruct/aihub-71748-pii-policy.md) | PII 후보 false positive·식별자/민감 주제 분리·원문 비입력 판정 계층·threshold proposal | PII Scan 결과, ADR-004·010 | 별도 승인 Content/Near Duplicate·Leakage·PII 처리 결정 | `review` | Dataset 선택·처리 전 필수 | 2026-07-29 | numeric threshold·manual review·processing not_approved |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
 | [instruct/instruction-prompt-template.md](./instruct/instruction-prompt-template.md) | Base·Instruction·JSON·Markdown·Tool·Chat placeholder template | Schema, ADR-003·010 | serialization·mask 검증 | `review` | SFT config 전 필수 | 2026-07-28 | delimiter·mask·EOS 미확정 |
 | [instruct/instruction-evaluation.md](./instruct/instruction-evaluation.md) | Instruction·format·structured output·safety·EOS 평가 framework | ADR-005·008·010 | 평가 dataset·numeric 계약 | `review` | Instruct 평가 전 필수 | 2026-07-28 | threshold proposed |
@@ -251,6 +252,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] AIHUB-71748 PII false positive·threshold proposal과 원문 비입력 정책 계층 문서 등록 |
 | 2026-07-28 | [확정] ADR-010과 DohaLM Instruct 전략·dataset·schema·template·evaluation·tool·safety·readiness 문서 등록 |
 | 2026-07-26 | [확정] v2 Unigram 운영 승인, artifact identity·functional reproduction과 Gate 3 `passed`를 문서 인덱스에 동기화함 |
 | 2026-07-26 | [검증 필요] AIHUB-71748 운영 16k v2 요약과 v1/v2 동일 표본 평가를 등록하고 v2 Unigram 추천·Gate 3 사용자 승인 대기를 기록함 |
