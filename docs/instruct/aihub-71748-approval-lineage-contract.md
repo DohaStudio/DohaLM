@@ -114,7 +114,13 @@ approval_0007: not_created_non_reusable
 새 실제 Run은 이 계약이 develop에 병합된 뒤 새 immutable commit을 정하고 별도 metadata-only Preflight
 승인을 받아야 한다. 이번 작업에서 ID를 registry active 상태로 예약하지 않는다.
 
-## 17. Current Status
+## 17. Run 0008 Metadata-Only Preflight
+
+[Run 0008 Preflight](./aihub-71748-processing-run-0008-preflight.md)는 동결된 v2 schema와 10-file execution surface를
+사용해 `DIRECT_ANCESTRY_VALID`로 통과했다. 실제 Approval은 발급되지 않았으며 Approval v2 draft만
+`prepared_not_issued`로 검증했다. Runtime request, capability, payload와 Processing은 모두 0건이다.
+
+## 18. Current Status
 
 ```yaml
 run_0006: retired_approval_contract_failure
@@ -123,6 +129,11 @@ approval_permission_model: separated
 approval_schema: extended
 preflight_governance_commit: supported
 squash_merge_lineage: supported
+run_0007: retired_contract_mismatch_before_start
+approval_0007: not_created_non_reusable
+run_0008: preflight_passed
+approval_0008: prepared_not_issued
+runtime_execution_request_0008: not_created
 processed_dataset: not_created
 tokenization: not_approved
 sft_backend: not_started
@@ -130,14 +141,16 @@ training: not_approved
 execution_allowed: false
 ```
 
-## 18. Next Approval
+## 19. Next Approval
 
-[승인 필요] 병합된 새 develop commit을 기준으로 Run 0008 metadata-only Preflight를 수행하는 별도 승인이 필요하다.
-그 전에는 Run·Approval 0008 생성, payload 접근, Processing과 output 생성을 수행하지 않는다.
+[승인 필요] 병합된 최신 `develop`에서 execution surface와 evidence freshness를 live 재검증한 뒤 Approval 0008
+발급 여부를 결정하는 별도 승인이 필요하다. 그 전에는 발급·소비, Runtime request, payload 접근, Processing과
+output 생성을 수행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval v2 prepared-not-issued draft 연결 |
 | 2026-07-30 | Run 0007 시작 전 계약 불일치 폐기와 Processing 계약 v2 Synthetic E2E 연결 |
 | 2026-07-30 | Run 0006 폐기, Approval capability/runtime gate·schema·squash lineage 계약 구현 및 Synthetic 검증 |

@@ -112,12 +112,17 @@ Approval 0006은 발급 전 계약 결함으로 영구 폐기됐으며 Run 0007�
 
 [Processing 계약 v2](./aihub-71748-processing-contract-v2.md)는 Run 0007의 evidence schema 불일치를 시작 전에
 차단하고 Run 0007을 영구 폐기했다. Preflight v2부터 atomic finalization까지 Synthetic E2E로 동결했으며 실제
-Run 0008, Dataset 접근과 output은 별도 승인 전까지 금지한다.
+Dataset payload 접근과 output은 별도 승인 전까지 금지한다.
+
+[Run 0008 metadata-only Preflight](./aihub-71748-processing-run-0008-preflight.md)는 동결 계약에서 정확히 한 번
+통과했다. Approval은 `prepared_not_issued`, Runtime request와 Processing은 미생성·미실행이며
+`execution_allowed=false`다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Processing 미승인 경계 반영 |
 | 2026-07-30 | Processing 계약 v2 동결과 Synthetic 전체 lifecycle 검증 반영 |
 | 2026-07-30 | Approval capability/runtime gate·strict schema·legacy 차단·squash lineage 계약 구현 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 새 identity 승인 필요 상태 반영 |

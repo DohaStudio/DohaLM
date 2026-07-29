@@ -205,6 +205,8 @@ processing_manifest: completed
 rule_thresholds: approved_for_processing_manifest
 processing_backend: implemented_hardened_synthetic_validated
 processing_execution: not_approved
+processing_run_0008: preflight_passed
+approval_0008: prepared_not_issued
 processed_dataset: not_created
 tokenization: not_started
 sft_backend: not_started
@@ -236,7 +238,10 @@ Preflight에서 식별자 선언을 사용 흔적으로 오인해 Fail Closed했
 [확정] [Processing 계약 v2](./aihub-71748-processing-contract-v2.md)는 Manifest version 1과 budget·allowlist를
 유지한 채 Synthetic 전체 E2E를 통과했다. Run 0007은 계약 불일치로 시작 전 폐기됐다.
 
-[승인 필요] 다음 단계는 병합 후 새 immutable commit 기반 Run 0008 metadata-only Preflight의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
+[확정] [Run 0008 metadata-only Preflight](./aihub-71748-processing-run-0008-preflight.md)는 Manifest를 변경하거나
+소비하지 않고 통과했으며 Approval은 `prepared_not_issued`다.
+
+[승인 필요] 다음 단계는 최신 develop과 freshness를 live 재검증한 Approval 0008 발급의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
 Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
 Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
@@ -244,6 +249,7 @@ Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Manifest 비소비 상태 기록 |
 | 2026-07-30 | Processing 계약 v2 동결과 Run 0008 별도 승인 경계 반영 |
 | 2026-07-30 | Run 0006 Approval 계약 실패 폐기와 후속 Approval·Lineage 계약 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight와 non-issued Approval 초안 상태 연결 |
