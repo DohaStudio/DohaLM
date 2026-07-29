@@ -93,7 +93,7 @@ real_processing_backend:
   validation: synthetic_passed
 local_mapping: validated_metadata_only
 processing_run_0001: retired_failed_closed
-processing_run_0002: not_approved
+processing_run_0002: preflight_passed_approval_prepared_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -102,12 +102,14 @@ execution_allowed: false
 
 ## 다음 승인
 
-[승인 필요] Run 0002의 immutable backend commit, 새 single-use Approval, 실제 Processing output root와 runtime
-budget을 별도로 승인해야 한다. 그 전에는 ZIP payload read, Processed Dataset 생성과 Approval consume을 수행하지
-않는다. Processing 승인은 Tokenization 또는 SFT Training 승인이 아니다.
+[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 immutable backend, metadata-only
+source inventory, output parent probe와 non-executable Approval 초안을 검증했다. [승인 필요] 실제 single-use
+Approval 발급과 Processing 실행은 별도로 승인해야 한다. 그 전에는 ZIP payload read, Processed Dataset 생성과
+Approval consume을 수행하지 않는다. Processing 승인은 Tokenization 또는 SFT Training 승인이 아니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0002 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0001 폐기, 외부 Mapping 계약, 실제 ZIP streaming·join·process-local signal·atomic writer Backend와 Synthetic 검증 등록 |
