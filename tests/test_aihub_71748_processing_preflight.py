@@ -10,16 +10,20 @@ import pytest
 import yaml
 
 import src.data.aihub_71748_processing_preflight as preflight
+import scripts.datasets.process_aihub_71748_sft as process_cli
 from src.data.aihub_71748_processing_preflight import (
     APPROVAL_ID,
     RUN_ID,
     PreflightEvidence,
     ProcessingPreflightError,
+    build_approval_draft,
     compute_git_fingerprints,
     discover_source_metadata,
     preflight_evidence_fingerprint,
+    probe_output_parent,
     validate_immutable_commit,
     validate_manifest_document,
+    validate_approval_draft,
     validate_output_contract,
     validate_preflight_evidence,
     validate_run_unused,
@@ -56,18 +60,32 @@ def _mapping(source: Path, output: Path) -> ResolvedDatasetMapping:
 
 def _evidence(**changes: object) -> PreflightEvidence:
     value = PreflightEvidence(
+        schema_version=1,
         run_id=RUN_ID,
         approval_id=APPROVAL_ID,
         immutable_git_commit="a" * 40,
         manifest_sha256="b" * 64,
         backend_fingerprint="c" * 64,
-        mapping_identity="AIHUB-71748:SFT:external:read_only",
-        source_zip_count=55,
-        source_total_bytes=17_256_335_769,
-        output_root_state="absent",
-        staging_root_state="absent",
-        quarantine_state="absent",
-        free_disk_bytes=8_000_000_000,
+        mapping_identity={
+            "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
+            "repository_internal": False, "read_only": True,
+        },
+        source_snapshot={
+            "zip_count": 55, "total_bytes": 17_256_335_769,
+            "filename_aggregate": "d" * 64, "modified_time_aggregate": "e" * 64,
+        },
+        registry_state={
+            "run_id_unused": True, "approval_id_unused": True,
+            "retired_runs": ["0001", "0002", "0003"],
+        },
+        output_state={
+            "final_exists": False, "staging_exists": False,
+            "quarantine_exists": False, "parent_probe_passed": True,
+        },
+        resource_state={
+            "free_disk_bytes": 8_000_000_000, "memory_provider_available": True,
+            "runtime_provider_available": True, "current_rss_bytes": 1,
+        },
         runtime_budget={"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
         memory_budget={"soft_limit_mib": 1536, "hard_limit_mib": 2048},
         disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
@@ -78,11 +96,15 @@ def _evidence(**changes: object) -> PreflightEvidence:
     return replace(value, **changes)
 
 
-def test_run_0003_identity_is_retired_after_failed_preflight() -> None:
-    assert RUN_ID.endswith("0003") and APPROVAL_ID.endswith("0003")
+def test_run_0004_identity_is_current_and_run_0003_is_retired() -> None:
+    assert RUN_ID.endswith("0004") and APPROVAL_ID.endswith("0004")
     source = Path("synthetic-unused")
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_RETIRED$"):
-        validate_run_unused(_mapping(source, source / "processed"), repository_root=Path.cwd())
+        validate_run_unused(
+            _mapping(source, source / "processed"), repository_root=Path.cwd(),
+            run_id="AIHUB-71748-SFT-PROCESSING-20260729-0003",
+            approval_id="AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003",
+        )
 
 
 def test_immutable_commit_is_not_hardcoded() -> None:
@@ -127,6 +149,8 @@ def test_source_metadata_reads_names_and_stats_only(tmp_path: Path, monkeypatch:
     monkeypatch.setattr(preflight, "EXPECTED_TOTAL_BYTES", total)
     result = discover_source_metadata(root)
     assert (result.zip_files, result.total_bytes, result.payload_reads) == (55, total, 0)
+    assert len(result.filename_aggregate) == 64
+    assert len(result.modified_time_aggregate) == 64
 
 
 def test_source_metadata_module_has_no_payload_reader() -> None:
@@ -219,6 +243,14 @@ def test_output_contract_and_disk_budget(tmp_path: Path) -> None:
         validate_output_contract(_mapping(source, output), minimum_free_bytes=2**63)
 
 
+def test_parent_write_probe_leaves_no_residue(tmp_path: Path) -> None:
+    source = tmp_path / "raw" / "AIHUB-71748"
+    source.mkdir(parents=True)
+    output = tmp_path / "processed" / "instruct" / "AIHUB-71748"
+    assert probe_output_parent(_mapping(source, output)) is True
+    assert list(output.iterdir()) == []
+
+
 def test_preflight_fingerprint_is_deterministic() -> None:
     assert preflight_evidence_fingerprint(_evidence()) == preflight_evidence_fingerprint(_evidence())
 
@@ -239,18 +271,75 @@ def test_stale_preflight_fails_closed() -> None:
         validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
 
 
-@pytest.mark.parametrize("field", ["output_root_state", "staging_root_state", "quarantine_state"])
+@pytest.mark.parametrize("field", ["final_exists", "staging_exists", "quarantine_exists"])
 def test_preflight_output_collision_fails_closed(field: str) -> None:
-    evidence = _evidence(**{field: "present"})
+    state = dict(_evidence().output_state)
+    state[field] = True
+    evidence = _evidence(output_state=state)
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
         validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
 
 
-@pytest.mark.parametrize("field,value", [("source_zip_count", 54), ("source_total_bytes", 1)])
+@pytest.mark.parametrize("field,value", [("zip_count", 54), ("total_bytes", 1)])
 def test_preflight_source_drift_fails_closed(field: str, value: int) -> None:
-    evidence = _evidence(**{field: value})
+    snapshot = dict(_evidence().source_snapshot)
+    snapshot[field] = value
+    evidence = _evidence(source_snapshot=snapshot)
     with pytest.raises(ProcessingPreflightError, match="^SOURCE_PACKAGE_DRIFT$"):
         validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
+
+
+def test_approval_draft_is_prepared_but_grants_no_execution_rights() -> None:
+    evidence = _evidence()
+    fingerprint = preflight_evidence_fingerprint(evidence)
+    draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
+    draft_fingerprint = validate_approval_draft(
+        draft, evidence=evidence, evidence_fingerprint=fingerprint,
+    )
+    assert len(draft_fingerprint) == 64
+    assert draft["status"] == "prepared_not_issued"
+    assert all(
+        draft[name] is False
+        for name in (
+            "processing_allowed", "payload_read_allowed", "output_write_allowed",
+            "tokenization_allowed", "sft_backend_allowed", "training_allowed",
+        )
+    )
+
+
+def test_preflight_only_cli_never_enters_processing_or_approval(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = {"preflight": 0, "processing": 0, "approval": 0, "payload": 0}
+
+    def safe_preflight(**_: object) -> dict[str, object]:
+        calls["preflight"] += 1
+        return {
+            "status": "preflight_passed", "processing_calls": 0,
+            "payload_reads": 0, "output_writes": 0, "approval_issued": False,
+            "approval_consumed": False, "execution_allowed": False,
+        }
+
+    def forbidden(*_: object, **__: object) -> None:
+        calls["processing"] += 1
+        raise AssertionError("forbidden processing path called")
+
+    monkeypatch.setattr(process_cli, "run_preflight", safe_preflight)
+    monkeypatch.setattr(process_cli, "execute_approved_processing", forbidden)
+    monkeypatch.setattr(process_cli, "load_approval", forbidden)
+    monkeypatch.setattr(process_cli, "discover_sft_sources", forbidden)
+    result = process_cli.main([
+        "--manifest", str(MANIFEST_PATH),
+        "--mapping", "configs/local-datasets.yaml",
+        "--run-id", RUN_ID,
+        "--approval-id", APPROVAL_ID,
+        "--immutable-commit", "a" * 40,
+        "--preflight-only",
+    ])
+    assert result == 0
+    assert calls == {"preflight": 1, "processing": 0, "approval": 0, "payload": 0}
+    assert '"execution_allowed": false' in capsys.readouterr().out
 
 
 def test_manifest_remains_non_executable() -> None:

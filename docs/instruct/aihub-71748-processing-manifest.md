@@ -219,10 +219,12 @@ execution_allowed: false
 [Run 0003 Backend 계약](./aihub-71748-run-0003-backend-hardening.md)은 Synthetic 검증됐지만 metadata-only
 Preflight에서 식별자 선언을 사용 흔적으로 오인해 Fail Closed했다. Run 0003은
 `retired_failed_closed_before_approval`, Approval 0003은 `retired_not_issued`다.
+[Run 0004 Preflight](./aihub-71748-processing-run-0004-preflight.md)는 수정된 registry validator에서
+통과했고 Approval 0004는 `prepared_not_issued`다. 실제 실행 권한은 부여되지 않았다.
 
 ## 18. Next Approval
 
-[승인 필요] 다음 단계는 validator 수정이 포함된 새 immutable commit과 새 Run·Approval ID 확정이다. 별도 승인 전에는 Approval 준비·발급·소비,
+[승인 필요] 다음 단계는 live freshness 재검증과 Approval 0004 실제 발급의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
 Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
 Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
@@ -230,6 +232,7 @@ Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0004 metadata-only Preflight와 non-issued Approval 초안 상태 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 ID 폐기 상태 연결 |
 | 2026-07-29 | Run 0002 폐기와 Run 0003 hardened backend·Preflight 미시작 상태 연결 |
 | 2026-07-29 | Run 0002 metadata-only Preflight와 non-executable Approval 초안 상태 연결 |

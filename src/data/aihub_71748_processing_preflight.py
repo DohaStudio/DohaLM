@@ -6,9 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
+import time
 from typing import Mapping
 
 from src.data.processing.aihub_71748_manifest import (
@@ -16,10 +19,11 @@ from src.data.processing.aihub_71748_manifest import (
 )
 from src.data.processing.aihub_71748_mapping import ResolvedDatasetMapping
 from src.data.processing.run_contract import RETIRED_APPROVAL_IDS, RETIRED_RUN_IDS
+from src.data.processing.runtime_monitor import RuntimeBudget, RuntimeMonitor
 
 
-RUN_ID = "AIHUB-71748-SFT-PROCESSING-20260729-0003"
-APPROVAL_ID = "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003"
+RUN_ID = "AIHUB-71748-SFT-PROCESSING-20260729-0004"
+APPROVAL_ID = "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0004"
 MANIFEST_PATH = "configs/data/aihub-71748-sft-processing-v1.yaml"
 BACKEND_PATHS = (
     "src/data/processing/aihub_71748_reader.py",
@@ -53,6 +57,8 @@ class SourceMetadata:
     total_bytes: int
     modified_min_utc: str
     modified_max_utc: str
+    filename_aggregate: str
+    modified_time_aggregate: str
     components: tuple[str, ...]
     splits: tuple[str, ...]
     payload_reads: int = 0
@@ -68,18 +74,17 @@ class GitFingerprints:
 
 @dataclass(frozen=True)
 class PreflightEvidence:
+    schema_version: int
     run_id: str
     approval_id: str
     immutable_git_commit: str
     manifest_sha256: str
     backend_fingerprint: str
-    mapping_identity: str
-    source_zip_count: int
-    source_total_bytes: int
-    output_root_state: str
-    staging_root_state: str
-    quarantine_state: str
-    free_disk_bytes: int
+    mapping_identity: Mapping[str, object]
+    source_snapshot: Mapping[str, object]
+    registry_state: Mapping[str, object]
+    output_state: Mapping[str, object]
+    resource_state: Mapping[str, object]
     runtime_budget: Mapping[str, object]
     memory_budget: Mapping[str, object]
     disk_budget: Mapping[str, object]
@@ -185,14 +190,23 @@ def discover_source_metadata(source_root: str | Path) -> SourceMetadata:
     splits = tuple(name for name in ("Training", "Validation") if name.casefold() in path_parts)
     if splits != ("Training", "Validation"):
         raise ProcessingPreflightError("SOURCE_SPLIT_MISSING")
-    modified = [path.stat().st_mtime for path in archives]
+    logical_names = [path.relative_to(root).as_posix() for path in archives]
+    stats = [path.stat() for path in archives]
+    modified = [item.st_mtime for item in stats]
     def render(value: float) -> str:
-        return datetime.fromtimestamp(value, timezone.utc).isoformat().replace("+00:00", "Z")
+        return datetime.fromtimestamp(value, timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    filename_payload = "".join(f"{name}\n" for name in logical_names).encode("utf-8")
+    mtime_payload = "".join(
+        f"{name}\0{render(item.st_mtime)}\n"
+        for name, item in zip(logical_names, stats, strict=True)
+    ).encode("utf-8")
     return SourceMetadata(
         zip_files=len(archives),
         total_bytes=total_bytes,
         modified_min_utc=render(min(modified)),
         modified_max_utc=render(max(modified)),
+        filename_aggregate=hashlib.sha256(filename_payload).hexdigest(),
+        modified_time_aggregate=hashlib.sha256(mtime_payload).hexdigest(),
         components=tuple(components),
         splits=splits,
     )
@@ -252,7 +266,9 @@ def validate_output_contract(
     run_id: str = RUN_ID,
 ) -> dict[str, object]:
     run_root = mapping.processed_root / run_id
-    collisions = (run_root, run_root.with_name(run_root.name + ".staging"), run_root.with_name(run_root.name + ".failed"))
+    staging_root = run_root.with_name(run_root.name + ".staging")
+    quarantine_root = mapping.processed_root / "quarantine" / run_id
+    collisions = (run_root, staging_root, run_root.with_name(run_root.name + ".failed"), quarantine_root)
     if any(path.exists() for path in collisions):
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
     parent = mapping.processed_root
@@ -267,6 +283,52 @@ def validate_output_contract(
         "quarantine_root_exists": False,
         "same_filesystem": True,
         "free_bytes": free,
+    }
+
+
+def probe_output_parent(mapping: ResolvedDatasetMapping) -> bool:
+    """Write, fsync, and remove one private probe outside raw and run roots."""
+
+    parent = mapping.processed_root
+    parent.mkdir(parents=True, exist_ok=True)
+    if parent == mapping.source_root or parent.is_relative_to(mapping.source_root):
+        raise ProcessingPreflightError("OUTPUT_PROBE_FAILED")
+    descriptor = -1
+    probe_name: str | None = None
+    try:
+        descriptor, probe_name = tempfile.mkstemp(prefix=".dohalm-preflight-", dir=parent)
+        os.write(descriptor, b"probe")
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        Path(probe_name).unlink()
+        if Path(probe_name).exists():
+            raise ProcessingPreflightError("OUTPUT_PROBE_RESIDUE_PRESENT")
+    except ProcessingPreflightError:
+        raise
+    except OSError:
+        raise ProcessingPreflightError("OUTPUT_PROBE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if probe_name and Path(probe_name).exists():
+            try:
+                Path(probe_name).unlink()
+            except OSError:
+                raise ProcessingPreflightError("OUTPUT_PROBE_RESIDUE_PRESENT") from None
+    return True
+
+
+def validate_resource_providers() -> dict[str, object]:
+    started = time.monotonic()
+    monitor = RuntimeMonitor(RuntimeBudget())
+    monitor.check("preflight")
+    if time.monotonic() < started:
+        raise ProcessingPreflightError("RUNTIME_PROVIDER_UNAVAILABLE")
+    return {
+        "memory_provider_available": True,
+        "runtime_provider_available": True,
+        "current_rss_bytes": monitor.current_rss_bytes,
     }
 
 
@@ -297,13 +359,18 @@ def validate_preflight_evidence(
     current = now or datetime.now(timezone.utc)
     if generated > current or current - generated > maximum_age:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_STALE")
-    if any(state != "absent" for state in (
-        evidence.output_root_state, evidence.staging_root_state, evidence.quarantine_state,
+    if evidence.schema_version != 1:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    if any(evidence.output_state.get(name) is not False for name in (
+        "final_exists", "staging_exists", "quarantine_exists",
     )):
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
     if evidence.run_id != RUN_ID or evidence.approval_id != APPROVAL_ID:
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
-    if not evidence.mapping_identity or len(evidence.immutable_git_commit) != 40:
+    if dict(evidence.mapping_identity) != {
+        "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
+        "repository_internal": False, "read_only": True,
+    } or len(evidence.immutable_git_commit) != 40:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     expected_budgets = {
         "runtime_budget": {"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
@@ -314,10 +381,58 @@ def validate_preflight_evidence(
     }
     if any(dict(getattr(evidence, name)) != value for name, value in expected_budgets.items()):
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
-    if evidence.free_disk_bytes < 4_294_967_296:
+    if int(evidence.resource_state.get("free_disk_bytes", 0)) < 4_294_967_296:
         raise ProcessingPreflightError("DISK_BUDGET_INSUFFICIENT")
-    if evidence.source_zip_count != EXPECTED_ZIP_FILES or evidence.source_total_bytes != EXPECTED_TOTAL_BYTES:
+    if (
+        evidence.source_snapshot.get("zip_count") != EXPECTED_ZIP_FILES
+        or evidence.source_snapshot.get("total_bytes") != EXPECTED_TOTAL_BYTES
+    ):
         raise ProcessingPreflightError("SOURCE_PACKAGE_DRIFT")
+
+
+def build_approval_draft(
+    evidence: PreflightEvidence,
+    *,
+    evidence_fingerprint: str,
+) -> dict[str, object]:
+    return {
+        "approval_id": evidence.approval_id,
+        "processing_run_id": evidence.run_id,
+        "dataset_id": "AIHUB-71748",
+        "component": "SFT",
+        "immutable_git_commit": evidence.immutable_git_commit,
+        "manifest_version": 1,
+        "manifest_sha256": evidence.manifest_sha256,
+        "backend_fingerprint": evidence.backend_fingerprint,
+        "preflight_evidence_fingerprint": evidence_fingerprint,
+        "approved_by": None,
+        "approved_at": None,
+        "issued_at": None,
+        "consumed_at": None,
+        "completed_at": None,
+        "failed_at": None,
+        "maximum_runs": 1,
+        "maximum_processing_calls": 1,
+        "maximum_payload_open_sessions": 1,
+        "retry_allowed": False,
+        "resume_allowed": False,
+        "overwrite_allowed": False,
+        "extension_allowed": False,
+        "run_id_reuse_allowed": False,
+        "approval_id_reuse_allowed": False,
+        "runtime_budget": dict(evidence.runtime_budget),
+        "memory_budget": dict(evidence.memory_budget),
+        "disk_budget": dict(evidence.disk_budget),
+        "record_budget": dict(evidence.record_budget),
+        "output_budget": dict(evidence.output_budget),
+        "processing_allowed": False,
+        "payload_read_allowed": False,
+        "output_write_allowed": False,
+        "tokenization_allowed": False,
+        "sft_backend_allowed": False,
+        "training_allowed": False,
+        "status": "prepared_not_issued",
+    }
 
 
 def _exact_keys(value: Mapping[str, object], expected: set[str]) -> None:
@@ -328,55 +443,23 @@ def _exact_keys(value: Mapping[str, object], expected: set[str]) -> None:
 def validate_approval_draft(
     draft: Mapping[str, object],
     *,
-    fingerprints: GitFingerprints,
+    evidence: PreflightEvidence,
+    evidence_fingerprint: str,
 ) -> str:
     _exact_keys(draft, {
         "approval_id", "processing_run_id", "dataset_id", "component",
         "immutable_git_commit", "manifest_version", "manifest_sha256",
-        "backend_fingerprint", "backend_file_count", "approved_by", "approved_at",
-        "maximum_runs", "retry_allowed", "resume_allowed", "overwrite_allowed",
-        "extension_allowed", "runtime_budget", "memory_budget", "disk_budget",
-        "record_budget", "output_budget", "processing_thresholds", "near_duplicate",
+        "backend_fingerprint", "preflight_evidence_fingerprint", "approved_by", "approved_at",
+        "issued_at", "consumed_at", "completed_at", "failed_at", "maximum_runs",
+        "maximum_processing_calls", "maximum_payload_open_sessions", "retry_allowed",
+        "resume_allowed", "overwrite_allowed", "extension_allowed", "run_id_reuse_allowed",
+        "approval_id_reuse_allowed", "runtime_budget", "memory_budget", "disk_budget",
+        "record_budget", "output_budget",
         "processing_allowed", "payload_read_allowed", "output_write_allowed",
-        "tokenization_allowed", "training_allowed", "execution_allowed", "status",
+        "tokenization_allowed", "sft_backend_allowed", "training_allowed", "status",
     })
-    fixed = {
-        "approval_id": APPROVAL_ID,
-        "processing_run_id": RUN_ID,
-        "dataset_id": "AIHUB-71748",
-        "component": "SFT",
-        "immutable_git_commit": fingerprints.immutable_commit,
-        "manifest_version": 1,
-        "manifest_sha256": fingerprints.manifest_sha256,
-        "backend_fingerprint": fingerprints.backend_fingerprint,
-        "backend_file_count": fingerprints.backend_file_count,
-        "approved_by": "user",
-        "approved_at": None,
-        "maximum_runs": 1,
-        "retry_allowed": False,
-        "resume_allowed": False,
-        "overwrite_allowed": False,
-        "extension_allowed": False,
-        "processing_allowed": False,
-        "payload_read_allowed": False,
-        "output_write_allowed": False,
-        "tokenization_allowed": False,
-        "training_allowed": False,
-        "execution_allowed": False,
-        "status": "prepared_not_issued",
-    }
-    if any(draft.get(key) != value for key, value in fixed.items()):
-        raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
-    expected_nested = {
-        "runtime_budget": {"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
-        "memory_budget": {"soft_limit_mib": 1536, "hard_limit_mib": 2048},
-        "disk_budget": {"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
-        "record_budget": {"expected_total": 11902, "maximum_total": 11902, "unexpected_extra_records": "blocked"},
-        "output_budget": {"expected_files": 6, "maximum_files": 6, "maximum_bytes": 536_870_912, "allowed_files": list(ALLOWED_OUTPUTS)},
-        "processing_thresholds": {"minimum_training_records": 10000, "minimum_validation_records": 1000, "maximum_total_exclusion_rate": 0.10},
-        "near_duplicate": {"review_min": 0.90, "high_similarity_min": 0.97},
-    }
-    if any(draft.get(key) != value for key, value in expected_nested.items()):
+    expected = build_approval_draft(evidence, evidence_fingerprint=evidence_fingerprint)
+    if dict(draft) != expected:
         raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
     canonical = json.dumps(dict(draft), sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(canonical).hexdigest()
