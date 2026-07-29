@@ -1,0 +1,55 @@
+approval_id: AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0002
+processing_run_id: AIHUB-71748-SFT-PROCESSING-20260729-0002
+dataset_id: AIHUB-71748
+component: SFT
+immutable_git_commit: af10abf3ef388f4efd8707489cebef2c22719751
+manifest_version: 1
+manifest_sha256: ca1f99996a459b0f6aa241ee20e2839645fea9a73cf40163169ab3fd9fbf3973
+backend_fingerprint: 38570ac2a5126f731e9fef5bcd1cb8af2dbba6bdd696a7107503ea4e904db5d7
+backend_file_count: 15
+approved_by: user
+approved_at: null
+maximum_runs: 1
+retry_allowed: false
+resume_allowed: false
+overwrite_allowed: false
+extension_allowed: false
+runtime_budget:
+  soft_limit_seconds: 1200
+  hard_limit_seconds: 1800
+memory_budget:
+  soft_limit_mib: 1536
+  hard_limit_mib: 2048
+disk_budget:
+  minimum_free_bytes: 4294967296
+  staging_multiplier: 2
+  safety_margin_ratio: 0.25
+record_budget:
+  expected_total: 11902
+  maximum_total: 11902
+  unexpected_extra_records: blocked
+output_budget:
+  expected_files: 6
+  maximum_files: 6
+  maximum_bytes: 536870912
+  allowed_files:
+    - train.jsonl
+    - validation.jsonl
+    - manifest.yaml
+    - statistics.json
+    - checksums.sha256
+    - processing-result.yaml
+processing_thresholds:
+  minimum_training_records: 10000
+  minimum_validation_records: 1000
+  maximum_total_exclusion_rate: 0.10
+near_duplicate:
+  review_min: 0.90
+  high_similarity_min: 0.97
+processing_allowed: false
+payload_read_allowed: false
+output_write_allowed: false
+tokenization_allowed: false
+training_allowed: false
+execution_allowed: false
+status: prepared_not_issued
