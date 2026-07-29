@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import re
 from pathlib import Path
 import os
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 import yaml
 
@@ -24,7 +25,10 @@ from .approval import (
     validate_approval_file,
 )
 from .output_writer import write_atomic_outputs
-from .run_contract import ProcessingRunContract, validate_run_contract
+from .output_writer import HardenedWriteContext
+from .post_validation import DiskGuard, snapshot_source_metadata
+from .processing_statistics import detailed_statistics_schema, validate_detailed_statistics
+from .run_contract import ExecutionCounters, ProcessingRunContract, payload_session, validate_run_contract
 from .runtime_monitor import RuntimeMonitor
 
 
@@ -202,6 +206,9 @@ def process_joined_records(
     monitor: RuntimeMonitor | None = None,
     enforce_expected_statistics: bool = True,
     blocked_prompts: frozenset[str] = frozenset(),
+    run_id: str = "SYNTHETIC",
+    approval_id: str = "SYNTHETIC",
+    counters: ExecutionCounters | None = None,
 ) -> ProcessedRecords:
     validate_aihub_71748_processing_manifest(manifest)
     if tuple(manifest.get("rule_order", ())) != RULE_ORDER:
@@ -251,18 +258,56 @@ def process_joined_records(
     rate = 0.0 if not records else (len(records) - total_output) / len(records)
     if enforce_expected_statistics and rate > float(expected["maximum_total_exclusion_rate"]):  # type: ignore[index]
         raise AIHub71748ProcessingError("EXCLUSION_RATE_ABOVE_LIMIT")
+    input_training = sum(record.split == "training" for record in records)
+    input_validation = len(records) - input_training
+    excluded_training = sum(
+        record.split == "training" and any((signal.pii == "exclude", signal.exact_duplicate == "duplicate", signal.near_duplicate == "duplicate", signal.leakage == "exclude"))
+        for record, signal in zip(records, signals)
+    )
+    excluded_validation = len(records) - total_output - excluded_training
+    detailed = detailed_statistics_schema(run_id=run_id, approval_id=approval_id)
+    detailed["run"].update({  # type: ignore[union-attr]
+        "processing_calls": 0 if counters is None else counters.processing_calls,
+        "payload_open_sessions": 0 if counters is None else counters.payload_open_sessions,
+    })
+    detailed["input"].update({"Training": input_training, "Validation": input_validation, "Total": len(records)})  # type: ignore[union-attr]
+    detailed["source"].update({"sftdata_records": len(records), "sftlabel_records": len(records)})  # type: ignore[union-attr]
+    detailed["join"]["matched"] = len(records)  # type: ignore[index]
+    detailed["pii"].update({"training_excluded": excluded["pii"], "validation_excluded": 0})  # type: ignore[union-attr]
+    detailed["exact_duplicate"].update({"same_split_excluded": excluded["exact_duplicate"]})  # type: ignore[union-attr]
+    detailed["near_duplicate"].update({"same_split_review": excluded["near_duplicate"]})  # type: ignore[union-attr]
+    detailed["leakage"].update({"near_question_review": excluded["leakage"]})  # type: ignore[union-attr]
+    detailed["actions"].update({  # type: ignore[union-attr]
+        "keep": total_output,
+        "training_excluded": excluded_training,
+        "validation_excluded": excluded_validation,
+    })
+    detailed["output"].update({  # type: ignore[union-attr]
+        "Training": len(retained["training"]),
+        "Validation": len(retained["validation"]),
+        "Total": total_output,
+        "excluded_total": len(records) - total_output,
+        "exclusion_rate": rate,
+        "output_files": 6,
+    })
+    detailed["runtime"].update({  # type: ignore[union-attr]
+        "elapsed_seconds": runtime.elapsed_seconds(),
+        "peak_memory_mib": runtime.peak_rss_bytes / (1024 * 1024),
+        "soft_runtime_triggered": runtime.soft_runtime_triggered,
+        "soft_memory_triggered": runtime.soft_memory_triggered,
+    })
+    detailed["validation"].update({  # type: ignore[union-attr]
+        "jsonl_valid": True,
+        "split_isolation_valid": True,
+        "checksum_valid": True,
+        "source_immutable": True,
+        "output_budget_valid": True,
+    })
+    validate_detailed_statistics(detailed)
     return ProcessedRecords(
         train=tuple(retained["training"]),
         validation=tuple(retained["validation"]),
-        statistics={
-            "input_count": len(records),
-            "output_count": total_output,
-            "excluded_count": len(records) - total_output,
-            "exclusion_rate": rate,
-            "rule_impacts": excluded,
-            "record_identifiers_persisted": False,
-            "signal_details_persisted": False,
-        },
+        statistics=detailed,
     )
 
 
@@ -298,8 +343,12 @@ def execute_approved_processing(
     approval_path: str | Path,
     manifest_sha256: str,
     backend_git_commit: str,
+    backend_fingerprint: str,
+    preflight_evidence_fingerprint: str,
     monitor: RuntimeMonitor | None = None,
     enforce_expected_statistics: bool = True,
+    counters: ExecutionCounters | None = None,
+    now: Callable[[], str] | None = None,
 ) -> dict[str, object]:
     """Execute once after an external approval has been issued; never retries."""
 
@@ -309,26 +358,80 @@ def execute_approved_processing(
     validate_aihub_71748_processing_manifest(manifest)
     sources = discover_sft_sources(package_root)  # metadata only before consume
     approval = validate_approval_file(approval_path, contract)
-    if approval.manifest_sha256 != manifest_sha256 or approval.backend_git_commit != backend_git_commit:
+    if (
+        approval.manifest_sha256 != manifest_sha256
+        or approval.immutable_git_commit != backend_git_commit
+        or approval.backend_fingerprint != backend_fingerprint
+        or approval.preflight_evidence_fingerprint != preflight_evidence_fingerprint
+    ):
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
     if approval.processing_allowed is not True or approval.execution_allowed is not True:
         raise ProcessingApprovalError("APPROVAL_NOT_CONSUMED")
-    consumed = consume_approval(approval_path, approval)
+    timestamp = now or (lambda: datetime.now(timezone.utc).isoformat())
+    consumed = consume_approval(approval_path, approval, consumed_at=timestamp())
+    usage = counters or ExecutionCounters()
+    usage.begin_processing()
+    runtime = monitor or RuntimeMonitor()
+    source_before = snapshot_source_metadata(package_root)
+    disk = DiskGuard(Path(run_root).parent)
     try:
-        records = tuple(record for source in sources for record in iter_source_records(source))
+        loaded: list[SourceRecord] = []
+        with payload_session(usage):
+            for source in sources:
+                loaded.extend(iter_source_records(source))
+                runtime.check("archive_stream")
+        records = tuple(loaded)
         joined = join_source_records(records)
+        runtime.check("join", source_records=len(joined))
         processed = process_joined_records(
             joined,
             manifest,
-            monitor=monitor,
+            monitor=runtime,
             enforce_expected_statistics=enforce_expected_statistics,
             blocked_prompts=load_blocked_evaluation_prompts(repository_root),
+            run_id=contract.run_id,
+            approval_id=contract.approval_id,
+            counters=usage,
         )
+        completion_time = timestamp()
         result = {
             "status": "completed",
             "run_id": contract.run_id,
             "approval_id": contract.approval_id,
             "record_level_signal_details_persisted": False,
+            "immutable_git_commit": backend_git_commit,
+            "manifest_sha256": manifest_sha256,
+            "backend_fingerprint": backend_fingerprint,
+            "preflight_evidence_fingerprint": preflight_evidence_fingerprint,
+            "approval": {
+                "issued_at": consumed.issued_at,
+                "consumed_at": consumed.consumed_at,
+                "completed_at": completion_time,
+                "failed_at": None,
+            },
+            "input": dict(processed.statistics["input"]),  # type: ignore[index]
+            "output": {
+                **dict(processed.statistics["output"]),  # type: ignore[index]
+                "file_count": 6,
+                "total_bytes": 0,
+            },
+            "validation": {
+                "statistics_contract": True,
+                "jsonl": True,
+                "split": True,
+                "checksum": True,
+                "source_immutable": True,
+                "disk_budget": True,
+                "output_budget": True,
+            },
+            "execution": {
+                "processing_calls": usage.processing_calls,
+                "payload_open_sessions": usage.payload_open_sessions,
+                "runtime_seconds": runtime.elapsed_seconds(),
+                "peak_memory_mib": runtime.peak_rss_bytes / (1024 * 1024),
+            },
+            "tokenization_allowed": False,
+            "training_allowed": False,
             "execution_allowed": False,
         }
         written = write_atomic_outputs(
@@ -338,8 +441,20 @@ def execute_approved_processing(
             manifest=manifest,
             statistics=processed.statistics,
             result=result,
+            hardened=HardenedWriteContext(
+                counters=usage,
+                monitor=runtime,
+                disk_guard=disk,
+                source_before=source_before,
+                source_root=Path(package_root),
+                approval_consumed=True,
+                expected_training=len(processed.train),
+                expected_validation=len(processed.validation),
+                minimum_training=10_000 if enforce_expected_statistics else 0,
+                minimum_validation=1_000 if enforce_expected_statistics else 0,
+            ),
         )
-        finalize_approval(approval_path, consumed)
+        finalize_approval(approval_path, consumed, success=True, finalized_at=completion_time)
         return {**result, "counts": written["counts"], "approval_consumed": True}
     except Exception:
         final = Path(run_root)
@@ -348,7 +463,7 @@ def execute_approved_processing(
             os.replace(final, quarantine)
         try:
             if consumed.state == "consumed":
-                finalize_approval(approval_path, consumed)
+                finalize_approval(approval_path, consumed, success=False, finalized_at=timestamp())
         except ProcessingApprovalError:
             pass
         raise

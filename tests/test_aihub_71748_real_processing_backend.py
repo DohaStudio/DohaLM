@@ -38,12 +38,35 @@ from src.data.processing.approval import (
     issue_approval,
     load_approval,
     new_approval,
-    validate_approval,
     validate_approval_file,
 )
 
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
+STAMP = "2026-07-29T10:00:00+09:00"
+
+
+def _contract() -> ProcessingRunContract:
+    return ProcessingRunContract(
+        "AIHUB-71748-SFT-PROCESSING-20260729-0003",
+        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003",
+        processing_allowed=True,
+        payload_read_allowed=True,
+        output_write_allowed=True,
+        execution_allowed=True,
+    )
+
+
+def _approval(contract: ProcessingRunContract):
+    return new_approval(
+        contract,
+        immutable_git_commit="b" * 40,
+        manifest_sha256="a" * 64,
+        backend_fingerprint="c" * 64,
+        preflight_evidence_fingerprint="d" * 64,
+        approved_by="synthetic-test",
+        approved_at=STAMP,
+    )
 
 
 def _local_config(root: Path) -> dict[str, object]:
@@ -248,36 +271,27 @@ def test_run_and_approval_reuse_are_fail_closed(tmp_path: Path) -> None:
         "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0001",
     )
     with pytest.raises(RunContractError, match="^RUN_ID_RETIRED$"):
-        new_approval(retired, manifest_sha256="a" * 64, backend_git_commit="b" * 40)
-    contract = ProcessingRunContract(
-        "AIHUB-71748-SFT-PROCESSING-20260729-0002",
-        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0002",
-    )
+        new_approval(
+            retired, immutable_git_commit="b" * 40, manifest_sha256="a" * 64,
+            backend_fingerprint="c" * 64, preflight_evidence_fingerprint="d" * 64,
+            approved_by="synthetic-test", approved_at=STAMP,
+        )
+    contract = _contract()
     path = tmp_path / "synthetic-approval.json"
-    created = new_approval(contract, manifest_sha256="a" * 64, backend_git_commit="b" * 40)
-    issue_approval(path, created)
+    created = _approval(contract)
+    issue_approval(path, created, issued_at=STAMP)
     record = validate_approval_file(path, contract)
-    consumed = consume_approval(path, record)
+    consumed = consume_approval(path, record, consumed_at=STAMP)
     assert load_approval(path).state == "consumed"
-    with pytest.raises(ProcessingApprovalError, match="^APPROVAL_NOT_CONSUMED$"):
-        consume_approval(path, consumed)
+    with pytest.raises(ProcessingApprovalError, match="^APPROVAL_ALREADY_CONSUMED$"):
+        consume_approval(path, consumed, consumed_at=STAMP)
 
 
 def test_synthetic_full_flow_consumes_once_and_finalizes_atomically(tmp_path: Path) -> None:
     package = _package(tmp_path / "AIHUB-71748")
-    contract = ProcessingRunContract(
-        "AIHUB-71748-SFT-PROCESSING-20260729-0002",
-        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0002",
-        processing_allowed=True,
-        execution_allowed=True,
-    )
+    contract = _contract()
     approval_path = tmp_path / "approval.json"
-    issued = new_approval(
-        contract,
-        manifest_sha256="a" * 64,
-        backend_git_commit="b" * 40,
-    )
-    issue_approval(approval_path, issued)
+    issue_approval(approval_path, _approval(contract), issued_at=STAMP)
     manifest = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     result = execute_approved_processing(
         package_root=package,
@@ -288,26 +302,21 @@ def test_synthetic_full_flow_consumes_once_and_finalizes_atomically(tmp_path: Pa
         approval_path=approval_path,
         manifest_sha256="a" * 64,
         backend_git_commit="b" * 40,
+        backend_fingerprint="c" * 64,
+        preflight_evidence_fingerprint="d" * 64,
         enforce_expected_statistics=False,
+        now=lambda: STAMP,
     )
     assert result["approval_consumed"] is True
-    assert load_approval(approval_path).state == "completed_or_failed"
+    assert load_approval(approval_path).state == "completed"
     assert (tmp_path / "synthetic-run" / "checksums.sha256").is_file()
 
 
 def test_approval_identity_mismatch_stops_before_consume(tmp_path: Path) -> None:
     package = _package(tmp_path / "AIHUB-71748")
-    contract = ProcessingRunContract(
-        "AIHUB-71748-SFT-PROCESSING-20260729-0002",
-        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0002",
-        processing_allowed=True,
-        execution_allowed=True,
-    )
+    contract = _contract()
     approval_path = tmp_path / "approval.json"
-    issue_approval(
-        approval_path,
-        new_approval(contract, manifest_sha256="a" * 64, backend_git_commit="b" * 40),
-    )
+    issue_approval(approval_path, _approval(contract), issued_at=STAMP)
     with pytest.raises(ProcessingApprovalError, match="^APPROVAL_NOT_FOUND$"):
         execute_approved_processing(
             package_root=package,
@@ -318,9 +327,11 @@ def test_approval_identity_mismatch_stops_before_consume(tmp_path: Path) -> None
             approval_path=approval_path,
             manifest_sha256="c" * 64,
             backend_git_commit="b" * 40,
+            backend_fingerprint="c" * 64,
+            preflight_evidence_fingerprint="d" * 64,
             enforce_expected_statistics=False,
         )
-    assert load_approval(approval_path).state == "validated"
+    assert load_approval(approval_path).state == "issued"
     assert not (tmp_path / "synthetic-run").exists()
 
 
@@ -338,7 +349,7 @@ def test_metadata_preflight_does_not_open_payload_or_write_dataset(tmp_path: Pat
     local.write_text(yaml.safe_dump(_local_config(package)), encoding="utf-8")
     result = metadata_preflight(
         repository_root=Path.cwd(), manifest_path=MANIFEST,
-        local_mapping_path=local, explicit_root=None,
+        mapping_path=local, explicit_root=None,
     )
     assert result["payload_opened"] is False
     assert result["dataset_written"] is False
