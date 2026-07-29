@@ -24,6 +24,7 @@ from src.data.processing.aihub_71748_processor import execute_approved_processin
 from src.data.processing.aihub_71748_reader import discover_sft_sources
 from src.data.processing.approval import load_approval
 from src.data.processing.run_contract import ProcessingRunContract
+from scripts.datasets.preflight_aihub_71748_sft_run import run_preflight
 
 
 def _yaml(path: Path | None) -> dict[str, object] | None:
@@ -43,6 +44,7 @@ def _evidence(path: Path) -> tuple[PreflightEvidence, str]:
         metadata = {
             "status", "payload_reads", "processing_calls", "output_writes",
             "approval_issued", "approval_consumed", "execution_allowed",
+            "approval_draft", "approval_draft_fingerprint", "zero_call_contract",
         }
         if set(value) != allowed | metadata or not isinstance(fingerprint, str):
             raise ValueError
@@ -98,6 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mapping", "--local-mapping", dest="mapping", type=Path, default=Path("configs/local-datasets.yaml"))
     parser.add_argument("--dataset-root", type=Path)
     parser.add_argument("--run-id")
+    parser.add_argument("--approval-id")
     parser.add_argument("--approval", "--approval-path", dest="approval", type=Path)
     parser.add_argument("--immutable-commit")
     parser.add_argument("--preflight-evidence", type=Path)
@@ -123,11 +126,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         if arguments.preflight_only:
-            result = metadata_preflight(
+            if not arguments.run_id or not arguments.approval_id or not arguments.immutable_commit:
+                raise RuntimeError("PREFLIGHT_IDENTITY_REQUIRED")
+            result = run_preflight(
                 repository_root=Path.cwd(),
+                local_mapping_path=arguments.mapping,
                 manifest_path=arguments.manifest,
-                mapping_path=arguments.mapping,
-                explicit_root=arguments.dataset_root,
+                immutable_commit=arguments.immutable_commit,
+                run_id=arguments.run_id,
+                approval_id=arguments.approval_id,
             )
         else:
             commit = validate_immutable_commit(Path.cwd(), arguments.immutable_commit)

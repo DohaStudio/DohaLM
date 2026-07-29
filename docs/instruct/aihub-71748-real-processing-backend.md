@@ -99,6 +99,8 @@ backend_hardening: implemented
 post_validation: implemented
 processing_run_0003: retired_failed_closed_before_approval
 approval_0003: retired_not_issued
+processing_run_0004: preflight_passed
+approval_0004: prepared_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -109,13 +111,15 @@ execution_allowed: false
 
 [Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 영구 폐기 상태다. Run 0003도
 [Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 기록된 식별자 선언 오탐으로 Approval 전
-Fail Closed되어 폐기됐다. [승인 필요] 다음 단계는 validator 수정이 포함된 새 immutable commit과 새 Run·Approval
-ID 확정이다. 그 전에는 ZIP payload read, Approval 준비·발급·소비, Processing을 수행하지 않는다.
+Fail Closed되어 폐기됐다. [Run 0004 Preflight](./aihub-71748-processing-run-0004-preflight.md)는
+metadata-only로 통과했지만 Approval은 발급되지 않았다. 별도 승인 전에는 ZIP payload read, Approval 발급·소비와
+Processing을 수행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0004 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 Run·Approval ID 폐기, registry 검사 범위 수정 |
 | 2026-07-29 | Run 0002 영구 폐기, Run 0003 immutable·Approval·guardrail·post-validation 계약의 Synthetic 검증 등록 |
 | 2026-07-29 | Run 0002 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |

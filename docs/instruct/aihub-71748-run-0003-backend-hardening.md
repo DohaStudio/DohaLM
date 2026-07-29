@@ -193,12 +193,13 @@ execution_allowed: false
 
 ## 22. Next Approval
 
-다음 작업은 validator 수정이 병합된 새 immutable commit과 새 Run·Approval ID를 확정하는 별도 사용자 승인이다.
-Run 0003과 Approval 0003은 재사용하지 않는다. 후속 승인 전까지 ZIP entry·payload·JSON record를 읽거나
-Approval을 준비·발급·소비하거나 Processing·Tokenization·SFT Training을 실행하지 않는다.
+Run 0003과 Approval 0003은 재사용하지 않는다. 후속 [Run 0004 Metadata-Only Preflight](./aihub-71748-processing-run-0004-preflight.md)는
+수정된 validator에서 통과했지만 Approval 0004는 발급되지 않았다. 별도 승인 전까지 ZIP entry·payload·JSON
+record를 읽거나 Approval을 발급·소비하거나 Processing·Tokenization·SFT Training을 실행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0004 metadata-only Preflight 통과와 별도 Approval 발급 경계 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight의 식별자 선언 오탐 Fail Closed와 ID 폐기, validator 범위 수정 기록 |

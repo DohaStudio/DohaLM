@@ -16,13 +16,18 @@ from src.data.aihub_71748_processing_preflight import (
     RUN_ID,
     PreflightEvidence,
     ProcessingPreflightError,
+    build_approval_draft,
     compute_git_fingerprints,
     discover_source_metadata,
     preflight_evidence_fingerprint,
+    probe_output_parent,
     validate_backend_worktree,
     validate_immutable_commit,
     validate_manifest_document,
     validate_output_contract,
+    validate_approval_draft,
+    validate_preflight_evidence,
+    validate_resource_providers,
     validate_run_unused,
 )
 from src.data.processing.aihub_71748_mapping import resolve_dataset_mapping
@@ -62,19 +67,33 @@ def run_preflight(
     )
     validate_manifest_document(_yaml(manifest_path))
     output = validate_output_contract(mapping, minimum_free_bytes=4_294_967_296, run_id=run_id)
+    parent_probe_passed = probe_output_parent(mapping)
+    resources = validate_resource_providers()
     evidence = PreflightEvidence(
+        schema_version=1,
         run_id=run_id,
         approval_id=approval_id,
         immutable_git_commit=commit,
         manifest_sha256=fingerprints.manifest_sha256,
         backend_fingerprint=fingerprints.backend_fingerprint,
-        mapping_identity="AIHUB-71748:SFT:external:read_only",
-        source_zip_count=source.zip_files,
-        source_total_bytes=source.total_bytes,
-        output_root_state="absent",
-        staging_root_state="absent",
-        quarantine_state="absent",
-        free_disk_bytes=int(output["free_bytes"]),
+        mapping_identity={
+            "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
+            "repository_internal": False, "read_only": True,
+        },
+        source_snapshot={
+            "zip_count": source.zip_files, "total_bytes": source.total_bytes,
+            "filename_aggregate": source.filename_aggregate,
+            "modified_time_aggregate": source.modified_time_aggregate,
+        },
+        registry_state={
+            "run_id_unused": True, "approval_id_unused": True,
+            "retired_runs": ["0001", "0002", "0003"],
+        },
+        output_state={
+            "final_exists": False, "staging_exists": False,
+            "quarantine_exists": False, "parent_probe_passed": parent_probe_passed,
+        },
+        resource_state={"free_disk_bytes": int(output["free_bytes"]), **resources},
         runtime_budget={"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
         memory_budget={"soft_limit_mib": 1536, "hard_limit_mib": 2048},
         disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
@@ -83,9 +102,26 @@ def run_preflight(
         generated_at=(now or datetime.now(timezone.utc)).isoformat(),
     )
     fingerprint = preflight_evidence_fingerprint(evidence)
+    validate_preflight_evidence(
+        evidence, expected_fingerprint=fingerprint, now=now or datetime.now(timezone.utc),
+    )
+    approval_draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
+    approval_draft_fingerprint = validate_approval_draft(
+        approval_draft, evidence=evidence, evidence_fingerprint=fingerprint,
+    )
+    zero_calls = {
+        "processing_engine_calls": 0, "payload_sessions": 0, "zip_entry_opens": 0,
+        "json_parser_calls": 0, "record_parser_calls": 0, "join_calls": 0,
+        "policy_dispatch_calls": 0, "output_writer_calls": 0,
+        "atomic_finalization_calls": 0, "approval_issue_calls": 0,
+        "approval_consume_calls": 0,
+    }
     return {
         **asdict(evidence),
         "fingerprint": fingerprint,
+        "approval_draft": approval_draft,
+        "approval_draft_fingerprint": approval_draft_fingerprint,
+        "zero_call_contract": zero_calls,
         "status": "preflight_passed",
         "payload_reads": 0,
         "processing_calls": 0,

@@ -58,6 +58,7 @@
 | [instruct/aihub-71748-real-processing-backend.md](./instruct/aihub-71748-real-processing-backend.md) | 외부 Mapping, ZIP stream, join, Approval·guardrail·post-validation·atomic output 계약 | Processing Manifest, ADR-004·010 | 새 immutable commit·Run identity 별도 승인 | `review` | 실제 Processing 승인 전 필수 | 2026-07-29 | Run 0001~0003 retired; Approval 0003 not issued |
 | [instruct/aihub-71748-processing-run-0002-preflight.md](./instruct/aihub-71748-processing-run-0002-preflight.md) | Run 0002 immutable source·metadata-only inventory·output probe와 폐기 결과 | Processing Manifest, 실제 Backend, ADR-004·010 | Run 0003 failure lineage | `review` | 과거 Run 계보 확인 시 필수 | 2026-07-29 | Run 0001~0003 non-reusable |
 | [instruct/aihub-71748-run-0003-backend-hardening.md](./instruct/aihub-71748-run-0003-backend-hardening.md) | Run 0003 immutable·Approval·guardrail 계약과 metadata-only Preflight 실패 계보 | Processing Manifest, 실제 Backend, ADR-004·010 | 새 immutable commit·Run identity 별도 승인 | `review` | 후속 Preflight 전 필수 | 2026-07-29 | metadata-only failed closed; Run·Approval retired; execution false |
+| [instruct/aihub-71748-processing-run-0004-preflight.md](./instruct/aihub-71748-processing-run-0004-preflight.md) | Run 0004 registry·source snapshot·fingerprint·output probe·resource와 non-issued Approval 초안 evidence | Processing Manifest, Run 0003 hardening, ADR-004·010 | 별도 live freshness 검증과 Approval 발급 승인 | `review` | 실제 Processing 승인 전 필수 | 2026-07-29 | metadata-only passed; Approval prepared_not_issued; execution false |
 | [instruct/processing-manifest-schema.md](./instruct/processing-manifest-schema.md) | Synthetic input과 AIHUB-71748 비소비 identity·Rule·output·statistics·approval Manifest schema | Processing Backend, ADR-004·010 | 별도 Processing 실행 승인 | `review` | Processing Manifest 설계 전 필수 | 2026-07-29 | AIHUB-71748 manifest completed; execution false |
 | [instruct/aihub-71748-processing-manifest.md](./instruct/aihub-71748-processing-manifest.md) | AIHUB-71748 SFT identity·Rule 순서·threshold·output·Approval의 canonical 비소비 계약 | Selection Decision, Processing Backend, ADR-004·010 | 별도 single-use Processing 실행 승인 | `approved` | AIHUB-71748 Processing 승인 전 필수 | 2026-07-29 | manifest completed; execution false |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |
@@ -268,6 +269,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | [확정] AIHUB-71748 Run 0004 metadata-only Preflight 통과와 non-issued Approval 초안 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 Run 0003 metadata-only Preflight 식별자 선언 오탐 Fail Closed와 ID 폐기 등록 |
 | 2026-07-29 | [구현] AIHUB-71748 Run 0003 hardened backend 계약과 Synthetic 검증 등록 |
 | 2026-07-29 | [확정] AIHUB-71748 Processing Run 0002 metadata-only Preflight 후 폐기와 Approval 미발급 상태 등록 |
