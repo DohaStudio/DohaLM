@@ -5,10 +5,10 @@
 ```yaml
 run_id: AIHUB-71748-SFT-PROCESSING-20260729-0002
 approval_id: AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0002
-preflight: passed_metadata_only
-approval: prepared_not_issued
+preflight: retired_after_failed_closed_pre_execution
+approval: retired_not_issued
 approval_consumed: false
-processing_execution: not_approved
+processing_execution: failed_closed_before_consumption
 processed_dataset: not_created
 execution_allowed: false
 ```
@@ -144,21 +144,39 @@ identity·fingerprint·source inventory·mapping·output collision·disk budget�
 dataset_selection: CONDITIONALLY_SELECTED
 processing_backend: implemented
 processing_manifest: approved_not_executed
-processing_preflight: passed_metadata_only
-single_use_approval: prepared_not_issued
-processing_execution: not_approved
+processing_preflight: retired_after_failed_closed_pre_execution
+single_use_approval: retired_not_issued
+processing_execution: failed_closed_before_consumption
 processed_dataset: not_created
 sft_training: not_approved
 execution_allowed: false
 ```
 
-## 13. Next Approval
+## 13. Retirement
 
-다음 단계에는 Run 0002 single-use Approval의 명시적 발급과 실제 Processing 실행에 대한 별도 사용자 승인이
-필요하다. 승인 전에는 Approval 발급·소비, Processing Engine 호출, output 생성 모두 금지한다.
+Run 0002는 후속 실행 계약 검증에서 Fail Closed됐고 영구 폐기됐다. Approval은 발급·소비되지 않았다.
+
+```yaml
+processing_run_0002:
+  status: retired_failed_closed_before_consumption
+  reusable: false
+  processing_calls: 0
+  payload_reads: 0
+  output_writes: 0
+approval_0002:
+  status: retired_not_issued
+  consumed: false
+  reusable: false
+```
+
+## 14. Next Approval
+
+다음 단계는 [Run 0003 Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 정의된 별도
+metadata-only Preflight 승인이다. Run 0002의 Approval 발급·소비나 실행은 영구 금지한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 | --- | --- |
+| 2026-07-29 | Run 0002를 `retired_failed_closed_before_consumption`, Approval을 `retired_not_issued`로 확정 |
 | 2026-07-29 | Run 0002 metadata-only Preflight 통과와 non-executable Approval 초안 계약 기록 |

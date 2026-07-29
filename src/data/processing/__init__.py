@@ -52,10 +52,38 @@ from .aihub_71748_reader import (
     discover_sft_sources,
     iter_source_records,
 )
-from .approval import ApprovalRecord, ProcessingApprovalError
-from .output_writer import OutputWriterError, write_atomic_outputs
-from .run_contract import ProcessingRunContract, RunContractError
-from .runtime_monitor import RuntimeBudget, RuntimeMonitor, RuntimeMonitorError
+from .approval import (
+    ApprovalRecord,
+    ProcessingApprovalError,
+    approval_checksum,
+    consume_approval,
+    finalize_approval,
+    issue_approval,
+    new_approval,
+    retire_approval,
+    validate_approval,
+)
+from .output_writer import HardenedWriteContext, OutputWriterError, write_atomic_outputs
+from .post_validation import (
+    DiskBudget,
+    DiskGuard,
+    FinalizationGate,
+    PostValidationError,
+    SourceSnapshot,
+    validate_checksums,
+    validate_finalization_gate,
+    validate_jsonl_and_splits,
+    validate_output_budget,
+    validate_source_immutable,
+)
+from .run_contract import (
+    ExecutionCounters,
+    ProcessingRunContract,
+    RunContractError,
+    RunRegistry,
+    payload_session,
+)
+from .runtime_monitor import RuntimeBudget, RuntimeMonitor, RuntimeMonitorError, process_rss_bytes
 
 __all__ = [
     "AIHub71748ManifestError",
@@ -85,6 +113,11 @@ __all__ = [
     "AIHub71748ProcessingError",
     "AIHub71748ReaderError",
     "ApprovalRecord",
+    "DiskBudget",
+    "DiskGuard",
+    "ExecutionCounters",
+    "FinalizationGate",
+    "HardenedWriteContext",
     "DatasetMappingError",
     "JoinedRecord",
     "OutputWriterError",
@@ -93,9 +126,12 @@ __all__ = [
     "ProcessingRunContract",
     "ResolvedDatasetMapping",
     "RunContractError",
+    "RunRegistry",
     "RuntimeBudget",
     "RuntimeMonitor",
     "RuntimeMonitorError",
+    "PostValidationError",
+    "SourceSnapshot",
     "SourceArchive",
     "SourceRecord",
     "canonical_mapping_contract",
@@ -108,5 +144,19 @@ __all__ = [
     "recompute_record_signals",
     "resolve_dataset_mapping",
     "validate_mapping_contract",
+    "approval_checksum",
+    "consume_approval",
+    "finalize_approval",
+    "issue_approval",
+    "new_approval",
+    "retire_approval",
+    "payload_session",
+    "process_rss_bytes",
+    "validate_approval",
+    "validate_checksums",
+    "validate_finalization_gate",
+    "validate_jsonl_and_splits",
+    "validate_output_budget",
+    "validate_source_immutable",
     "write_atomic_outputs",
 ]

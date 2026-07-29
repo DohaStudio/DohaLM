@@ -1,8 +1,10 @@
-"""Metadata-only preflight for AIHUB-71748 SFT Processing Run 0002."""
+"""Metadata-only preflight evidence generator requiring an explicit immutable commit."""
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys
@@ -11,15 +13,14 @@ import yaml
 
 from src.data.aihub_71748_processing_preflight import (
     APPROVAL_ID,
-    EXPECTED_TOTAL_BYTES,
-    EXPECTED_ZIP_FILES,
-    IMMUTABLE_COMMIT,
     RUN_ID,
+    PreflightEvidence,
     ProcessingPreflightError,
     compute_git_fingerprints,
     discover_source_metadata,
-    validate_approval_draft,
+    preflight_evidence_fingerprint,
     validate_backend_worktree,
+    validate_immutable_commit,
     validate_manifest_document,
     validate_output_contract,
     validate_run_unused,
@@ -42,81 +43,82 @@ def run_preflight(
     repository_root: Path,
     local_mapping_path: Path,
     manifest_path: Path,
-    draft_path: Path,
+    immutable_commit: str,
+    run_id: str,
+    approval_id: str,
+    now: datetime | None = None,
 ) -> dict[str, object]:
-    fingerprints = compute_git_fingerprints(repository_root)
-    validate_backend_worktree(repository_root)
-    local_mapping = _yaml(local_mapping_path)
+    commit = validate_immutable_commit(repository_root, immutable_commit)
+    fingerprints = compute_git_fingerprints(repository_root, commit)
+    validate_backend_worktree(repository_root, commit)
     mapping = resolve_dataset_mapping(
         repository_root=repository_root,
-        local_config=local_mapping,
+        local_config=_yaml(local_mapping_path),
     )
     source = discover_source_metadata(mapping.source_root)
-    validate_run_unused(mapping, repository_root=repository_root)
-    manifest = _yaml(manifest_path)
-    validate_manifest_document(manifest)
-    draft = _yaml(draft_path)
-    draft_fingerprint = validate_approval_draft(draft, fingerprints=fingerprints)
-    output = validate_output_contract(
-        mapping,
-        minimum_free_bytes=int(draft["disk_budget"]["minimum_free_bytes"]),  # type: ignore[index]
+    validate_run_unused(
+        mapping, repository_root=repository_root, run_id=run_id,
+        approval_id=approval_id, immutable_commit=commit,
     )
+    validate_manifest_document(_yaml(manifest_path))
+    output = validate_output_contract(mapping, minimum_free_bytes=4_294_967_296, run_id=run_id)
+    evidence = PreflightEvidence(
+        run_id=run_id,
+        approval_id=approval_id,
+        immutable_git_commit=commit,
+        manifest_sha256=fingerprints.manifest_sha256,
+        backend_fingerprint=fingerprints.backend_fingerprint,
+        mapping_identity="AIHUB-71748:SFT:external:read_only",
+        source_zip_count=source.zip_files,
+        source_total_bytes=source.total_bytes,
+        output_root_state="absent",
+        staging_root_state="absent",
+        quarantine_state="absent",
+        free_disk_bytes=int(output["free_bytes"]),
+        runtime_budget={"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
+        memory_budget={"soft_limit_mib": 1536, "hard_limit_mib": 2048},
+        disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
+        record_budget={"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
+        output_budget={"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
+        generated_at=(now or datetime.now(timezone.utc)).isoformat(),
+    )
+    fingerprint = preflight_evidence_fingerprint(evidence)
     return {
+        **asdict(evidence),
+        "fingerprint": fingerprint,
         "status": "preflight_passed",
-        "immutable_commit": IMMUTABLE_COMMIT,
-        "run_id": RUN_ID,
-        "approval_id": APPROVAL_ID,
-        "run_id_reserved": True,
-        "approval_status": "prepared_not_issued",
-        "mapping_status": "validated_metadata_only",
-        "mapping_resolution": mapping.resolution_source,
-        "source_zip_files": source.zip_files,
-        "source_total_bytes": source.total_bytes,
-        "source_expected_zip_files": EXPECTED_ZIP_FILES,
-        "source_expected_total_bytes": EXPECTED_TOTAL_BYTES,
-        "source_components": list(source.components),
-        "source_splits": list(source.splits),
-        "manifest_sha256": fingerprints.manifest_sha256,
-        "backend_fingerprint": fingerprints.backend_fingerprint,
-        "backend_file_count": fingerprints.backend_file_count,
-        "approval_draft_fingerprint": draft_fingerprint,
-        "run_root_exists": output["run_root_exists"],
-        "staging_root_exists": output["staging_root_exists"],
-        "quarantine_root_exists": output["quarantine_root_exists"],
-        "free_disk_bytes": output["free_bytes"],
         "payload_reads": 0,
         "processing_calls": 0,
         "output_writes": 0,
+        "approval_issued": False,
         "approval_consumed": False,
-        "processed_dataset_created": False,
         "execution_allowed": False,
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--local-mapping", type=Path, default=Path("configs/local-datasets.yaml"))
+    parser.add_argument("--mapping", type=Path, default=Path("configs/local-datasets.yaml"))
     parser.add_argument("--manifest", type=Path, default=Path("configs/data/aihub-71748-sft-processing-v1.yaml"))
-    parser.add_argument("--approval-draft", type=Path, default=Path("configs/data/aihub-71748-processing-run-0002-preflight.yaml"))
-    parser.add_argument("--preflight-only", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--immutable-commit", required=True)
+    parser.add_argument("--run-id", default=RUN_ID)
+    parser.add_argument("--approval-id", default=APPROVAL_ID)
+    parser.add_argument("--output-evidence", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     arguments = build_parser().parse_args(argv)
-    if arguments.preflight_only is not True:
-        print(json.dumps({"status": "blocked", "error_code": "PROCESSING_NOT_APPROVED", "execution_allowed": False}))
-        return 2
     try:
         result = run_preflight(
-            repository_root=Path.cwd(),
-            local_mapping_path=arguments.local_mapping,
-            manifest_path=arguments.manifest,
-            draft_path=arguments.approval_draft,
+            repository_root=Path.cwd(), local_mapping_path=arguments.mapping,
+            manifest_path=arguments.manifest, immutable_commit=arguments.immutable_commit,
+            run_id=arguments.run_id, approval_id=arguments.approval_id,
         )
+        if arguments.output_evidence is not None:
+            arguments.output_evidence.write_text(json.dumps(result, sort_keys=True), encoding="utf-8")
     except (ProcessingPreflightError, RuntimeError) as exc:
-        code = str(exc) if str(exc).isupper() else "PREFLIGHT_FAILED_CLOSED"
-        print(json.dumps({"status": "blocked", "error_code": code, "execution_allowed": False}))
+        print(json.dumps({"status": "blocked", "error_code": str(exc), "execution_allowed": False}))
         return 2
     print(json.dumps(result, sort_keys=True))
     return 0

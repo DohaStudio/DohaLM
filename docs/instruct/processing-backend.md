@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-29
-- 구현 상태: `implemented_real_backend_synthetic_validated`
+- 구현 상태: `implemented_real_backend_hardened_synthetic_validated`
 - 실제 처리 실행: `not_approved`
 - `execution_allowed`: `false`
 - 관련 결정: [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
@@ -39,9 +39,9 @@ flowchart LR
 | `aihub_71748_mapping.py` | 외부 local Mapping resolution과 경로 분리 검증 |
 | `aihub_71748_reader.py` | SFT ZIP discovery와 bounded streaming parser |
 | `aihub_71748_processor.py` | Join, process-local policy signal과 12단계 Manifest dispatch |
-| `output_writer.py` | Synthetic 검증된 staging·checksum·atomic finalization |
-| `approval.py`, `run_contract.py` | Single-use Approval lifecycle와 Run 0001 재사용 차단 |
-| `runtime_monitor.py` | 원문 비출력 aggregate runtime guardrail |
+| `post_validation.py`, `output_writer.py` | JSONL·split·checksum·source·output budget 검증과 atomic finalization gate |
+| `approval.py`, `run_contract.py` | 확장된 single-use Approval lifecycle, Run 0001·0002 재사용 차단, call·payload session counter |
+| `runtime_monitor.py` | 실제 RSS와 monotonic time 기반 memory·runtime guardrail |
 
 ## Rule Engine
 
@@ -92,7 +92,7 @@ Manifest의 Approval 값이 채워졌거나 processing·tokenization·training·
 ## Readiness
 
 ```yaml
-processing_backend: implemented_real_backend_synthetic_validated
+processing_backend: implemented_real_backend_hardened_synthetic_validated
 processing_execution: not_approved
 processing_manifest: completed_non_executable
 processed_dataset: not_created
@@ -101,13 +101,15 @@ training: not_approved
 execution_allowed: false
 ```
 
-AIHUB-71748 Manifest와 Rule threshold는 비소비 계약으로 확정됐다. 다음 단계에는 새 Run ID와 single-use
-Approval을 사용하는 실제 Dataset Processing 실행 승인이 별도로 필요하며, 그 승인만으로도 SFT Training은
+AIHUB-71748 Manifest와 Rule threshold는 비소비 계약으로 확정됐다. Run 0001·0002는 폐기됐고
+[Run 0003 Backend 계약](./aihub-71748-run-0003-backend-hardening.md)은 Synthetic으로 검증됐다. 다음 단계에는
+Run 0003 metadata-only Preflight의 별도 승인이 필요하며, 그 승인만으로 실제 Processing이나 SFT Training은
 허용되지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0003 Approval·counter·RSS/runtime·disk/output·post-validation·atomic gate 계약을 Synthetic 검증 |
 | 2026-07-29 | AIHUB-71748 실제 Backend·Mapping 계약을 Synthetic로 검증하고 Run 0001 재사용 차단 |
 | 2026-07-29 | AIHUB-71748 canonical Manifest validator와 실행 권한 차단 계약 추가 |

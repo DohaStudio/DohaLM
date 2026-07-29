@@ -3,7 +3,7 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-07-29
 - Mapping 계약: `implemented`
-- 실제 Backend: `implemented_synthetic_validated`
+- 실제 Backend: `implemented_hardened_synthetic_validated`
 - 실제 Processing: `not_approved`
 - `execution_allowed`: `false`
 - 관련 문서: [Processing Manifest](./aihub-71748-processing-manifest.md), [Processing Backend](./processing-backend.md), [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
@@ -76,8 +76,8 @@ record, 제외율, memory·disk 추정, fixed phase와 cancellation만 기록하
 
 ## Preflight-only와 Dry-run
 
-CLI는 `scripts/datasets/process_aihub_71748_sft.py`다. 기본값은 `dry_run: true`,
-`processing_allowed: false`이며 `--preflight-only`만 실제 local Mapping에서 허용한다. 이 mode는 Mapping,
+CLI는 `scripts/datasets/process_aihub_71748_sft.py`다. 기본값은 `preflight_only: true`,
+`synthetic_dry_run: false`, `processing_allowed: false`다. `--preflight-only`는 Mapping,
 Manifest, archive 파일 metadata와 output 충돌만 확인하고 ZIP member를 열지 않는다. Full dry-run은 Synthetic fixture와
 임시 디렉터리에서만 검증한다.
 
@@ -93,7 +93,12 @@ real_processing_backend:
   validation: synthetic_passed
 local_mapping: validated_metadata_only
 processing_run_0001: retired_failed_closed
-processing_run_0002: preflight_passed_approval_prepared_not_issued
+processing_run_0002: retired_failed_closed_before_consumption
+approval_0002: retired_not_issued
+backend_hardening: implemented
+post_validation: implemented
+processing_run_0003: not_preflighted
+approval_0003: not_prepared
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -102,14 +107,15 @@ execution_allowed: false
 
 ## 다음 승인
 
-[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 immutable backend, metadata-only
-source inventory, output parent probe와 non-executable Approval 초안을 검증했다. [승인 필요] 실제 single-use
-Approval 발급과 Processing 실행은 별도로 승인해야 한다. 그 전에는 ZIP payload read, Processed Dataset 생성과
-Approval consume을 수행하지 않는다. Processing 승인은 Tokenization 또는 SFT Training 승인이 아니다.
+[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 영구 폐기 상태다. 보완된 계약은
+[Run 0003 Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 기록했다. [승인 필요] 다음 단계는
+병합된 immutable commit 기준 Run 0003 metadata-only Preflight다. 그 전에는 ZIP payload read, Approval 준비·발급·
+소비, Processing과 Processed Dataset 생성을 수행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0002 영구 폐기, Run 0003 immutable·Approval·guardrail·post-validation 계약의 Synthetic 검증 등록 |
 | 2026-07-29 | Run 0002 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0001 폐기, 외부 Mapping 계약, 실제 ZIP streaming·join·process-local signal·atomic writer Backend와 Synthetic 검증 등록 |

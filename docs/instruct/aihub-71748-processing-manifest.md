@@ -203,7 +203,7 @@ Identity·count·schema·join·Rule 순서·action·threshold·output path·Appr
 ```yaml
 processing_manifest: completed
 rule_thresholds: approved_for_processing_manifest
-processing_backend: implemented
+processing_backend: implemented_hardened_synthetic_validated
 processing_execution: not_approved
 processed_dataset: not_created
 tokenization: not_started
@@ -214,19 +214,22 @@ execution_allowed: false
 
 [확정] Run 0001은 local Mapping 필수 field 부족으로 Approval 생성 전 Mapping Gate에서 Fail Closed됐으며 재사용할
 수 없다. [실제 Backend와 Mapping 계약](./aihub-71748-real-processing-backend.md)은 구현·Synthetic 검증됐고
-[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 metadata-only로 통과했지만 Approval
-0002는 `prepared_not_issued`이며 Processing 실행은 아직 승인되지 않았다.
+[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는
+`retired_failed_closed_before_consumption`이고 Approval 0002는 `retired_not_issued`다.
+[Run 0003 Backend 계약](./aihub-71748-run-0003-backend-hardening.md)은 Synthetic 검증됐지만 Run 0003은
+`not_preflighted`, Approval은 `not_prepared`다.
 
 ## 18. Next Approval
 
-[승인 필요] 다음 단계는 새 Run ID와 single-use Approval을 발급하는 별도 Dataset Processing 실행 승인이다.
-그 승인 전에는 Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
+[승인 필요] 다음 단계는 Run 0003 metadata-only Preflight다. 그 별도 승인 전에는 Approval 준비·발급·소비,
+Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
 Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0002 폐기와 Run 0003 hardened backend·Preflight 미시작 상태 연결 |
 | 2026-07-29 | Run 0002 metadata-only Preflight와 non-executable Approval 초안 상태 연결 |
 | 2026-07-29 | Run 0001 Mapping Gate Fail Closed·폐기와 실제 Backend/Mapping 구현 상태 연결; Run 0002 미승인 유지 |
 | 2026-07-29 | AIHUB-71748 SFT Manifest identity·Rule·threshold·output·Approval 계약 확정; 실행 미승인 유지 |
