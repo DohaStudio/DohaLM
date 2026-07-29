@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
+import errno
 import hashlib
 import json
 import os
@@ -322,6 +323,54 @@ def _sync_parent_directory(path: Path) -> None:
             os.close(descriptor)
 
 
+_NO_REPLACE_UNSUPPORTED_ERRNOS = frozenset({
+    errno.EXDEV,
+    errno.EINVAL,
+    errno.ENOSYS,
+    getattr(errno, "ENOTSUP", errno.ENOSYS),
+    getattr(errno, "EOPNOTSUPP", errno.ENOSYS),
+})
+
+
+def _link_no_replace(temporary: Path, final: Path) -> None:
+    """Atomically publish one hard link without replacement semantics."""
+
+    try:
+        os.link(temporary, final)
+    except FileExistsError:
+        raise ProcessingApprovalError("APPROVAL_PUBLISH_COLLISION") from None
+    except OSError as exc:
+        if exc.errno in _NO_REPLACE_UNSUPPORTED_ERRNOS or getattr(exc, "winerror", None) in {1, 50}:
+            raise ProcessingApprovalError("APPROVAL_NO_REPLACE_UNSUPPORTED") from None
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_PUBLISH_FAILED") from None
+
+
+def _publish_no_replace_posix(temporary: Path, final: Path) -> None:
+    """POSIX atomic no-replace publish on one hard-link-capable filesystem."""
+
+    _link_no_replace(temporary, final)
+
+
+def _publish_no_replace_windows(temporary: Path, final: Path) -> None:
+    """Windows atomic no-replace publish using CreateHardLink via os.link."""
+
+    _link_no_replace(temporary, final)
+
+
+def _approval_platform() -> str:
+    return os.name
+
+
+def _publish_no_replace(temporary: Path, final: Path) -> None:
+    platform = _approval_platform()
+    if platform == "posix":
+        _publish_no_replace_posix(temporary, final)
+    elif platform == "nt":
+        _publish_no_replace_windows(temporary, final)
+    else:
+        raise ProcessingApprovalError("APPROVAL_NO_REPLACE_UNSUPPORTED")
+
+
 def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
@@ -329,7 +378,7 @@ def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False
         raise ProcessingApprovalError("APPROVAL_ALREADY_ISSUED")
     payload = _canonical_record_bytes(record)
     descriptor = -1
-    replaced = False
+    published = False
     try:
         try:
             descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -342,10 +391,16 @@ def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False
                 raise OSError("short write")
             stream.flush()
             os.fsync(stream.fileno())
-        if exclusive and path.exists():
-            raise ProcessingApprovalError("APPROVAL_ALREADY_ISSUED")
-        os.replace(temporary, path)
-        replaced = True
+        if exclusive:
+            _publish_no_replace(temporary, path)
+            published = True
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_ISSUANCE_INCOMPLETE") from None
+        else:
+            os.replace(temporary, path)
+            published = True
         _sync_parent_directory(path)
     except ProcessingApprovalError:
         raise
@@ -354,7 +409,7 @@ def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False
     finally:
         if descriptor >= 0:
             os.close(descriptor)
-        if not replaced and temporary.exists():
+        if not published and temporary.exists():
             try:
                 temporary.unlink()
             except OSError:

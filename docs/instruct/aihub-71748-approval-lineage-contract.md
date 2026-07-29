@@ -154,10 +154,15 @@ output 생성을 수행하지 않는다.
 상태를 검증한다. 현재 checkout은 governance commit과 일치해야 하며 과거 execution source와 10-file execution
 surface가 blob·Manifest·Backend fingerprint 수준에서 동등해야 한다.
 
-[확정] Approval issuance writer는 exclusive temp create, canonical UTF-8 bytes, flush, file fsync, atomic replace와
-지원 플랫폼의 parent directory fsync를 적용한다. final/temp 충돌과 write/fsync/replace/directory-sync 실패는
-서로 다른 error code로 Fail Closed하며, 동시 발급에서는 정확히 한 호출만 성공할 수 있다. Windows의 directory
-sync 미지원은 file fsync + atomic replace 정책으로 명시하고 합성 테스트로 고정한다.
+[확정] Approval issuance writer는 exclusive temp create, canonical UTF-8 bytes, flush, file fsync와 atomic
+hard-link no-replace publish를 적용한다. `exists()` 확인 후 `os.replace()`하는 exclusive publish는 금지한다.
+POSIX·Windows 모두 final이 이미 있거나 publish 순간 경쟁 final이 생성되면 기존 bytes를 유지한 채 실패하며,
+동시 발급에서는 정확히 한 호출만 성공한다. hard-link 미지원·cross-filesystem은 fallback 없이 Fail Closed한다.
+POSIX는 parent directory를 fsync하고 Windows는 file fsync + hard-link publish의 명시적 durability 경계를 사용한다.
+
+[확정] publish 이전 실패는 final 0건과 temp 정리를 요구한다. publish 후 temp unlink·directory sync 실패는 성공으로
+처리하지 않고 incomplete issuance로 분류한다. 이미 publish된 final을 삭제하지 않으며 동일 identity 재발급은
+기존 final 존재로 차단하고 수동 조사 후 폐기 정책을 적용한다.
 
 [확정] 이번 보완에서는 실제 Approval 0008을 발급·소비하지 않았고 RuntimeExecutionRequest도 생성하지 않았다.
 Run 0008 상태는 `preflight_passed`, Approval은 `prepared_not_issued`, `execution_allowed=false`를 유지한다.
@@ -166,6 +171,7 @@ Run 0008 상태는 `preflight_passed`, Approval은 `prepared_not_issued`, `execu
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval publish를 POSIX·Windows hard-link atomic no-replace로 전환하고 경쟁 final·incomplete 재사용 차단 계약 확정 |
 | 2026-07-30 | Active Run Approval refresh 계보와 durable atomic issuance writer 계약 추가(Synthetic only) |
 | 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval v2 prepared-not-issued draft 연결 |
 | 2026-07-30 | Run 0007 시작 전 계약 불일치 폐기와 Processing 계약 v2 Synthetic E2E 연결 |

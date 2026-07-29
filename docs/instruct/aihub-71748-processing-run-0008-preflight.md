@@ -271,9 +271,21 @@ execution_allowed: false
 [승인 필요] Run 0008 유지 또는 폐기 결정, 실제 live refresh, Approval 0008 발급은 각각 후속 governance 승인
 범위에서 결정한다. 코드 보완 자체는 그 승인을 대신하지 않는다.
 
+## Approval no-replace 보완
+
+[확정] PR #64 리뷰에서 확인된 `exists()` 검사와 `os.replace()` 사이 경쟁 final overwrite 가능성을 제거했다.
+exclusive Approval publish는 POSIX·Windows에서 fsync된 temp의 atomic hard-link no-replace만 사용한다. 경쟁 final이
+존재하면 publish가 실패하고 기존 bytes를 유지하며, 미지원 filesystem에서는 fallback 없이 Fail Closed한다.
+
+[확정] deterministic competing-final 검증은 100회 모두 publish 실패·경쟁 final 보존·overwrite 0을 요구한다.
+publish 후 temp unlink 또는 directory durability 실패는 성공으로 간주하지 않고 final을 보존해 identity 재사용을
+차단한다. 이 검증은 synthetic 임시 identity만 사용했으며 실제 Run 0008 evidence나 Approval artifact를 사용하지
+않았다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval no-replace TOCTOU 보완 정책 추가; Run 0008 refresh·Approval 발급 미실행 유지 |
 | 2026-07-30 | Active Run refresh 공식 경로 구현 상태 추가; Run 0008 실제 refresh·Approval 발급은 미실행 유지 |
 | 2026-07-30 | Run 0008 metadata-only Preflight 1회 통과, local-only evidence와 미발급 Approval v2 draft 기록 |

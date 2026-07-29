@@ -210,18 +210,27 @@ python -m scripts.datasets.refresh_aihub_71748_sft_approval_run \
 이 CLI는 Approval draft까지만 재검증하며 Approval issue/consume, Runtime request 생성, payload read, Processing과
 output write를 호출하지 않는다. 실제 refresh와 Approval 발급은 별도 governance 승인 전까지 금지한다.
 
-## Approval durable atomic write
+## Approval durable atomic no-replace write
 
-[확정] Approval JSON은 UTF-8 canonical bytes를 exclusive temporary file에 기록하고 short write 확인, flush,
-file fsync, atomic replace 순서로 저장한다. 발급 시 기존 final을 덮어쓰지 않으며 temp 충돌과 final 충돌을 각각
-`APPROVAL_TEMPORARY_COLLISION`, `APPROVAL_ALREADY_ISSUED`로 구분한다. write/fsync/replace 실패는
-`APPROVAL_ATOMIC_WRITE_FAILED`, 지원 플랫폼의 directory fsync 실패는 `APPROVAL_DIRECTORY_SYNC_FAILED`다.
-replace 전 실패는 temp residue를 정리하고 final을 만들지 않는다. replace 후 directory sync 실패는 final을
-삭제하거나 성공으로 보고하지 않고 incomplete issuance로 보존해 동일 ID 재사용을 차단한다.
+[확정] Approval JSON은 UTF-8 canonical bytes를 exclusive temporary file에 기록하고 short write 확인, flush와
+file fsync를 완료한 뒤 atomic no-replace primitive로 publish한다. `exists()` 검사 후 `os.replace()`를 사용하는
+방식은 경쟁 final을 덮어쓸 수 있으므로 exclusive issuance에서 금지한다. 사전 final은
+`APPROVAL_ALREADY_ISSUED`, publish 순간 경쟁 final은 `APPROVAL_PUBLISH_COLLISION`, temp 충돌은
+`APPROVAL_TEMPORARY_COLLISION`로 구분하며 기존 final bytes와 checksum은 절대 변경하지 않는다.
 
-[확정] POSIX는 parent directory handle을 fsync한다. Python의 일반 `os.open`으로 directory handle을 제공하지 않는
-Windows는 file fsync와 `os.replace`를 내구성 경계로 사용하는 명시적 플랫폼 분기를 적용한다. 이 분기는 조용한
-예외 무시가 아니며 전용 테스트로 고정한다.
+[확정] POSIX와 Windows 모두 동일 디렉터리에서 fsync된 temp를 `os.link(temp, final)`로 publish한다. hard-link 생성은
+커널의 no-replace semantics를 사용하므로 final이 이미 있으면 원자적으로 실패하고 경쟁 publisher 중 하나만
+성공한다. 성공 후 temp link를 제거한다. POSIX는 parent directory handle도 fsync한다. Windows는 Python 표준 API가
+directory handle fsync를 제공하지 않으므로 file fsync, atomic hard-link publish와 temp unlink까지만 보장하며 이
+차이를 명시적 플랫폼 분기로 유지한다. hard link 또는 같은-filesystem 보장이 없는 환경은
+`APPROVAL_NO_REPLACE_UNSUPPORTED`로 Fail Closed하며 `os.replace()` fallback을 사용하지 않는다.
+
+[확정] temp 생성·write·flush·file fsync·publish 이전 실패는 final을 만들지 않고 temp 정리를 시도한다. 정리에
+실패하면 `APPROVAL_ISSUANCE_INCOMPLETE`로 수동 조사를 요구한다. publish 성공 후 temp unlink 또는 directory fsync가
+실패하면 final을 삭제하거나 성공으로 보고하지 않는다. final이 존재하므로 동일 Approval ID의 재발급은
+`APPROVAL_ALREADY_ISSUED`로 차단되며 lifecycle은 incomplete issuance로 분류해 수동 조사·폐기 결정을 요구한다.
+atomic publish 자체의 비충돌 실패는 `APPROVAL_ATOMIC_PUBLISH_FAILED`, directory sync 실패는
+`APPROVAL_DIRECTORY_SYNC_FAILED`다.
 
 [확정] 이번 보완은 active Run의 재사용이 아니라 동일 Run의 승인 전 검증 계약을 추가한 명시적 Contract v2
 revision이다. Run 0008의 유지·폐기와 실제 live refresh·Approval 0008 발급은 여전히 별도 승인 대상이다.
@@ -230,6 +239,7 @@ revision이다. Run 0008의 유지·폐기와 실제 live refresh·Approval 0008
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | exists-check + replace TOCTOU 제거, POSIX·Windows hard-link atomic no-replace publish와 incomplete 재사용 차단 확정 |
 | 2026-07-30 | Initial/Approval refresh 분리, governance checkout 검증, ApprovalRefreshEvidence v1과 durable atomic Approval writer 보완(Synthetic only) |
 | 2026-07-30 | 동결 계약 변경 없이 Run 0008 metadata-only Preflight 통과와 미발급 Approval draft 기록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic 4/2 전체 E2E 검증 |
