@@ -48,8 +48,8 @@ STAMP = "2026-07-29T10:00:00+09:00"
 
 def _contract() -> ProcessingRunContract:
     return ProcessingRunContract(
-        "AIHUB-71748-SFT-PROCESSING-20260729-0003",
-        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003",
+        "AIHUB-71748-SFT-PROCESSING-20990101-9999",
+        "AIHUB-71748-SFT-PROCESSING-APPROVAL-20990101-9999",
         processing_allowed=True,
         payload_read_allowed=True,
         output_write_allowed=True,

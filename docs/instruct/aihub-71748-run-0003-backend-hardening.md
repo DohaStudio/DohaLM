@@ -140,12 +140,37 @@ run_id: AIHUB-71748-SFT-PROCESSING-20260729-0003
 approval_id: AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003
 backend_hardening: implemented
 synthetic_end_to_end: passed
-preflight: not_preflighted
-approval: not_prepared
+preflight: failed_closed_run_id_declaration_false_positive
+approval: retired_not_issued
 processing_allowed: false
 ```
 
-Run 0003은 이번 작업에서 registry에 예약하거나 Approval을 만들지 않는다.
+Run 0003 metadata-only Preflight는 immutable commit `8268625b77c795fb0e0f517443d3b19998219b8d`에서
+실행됐다. source ZIP의 파일시스템 metadata까지만 검사한 뒤, 이 문서와 코드의 식별자 선언을 사용 흔적으로
+오인해 `RUN_ID_ALREADY_USED`로 Fail Closed했다. ZIP entry·payload는 열지 않았고 Approval은 만들지 않았다.
+실패 후 같은 Run을 재실행하지 않으며 Run·Approval ID를 retired 목록에 추가했다.
+
+```yaml
+failed_preflight_evidence:
+  immutable_commit: 8268625b77c795fb0e0f517443d3b19998219b8d
+  mapping: validated_metadata_only
+  source_zip_count: 55
+  source_total_bytes: 17256335769
+  manifest_sha256: ca1f99996a459b0f6aa241ee20e2839645fea9a73cf40163169ab3fd9fbf3973
+  backend_fingerprint: fbca9235d061c4eee160013280e4f04094df75fc3f8aa83d7e52c95a1984e32e
+  backend_file_count: 8
+  source_snapshot_aggregate: not_generated_fail_closed
+  output_probe: not_run_fail_closed
+  resource_budget_probe: not_run_fail_closed
+  preflight_evidence_fingerprint: not_generated_fail_closed
+  approval_draft: not_created
+  processing_calls: 0
+  payload_sessions: 0
+  output_writes: 0
+  approval_issued: 0
+  approval_consumed: 0
+  execution_allowed: false
+```
 
 ## 21. Current Status
 
@@ -157,7 +182,8 @@ approval_contract: implemented
 runtime_guardrails: implemented
 post_validation: implemented
 synthetic_end_to_end: passed
-run_0003: not_preflighted
+run_0003: retired_failed_closed_before_approval
+approval_0003: retired_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 sft_backend: not_started
@@ -167,6 +193,12 @@ execution_allowed: false
 
 ## 22. Next Approval
 
-다음 작업은 병합된 immutable commit을 명시한 Run 0003 metadata-only Preflight다. 해당 별도 승인이
-있기 전까지 실제 ZIP entry·payload·JSON record를 읽거나 Approval 0003을 준비·발급·소비하거나
-Processing·Tokenization·SFT Training을 실행하지 않는다.
+다음 작업은 validator 수정이 병합된 새 immutable commit과 새 Run·Approval ID를 확정하는 별도 사용자 승인이다.
+Run 0003과 Approval 0003은 재사용하지 않는다. 후속 승인 전까지 ZIP entry·payload·JSON record를 읽거나
+Approval을 준비·발급·소비하거나 Processing·Tokenization·SFT Training을 실행하지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-29 | Run 0003 metadata-only Preflight의 식별자 선언 오탐 Fail Closed와 ID 폐기, validator 범위 수정 기록 |

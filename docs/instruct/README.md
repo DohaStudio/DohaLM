@@ -60,8 +60,8 @@ processing_backend: implemented_real_backend_hardened_synthetic_validated
 processing_manifest: completed_non_executable
 processing_run_0002: retired_failed_closed_before_consumption
 approval_0002: retired_not_issued
-processing_run_0003: not_preflighted
-approval_0003: not_prepared
+processing_run_0003: retired_failed_closed_before_approval
+approval_0003: retired_not_issued
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
@@ -81,6 +81,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0003 metadata-only Preflight가 식별자 선언 오탐으로 Fail Closed되어 Run·Approval ID 폐기 |
 | 2026-07-29 | Run 0002 영구 폐기와 Run 0003 hardened backend·Synthetic 검증·Preflight 미시작 상태 등록 |
 | 2026-07-29 | AIHUB-71748 Processing Run 0002 metadata-only Preflight와 Approval 초안 등록 |
 | 2026-07-29 | AIHUB-71748 외부 Mapping·실제 Processing Backend 구현과 Run 0001 폐기·Run 0002 미승인 경계 등록 |

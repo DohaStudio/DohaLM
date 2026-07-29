@@ -171,8 +171,9 @@ approval_0002:
 
 ## 14. Next Approval
 
-다음 단계는 [Run 0003 Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 정의된 별도
-metadata-only Preflight 승인이다. Run 0002의 Approval 발급·소비나 실행은 영구 금지한다.
+후속 Run 0003도 [Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 기록된 metadata-only
+Preflight 오탐으로 Fail Closed되어 폐기됐다. 다음 단계는 새 immutable commit과 새 Run·Approval ID의 별도
+승인이다. Run 0001~0003과 Approval 0001~0003은 영구 재사용 금지한다.
 
 ## 변경 이력
 

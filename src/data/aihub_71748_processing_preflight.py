@@ -15,6 +15,7 @@ from src.data.processing.aihub_71748_manifest import (
     validate_aihub_71748_processing_manifest,
 )
 from src.data.processing.aihub_71748_mapping import ResolvedDatasetMapping
+from src.data.processing.run_contract import RETIRED_APPROVAL_IDS, RETIRED_RUN_IDS
 
 
 RUN_ID = "AIHUB-71748-SFT-PROCESSING-20260729-0003"
@@ -205,22 +206,37 @@ def validate_run_unused(
     approval_id: str = APPROVAL_ID,
     immutable_commit: str | None = None,
 ) -> None:
-    roots = (
+    if run_id in RETIRED_RUN_IDS:
+        raise ProcessingPreflightError("RUN_ID_RETIRED")
+    if approval_id in RETIRED_APPROVAL_IDS:
+        raise ProcessingPreflightError("APPROVAL_RETIRED")
+    run_roots = (
         mapping.processed_root / run_id,
         mapping.processed_root / f"{run_id}.staging",
         mapping.processed_root / f"{run_id}.failed",
-        mapping.processed_root / "approvals" / f"{approval_id}.json",
+        mapping.processed_root / "quarantine" / run_id,
         mapping.processed_root / "runtime-evidence" / run_id,
     )
-    if any(path.exists() for path in roots):
+    if any(path.exists() for path in run_roots):
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
+    approval_roots = (
+        mapping.processed_root / "approvals" / f"{approval_id}.json",
+        mapping.processed_root / "runtime-evidence" / approval_id,
+    )
+    if any(path.exists() for path in approval_roots):
+        raise ProcessingPreflightError("APPROVAL_ID_ALREADY_USED")
     root = Path(repository_root).resolve()
+    identity_evidence_pathspecs = (
+        ":(glob)configs/data/*processing-run*.yaml",
+        ":(glob)docs/instruct/aihub-71748-processing-run-*-preflight.md",
+        ":(glob)docs/instruct/aihub-71748-processing-run-*-result.md",
+    )
     for identifier, error in (
         (run_id, "RUN_ID_ALREADY_USED"),
         (approval_id, "APPROVAL_ID_ALREADY_USED"),
     ):
         result = subprocess.run(
-            ["git", "grep", "-n", identifier, immutable_commit or "HEAD", "--", ":!tests"],
+            ["git", "grep", "-n", identifier, immutable_commit or "HEAD", "--", *identity_evidence_pathspecs],
             cwd=root, capture_output=True, text=True,
         )
         if result.returncode == 0:
