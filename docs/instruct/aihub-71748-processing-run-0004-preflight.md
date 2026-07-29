@@ -160,8 +160,8 @@ mapping, immutable fingerprint, output collision, parent probe와 resource 계�
 ## 25. Current Status
 
 ```yaml
-run_0004: preflight_passed
-approval_0004: prepared_not_issued
+run_0004: retired
+approval_0004: retired_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 sft_backend: not_started
@@ -171,11 +171,14 @@ execution_allowed: false
 
 ## 26. Next Required Approval
 
-Approval 0004의 별도 실제 발급과 single-use Processing 실행은 새 live freshness 검증과 사용자의 명시적
-승인이 필요하다. 승인 전에는 payload·Processing·output을 사용하지 않는다.
+Approval 0004는 발급되지 않은 채 폐기됐다. 후속 [Run 0005](./aihub-71748-processing-run-0005-preflight.md)는
+validator identity injection 결함으로 폐기됐고, [Run 0006](./aihub-71748-processing-run-0006-preflight.md)는
+새 immutable commit에서 metadata-only Preflight를 통과했다. 별도 승인 전에는
+payload·Processing·output을 사용하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0004 미발급 폐기와 Run 0005·0006 후속 계보 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight, canonical evidence와 non-issued Approval 초안 기록 |

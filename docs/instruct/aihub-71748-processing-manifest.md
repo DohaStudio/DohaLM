@@ -220,11 +220,17 @@ execution_allowed: false
 Preflight에서 식별자 선언을 사용 흔적으로 오인해 Fail Closed했다. Run 0003은
 `retired_failed_closed_before_approval`, Approval 0003은 `retired_not_issued`다.
 [Run 0004 Preflight](./aihub-71748-processing-run-0004-preflight.md)는 수정된 registry validator에서
-통과했고 Approval 0004는 `prepared_not_issued`다. 실제 실행 권한은 부여되지 않았다.
+통과했고 당시 Approval 0004는 `prepared_not_issued`였다. 이후 발급 없이 폐기됐으며 실제 실행 권한은
+부여되지 않았다.
+
+[Run 0005](./aihub-71748-processing-run-0005-preflight.md)는 validator가 명시적 ID 대신 0004 상수를 비교한
+결함으로 폐기됐고 Approval은 발급되지 않았다. 이 결함을 수정한 새 immutable commit에서
+[Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 metadata-only Preflight를 통과했다.
+Approval 0006은 `prepared_not_issued`, `execution_allowed=false`다.
 
 ## 18. Next Approval
 
-[승인 필요] 다음 단계는 live freshness 재검증과 Approval 0004 실제 발급의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
+[승인 필요] 다음 단계는 live freshness 재검증과 Approval 0006 실제 발급의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
 Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
 Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
