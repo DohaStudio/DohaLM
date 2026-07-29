@@ -169,9 +169,67 @@ execution_allowed: false
 정확히 한 번 통과했다. 다음 단계는 최신 `develop`과 evidence freshness의 live 재검증 및 Approval 0008 발급을
 위한 별도 승인이다.
 
+## Active Run Approval Refresh 보완 계약
+
+[확정] 최초 Preflight와 이미 예약된 Run의 Approval refresh는 서로 다른 검증 단계다. 최초 Preflight는 기존
+`validate_run_unused()`와 `validate_immutable_commit()`을 그대로 사용하며 `run_id_unused=true`,
+`approval_id_unused=true`, `HEAD == execution_source_commit`, clean worktree를 요구한다. 이 규칙은 완화하지 않는다.
+
+[확정] `validation_phase=approval_refresh`는 canonical registry에서 정확히 `preflight_passed`인 Run에만 적용한다.
+이 단계의 `run_id_unused=false`는 identity 재사용이 아니라 같은 active Run의 승인 직전 상태 재검증을 뜻한다.
+Approval 미발급·미소비, RuntimeExecutionRequest 부재, payload/processing/output 호출 0, 충돌 evidence 0과 모든
+final·staging·failed·quarantine output 부재를 strict field set으로 검증한다. `reserved_preflight`,
+`approval_issued`, `retired`, `processing_started`, `failed_closed`, `completed` 상태는 모두 Fail Closed다.
+
+[확정] refresh에서는 execution checkout과 governance checkout을 분리한다. `execution_source_commit`은 동결된
+10-file execution surface의 출처이고, 현재 clean checkout의 HEAD는 `governance_record_commit`이어야 한다.
+governance commit은 `origin/develop`에서 도달 가능해야 하며 두 commit의 Manifest·Backend fingerprint와 Git blob
+surface가 동일해야 한다. refresh CLI와 refresh evidence 코드는 governance-only 검증 surface이므로 기존 10-file
+Processing execution surface를 확장하거나 과거 execution source를 변조하지 않는다.
+
+`ApprovalRefreshEvidence` v1은 별도 schema이며 `validation_phase=approval_refresh`, 이전 Preflight fingerprint,
+두 Git commit, Manifest·Backend fingerprint, lineage, mapping/source snapshot, registry/runtime/output/resource 상태,
+budget, zero-call state, timezone-aware 생성·만료 시각을 포함한다. exact field set, deterministic canonical JSON
+fingerprint와 최대 3,600초 freshness를 요구한다. 기존 Preflight evidence는 읽기 전용 계보 입력이며 덮어쓰지 않는다.
+
+공식 진입점은 다음과 같다.
+
+```text
+python -m scripts.datasets.refresh_aihub_71748_sft_approval_run \
+  --mapping <local-config> \
+  --manifest <manifest> \
+  --execution-source-commit <sha> \
+  --governance-record-commit <sha> \
+  --run-id <run-id> \
+  --approval-id <approval-id> \
+  --preflight-evidence <canonical-evidence> \
+  --preflight-evidence-fingerprint <sha256> \
+  --approval-refresh-only
+```
+
+이 CLI는 Approval draft까지만 재검증하며 Approval issue/consume, Runtime request 생성, payload read, Processing과
+output write를 호출하지 않는다. 실제 refresh와 Approval 발급은 별도 governance 승인 전까지 금지한다.
+
+## Approval durable atomic write
+
+[확정] Approval JSON은 UTF-8 canonical bytes를 exclusive temporary file에 기록하고 short write 확인, flush,
+file fsync, atomic replace 순서로 저장한다. 발급 시 기존 final을 덮어쓰지 않으며 temp 충돌과 final 충돌을 각각
+`APPROVAL_TEMPORARY_COLLISION`, `APPROVAL_ALREADY_ISSUED`로 구분한다. write/fsync/replace 실패는
+`APPROVAL_ATOMIC_WRITE_FAILED`, 지원 플랫폼의 directory fsync 실패는 `APPROVAL_DIRECTORY_SYNC_FAILED`다.
+replace 전 실패는 temp residue를 정리하고 final을 만들지 않는다. replace 후 directory sync 실패는 final을
+삭제하거나 성공으로 보고하지 않고 incomplete issuance로 보존해 동일 ID 재사용을 차단한다.
+
+[확정] POSIX는 parent directory handle을 fsync한다. Python의 일반 `os.open`으로 directory handle을 제공하지 않는
+Windows는 file fsync와 `os.replace`를 내구성 경계로 사용하는 명시적 플랫폼 분기를 적용한다. 이 분기는 조용한
+예외 무시가 아니며 전용 테스트로 고정한다.
+
+[확정] 이번 보완은 active Run의 재사용이 아니라 동일 Run의 승인 전 검증 계약을 추가한 명시적 Contract v2
+revision이다. Run 0008의 유지·폐기와 실제 live refresh·Approval 0008 발급은 여전히 별도 승인 대상이다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Initial/Approval refresh 분리, governance checkout 검증, ApprovalRefreshEvidence v1과 durable atomic Approval writer 보완(Synthetic only) |
 | 2026-07-30 | 동결 계약 변경 없이 Run 0008 metadata-only Preflight 통과와 미발급 Approval draft 기록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic 4/2 전체 E2E 검증 |

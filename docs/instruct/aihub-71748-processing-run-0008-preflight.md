@@ -242,8 +242,38 @@ execution_allowed: false
 Approval 0008 발급 여부만 결정하는 별도 승인이다. 그 승인 전에는 Approval 발급·소비, RuntimeExecutionRequest,
 payload 접근, Processing, Tokenization과 Training을 수행하지 않는다.
 
+## Active Run refresh 구현 보완 상태
+
+[확정] 기존 Contract v2 구현에는 `preflight_passed` active Run을 위한 공식 live refresh 경로가 없었다. 최초
+Preflight validator는 신규 identity 전용이므로 Run 0008에 재사용하지 않는다. 보완 구현은 별도
+`ApprovalRefreshEvidence` v1, strict canonical registry adapter, governance checkout 검증과 refresh-only CLI를
+제공한다.
+
+[확정] 이번 작업에서는 실제 Run 0008 canonical evidence를 읽거나 수정하지 않았고 live refresh도 실행하지
+않았다. Approval 0008 artifact와 RuntimeExecutionRequest를 생성하지 않았으며 실제 Dataset payload 접근,
+Processing과 output write는 모두 0건이다. 합성 fixture에서만 active refresh 성공·실패 계약을 검증했다.
+
+```yaml
+run_0008: preflight_passed
+approval_0008: prepared_not_issued
+approval_refresh_0008: not_executed_requires_separate_approval
+approval_artifact: absent
+approval_issue_calls: 0
+approval_consume_calls: 0
+runtime_execution_request: absent
+payload_reads: 0
+processing_calls: 0
+output_writes: 0
+processed_dataset: not_created
+execution_allowed: false
+```
+
+[승인 필요] Run 0008 유지 또는 폐기 결정, 실제 live refresh, Approval 0008 발급은 각각 후속 governance 승인
+범위에서 결정한다. 코드 보완 자체는 그 승인을 대신하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Active Run refresh 공식 경로 구현 상태 추가; Run 0008 실제 refresh·Approval 발급은 미실행 유지 |
 | 2026-07-30 | Run 0008 metadata-only Preflight 1회 통과, local-only evidence와 미발급 Approval v2 draft 기록 |

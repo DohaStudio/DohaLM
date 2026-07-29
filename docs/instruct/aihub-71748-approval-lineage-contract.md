@@ -147,10 +147,26 @@ execution_allowed: false
 발급 여부를 결정하는 별도 승인이 필요하다. 그 전에는 발급·소비, Runtime request, payload 접근, Processing과
 output 생성을 수행하지 않는다.
 
+## 20. Active Run refresh와 durable issuance
+
+[확정] 신규 Run Preflight와 active Run Approval refresh는 별도 계약이다. refresh는 canonical registry의
+`preflight_passed` 상태, 기존 evidence fingerprint, Approval 미발급·미소비, Runtime request 부재와 zero-call
+상태를 검증한다. 현재 checkout은 governance commit과 일치해야 하며 과거 execution source와 10-file execution
+surface가 blob·Manifest·Backend fingerprint 수준에서 동등해야 한다.
+
+[확정] Approval issuance writer는 exclusive temp create, canonical UTF-8 bytes, flush, file fsync, atomic replace와
+지원 플랫폼의 parent directory fsync를 적용한다. final/temp 충돌과 write/fsync/replace/directory-sync 실패는
+서로 다른 error code로 Fail Closed하며, 동시 발급에서는 정확히 한 호출만 성공할 수 있다. Windows의 directory
+sync 미지원은 file fsync + atomic replace 정책으로 명시하고 합성 테스트로 고정한다.
+
+[확정] 이번 보완에서는 실제 Approval 0008을 발급·소비하지 않았고 RuntimeExecutionRequest도 생성하지 않았다.
+Run 0008 상태는 `preflight_passed`, Approval은 `prepared_not_issued`, `execution_allowed=false`를 유지한다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Active Run Approval refresh 계보와 durable atomic issuance writer 계약 추가(Synthetic only) |
 | 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval v2 prepared-not-issued draft 연결 |
 | 2026-07-30 | Run 0007 시작 전 계약 불일치 폐기와 Processing 계약 v2 Synthetic E2E 연결 |
 | 2026-07-30 | Run 0006 폐기, Approval capability/runtime gate·schema·squash lineage 계약 구현 및 Synthetic 검증 |

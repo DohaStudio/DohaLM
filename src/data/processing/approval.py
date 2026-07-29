@@ -285,13 +285,80 @@ def new_approval(
     return validate_approval(record, contract)
 
 
+def _canonical_record_bytes(record: ApprovalRecord) -> bytes:
+    try:
+        return json.dumps(
+            asdict(record), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_WRITE_FAILED") from None
+
+
+def _directory_fsync_supported() -> bool:
+    """Return the explicit platform policy for parent-directory durability.
+
+    POSIX supports opening and syncing a directory through ``os.open``. The
+    Windows Python runtime does not expose an equivalent directory handle via
+    this API, so Windows uses durable file fsync plus atomic ``os.replace``.
+    This branch is deliberate and covered by tests; directory-sync failures on
+    supported platforms are never ignored.
+    """
+
+    return os.name != "nt"
+
+
+def _sync_parent_directory(path: Path) -> None:
+    if not _directory_fsync_supported():
+        return
+    descriptor = -1
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        descriptor = os.open(path.parent, flags)
+        os.fsync(descriptor)
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_DIRECTORY_SYNC_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    if temporary.exists() or (exclusive and path.exists()):
+    if exclusive and path.exists():
         raise ProcessingApprovalError("APPROVAL_ALREADY_ISSUED")
-    temporary.write_text(json.dumps(asdict(record), sort_keys=True), encoding="utf-8")
-    os.replace(temporary, path)
+    payload = _canonical_record_bytes(record)
+    descriptor = -1
+    replaced = False
+    try:
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            raise ProcessingApprovalError("APPROVAL_TEMPORARY_COLLISION") from None
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            written = stream.write(payload)
+            if written != len(payload):
+                raise OSError("short write")
+            stream.flush()
+            os.fsync(stream.fileno())
+        if exclusive and path.exists():
+            raise ProcessingApprovalError("APPROVAL_ALREADY_ISSUED")
+        os.replace(temporary, path)
+        replaced = True
+        _sync_parent_directory(path)
+    except ProcessingApprovalError:
+        raise
+    except (OSError, ValueError):
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_WRITE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if not replaced and temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_ISSUANCE_INCOMPLETE") from None
 
 
 def _transition(record: ApprovalRecord, expected: set[str], target: str, **timestamps: str | None) -> ApprovalRecord:
