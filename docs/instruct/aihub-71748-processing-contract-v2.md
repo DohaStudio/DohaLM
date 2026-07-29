@@ -169,9 +169,77 @@ execution_allowed: false
 정확히 한 번 통과했다. 다음 단계는 최신 `develop`과 evidence freshness의 live 재검증 및 Approval 0008 발급을
 위한 별도 승인이다.
 
+## Active Run Approval Refresh 보완 계약
+
+[확정] 최초 Preflight와 이미 예약된 Run의 Approval refresh는 서로 다른 검증 단계다. 최초 Preflight는 기존
+`validate_run_unused()`와 `validate_immutable_commit()`을 그대로 사용하며 `run_id_unused=true`,
+`approval_id_unused=true`, `HEAD == execution_source_commit`, clean worktree를 요구한다. 이 규칙은 완화하지 않는다.
+
+[확정] `validation_phase=approval_refresh`는 canonical registry에서 정확히 `preflight_passed`인 Run에만 적용한다.
+이 단계의 `run_id_unused=false`는 identity 재사용이 아니라 같은 active Run의 승인 직전 상태 재검증을 뜻한다.
+Approval 미발급·미소비, RuntimeExecutionRequest 부재, payload/processing/output 호출 0, 충돌 evidence 0과 모든
+final·staging·failed·quarantine output 부재를 strict field set으로 검증한다. `reserved_preflight`,
+`approval_issued`, `retired`, `processing_started`, `failed_closed`, `completed` 상태는 모두 Fail Closed다.
+
+[확정] refresh에서는 execution checkout과 governance checkout을 분리한다. `execution_source_commit`은 동결된
+10-file execution surface의 출처이고, 현재 clean checkout의 HEAD는 `governance_record_commit`이어야 한다.
+governance commit은 `origin/develop`에서 도달 가능해야 하며 두 commit의 Manifest·Backend fingerprint와 Git blob
+surface가 동일해야 한다. refresh CLI와 refresh evidence 코드는 governance-only 검증 surface이므로 기존 10-file
+Processing execution surface를 확장하거나 과거 execution source를 변조하지 않는다.
+
+`ApprovalRefreshEvidence` v1은 별도 schema이며 `validation_phase=approval_refresh`, 이전 Preflight fingerprint,
+두 Git commit, Manifest·Backend fingerprint, lineage, mapping/source snapshot, registry/runtime/output/resource 상태,
+budget, zero-call state, timezone-aware 생성·만료 시각을 포함한다. exact field set, deterministic canonical JSON
+fingerprint와 최대 3,600초 freshness를 요구한다. 기존 Preflight evidence는 읽기 전용 계보 입력이며 덮어쓰지 않는다.
+
+공식 진입점은 다음과 같다.
+
+```text
+python -m scripts.datasets.refresh_aihub_71748_sft_approval_run \
+  --mapping <local-config> \
+  --manifest <manifest> \
+  --execution-source-commit <sha> \
+  --governance-record-commit <sha> \
+  --run-id <run-id> \
+  --approval-id <approval-id> \
+  --preflight-evidence <canonical-evidence> \
+  --preflight-evidence-fingerprint <sha256> \
+  --approval-refresh-only
+```
+
+이 CLI는 Approval draft까지만 재검증하며 Approval issue/consume, Runtime request 생성, payload read, Processing과
+output write를 호출하지 않는다. 실제 refresh와 Approval 발급은 별도 governance 승인 전까지 금지한다.
+
+## Approval durable atomic no-replace write
+
+[확정] Approval JSON은 UTF-8 canonical bytes를 exclusive temporary file에 기록하고 short write 확인, flush와
+file fsync를 완료한 뒤 atomic no-replace primitive로 publish한다. `exists()` 검사 후 `os.replace()`를 사용하는
+방식은 경쟁 final을 덮어쓸 수 있으므로 exclusive issuance에서 금지한다. 사전 final은
+`APPROVAL_ALREADY_ISSUED`, publish 순간 경쟁 final은 `APPROVAL_PUBLISH_COLLISION`, temp 충돌은
+`APPROVAL_TEMPORARY_COLLISION`로 구분하며 기존 final bytes와 checksum은 절대 변경하지 않는다.
+
+[확정] POSIX와 Windows 모두 동일 디렉터리에서 fsync된 temp를 `os.link(temp, final)`로 publish한다. hard-link 생성은
+커널의 no-replace semantics를 사용하므로 final이 이미 있으면 원자적으로 실패하고 경쟁 publisher 중 하나만
+성공한다. 성공 후 temp link를 제거한다. POSIX는 parent directory handle도 fsync한다. Windows는 Python 표준 API가
+directory handle fsync를 제공하지 않으므로 file fsync, atomic hard-link publish와 temp unlink까지만 보장하며 이
+차이를 명시적 플랫폼 분기로 유지한다. hard link 또는 같은-filesystem 보장이 없는 환경은
+`APPROVAL_NO_REPLACE_UNSUPPORTED`로 Fail Closed하며 `os.replace()` fallback을 사용하지 않는다.
+
+[확정] temp 생성·write·flush·file fsync·publish 이전 실패는 final을 만들지 않고 temp 정리를 시도한다. 정리에
+실패하면 `APPROVAL_ISSUANCE_INCOMPLETE`로 수동 조사를 요구한다. publish 성공 후 temp unlink 또는 directory fsync가
+실패하면 final을 삭제하거나 성공으로 보고하지 않는다. final이 존재하므로 동일 Approval ID의 재발급은
+`APPROVAL_ALREADY_ISSUED`로 차단되며 lifecycle은 incomplete issuance로 분류해 수동 조사·폐기 결정을 요구한다.
+atomic publish 자체의 비충돌 실패는 `APPROVAL_ATOMIC_PUBLISH_FAILED`, directory sync 실패는
+`APPROVAL_DIRECTORY_SYNC_FAILED`다.
+
+[확정] 이번 보완은 active Run의 재사용이 아니라 동일 Run의 승인 전 검증 계약을 추가한 명시적 Contract v2
+revision이다. Run 0008의 유지·폐기와 실제 live refresh·Approval 0008 발급은 여전히 별도 승인 대상이다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | exists-check + replace TOCTOU 제거, POSIX·Windows hard-link atomic no-replace publish와 incomplete 재사용 차단 확정 |
+| 2026-07-30 | Initial/Approval refresh 분리, governance checkout 검증, ApprovalRefreshEvidence v1과 durable atomic Approval writer 보완(Synthetic only) |
 | 2026-07-30 | 동결 계약 변경 없이 Run 0008 metadata-only Preflight 통과와 미발급 Approval draft 기록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic 4/2 전체 E2E 검증 |

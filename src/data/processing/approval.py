@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
+import errno
 import hashlib
 import json
 import os
@@ -285,13 +286,134 @@ def new_approval(
     return validate_approval(record, contract)
 
 
+def _canonical_record_bytes(record: ApprovalRecord) -> bytes:
+    try:
+        return json.dumps(
+            asdict(record), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_WRITE_FAILED") from None
+
+
+def _directory_fsync_supported() -> bool:
+    """Return the explicit platform policy for parent-directory durability.
+
+    POSIX supports opening and syncing a directory through ``os.open``. The
+    Windows Python runtime does not expose an equivalent directory handle via
+    this API, so Windows uses durable file fsync plus atomic ``os.replace``.
+    This branch is deliberate and covered by tests; directory-sync failures on
+    supported platforms are never ignored.
+    """
+
+    return os.name != "nt"
+
+
+def _sync_parent_directory(path: Path) -> None:
+    if not _directory_fsync_supported():
+        return
+    descriptor = -1
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        descriptor = os.open(path.parent, flags)
+        os.fsync(descriptor)
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_DIRECTORY_SYNC_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+_NO_REPLACE_UNSUPPORTED_ERRNOS = frozenset({
+    errno.EXDEV,
+    errno.EINVAL,
+    errno.ENOSYS,
+    getattr(errno, "ENOTSUP", errno.ENOSYS),
+    getattr(errno, "EOPNOTSUPP", errno.ENOSYS),
+})
+
+
+def _link_no_replace(temporary: Path, final: Path) -> None:
+    """Atomically publish one hard link without replacement semantics."""
+
+    try:
+        os.link(temporary, final)
+    except FileExistsError:
+        raise ProcessingApprovalError("APPROVAL_PUBLISH_COLLISION") from None
+    except OSError as exc:
+        if exc.errno in _NO_REPLACE_UNSUPPORTED_ERRNOS or getattr(exc, "winerror", None) in {1, 50}:
+            raise ProcessingApprovalError("APPROVAL_NO_REPLACE_UNSUPPORTED") from None
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_PUBLISH_FAILED") from None
+
+
+def _publish_no_replace_posix(temporary: Path, final: Path) -> None:
+    """POSIX atomic no-replace publish on one hard-link-capable filesystem."""
+
+    _link_no_replace(temporary, final)
+
+
+def _publish_no_replace_windows(temporary: Path, final: Path) -> None:
+    """Windows atomic no-replace publish using CreateHardLink via os.link."""
+
+    _link_no_replace(temporary, final)
+
+
+def _approval_platform() -> str:
+    return os.name
+
+
+def _publish_no_replace(temporary: Path, final: Path) -> None:
+    platform = _approval_platform()
+    if platform == "posix":
+        _publish_no_replace_posix(temporary, final)
+    elif platform == "nt":
+        _publish_no_replace_windows(temporary, final)
+    else:
+        raise ProcessingApprovalError("APPROVAL_NO_REPLACE_UNSUPPORTED")
+
+
 def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    if temporary.exists() or (exclusive and path.exists()):
+    if exclusive and path.exists():
         raise ProcessingApprovalError("APPROVAL_ALREADY_ISSUED")
-    temporary.write_text(json.dumps(asdict(record), sort_keys=True), encoding="utf-8")
-    os.replace(temporary, path)
+    payload = _canonical_record_bytes(record)
+    descriptor = -1
+    published = False
+    try:
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            raise ProcessingApprovalError("APPROVAL_TEMPORARY_COLLISION") from None
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            written = stream.write(payload)
+            if written != len(payload):
+                raise OSError("short write")
+            stream.flush()
+            os.fsync(stream.fileno())
+        if exclusive:
+            _publish_no_replace(temporary, path)
+            published = True
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_ISSUANCE_INCOMPLETE") from None
+        else:
+            os.replace(temporary, path)
+            published = True
+        _sync_parent_directory(path)
+    except ProcessingApprovalError:
+        raise
+    except (OSError, ValueError):
+        raise ProcessingApprovalError("APPROVAL_ATOMIC_WRITE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if not published and temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_ISSUANCE_INCOMPLETE") from None
 
 
 def _transition(record: ApprovalRecord, expected: set[str], target: str, **timestamps: str | None) -> ApprovalRecord:
