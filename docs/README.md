@@ -108,7 +108,8 @@ safety·readiness 설계를 완료했지만 dataset·backend·SFT·publication�
 - [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
 - [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
 - [확정] Base 개발·Candidate A/B·Evaluation은 완료됐다. Candidate B historical 계약 미통과는 보존하며
-  ADR-009 current Base baseline이다. Instruct는 ADR-010 `design_completed`, execution은 `not_approved`다.
+  ADR-009 current Base baseline이다. Instruct는 ADR-010 `design_completed`, AIHUB-71748 Run 0006
+  metadata-only Preflight `passed`, execution은 `not_approved`다.
 - [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
 - [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
 - [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.

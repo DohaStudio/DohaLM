@@ -99,8 +99,12 @@ backend_hardening: implemented
 post_validation: implemented
 processing_run_0003: retired_failed_closed_before_approval
 approval_0003: retired_not_issued
-processing_run_0004: preflight_passed
-approval_0004: prepared_not_issued
+processing_run_0004: retired
+approval_0004: retired_not_issued
+processing_run_0005: retired_preflight_validator_failure
+approval_0005: retired_not_issued
+processing_run_0006: preflight_passed
+approval_0006: prepared_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -114,6 +118,10 @@ execution_allowed: false
 Fail Closed되어 폐기됐다. [Run 0004 Preflight](./aihub-71748-processing-run-0004-preflight.md)는
 metadata-only로 통과했지만 Approval은 발급되지 않았다. 별도 승인 전에는 ZIP payload read, Approval 발급·소비와
 Processing을 수행하지 않는다.
+
+[Run 0005](./aihub-71748-processing-run-0005-preflight.md)는 validator identity injection 결함으로 폐기했다.
+[Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 validator와 processing CLI를 포함한 10-file
+execution surface에서 metadata-only Preflight를 통과했으며 Approval은 여전히 발급되지 않았다.
 
 ## 변경 이력
 

@@ -197,6 +197,9 @@ Run 0003과 Approval 0003은 재사용하지 않는다. 후속 [Run 0004 Metadat
 수정된 validator에서 통과했지만 Approval 0004는 발급되지 않았다. 별도 승인 전까지 ZIP entry·payload·JSON
 record를 읽거나 Approval을 발급·소비하거나 Processing·Tokenization·SFT Training을 실행하지 않는다.
 
+Run 0005의 고정 ID 비교 결함은 [실패 계보](./aihub-71748-processing-run-0005-preflight.md)에 보존했고,
+명시적 identity 주입을 적용한 [Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 metadata-only로 통과했다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
