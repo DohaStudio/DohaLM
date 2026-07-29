@@ -117,6 +117,15 @@ Candidate B 학습은 다시 실행하지 않는다.
 - Chat lineage: `Base → Instruct → Chat`; Chat project는 `not_started`.
 - Readiness: `design_completed`, `execution_allowed: false`, training·publication `not_approved`.
 
+### AIHUB-71748 Processing Run 상태
+
+- [확정] Run 0008은 Approval no-replace 보안 수정에 따른 backend fingerprint 불일치로
+  `retired_backend_fingerprint_mismatch`, Approval 0008은 `retired_not_issued`다.
+- [확정] Run 0009 metadata-only Preflight는 commit `841123ea2f0d3f0fccb8cf456edaf8c9faa44014`에서 통과했고
+  Approval 0009는 `prepared_not_issued`다.
+- [확정] Dataset payload·Processing·RuntimeExecutionRequest·Approval 발급은 모두 0건이며
+  `execution_allowed=false`다.
+
 ## 9. 다음 권장 작업
 
 1. AIHUB-71748 조건부 선정 조건과 Processing Manifest 설계 범위를 별도 승인
@@ -127,6 +136,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 metadata-only Preflight 통과 상태 반영 |
 | 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Backend·Training 미승인 상태 반영 |
 | 2026-07-28 | ADR-010 DohaLM Instruct design_completed·execution_not_approved 상태 반영 |
 | 2026-07-28 | ADR-009 Candidate B current Base baseline 승격과 experimental derivative parent 적격성 반영 |

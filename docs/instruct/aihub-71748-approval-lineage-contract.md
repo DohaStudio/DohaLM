@@ -131,9 +131,13 @@ preflight_governance_commit: supported
 squash_merge_lineage: supported
 run_0007: retired_contract_mismatch_before_start
 approval_0007: not_created_non_reusable
-run_0008: preflight_passed
-approval_0008: prepared_not_issued
+run_0008: retired_backend_fingerprint_mismatch
+approval_0008: retired_not_issued
 runtime_execution_request_0008: not_created
+run_0009: preflight_passed
+approval_0009: prepared_not_issued
+approval_refresh_0009: not_executed
+runtime_execution_request_0009: not_created
 processed_dataset: not_created
 tokenization: not_approved
 sft_backend: not_started
@@ -143,9 +147,9 @@ execution_allowed: false
 
 ## 19. Next Approval
 
-[승인 필요] 병합된 최신 `develop`에서 execution surface와 evidence freshness를 live 재검증한 뒤 Approval 0008
-발급 여부를 결정하는 별도 승인이 필요하다. 그 전에는 발급·소비, Runtime request, payload 접근, Processing과
-output 생성을 수행하지 않는다.
+[승인 필요] Run 0009 결과 문서를 병합한 최신 `develop`에서 execution surface와 evidence freshness를 live
+재검증하는 별도 승인이 필요하다. 그 전에는 Approval 0009 발급·소비, Runtime request, payload 접근,
+Processing과 output 생성을 수행하지 않는다.
 
 ## 20. Active Run refresh와 durable issuance
 
@@ -164,13 +168,25 @@ POSIX는 parent directory를 fsync하고 Windows는 file fsync + hard-link publi
 처리하지 않고 incomplete issuance로 분류한다. 이미 publish된 final을 삭제하지 않으며 동일 identity 재발급은
 기존 final 존재로 차단하고 수동 조사 후 폐기 정책을 적용한다.
 
-[확정] 이번 보완에서는 실제 Approval 0008을 발급·소비하지 않았고 RuntimeExecutionRequest도 생성하지 않았다.
-Run 0008 상태는 `preflight_passed`, Approval은 `prepared_not_issued`, `execution_allowed=false`를 유지한다.
+[확정] PR #64 보완 당시에는 실제 Approval 0008을 발급·소비하지 않았고 RuntimeExecutionRequest도 생성하지
+않았다. 당시 상태는 `preflight_passed`와 `prepared_not_issued`였으며, 이후 아래 lineage decision에서 Run 0008과
+Approval 0008을 폐기했다.
+
+## Run 0008/0009 Lineage Decision
+
+[확정] Run 0008은 execution source `e3809de60d579da8e425d6e619878d4fd4e62fba`와 current governance
+`841123ea2f0d3f0fccb8cf456edaf8c9faa44014` 사이 backend fingerprint 불일치로 폐기했다. 보안 수정이 포함된
+execution surface를 과거 identity에 소급하지 않으며 Approval 0008은 미발급 상태로 영구 비재사용한다.
+
+[확정] Run 0009는 current governance commit을 새 execution source로 사용해 `DIRECT_ANCESTRY_VALID`를 통과했다.
+Preflight evidence와 Approval draft만 생성했으며 Approval artifact·RuntimeExecutionRequest·Processing은 생성하거나
+실행하지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 신규 immutable lineage 연결 |
 | 2026-07-30 | Approval publish를 POSIX·Windows hard-link atomic no-replace로 전환하고 경쟁 final·incomplete 재사용 차단 계약 확정 |
 | 2026-07-30 | Active Run Approval refresh 계보와 durable atomic issuance writer 계약 추가(Synthetic only) |
 | 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval v2 prepared-not-issued draft 연결 |

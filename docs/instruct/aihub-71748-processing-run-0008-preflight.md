@@ -236,11 +236,10 @@ execution_allowed: false
 실제 Dataset payload 접근, Processing, Approval 발급·소비, RuntimeExecutionRequest 생성과 output write는 모두
 0건이다. Run 0008은 재실행하지 않는다.
 
-## Next Runtime Step
+## Historical Next Runtime Step
 
-[승인 필요] 다음 작업은 병합된 최신 `develop`에서 execution surface와 evidence freshness를 live 재검증한 뒤
-Approval 0008 발급 여부만 결정하는 별도 승인이다. 그 승인 전에는 Approval 발급·소비, RuntimeExecutionRequest,
-payload 접근, Processing, Tokenization과 Training을 수행하지 않는다.
+[확정] 당시 계획은 최신 `develop`에서 live refresh 후 Approval 0008 발급 여부를 결정하는 것이었다. 실제 refresh는
+backend fingerprint mismatch로 Fail Closed했으며 아래 Retirement Decision이 이 계획을 대체한다.
 
 ## Active Run refresh 구현 보완 상태
 
@@ -254,9 +253,9 @@ Preflight validator는 신규 identity 전용이므로 Run 0008에 재사용하�
 Processing과 output write는 모두 0건이다. 합성 fixture에서만 active refresh 성공·실패 계약을 검증했다.
 
 ```yaml
-run_0008: preflight_passed
-approval_0008: prepared_not_issued
-approval_refresh_0008: not_executed_requires_separate_approval
+run_0008: retired_backend_fingerprint_mismatch
+approval_0008: retired_not_issued
+approval_refresh_0008: failed_closed_backend_fingerprint_mismatch
 approval_artifact: absent
 approval_issue_calls: 0
 approval_consume_calls: 0
@@ -268,8 +267,8 @@ processed_dataset: not_created
 execution_allowed: false
 ```
 
-[승인 필요] Run 0008 유지 또는 폐기 결정, 실제 live refresh, Approval 0008 발급은 각각 후속 governance 승인
-범위에서 결정한다. 코드 보완 자체는 그 승인을 대신하지 않는다.
+[확정] Run 0008과 Approval 0008은 영구 비재사용한다. 후속 단계는
+[Run 0009 Preflight](./aihub-71748-processing-run-0009-preflight.md)의 별도 governance 승인 경계를 따른다.
 
 ## Approval no-replace 보완
 
@@ -282,10 +281,34 @@ publish 후 temp unlink 또는 directory durability 실패는 성공으로 간�
 차단한다. 이 검증은 synthetic 임시 identity만 사용했으며 실제 Run 0008 evidence나 Approval artifact를 사용하지
 않았다.
 
+## Retirement Decision
+
+[확정] 2026-07-30 live refresh에서 `BACKEND_FINGERPRINT_MISMATCH`가 발생해 Run 0008을
+`retired_backend_fingerprint_mismatch`로 영구 폐기했다. Manifest fingerprint는 동일했지만 PR #64의
+Approval no-replace 보안 수정으로 `src/data/processing/approval.py` blob과 backend fingerprint가 변경됐다.
+
+```yaml
+run_0008: retired_backend_fingerprint_mismatch
+approval_0008: retired_not_issued
+approval_artifact: absent
+approval_issue_calls: 0
+approval_consume_calls: 0
+runtime_execution_request: absent
+payload_reads: 0
+processing_calls: 0
+output_writes: 0
+reusable: false
+execution_allowed: false
+```
+
+[확정] 기존 Preflight evidence는 수정·삭제하지 않고 읽기 전용 실패 계보로 보존한다. 후속 identity는
+[Run 0009 Preflight](./aihub-71748-processing-run-0009-preflight.md)를 따른다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Live refresh backend fingerprint mismatch로 Run 0008과 미발급 Approval 0008 영구 폐기 |
 | 2026-07-30 | Approval no-replace TOCTOU 보완 정책 추가; Run 0008 refresh·Approval 발급 미실행 유지 |
 | 2026-07-30 | Active Run refresh 공식 경로 구현 상태 추가; Run 0008 실제 refresh·Approval 발급은 미실행 유지 |
 | 2026-07-30 | Run 0008 metadata-only Preflight 1회 통과, local-only evidence와 미발급 Approval v2 draft 기록 |
