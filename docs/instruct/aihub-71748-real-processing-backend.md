@@ -97,8 +97,8 @@ processing_run_0002: retired_failed_closed_before_consumption
 approval_0002: retired_not_issued
 backend_hardening: implemented
 post_validation: implemented
-processing_run_0003: not_preflighted
-approval_0003: not_prepared
+processing_run_0003: retired_failed_closed_before_approval
+approval_0003: retired_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -107,15 +107,16 @@ execution_allowed: false
 
 ## 다음 승인
 
-[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 영구 폐기 상태다. 보완된 계약은
-[Run 0003 Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 기록했다. [승인 필요] 다음 단계는
-병합된 immutable commit 기준 Run 0003 metadata-only Preflight다. 그 전에는 ZIP payload read, Approval 준비·발급·
-소비, Processing과 Processed Dataset 생성을 수행하지 않는다.
+[Run 0002 Preflight](./aihub-71748-processing-run-0002-preflight.md)는 영구 폐기 상태다. Run 0003도
+[Backend 계약 보완](./aihub-71748-run-0003-backend-hardening.md)에 기록된 식별자 선언 오탐으로 Approval 전
+Fail Closed되어 폐기됐다. [승인 필요] 다음 단계는 validator 수정이 포함된 새 immutable commit과 새 Run·Approval
+ID 확정이다. 그 전에는 ZIP payload read, Approval 준비·발급·소비, Processing을 수행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 Run·Approval ID 폐기, registry 검사 범위 수정 |
 | 2026-07-29 | Run 0002 영구 폐기, Run 0003 immutable·Approval·guardrail·post-validation 계약의 Synthetic 검증 등록 |
 | 2026-07-29 | Run 0002 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0001 폐기, 외부 Mapping 계약, 실제 ZIP streaming·join·process-local signal·atomic writer Backend와 Synthetic 검증 등록 |

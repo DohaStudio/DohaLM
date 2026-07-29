@@ -102,14 +102,15 @@ execution_allowed: false
 ```
 
 AIHUB-71748 Manifest와 Rule threshold는 비소비 계약으로 확정됐다. Run 0001·0002는 폐기됐고
-[Run 0003 Backend 계약](./aihub-71748-run-0003-backend-hardening.md)은 Synthetic으로 검증됐다. 다음 단계에는
-Run 0003 metadata-only Preflight의 별도 승인이 필요하며, 그 승인만으로 실제 Processing이나 SFT Training은
-허용되지 않는다.
+[Run 0003 Backend 계약](./aihub-71748-run-0003-backend-hardening.md)은 Synthetic으로 검증됐지만 실제
+metadata-only Preflight는 식별자 선언 오탐으로 Fail Closed되어 Run·Approval ID가 폐기됐다. 다음 단계에는
+validator 수정이 포함된 새 immutable commit과 새 Run·Approval ID의 별도 승인이 필요하다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 새 identity 승인 필요 상태 반영 |
 | 2026-07-29 | Run 0003 Approval·counter·RSS/runtime·disk/output·post-validation·atomic gate 계약을 Synthetic 검증 |
 | 2026-07-29 | AIHUB-71748 실제 Backend·Mapping 계약을 Synthetic로 검증하고 Run 0001 재사용 차단 |
 | 2026-07-29 | AIHUB-71748 canonical Manifest validator와 실행 권한 차단 계약 추가 |

@@ -29,6 +29,8 @@ from src.data.processing.aihub_71748_mapping import ResolvedDatasetMapping
 
 MANIFEST_PATH = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
 NOW = datetime(2026, 7, 29, 10, 0, tzinfo=timezone.utc)
+UNUSED_RUN_ID = "AIHUB-71748-SFT-PROCESSING-20990101-9999"
+UNUSED_APPROVAL_ID = "AIHUB-71748-SFT-PROCESSING-APPROVAL-20990101-9999"
 
 
 def _package(root: Path) -> tuple[Path, int]:
@@ -76,8 +78,11 @@ def _evidence(**changes: object) -> PreflightEvidence:
     return replace(value, **changes)
 
 
-def test_run_0003_identity_is_contract_only() -> None:
+def test_run_0003_identity_is_retired_after_failed_preflight() -> None:
     assert RUN_ID.endswith("0003") and APPROVAL_ID.endswith("0003")
+    source = Path("synthetic-unused")
+    with pytest.raises(ProcessingPreflightError, match="^RUN_ID_RETIRED$"):
+        validate_run_unused(_mapping(source, source / "processed"), repository_root=Path.cwd())
 
 
 def test_immutable_commit_is_not_hardcoded() -> None:
@@ -149,7 +154,10 @@ def test_missing_component_fails_closed(tmp_path: Path, monkeypatch: pytest.Monk
 def test_run_and_approval_ids_are_unused(tmp_path: Path) -> None:
     source = tmp_path / "AIHUB-71748"
     source.mkdir()
-    validate_run_unused(_mapping(source, tmp_path / "processed"), repository_root=Path.cwd(), immutable_commit="HEAD")
+    validate_run_unused(
+        _mapping(source, tmp_path / "processed"), repository_root=Path.cwd(), immutable_commit="HEAD",
+        run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+    )
 
 
 @pytest.mark.parametrize("suffix", ["", ".staging", ".failed"])
@@ -157,9 +165,49 @@ def test_run_artifact_collision_fails_closed(tmp_path: Path, suffix: str) -> Non
     source = tmp_path / "AIHUB-71748"
     source.mkdir()
     output = tmp_path / "processed"
-    (output / f"{RUN_ID}{suffix}").mkdir(parents=True)
+    (output / f"{UNUSED_RUN_ID}{suffix}").mkdir(parents=True)
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
-        validate_run_unused(_mapping(source, output), repository_root=Path.cwd(), immutable_commit="HEAD")
+        validate_run_unused(
+            _mapping(source, output), repository_root=Path.cwd(), immutable_commit="HEAD",
+            run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+        )
+
+
+def test_hardening_document_declaration_is_not_runtime_usage(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    hardening = repository / "docs/instruct/aihub-71748-run-0003-backend-hardening.md"
+    hardening.parent.mkdir(parents=True)
+    hardening.write_text(f"{UNUSED_RUN_ID}\n{UNUSED_APPROVAL_ID}\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.email", "synthetic@example.invalid"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.name", "Synthetic Test"], cwd=repository, check=True)
+    subprocess.run(["git", "add", "."], cwd=repository, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "synthetic"], cwd=repository, check=True)
+    source = tmp_path / "AIHUB-71748"
+    source.mkdir()
+    validate_run_unused(
+        _mapping(source, tmp_path / "processed"), repository_root=repository, immutable_commit="HEAD",
+        run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+    )
+
+
+def test_tracked_preflight_evidence_marks_run_used(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    evidence = repository / "docs/instruct/aihub-71748-processing-run-20990101-preflight.md"
+    evidence.parent.mkdir(parents=True)
+    evidence.write_text(f"{UNUSED_RUN_ID}\n{UNUSED_APPROVAL_ID}\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.email", "synthetic@example.invalid"], cwd=repository, check=True)
+    subprocess.run(["git", "config", "user.name", "Synthetic Test"], cwd=repository, check=True)
+    subprocess.run(["git", "add", "."], cwd=repository, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "synthetic"], cwd=repository, check=True)
+    source = tmp_path / "AIHUB-71748"
+    source.mkdir()
+    with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
+        validate_run_unused(
+            _mapping(source, tmp_path / "processed"), repository_root=repository, immutable_commit="HEAD",
+            run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+        )
 
 
 def test_output_contract_and_disk_budget(tmp_path: Path) -> None:
