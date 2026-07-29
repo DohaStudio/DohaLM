@@ -17,6 +17,15 @@ ALLOWED_OUTPUTS = frozenset({
     "checksums.sha256", "processing-result.yaml",
 })
 CHECKSUM_TARGETS = tuple(sorted(ALLOWED_OUTPUTS - {"checksums.sha256"}))
+PROCESSING_RESULT_FIELDS = frozenset({
+    "schema_version", "run_id", "approval_id", "runtime_request_id",
+    "execution_source_commit", "governance_record_commit", "manifest_sha256",
+    "backend_fingerprint", "preflight_evidence_fingerprint", "approval_fingerprint",
+    "runtime_request_fingerprint", "started_at", "completed_at", "failed_at", "status",
+    "input_statistics", "output_statistics", "rejection_statistics", "output_files",
+    "output_total_bytes", "checksums_sha256", "counters", "finalization",
+    "tokenization_allowed", "training_allowed",
+})
 
 
 class PostValidationError(RuntimeError):
@@ -189,6 +198,32 @@ def validate_output_budget(
     if total > maximum_total_bytes:
         raise PostValidationError("OUTPUT_TOTAL_BYTES_EXCEEDED")
     return {"file_count": len(entries), "total_bytes": total}
+
+
+def validate_processing_result(value: Mapping[str, object]) -> None:
+    if set(value) != PROCESSING_RESULT_FIELDS or value.get("schema_version") != 1:
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    if value.get("status") not in {"completed", "failed"}:
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    if value.get("tokenization_allowed") is not False or value.get("training_allowed") is not False:
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    for name in (
+        "run_id", "approval_id", "runtime_request_id", "execution_source_commit",
+        "governance_record_commit", "manifest_sha256", "backend_fingerprint",
+        "preflight_evidence_fingerprint", "approval_fingerprint",
+        "runtime_request_fingerprint", "started_at", "completed_at",
+    ):
+        if not isinstance(value.get(name), str) or not value[name]:
+            raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    if not isinstance(value.get("output_files"), int) or isinstance(value.get("output_files"), bool):
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    if not isinstance(value.get("output_total_bytes"), int) or isinstance(value.get("output_total_bytes"), bool):
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
+    finalization = value.get("finalization")
+    if not isinstance(finalization, Mapping) or set(finalization) != {
+        "staging_created", "final_created", "staging_removed", "atomic_rename_completed",
+    } or not all(isinstance(item, bool) for item in finalization.values()):
+        raise PostValidationError("PROCESSING_RESULT_SCHEMA_INVALID")
 
 
 def _read_jsonl(path: Path) -> tuple[list[tuple[str, str]], dict[str, int]]:

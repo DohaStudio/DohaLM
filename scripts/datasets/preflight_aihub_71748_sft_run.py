@@ -77,19 +77,33 @@ def run_preflight(
     parent_probe_passed = probe_output_parent(mapping)
     resources = validate_resource_providers()
     generated_at = now or datetime.now(timezone.utc)
+    zero_calls = {
+        "approval_issue_calls": 0, "approval_consume_calls": 0,
+        "runtime_request_creations": 0, "runtime_execution_gate_activations": 0,
+        "processing_engine_calls": 0, "payload_sessions": 0, "zip_entry_opens": 0,
+        "archive_member_enumerations": 0, "json_parser_calls": 0,
+        "record_parser_calls": 0, "join_calls": 0, "policy_dispatch_calls": 0,
+        "output_writer_calls": 0, "checksum_calls": 0, "atomic_finalization_calls": 0,
+    }
     evidence = PreflightEvidence(
-        schema_version=1,
+        schema_version=2,
         run_id=run_id,
         approval_id=approval_id,
         execution_source_commit=commit,
         governance_record_commit=governance_record_commit,
         manifest_sha256=fingerprints.manifest_sha256,
         backend_fingerprint=fingerprints.backend_fingerprint,
-        execution_surface={
-            "manifest_included": True,
-            "validator_included": True,
-            "processing_cli_included": True,
-            "file_count": fingerprints.backend_file_count + 1,
+        lineage={
+            "result_code": lineage.result_code,
+            "direct_ancestry": lineage.direct_ancestry,
+            "squash_merge_mode": lineage.squash_merge_mode,
+            "execution_surface_file_count": lineage.execution_surface_file_count,
+            "execution_surface_paths_equal": lineage.execution_surface_paths_equal,
+            "execution_surface_blobs_equal": lineage.execution_surface_blobs_equal,
+            "manifest_fingerprint_equal": lineage.manifest_fingerprint_equal,
+            "backend_fingerprint_equal": lineage.backend_fingerprint_equal,
+            "governance_reachable_from_origin_develop": lineage.governance_reachable_from_origin_develop,
+            "valid": lineage.valid,
         },
         mapping_identity={
             "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
@@ -102,16 +116,13 @@ def run_preflight(
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "run_status": "preflight_passed",
-            "approval_status": "prepared_not_issued",
-            "processing_calls": 0, "payload_sessions": 0, "output_writes": 0,
-            "retired_runs": ["0001", "0002", "0003", "0004", "0005", "0006"],
-            "run_0005_status": "retired_preflight_validator_failure",
-            "approval_0005_status": "retired_not_issued",
+            "retired_run_count": 7, "conflicting_evidence_count": 0,
         },
         output_state={
             "final_exists": False, "staging_exists": False,
-            "quarantine_exists": False, "parent_probe_passed": parent_probe_passed,
+            "failed_exists": False, "quarantine_exists": False,
+            "parent_probe_passed": parent_probe_passed,
+            "parent_probe_residue_count": 0,
         },
         resource_state={"free_disk_bytes": int(output["free_bytes"]), **resources},
         runtime_budget={"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
@@ -119,6 +130,7 @@ def run_preflight(
         disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
         record_budget={"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
         output_budget={"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
+        zero_call_state=zero_calls,
         generated_at=generated_at.isoformat(),
         expires_at=(generated_at + timedelta(hours=1)).isoformat(),
     )
@@ -137,21 +149,13 @@ def run_preflight(
         approval_draft, evidence=evidence, evidence_fingerprint=fingerprint,
         expected_run_id=run_id, expected_approval_id=approval_id,
     )
-    zero_calls = {
-        "processing_engine_calls": 0, "payload_sessions": 0, "zip_entry_opens": 0,
-        "json_parser_calls": 0, "record_parser_calls": 0, "join_calls": 0,
-        "policy_dispatch_calls": 0, "output_writer_calls": 0,
-        "atomic_finalization_calls": 0, "approval_issue_calls": 0,
-        "approval_consume_calls": 0,
-        "archive_member_enumerations": 0, "checksum_calls": 0,
-    }
     return {
         **asdict(evidence),
         "lineage_validation": asdict(lineage),
         "fingerprint": fingerprint,
         "approval_draft": approval_draft,
         "approval_draft_fingerprint": approval_draft_fingerprint,
-        "zero_call_contract": zero_calls,
+        "zero_call_state": zero_calls,
         "status": "preflight_passed",
         "payload_reads": 0,
         "processing_calls": 0,
@@ -173,6 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--governance-record-commit", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--approval-id", required=True)
+    parser.add_argument("--preflight-only", action="store_true", required=True)
     parser.add_argument("--output-evidence", type=Path)
     return parser
 

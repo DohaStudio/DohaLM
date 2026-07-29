@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from copy import deepcopy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,7 @@ from .post_validation import (
     validate_finalization_gate,
     validate_jsonl_and_splits,
     validate_output_budget,
+    validate_processing_result,
     validate_source_immutable,
 )
 from .run_contract import ExecutionCounters
@@ -86,6 +88,14 @@ def _size(root: Path) -> int:
     return sum(path.stat().st_size for path in root.iterdir() if path.is_file())
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def write_atomic_outputs(
     run_root: str | Path,
     *,
@@ -98,10 +108,13 @@ def write_atomic_outputs(
 ) -> dict[str, object]:
     final = Path(run_root)
     staging = final.with_name(final.name + ".staging")
-    if final.exists() or staging.exists() or final.with_name(final.name + ".failed").exists():
+    failed = final.with_name(final.name + ".failed")
+    if final.exists() or staging.exists() or failed.exists():
         raise OutputWriterError("RUN_ID_ALREADY_USED")
     staging.mkdir(parents=True, exist_ok=False)
     try:
+        if hardened is not None:
+            hardened.counters.increment("output_writer_calls")
         def checkpoint(_: int = 0) -> None:
             if hardened is None:
                 return
@@ -119,15 +132,28 @@ def write_atomic_outputs(
         checkpoint()
         statistics_value = deepcopy(dict(statistics))
         result_value = deepcopy(dict(result))
+        if hardened is not None:
+            hardened.counters.increment("checksum_calls")
+            hardened.counters.increment("atomic_finalization_calls")
+            result_value["counters"] = hardened.counters.snapshot()
+        result_value["checksums_sha256"] = {
+            name: _sha256(staging / name)
+            for name in ("manifest.yaml", "statistics.json", "train.jsonl", "validation.jsonl")
+            if (staging / name).is_file()
+        }
         checksum_bytes = sum(64 + 2 + len(name.encode("utf-8")) + 1 for name in ALLOWED_OUTPUTS if name != "checksums.sha256")
         total = 0
         for _ in range(10):
             output_statistics = statistics_value.get("output")
             if isinstance(output_statistics, dict):
                 output_statistics["output_bytes"] = total
-            result_output = result_value.get("output")
-            if isinstance(result_output, dict):
-                result_output["total_bytes"] = total
+            checksums_value = result_value.get("checksums_sha256")
+            if isinstance(checksums_value, dict):
+                checksums_value["statistics.json"] = hashlib.sha256(
+                    json.dumps(statistics_value, sort_keys=True).encode("utf-8")
+                ).hexdigest()
+            if "output_total_bytes" in result_value:
+                result_value["output_total_bytes"] = total
             statistics_text = json.dumps(statistics_value, sort_keys=True)
             result_text = yaml.safe_dump(result_value, sort_keys=False)
             candidate = _size(staging) + len(statistics_text.encode("utf-8")) + len(result_text.encode("utf-8")) + checksum_bytes
@@ -136,6 +162,8 @@ def write_atomic_outputs(
             total = candidate
         (staging / "statistics.json").write_text(statistics_text, encoding="utf-8")
         checkpoint()
+        if result_value.get("schema_version") == 1:
+            validate_processing_result(result_value)
         (staging / "processing-result.yaml").write_text(result_text, encoding="utf-8")
         checkpoint()
         checksums = generate_checksums(staging)
@@ -186,6 +214,9 @@ def write_atomic_outputs(
             hardened.disk_guard.check(estimated_remaining_bytes=0, bytes_written=_size(final))
         return {"counts": counts, "checksums": checksums, "finalized": True}
     except Exception:
-        if staging.exists():
-            shutil.rmtree(staging)
+        if staging.exists() and not failed.exists():
+            try:
+                os.replace(staging, failed)
+            except OSError:
+                shutil.rmtree(staging)
         raise

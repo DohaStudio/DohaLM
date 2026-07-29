@@ -130,6 +130,7 @@ Squash Merge execution surface equivalence를 지원한다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Processing 계약 v2와 Synthetic 4/2 Approval·Runtime·Output 전체 E2E 검증 연결 |
 | 2026-07-30 | Run 0006 폐기와 Approval capability/runtime request·squash lineage 계약 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 Run·Approval ID 폐기, registry 검사 범위 수정 |

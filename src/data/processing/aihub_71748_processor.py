@@ -23,6 +23,7 @@ from .approval import (
     consume_approval,
     finalize_approval,
     validate_approval_file,
+    approval_fingerprint,
 )
 from .output_writer import write_atomic_outputs
 from .output_writer import HardenedWriteContext
@@ -221,6 +222,8 @@ def process_joined_records(
     if tuple(manifest.get("rule_order", ())) != RULE_ORDER:
         raise AIHub71748ProcessingError("RULE_ORDER_MISMATCH")
     runtime = monitor or RuntimeMonitor()
+    if counters is not None:
+        counters.increment("policy_dispatch_calls")
     if enforce_expected_statistics:
         expected_records = manifest["input_contract"]["records"]  # type: ignore[index]
         actual_training = sum(record.split == "training" for record in records)
@@ -361,13 +364,11 @@ def execute_approved_processing(
     """Execute once after an external approval has been issued; never retries."""
 
     validate_run_contract(contract)
-    validate_runtime_request(runtime_request, contract)
     validate_aihub_71748_processing_manifest(manifest)
-    sources = discover_sft_sources(package_root)  # metadata only before consume
     approval = validate_approval_file(approval_path, contract)
     if (
         approval.manifest_sha256 != manifest_sha256
-        or approval.immutable_git_commit != backend_git_commit
+        or approval.execution_source_commit != backend_git_commit
         or approval.backend_fingerprint != backend_fingerprint
         or approval.preflight_evidence_fingerprint != preflight_evidence_fingerprint
     ):
@@ -379,11 +380,24 @@ def execute_approved_processing(
     )):
         raise ProcessingApprovalError("APPROVAL_CAPABILITY_INSUFFICIENT")
     timestamp = now or (lambda: datetime.now(timezone.utc).isoformat())
-    consumed = consume_approval(
-        approval_path, approval, consumed_at=timestamp(),
-        contract=contract, runtime_request=runtime_request,
+    consume_time = timestamp()
+    validate_runtime_request(
+        runtime_request,
+        contract,
+        expected_approval_fingerprint=approval_fingerprint(approval),
+        expected_preflight_evidence_fingerprint=preflight_evidence_fingerprint,
+        expected_execution_source_commit=backend_git_commit,
+        expected_governance_record_commit=approval.governance_record_commit,
+        expected_manifest_sha256=manifest_sha256,
+        expected_backend_fingerprint=backend_fingerprint,
+        now=datetime.fromisoformat(consume_time),
     )
+    sources = discover_sft_sources(package_root)  # metadata only before consume
     usage = counters or ExecutionCounters()
+    consumed = consume_approval(
+        approval_path, approval, consumed_at=consume_time,
+        contract=contract, runtime_request=runtime_request, counters=usage,
+    )
     usage.begin_processing()
     runtime = monitor or RuntimeMonitor()
     source_before = snapshot_source_metadata(package_root)
@@ -392,9 +406,15 @@ def execute_approved_processing(
         loaded: list[SourceRecord] = []
         with payload_session(usage):
             for source in sources:
+                usage.increment("archive_member_enumerations")
+                usage.increment("zip_entry_opens")
                 loaded.extend(iter_source_records(source))
+                usage.increment("json_parser_calls")
                 runtime.check("archive_stream")
         records = tuple(loaded)
+        for _ in records:
+            usage.increment("record_parser_calls")
+        usage.increment("join_calls")
         joined = join_source_records(records)
         runtime.check("join", source_records=len(joined))
         processed = process_joined_records(
@@ -409,44 +429,36 @@ def execute_approved_processing(
         )
         completion_time = timestamp()
         result = {
+            "schema_version": 1,
             "status": "completed",
             "run_id": contract.run_id,
             "approval_id": contract.approval_id,
-            "record_level_signal_details_persisted": False,
-            "immutable_git_commit": backend_git_commit,
+            "runtime_request_id": runtime_request.request_id,
+            "execution_source_commit": backend_git_commit,
+            "governance_record_commit": approval.governance_record_commit,
             "manifest_sha256": manifest_sha256,
             "backend_fingerprint": backend_fingerprint,
             "preflight_evidence_fingerprint": preflight_evidence_fingerprint,
-            "approval": {
-                "issued_at": consumed.issued_at,
-                "consumed_at": consumed.consumed_at,
-                "completed_at": completion_time,
-                "failed_at": None,
-            },
-            "input": dict(processed.statistics["input"]),  # type: ignore[index]
-            "output": {
-                **dict(processed.statistics["output"]),  # type: ignore[index]
-                "file_count": 6,
-                "total_bytes": 0,
-            },
-            "validation": {
-                "statistics_contract": True,
-                "jsonl": True,
-                "split": True,
-                "checksum": True,
-                "source_immutable": True,
-                "disk_budget": True,
-                "output_budget": True,
-            },
-            "execution": {
-                "processing_calls": usage.processing_calls,
-                "payload_open_sessions": usage.payload_open_sessions,
-                "runtime_seconds": runtime.elapsed_seconds(),
-                "peak_memory_mib": runtime.peak_rss_bytes / (1024 * 1024),
+            "approval_fingerprint": approval_fingerprint(consumed),
+            "runtime_request_fingerprint": runtime_request.request_fingerprint,
+            "started_at": consume_time,
+            "completed_at": completion_time,
+            "failed_at": None,
+            "input_statistics": dict(processed.statistics["input"]),  # type: ignore[index]
+            "output_statistics": dict(processed.statistics["output"]),  # type: ignore[index]
+            "rejection_statistics": dict(processed.statistics["actions"]),  # type: ignore[index]
+            "output_files": 6,
+            "output_total_bytes": 0,
+            "checksums_sha256": {},
+            "counters": usage.snapshot(),
+            "finalization": {
+                "staging_created": True,
+                "final_created": True,
+                "staging_removed": True,
+                "atomic_rename_completed": True,
             },
             "tokenization_allowed": False,
             "training_allowed": False,
-            "execution_allowed": False,
         }
         written = write_atomic_outputs(
             run_root,
@@ -469,7 +481,17 @@ def execute_approved_processing(
             ),
         )
         finalize_approval(approval_path, consumed, success=True, finalized_at=completion_time)
-        return {**result, "counts": written["counts"], "approval_consumed": True}
+        output_total = sum(
+            path.stat().st_size for path in Path(run_root).iterdir() if path.is_file()
+        )
+        return {
+            **result,
+            "counts": written["counts"],
+            "checksums_sha256": written["checksums"],
+            "counters": usage.snapshot(),
+            "output_total_bytes": output_total,
+            "approval_consumed": True,
+        }
     except Exception:
         final = Path(run_root)
         quarantine = final.with_name(final.name + ".failed")

@@ -101,15 +101,17 @@ capability/runtime 분리, issuance·consume lifecycle, strict serialization, ch
 squash-equivalence, CLI·Manifest·Approval blob drift, missing surface와 governance reachability를 Synthetic fixture로
 검증한다. 실제 Dataset·Approval artifact·RuntimeRequest는 사용하지 않는다.
 
-## 16. Run 0007 Readiness
+## 16. Run 0007 결과와 후속 계약
 
 ```yaml
-run_0007: not_created
+run_0007: retired_contract_mismatch_before_start
 preflight_0007: not_started
-approval_0007: not_created
+approval_0007: not_created_non_reusable
 ```
 
-[검증 필요] Run 0007은 이 변경이 develop에 병합된 뒤 새 immutable commit을 정하고 별도 metadata-only Preflight
+[확정] Run 0007은 PreflightEvidence v2 계약 불일치를 실행 전에 발견해 evidence 0건으로 폐기했다. 후속
+[Processing 계약 v2](./aihub-71748-processing-contract-v2.md)는 전체 lifecycle을 Synthetic E2E로 동결했다.
+새 실제 Run은 이 계약이 develop에 병합된 뒤 새 immutable commit을 정하고 별도 metadata-only Preflight
 승인을 받아야 한다. 이번 작업에서 ID를 registry active 상태로 예약하지 않는다.
 
 ## 17. Current Status
@@ -130,11 +132,12 @@ execution_allowed: false
 
 ## 18. Next Approval
 
-[승인 필요] 병합된 새 develop commit을 기준으로 Run 0007 metadata-only Preflight를 수행하는 별도 승인이 필요하다.
-그 전에는 Approval 0007 생성·발급·소비, payload 접근, Processing과 output 생성을 수행하지 않는다.
+[승인 필요] 병합된 새 develop commit을 기준으로 Run 0008 metadata-only Preflight를 수행하는 별도 승인이 필요하다.
+그 전에는 Run·Approval 0008 생성, payload 접근, Processing과 output 생성을 수행하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0007 시작 전 계약 불일치 폐기와 Processing 계약 v2 Synthetic E2E 연결 |
 | 2026-07-30 | Run 0006 폐기, Approval capability/runtime gate·schema·squash lineage 계약 구현 및 Synthetic 검증 |

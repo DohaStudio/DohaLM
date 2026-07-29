@@ -105,7 +105,7 @@ class PreflightEvidence:
     governance_record_commit: str
     manifest_sha256: str
     backend_fingerprint: str
-    execution_surface: Mapping[str, object]
+    lineage: Mapping[str, object]
     mapping_identity: Mapping[str, object]
     source_snapshot: Mapping[str, object]
     registry_state: Mapping[str, object]
@@ -116,6 +116,7 @@ class PreflightEvidence:
     disk_budget: Mapping[str, object]
     record_budget: Mapping[str, object]
     output_budget: Mapping[str, object]
+    zero_call_state: Mapping[str, object]
     generated_at: str
     expires_at: str
 
@@ -126,13 +127,20 @@ class PreflightEvidence:
         return self.execution_source_commit
 
 
-def validate_explicit_identity(run_id: str | None, approval_id: str | None) -> None:
+def validate_explicit_identity(
+    run_id: str | None,
+    approval_id: str | None,
+    *,
+    allow_synthetic: bool = False,
+) -> None:
     """Validate caller-supplied identity without consulting reuse registries."""
 
     if not run_id:
         raise ProcessingPreflightError("RUN_ID_REQUIRED")
     if not approval_id:
         raise ProcessingPreflightError("APPROVAL_ID_REQUIRED")
+    if allow_synthetic and run_id.startswith("SYNTHETIC-") and approval_id.startswith("SYNTHETIC-"):
+        return
     run_match = _RUN_ID_PATTERN.fullmatch(run_id)
     if run_match is None:
         raise ProcessingPreflightError("RUN_ID_FORMAT_INVALID")
@@ -362,24 +370,9 @@ def validate_run_unused(
     )
     if any(path.exists() for path in approval_roots):
         raise ProcessingPreflightError("APPROVAL_ID_ALREADY_USED")
-    root = Path(repository_root).resolve()
-    identity_evidence_pathspecs = (
-        ":(glob)configs/data/*processing-run*.yaml",
-        ":(glob)docs/instruct/aihub-71748-processing-run-*-preflight.md",
-        ":(glob)docs/instruct/aihub-71748-processing-run-*-result.md",
-    )
-    for identifier, error in (
-        (run_id, "RUN_ID_ALREADY_USED"),
-        (approval_id, "APPROVAL_ID_ALREADY_USED"),
-    ):
-        result = subprocess.run(
-            ["git", "grep", "-n", identifier, immutable_commit or "HEAD", "--", *identity_evidence_pathspecs],
-            cwd=root, capture_output=True, text=True,
-        )
-        if result.returncode == 0:
-            raise ProcessingPreflightError(error)
-        if result.returncode not in {0, 1}:
-            raise ProcessingPreflightError(error)
+    # Documentation, source constants, fixtures, and examples are declarations,
+    # not runtime-use evidence. Only canonical registries and runtime artifacts
+    # above can consume an identity.
 
 
 def validate_output_contract(
@@ -469,6 +462,22 @@ def preflight_evidence_fingerprint(evidence: PreflightEvidence) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+def serialize_preflight_evidence(evidence: PreflightEvidence) -> str:
+    return json.dumps(evidence.__dict__, sort_keys=True, separators=(",", ":"))
+
+
+def deserialize_preflight_evidence(value: Mapping[str, object]) -> PreflightEvidence:
+    if value.get("schema_version") == 1:
+        raise ProcessingPreflightError("LEGACY_PREFLIGHT_EVIDENCE_NOT_EXECUTABLE")
+    expected = set(PreflightEvidence.__dataclass_fields__)
+    if set(value) != expected:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    try:
+        return PreflightEvidence(**value)  # type: ignore[arg-type]
+    except TypeError:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED") from None
+
+
 def validate_preflight_evidence(
     evidence: PreflightEvidence,
     *,
@@ -481,8 +490,12 @@ def validate_preflight_evidence(
     expected_backend_fingerprint: str,
     now: datetime | None = None,
     maximum_age: timedelta = timedelta(hours=1),
+    expected_source_zip_count: int = EXPECTED_ZIP_FILES,
+    expected_source_total_bytes: int = EXPECTED_TOTAL_BYTES,
+    expected_record_budget: Mapping[str, object] | None = None,
+    synthetic: bool = False,
 ) -> None:
-    validate_explicit_identity(expected_run_id, expected_approval_id)
+    validate_explicit_identity(expected_run_id, expected_approval_id, allow_synthetic=synthetic)
     if evidence.run_id != expected_run_id:
         raise ProcessingPreflightError("PREFLIGHT_RUN_ID_MISMATCH")
     if evidence.approval_id != expected_approval_id:
@@ -499,37 +512,50 @@ def validate_preflight_evidence(
         raise ProcessingPreflightError("BACKEND_FINGERPRINT_MISMATCH")
     if preflight_evidence_fingerprint(evidence) != expected_fingerprint:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_FINGERPRINT_MISMATCH")
-    generated = datetime.fromisoformat(evidence.generated_at)
     try:
+        generated = datetime.fromisoformat(evidence.generated_at)
         expires = datetime.fromisoformat(evidence.expires_at)
     except ValueError:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED") from None
+    if (
+        generated.tzinfo is None or generated.utcoffset() is None
+        or expires.tzinfo is None or expires.utcoffset() is None
+        or expires <= generated
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     current = now or datetime.now(timezone.utc)
     if expires != generated + maximum_age or generated > current or current > expires:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_STALE")
-    if evidence.schema_version != 1:
+    if evidence.schema_version != 2:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
-    if any(evidence.output_state.get(name) is not False for name in (
-        "final_exists", "staging_exists", "quarantine_exists",
-    )):
+    expected_output = {
+        "final_exists": False,
+        "staging_exists": False,
+        "failed_exists": False,
+        "quarantine_exists": False,
+        "parent_probe_passed": True,
+        "parent_probe_residue_count": 0,
+    }
+    if dict(evidence.output_state) != expected_output:
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
     expected_registry = {
         "run_id_unused": True,
         "approval_id_unused": True,
-        "run_status": "preflight_passed",
-        "approval_status": "prepared_not_issued",
-        "processing_calls": 0,
-        "payload_sessions": 0,
-        "output_writes": 0,
+        "retired_run_count": 7,
+        "conflicting_evidence_count": 0,
     }
-    if any(evidence.registry_state.get(key) != value for key, value in expected_registry.items()):
+    if dict(evidence.registry_state) != expected_registry:
         raise ProcessingPreflightError("PREFLIGHT_REGISTRY_STATE_MISMATCH")
-    if dict(evidence.execution_surface) != {
-        "manifest_included": True,
-        "validator_included": True,
-        "processing_cli_included": True,
-        "file_count": len(BACKEND_PATHS) + 1,
-    }:
+    expected_lineage = {
+        "result_code", "direct_ancestry", "squash_merge_mode",
+        "execution_surface_file_count", "execution_surface_paths_equal",
+        "execution_surface_blobs_equal", "manifest_fingerprint_equal",
+        "backend_fingerprint_equal", "governance_reachable_from_origin_develop", "valid",
+    }
+    if set(evidence.lineage) != expected_lineage or any(
+        not isinstance(evidence.lineage[name], bool)
+        for name in expected_lineage - {"result_code", "execution_surface_file_count"}
+    ) or evidence.lineage.get("valid") is not True:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     if dict(evidence.mapping_identity) != {
         "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
@@ -540,18 +566,51 @@ def validate_preflight_evidence(
         "runtime_budget": {"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
         "memory_budget": {"soft_limit_mib": 1536, "hard_limit_mib": 2048},
         "disk_budget": {"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
-        "record_budget": {"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
+        "record_budget": expected_record_budget or {"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
         "output_budget": {"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
     }
     if any(dict(getattr(evidence, name)) != value for name, value in expected_budgets.items()):
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
-    if int(evidence.resource_state.get("free_disk_bytes", 0)) < 4_294_967_296:
+    integer_fields = (
+        (evidence.source_snapshot, ("zip_count", "total_bytes")),
+        (evidence.registry_state, ("retired_run_count", "conflicting_evidence_count")),
+        (evidence.output_state, ("parent_probe_residue_count",)),
+        (evidence.resource_state, ("free_disk_bytes", "current_rss_bytes")),
+        (evidence.runtime_budget, ("soft_limit_seconds", "hard_limit_seconds")),
+        (evidence.memory_budget, ("soft_limit_mib", "hard_limit_mib")),
+        (evidence.disk_budget, ("minimum_free_bytes", "staging_multiplier")),
+        (evidence.record_budget, ("expected_training", "expected_validation", "expected_total", "maximum_total")),
+        (evidence.output_budget, ("expected_files", "maximum_files", "maximum_total_bytes")),
+    )
+    if any(
+        isinstance(mapping.get(name), bool)
+        or not isinstance(mapping.get(name), int)
+        or int(mapping[name]) < 0
+        for mapping, names in integer_fields
+        for name in names
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    if not isinstance(evidence.resource_state.get("free_disk_bytes"), int) or int(evidence.resource_state["free_disk_bytes"]) < 4_294_967_296:
         raise ProcessingPreflightError("DISK_BUDGET_INSUFFICIENT")
     if (
-        evidence.source_snapshot.get("zip_count") != EXPECTED_ZIP_FILES
-        or evidence.source_snapshot.get("total_bytes") != EXPECTED_TOTAL_BYTES
+        evidence.source_snapshot.get("zip_count") != expected_source_zip_count
+        or evidence.source_snapshot.get("total_bytes") != expected_source_total_bytes
     ):
         raise ProcessingPreflightError("SOURCE_PACKAGE_DRIFT")
+    zero_fields = {
+        "approval_issue_calls", "approval_consume_calls", "runtime_request_creations",
+        "runtime_execution_gate_activations", "processing_engine_calls", "payload_sessions",
+        "zip_entry_opens", "archive_member_enumerations", "json_parser_calls",
+        "record_parser_calls", "join_calls", "policy_dispatch_calls", "output_writer_calls",
+        "checksum_calls", "atomic_finalization_calls",
+    }
+    if set(evidence.zero_call_state) != zero_fields or any(
+        isinstance(value, bool) or value != 0 for value in evidence.zero_call_state.values()
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_ZERO_CALL_STATE_INVALID")
+    encoded = serialize_preflight_evidence(evidence)
+    if re.search(r"[A-Za-z]:\\\\|(?:^|[\"'])/(?!/)", encoded):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
 
 
 def build_approval_draft(
@@ -560,11 +619,12 @@ def build_approval_draft(
     evidence_fingerprint: str,
 ) -> dict[str, object]:
     return {
+        "schema_version": 2,
         "approval_id": evidence.approval_id,
         "processing_run_id": evidence.run_id,
         "dataset_id": "AIHUB-71748",
         "component": "SFT",
-        "immutable_git_commit": evidence.execution_source_commit,
+        "execution_source_commit": evidence.execution_source_commit,
         "governance_record_commit": evidence.governance_record_commit,
         "manifest_version": 1,
         "manifest_sha256": evidence.manifest_sha256,
@@ -614,15 +674,16 @@ def validate_approval_draft(
     evidence_fingerprint: str,
     expected_run_id: str,
     expected_approval_id: str,
+    synthetic: bool = False,
 ) -> str:
-    validate_explicit_identity(expected_run_id, expected_approval_id)
+    validate_explicit_identity(expected_run_id, expected_approval_id, allow_synthetic=synthetic)
     if draft.get("processing_run_id") != expected_run_id:
         raise ProcessingPreflightError("APPROVAL_DRAFT_RUN_ID_MISMATCH")
     if draft.get("approval_id") != expected_approval_id:
         raise ProcessingPreflightError("APPROVAL_DRAFT_APPROVAL_ID_MISMATCH")
     _exact_keys(draft, {
         "approval_id", "processing_run_id", "dataset_id", "component",
-        "immutable_git_commit", "governance_record_commit", "manifest_version", "manifest_sha256",
+        "schema_version", "execution_source_commit", "governance_record_commit", "manifest_version", "manifest_sha256",
         "backend_fingerprint", "preflight_evidence_fingerprint", "approved_by", "approved_at",
         "issued_at", "consumed_at", "completed_at", "failed_at", "maximum_runs",
         "maximum_processing_calls", "maximum_payload_open_sessions", "retry_allowed",

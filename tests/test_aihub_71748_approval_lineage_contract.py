@@ -17,6 +17,7 @@ from src.data.aihub_71748_processing_preflight import (
 from src.data.processing.approval import (
     ProcessingApprovalError,
     approval_checksum,
+    approval_fingerprint,
     consume_approval,
     deserialize_approval,
     issue_approval,
@@ -30,7 +31,7 @@ from src.data.processing.run_contract import (
     RunContractError,
     RuntimeExecutionRequest,
     RunRegistry,
-    runtime_request_fingerprint,
+    new_runtime_execution_request,
     validate_run_contract,
     validate_runtime_request,
 )
@@ -66,15 +67,22 @@ def _approval(contract: ProcessingRunContract | None = None):
 
 
 def _runtime(contract: ProcessingRunContract, *, allowed: bool = True) -> RuntimeExecutionRequest:
-    request = RuntimeExecutionRequest(
-        run_id=contract.run_id,
-        approval_id=contract.approval_id,
-        execution_allowed=allowed,
-        maximum_processing_calls=1,
-        maximum_payload_open_sessions=1,
+    approval = _approval(contract)
+    request = new_runtime_execution_request(
+        contract,
+        request_id="SYNTHETIC-RUNTIME-REQUEST-V1",
+        approval_fingerprint=approval_fingerprint(approval),
+        preflight_evidence_fingerprint=approval.preflight_evidence_fingerprint,
+        execution_source_commit=approval.execution_source_commit,
+        governance_record_commit=approval.governance_record_commit,
+        manifest_sha256=approval.manifest_sha256,
+        backend_fingerprint=approval.backend_fingerprint,
+        requested_by="synthetic-user",
         requested_at=STAMP,
+        expires_at="2026-07-30T06:00:00+09:00",
+        nonce="synthetic-nonce",
     )
-    return replace(request, request_fingerprint=runtime_request_fingerprint(request))
+    return replace(request, execution_allowed=allowed, request_fingerprint="") if not allowed else request
 
 
 def _git(repository: Path, *arguments: str) -> str:

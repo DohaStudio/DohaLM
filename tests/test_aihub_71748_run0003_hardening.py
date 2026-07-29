@@ -8,6 +8,7 @@ import pytest
 
 from src.data.processing.approval import (
     ProcessingApprovalError,
+    approval_fingerprint,
     consume_approval,
     finalize_approval,
     issue_approval,
@@ -41,8 +42,8 @@ from src.data.processing.run_contract import (
     RunContractError,
     RunRegistry,
     RuntimeExecutionRequest,
+    new_runtime_execution_request,
     payload_session,
-    runtime_request_fingerprint,
 )
 from src.data.processing.runtime_monitor import RuntimeMonitor, RuntimeMonitorError
 
@@ -75,12 +76,21 @@ def _approval():
 
 
 def _runtime_request() -> RuntimeExecutionRequest:
-    request = RuntimeExecutionRequest(
-        run_id=_contract().run_id, approval_id=_contract().approval_id,
-        execution_allowed=True, maximum_processing_calls=1,
-        maximum_payload_open_sessions=1, requested_at=STAMP,
+    approval = _approval()
+    return new_runtime_execution_request(
+        _contract(),
+        request_id="SYNTHETIC-RUNTIME-REQUEST-V1",
+        approval_fingerprint=approval_fingerprint(approval),
+        preflight_evidence_fingerprint=approval.preflight_evidence_fingerprint,
+        execution_source_commit=approval.execution_source_commit,
+        governance_record_commit=approval.governance_record_commit,
+        manifest_sha256=approval.manifest_sha256,
+        backend_fingerprint=approval.backend_fingerprint,
+        requested_by="synthetic-only",
+        requested_at=STAMP,
+        expires_at="2026-07-29T11:00:00+09:00",
+        nonce="synthetic-nonce",
     )
-    return replace(request, request_fingerprint=runtime_request_fingerprint(request))
 
 
 def _record(instruction: str, output: str) -> dict[str, object]:
@@ -151,12 +161,12 @@ def test_payload_session_active_and_unclosed_fail_closed() -> None:
 def test_run_registry_rejects_reuse_and_invalid_transition() -> None:
     registry = RunRegistry()
     run_id = _contract().run_id
-    registry.register(run_id, "reserved")
-    registry.transition(run_id, "reserved", "preflight_passed")
+    registry.register(run_id, "reserved_preflight")
+    registry.transition(run_id, "reserved_preflight", "preflight_passed")
     with pytest.raises(RunContractError, match="^RUN_ID_ALREADY_USED$"):
-        registry.register(run_id, "reserved")
+        registry.register(run_id, "reserved_preflight")
     with pytest.raises(RunContractError, match="^RUN_STATE_TRANSITION_INVALID$"):
-        registry.transition(run_id, "reserved", "approval_issued")
+        registry.transition(run_id, "reserved_preflight", "approval_issued")
 
 
 def test_approval_lifecycle_and_terminal_reuse(tmp_path: Path) -> None:
