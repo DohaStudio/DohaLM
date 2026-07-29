@@ -150,10 +150,13 @@ Runtime request, processing output, checksum, staging·failed·quarantine artifa
 ```yaml
 processing_contract_v2: frozen
 synthetic_e2e: passed
-run_0008: preflight_passed
+run_0008: retired_backend_fingerprint_mismatch
 preflight_attempts: 1
 preflight_evidence_schema: 2
-approval_0008: prepared_not_issued
+approval_0008: retired_not_issued
+run_0009: preflight_passed
+approval_0009: prepared_not_issued
+approval_refresh_0009: not_executed
 runtime_execution_request: not_created
 actual_dataset_payload_access: 0
 actual_approval_issued: 0
@@ -165,9 +168,9 @@ training: not_approved
 execution_allowed: false
 ```
 
-[Run 0008 metadata-only Preflight](./aihub-71748-processing-run-0008-preflight.md)는 동결 계약을 변경하지 않고
-정확히 한 번 통과했다. 다음 단계는 최신 `develop`과 evidence freshness의 live 재검증 및 Approval 0008 발급을
-위한 별도 승인이다.
+[Run 0008 metadata-only Preflight](./aihub-71748-processing-run-0008-preflight.md)는 당시 동결 계약으로 통과했지만
+후속 live refresh에서 backend fingerprint mismatch로 폐기됐다. 현재 후속 단계는 [Run 0009](./aihub-71748-processing-run-0009-preflight.md)
+문서 병합 후 최신 governance commit에서 evidence freshness를 별도로 재검증하는 것이다.
 
 ## Active Run Approval Refresh 보완 계약
 
@@ -233,12 +236,23 @@ atomic publish 자체의 비충돌 실패는 `APPROVAL_ATOMIC_PUBLISH_FAILED`, d
 `APPROVAL_DIRECTORY_SYNC_FAILED`다.
 
 [확정] 이번 보완은 active Run의 재사용이 아니라 동일 Run의 승인 전 검증 계약을 추가한 명시적 Contract v2
-revision이다. Run 0008의 유지·폐기와 실제 live refresh·Approval 0008 발급은 여전히 별도 승인 대상이다.
+revision이다. Run 0008은 후속 live refresh 불일치로 폐기됐으며 Approval 0008은 발급하지 않는다.
+
+## Run 0008 Retirement와 Run 0009
+
+[확정] Run 0008 live refresh는 PR #64의 Approval no-replace 보안 수정으로 동결 backend fingerprint가 변경되어
+`BACKEND_FINGERPRINT_MISMATCH`로 Fail Closed했다. Run 0008은 `retired_backend_fingerprint_mismatch`, Approval
+0008은 `retired_not_issued`이며 기존 evidence와 identity를 재사용하지 않는다.
+
+[확정] [Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)는 현재 안전한 develop
+commit `841123ea2f0d3f0fccb8cf456edaf8c9faa44014`를 execution source와 governance commit으로 사용해 통과했다.
+Approval 0009는 `prepared_not_issued`, Live Refresh는 `not_executed`, `execution_allowed=false`다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과 계보 추가 |
 | 2026-07-30 | exists-check + replace TOCTOU 제거, POSIX·Windows hard-link atomic no-replace publish와 incomplete 재사용 차단 확정 |
 | 2026-07-30 | Initial/Approval refresh 분리, governance checkout 검증, ApprovalRefreshEvidence v1과 durable atomic Approval writer 보완(Synthetic only) |
 | 2026-07-30 | 동결 계약 변경 없이 Run 0008 metadata-only Preflight 통과와 미발급 Approval draft 기록 |
