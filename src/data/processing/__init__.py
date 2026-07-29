@@ -54,14 +54,17 @@ from .aihub_71748_reader import (
 )
 from .approval import (
     ApprovalRecord,
+    LegacyApprovalRecord,
     ProcessingApprovalError,
     approval_checksum,
     consume_approval,
     finalize_approval,
     issue_approval,
+    load_legacy_approval,
     new_approval,
     retire_approval,
     validate_approval,
+    validate_approval_issuance,
 )
 from .output_writer import HardenedWriteContext, OutputWriterError, write_atomic_outputs
 from .post_validation import (
@@ -81,7 +84,10 @@ from .run_contract import (
     ProcessingRunContract,
     RunContractError,
     RunRegistry,
+    RuntimeExecutionRequest,
     payload_session,
+    runtime_request_fingerprint,
+    validate_runtime_request,
 )
 from .runtime_monitor import RuntimeBudget, RuntimeMonitor, RuntimeMonitorError, process_rss_bytes
 
@@ -113,6 +119,7 @@ __all__ = [
     "AIHub71748ProcessingError",
     "AIHub71748ReaderError",
     "ApprovalRecord",
+    "LegacyApprovalRecord",
     "DiskBudget",
     "DiskGuard",
     "ExecutionCounters",
@@ -127,6 +134,7 @@ __all__ = [
     "ResolvedDatasetMapping",
     "RunContractError",
     "RunRegistry",
+    "RuntimeExecutionRequest",
     "RuntimeBudget",
     "RuntimeMonitor",
     "RuntimeMonitorError",
@@ -148,11 +156,15 @@ __all__ = [
     "consume_approval",
     "finalize_approval",
     "issue_approval",
+    "load_legacy_approval",
     "new_approval",
     "retire_approval",
     "payload_session",
+    "runtime_request_fingerprint",
     "process_rss_bytes",
     "validate_approval",
+    "validate_approval_issuance",
+    "validate_runtime_request",
     "validate_checksums",
     "validate_finalization_gate",
     "validate_jsonl_and_splits",

@@ -28,7 +28,14 @@ from .output_writer import write_atomic_outputs
 from .output_writer import HardenedWriteContext
 from .post_validation import DiskGuard, snapshot_source_metadata
 from .processing_statistics import detailed_statistics_schema, validate_detailed_statistics
-from .run_contract import ExecutionCounters, ProcessingRunContract, payload_session, validate_run_contract
+from .run_contract import (
+    ExecutionCounters,
+    ProcessingRunContract,
+    RuntimeExecutionRequest,
+    payload_session,
+    validate_run_contract,
+    validate_runtime_request,
+)
 from .runtime_monitor import RuntimeMonitor
 
 
@@ -345,6 +352,7 @@ def execute_approved_processing(
     backend_git_commit: str,
     backend_fingerprint: str,
     preflight_evidence_fingerprint: str,
+    runtime_request: RuntimeExecutionRequest,
     monitor: RuntimeMonitor | None = None,
     enforce_expected_statistics: bool = True,
     counters: ExecutionCounters | None = None,
@@ -353,8 +361,7 @@ def execute_approved_processing(
     """Execute once after an external approval has been issued; never retries."""
 
     validate_run_contract(contract)
-    if contract.processing_allowed is not True or contract.execution_allowed is not True:
-        raise ProcessingApprovalError("APPROVAL_NOT_CONSUMED")
+    validate_runtime_request(runtime_request, contract)
     validate_aihub_71748_processing_manifest(manifest)
     sources = discover_sft_sources(package_root)  # metadata only before consume
     approval = validate_approval_file(approval_path, contract)
@@ -365,10 +372,17 @@ def execute_approved_processing(
         or approval.preflight_evidence_fingerprint != preflight_evidence_fingerprint
     ):
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
-    if approval.processing_allowed is not True or approval.execution_allowed is not True:
-        raise ProcessingApprovalError("APPROVAL_NOT_CONSUMED")
+    if not all((
+        approval.processing_allowed,
+        approval.payload_read_allowed,
+        approval.output_write_allowed,
+    )):
+        raise ProcessingApprovalError("APPROVAL_CAPABILITY_INSUFFICIENT")
     timestamp = now or (lambda: datetime.now(timezone.utc).isoformat())
-    consumed = consume_approval(approval_path, approval, consumed_at=timestamp())
+    consumed = consume_approval(
+        approval_path, approval, consumed_at=timestamp(),
+        contract=contract, runtime_request=runtime_request,
+    )
     usage = counters or ExecutionCounters()
     usage.begin_processing()
     runtime = monitor or RuntimeMonitor()

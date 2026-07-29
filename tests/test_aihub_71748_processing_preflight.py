@@ -63,7 +63,8 @@ def _evidence(**changes: object) -> PreflightEvidence:
         schema_version=1,
         run_id=RUN_ID,
         approval_id=APPROVAL_ID,
-        immutable_git_commit="a" * 40,
+        execution_source_commit="a" * 40,
+        governance_record_commit="f" * 40,
         manifest_sha256="b" * 64,
         backend_fingerprint="c" * 64,
         execution_surface={
@@ -81,7 +82,10 @@ def _evidence(**changes: object) -> PreflightEvidence:
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "retired_runs": ["0001", "0002", "0003", "0004", "0005"],
+            "run_status": "preflight_passed",
+            "approval_status": "prepared_not_issued",
+            "processing_calls": 0, "payload_sessions": 0, "output_writes": 0,
+            "retired_runs": ["0001", "0002", "0003", "0004", "0005", "0006"],
         },
         output_state={
             "final_exists": False, "staging_exists": False,
@@ -108,21 +112,22 @@ def _validate(evidence: PreflightEvidence, fingerprint: str | None = None) -> No
         expected_fingerprint=fingerprint or preflight_evidence_fingerprint(evidence),
         expected_run_id=RUN_ID,
         expected_approval_id=APPROVAL_ID,
-        expected_immutable_commit="a" * 40,
+        expected_execution_source_commit="a" * 40,
+        expected_governance_record_commit="f" * 40,
         expected_manifest_sha256="b" * 64,
         expected_backend_fingerprint="c" * 64,
         now=NOW,
     )
 
 
-def test_run_0006_identity_is_current_and_run_0005_is_retired() -> None:
+def test_run_0006_identity_is_retired_after_approval_contract_failure() -> None:
     assert RUN_ID.endswith("0006") and APPROVAL_ID.endswith("0006")
     source = Path("synthetic-unused")
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_RETIRED$"):
         validate_run_unused(
             _mapping(source, source / "processed"), repository_root=Path.cwd(),
-            run_id="AIHUB-71748-SFT-PROCESSING-20260730-0005",
-            approval_id="AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0005",
+            run_id=RUN_ID,
+            approval_id=APPROVAL_ID,
         )
 
 
@@ -311,6 +316,15 @@ def test_preflight_source_drift_fails_closed(field: str, value: int) -> None:
         _validate(evidence)
 
 
+def test_preflight_governance_and_registry_fail_closed() -> None:
+    with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_GOVERNANCE_COMMIT_REQUIRED$"):
+        _validate(_evidence(governance_record_commit=""))
+    registry = dict(_evidence().registry_state)
+    registry["processing_calls"] = 1
+    with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_REGISTRY_STATE_MISMATCH$"):
+        _validate(_evidence(registry_state=registry))
+
+
 def test_approval_draft_is_prepared_but_grants_no_execution_rights() -> None:
     evidence = _evidence()
     fingerprint = preflight_evidence_fingerprint(evidence)
@@ -403,6 +417,7 @@ def test_preflight_only_cli_never_enters_processing_or_approval(
         "--run-id", RUN_ID,
         "--approval-id", APPROVAL_ID,
         "--immutable-commit", "a" * 40,
+        "--governance-record-commit", "f" * 40,
         "--preflight-only",
     ])
     assert result == 0

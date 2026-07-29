@@ -87,6 +87,13 @@ approval_consume_calls: 0
 
 ## 결과와 다음 승인
 
-Run 0006 metadata-only Preflight는 `preflight_passed`다. Processed Dataset은 생성되지 않았으며
-`execution_allowed=false`를 유지한다. 다음 단계인 live evidence 재검증, single-use Approval 실제 발급·소비,
-Dataset Processing은 별도 사용자 승인 전까지 금지된다. Tokenization과 SFT Training도 승인되지 않았다.
+Run 0006 metadata-only Preflight 자체는 통과했지만 Approval 발급 전 permission·schema·squash lineage 계약
+불일치가 발견됐다. [후속 계약](./aihub-71748-approval-lineage-contract.md)에 따라 Run 0006은
+`retired_approval_contract_failure`, Approval 0006은 `retired_not_issued`로 영구 폐기한다. Approval 발급·소비,
+payload 접근, Processing과 output은 모두 0건이며 `execution_allowed=false`다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-30 | Approval 발급 전 계약 불일치 Fail Closed와 Run·Approval 0006 영구 폐기 연결 |

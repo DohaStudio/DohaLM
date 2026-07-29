@@ -1,7 +1,7 @@
 # AIHUB-71748 실제 Processing Backend와 Mapping 계약
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 - Mapping 계약: `implemented`
 - 실제 Backend: `implemented_hardened_synthetic_validated`
 - 실제 Processing: `not_approved`
@@ -99,12 +99,12 @@ backend_hardening: implemented
 post_validation: implemented
 processing_run_0003: retired_failed_closed_before_approval
 approval_0003: retired_not_issued
-processing_run_0004: retired
+processing_run_0004: retired_execution_source_tree_drift
 approval_0004: retired_not_issued
 processing_run_0005: retired_preflight_validator_failure
 approval_0005: retired_not_issued
-processing_run_0006: preflight_passed
-approval_0006: prepared_not_issued
+processing_run_0006: retired_approval_contract_failure
+approval_0006: retired_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -122,11 +122,15 @@ Processing을 수행하지 않는다.
 [Run 0005](./aihub-71748-processing-run-0005-preflight.md)는 validator identity injection 결함으로 폐기했다.
 [Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 validator와 processing CLI를 포함한 10-file
 execution surface에서 metadata-only Preflight를 통과했으며 Approval은 여전히 발급되지 않았다.
+후속 발급 검토에서 계약 불일치가 발견되어 Run·Approval 0006은 영구 폐기했다.
+[Approval·Lineage 계약](./aihub-71748-approval-lineage-contract.md)은 capability와 runtime gate를 분리하고
+Squash Merge execution surface equivalence를 지원한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0006 폐기와 Approval capability/runtime request·squash lineage 계약 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 Run·Approval ID 폐기, registry 검사 범위 수정 |
 | 2026-07-29 | Run 0002 영구 폐기, Run 0003 immutable·Approval·guardrail·post-validation 계약의 Synthetic 검증 등록 |
