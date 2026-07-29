@@ -1,7 +1,7 @@
 # SFT Dataset Processing Backend
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 - 구현 상태: `implemented_real_backend_hardened_synthetic_validated`
 - 실제 처리 실행: `not_approved`
 - `execution_allowed`: `false`
@@ -106,10 +106,15 @@ AIHUB-71748 Manifest와 Rule threshold는 비소비 계약으로 확정됐다. R
 metadata-only Preflight는 식별자 선언 오탐으로 Fail Closed되어 Run·Approval ID가 폐기됐다. 다음 단계에는
 validator 수정이 포함된 새 immutable commit과 새 Run·Approval ID의 별도 승인이 필요하다.
 
+[Approval·Lineage 계약](./aihub-71748-approval-lineage-contract.md)은 Approval capability와 runtime execution
+request를 분리하고 신규 Approval 보안 필드와 squash-merge execution surface equivalence를 구현했다. Run 0006과
+Approval 0006은 발급 전 계약 결함으로 영구 폐기됐으며 Run 0007은 생성하지 않았다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval capability/runtime gate·strict schema·legacy 차단·squash lineage 계약 구현 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 새 identity 승인 필요 상태 반영 |
 | 2026-07-29 | Run 0003 Approval·counter·RSS/runtime·disk/output·post-validation·atomic gate 계약을 Synthetic 검증 |
 | 2026-07-29 | AIHUB-71748 실제 Backend·Mapping 계약을 Synthetic로 검증하고 Run 0001 재사용 차단 |

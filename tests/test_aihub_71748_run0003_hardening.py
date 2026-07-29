@@ -40,7 +40,9 @@ from src.data.processing.run_contract import (
     ProcessingRunContract,
     RunContractError,
     RunRegistry,
+    RuntimeExecutionRequest,
     payload_session,
+    runtime_request_fingerprint,
 )
 from src.data.processing.runtime_monitor import RuntimeMonitor, RuntimeMonitorError
 
@@ -63,12 +65,22 @@ def _approval():
     return new_approval(
         _contract(),
         immutable_git_commit="1" * 40,
+        governance_record_commit="5" * 40,
         manifest_sha256="2" * 64,
         backend_fingerprint="3" * 64,
         preflight_evidence_fingerprint="4" * 64,
         approved_by="synthetic-only",
         approved_at=STAMP,
     )
+
+
+def _runtime_request() -> RuntimeExecutionRequest:
+    request = RuntimeExecutionRequest(
+        run_id=_contract().run_id, approval_id=_contract().approval_id,
+        execution_allowed=True, maximum_processing_calls=1,
+        maximum_payload_open_sessions=1, requested_at=STAMP,
+    )
+    return replace(request, request_fingerprint=runtime_request_fingerprint(request))
 
 
 def _record(instruction: str, output: str) -> dict[str, object]:
@@ -98,6 +110,7 @@ def test_run_0002_and_approval_0002_are_permanently_retired() -> None:
         new_approval(
             contract,
             immutable_git_commit="1" * 40,
+            governance_record_commit="5" * 40,
             manifest_sha256="2" * 64,
             backend_fingerprint="3" * 64,
             preflight_evidence_fingerprint="4" * 64,
@@ -148,8 +161,11 @@ def test_run_registry_rejects_reuse_and_invalid_transition() -> None:
 
 def test_approval_lifecycle_and_terminal_reuse(tmp_path: Path) -> None:
     path = tmp_path / "approval.json"
-    issued = issue_approval(path, _approval(), issued_at=STAMP)
-    consumed = consume_approval(path, issued, consumed_at=STAMP)
+    issued = issue_approval(path, _approval(), issued_at=STAMP, contract=_contract())
+    consumed = consume_approval(
+        path, issued, consumed_at=STAMP, contract=_contract(),
+        runtime_request=_runtime_request(),
+    )
     completed = finalize_approval(path, consumed, success=True, finalized_at=STAMP)
     assert completed.status == "completed"
     with pytest.raises(ProcessingApprovalError, match="^APPROVAL_ALREADY_FINALIZED$"):
@@ -157,13 +173,13 @@ def test_approval_lifecycle_and_terminal_reuse(tmp_path: Path) -> None:
 
 
 def test_approval_retirement_only_before_consumption() -> None:
-    assert retire_approval(_approval()).status == "retired"
+    assert retire_approval(_approval()).status == "retired_not_issued"
     issued = replace(_approval(), status="issued", issued_at=STAMP, checksum="")
     from src.data.processing.approval import approval_checksum
 
     issued = replace(issued, checksum=approval_checksum(issued))
     assert retire_approval(issued).status == "retired_before_consumption"
-    consumed = replace(issued, status="consumed", consumed_at=STAMP, checksum="")
+    consumed = replace(issued, status="consumed", consumed_at=STAMP, consumed=True, checksum="")
     consumed = replace(consumed, checksum=approval_checksum(consumed))
     with pytest.raises(ProcessingApprovalError, match="^APPROVAL_STATE_TRANSITION_INVALID$"):
         retire_approval(consumed)

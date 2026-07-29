@@ -1,0 +1,140 @@
+# AIHUB-71748 Approval Issuance·Squash-Merge Lineage 계약
+
+- 문서 상태: `implemented`
+- 마지막 검토일: 2026-07-30
+- 작업 유형: `code`, `test`, `documentation`
+- 실제 Approval 발급·소비: `0`
+- 실제 Dataset payload 접근·Processing·output: `0`
+- `execution_allowed`: `false`
+- 관련 결정: [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
+
+## 1. Run 0006 Fail Closed
+
+[확정] Run `AIHUB-71748-SFT-PROCESSING-20260730-0006`은 Approval 발급 전 기존 permission·schema·lineage
+계약 불일치가 발견되어 `retired_approval_contract_failure`로 영구 폐기한다. Approval 0006은 발급·소비되지
+않았고 `retired_not_issued`다. 오류 코드는 `APPROVAL_PERMISSION_ESCALATION`이며 모든 실행 counter는 0이다.
+
+## 2. Permission Model 문제
+
+기존 계약은 Approval capability와 현재 runtime 실행 gate를 같은 boolean 집합으로 취급했다. 그 결과 향후
+Processing capability를 가진 issued Approval을 만들면서 현재 실행을 비활성화하는 안전한 상태를 표현할 수
+없었다.
+
+## 3. Capability와 Runtime Gate 분리
+
+Approval artifact의 `processing_allowed`, `payload_read_allowed`, `output_write_allowed`는 최대 capability다.
+`execution_allowed`는 artifact가 그 자체로 실행 권한이 아님을 나타내며 항상 `false`로 저장한다. 실제 실행은
+별도 `RuntimeExecutionRequest.execution_allowed=true`와 capability가 모두 검증될 때만 가능하다.
+
+## 4. ApprovalRecord 확장
+
+신규 canonical record는 `governance_record_commit`, `consumed`, `execution_allowed`를 checksum 대상에 포함한다.
+필드 누락, 잘못된 boolean, unknown field는 Fail Closed한다. 발급 직후 `status=issued`, `consumed=false`,
+`execution_allowed=false`가 필수다.
+
+## 5. PreflightEvidence 확장
+
+Evidence는 `execution_source_commit`과 `governance_record_commit`을 구분한다. 기존
+`immutable_git_commit` 의미는 read-only property alias로만 제공하며 신규 canonical serialization에는
+`execution_source_commit`을 기록한다.
+
+## 6. Execution Source Commit
+
+실행 surface가 만들어지고 검증된 commit이다. commit object가 실제로 존재해야 하며 고정 surface의 Git blob을
+직접 읽어 fingerprint를 계산한다.
+
+## 7. Governance Record Commit
+
+Preflight·Approval·결과 계보가 반영된 commit이다. commit object가 존재하고 `origin/develop`에서 reachable해야
+한다. 단순 local branch 이름이나 working tree 내용은 증거로 사용하지 않는다.
+
+## 8. Squash Merge 특성
+
+Squash Merge 후 governance commit은 feature intermediate commit의 descendant가 아닐 수 있다. 이 경우 ancestry
+부재만으로 거부하지 않고 고정 execution surface의 경로·blob·Manifest·Backend fingerprint 동등성을 검증한다.
+
+## 9. Execution Surface Equivalence
+
+고정 surface는 Manifest 1개와 validator·reader·processor·writer·run contract·Approval·runtime monitor·
+post-validation·processing CLI 9개, 총 10개다. 자동 glob으로 대체하지 않는다. 누락은
+`EXECUTION_SURFACE_FILE_MISSING`, blob drift는 fingerprint별 오류 또는 `EXECUTION_SOURCE_TREE_DRIFT`다.
+
+## 10. Lineage Validation
+
+직접 ancestor이며 surface가 같으면 `DIRECT_ANCESTRY_VALID`, ancestor가 아니지만 모든 surface가 같으면
+`SQUASH_MERGE_EXECUTION_SURFACE_EQUIVALENT`다. governance가 `origin/develop`에서 도달 불가능하면
+`GOVERNANCE_COMMIT_NOT_REACHABLE`로 중단한다.
+
+## 11. Approval Issuance Contract
+
+발급은 capability 세 값이 모두 `true`, lifecycle artifact의 `execution_allowed=false`, `consumed=false`,
+tokenization·SFT backend·training 권한이 모두 `false`일 때만 허용한다. issued timestamp와 checksum을 검증한 뒤
+exclusive atomic write한다.
+
+## 12. Processing Runtime Contract
+
+실제 처리 호출은 issued·unconsumed Approval과 별도 canonical `RuntimeExecutionRequest`를 함께 요구한다. request는
+Run·Approval ID, single-call/session limit, timezone-aware 시각과 자체 fingerprint를 포함한다. capability 부족은
+`APPROVAL_CAPABILITY_INSUFFICIENT`, runtime 미승인은 `RUNTIME_EXECUTION_NOT_APPROVED`, identity·fingerprint 충돌은
+`RUNTIME_PERMISSION_CONFLICT`다.
+
+## 13. Lifecycle
+
+```text
+prepared_not_issued -> issued -> consumed -> completed | failed
+prepared_not_issued -> retired_not_issued
+issued -> retired_before_consumption
+issued_partial -> retired_issue_incomplete
+```
+
+`consumed`는 실제 사용 여부이고 `execution_allowed`는 모든 lifecycle 상태에서 `false`다. 소비 transition만
+`consumed=true`로 바꾼다.
+
+## 14. Legacy Artifact Policy
+
+신규 보안 필드가 없는 기존 Approval은 `LegacyApprovalRecord`로 read-only 열람할 수 있지만 실행 loader는
+`LEGACY_APPROVAL_NOT_EXECUTABLE`로 차단한다. 기존 artifact를 새 schema로 덮어쓰거나 보정하지 않는다.
+
+## 15. Synthetic Validation
+
+capability/runtime 분리, issuance·consume lifecycle, strict serialization, checksum, legacy 차단, direct ancestry,
+squash-equivalence, CLI·Manifest·Approval blob drift, missing surface와 governance reachability를 Synthetic fixture로
+검증한다. 실제 Dataset·Approval artifact·RuntimeRequest는 사용하지 않는다.
+
+## 16. Run 0007 Readiness
+
+```yaml
+run_0007: not_created
+preflight_0007: not_started
+approval_0007: not_created
+```
+
+[검증 필요] Run 0007은 이 변경이 develop에 병합된 뒤 새 immutable commit을 정하고 별도 metadata-only Preflight
+승인을 받아야 한다. 이번 작업에서 ID를 registry active 상태로 예약하지 않는다.
+
+## 17. Current Status
+
+```yaml
+run_0006: retired_approval_contract_failure
+approval_0006: retired_not_issued
+approval_permission_model: separated
+approval_schema: extended
+preflight_governance_commit: supported
+squash_merge_lineage: supported
+processed_dataset: not_created
+tokenization: not_approved
+sft_backend: not_started
+training: not_approved
+execution_allowed: false
+```
+
+## 18. Next Approval
+
+[승인 필요] 병합된 새 develop commit을 기준으로 Run 0007 metadata-only Preflight를 수행하는 별도 승인이 필요하다.
+그 전에는 Approval 0007 생성·발급·소비, payload 접근, Processing과 output 생성을 수행하지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-07-30 | Run 0006 폐기, Approval capability/runtime gate·schema·squash lineage 계약 구현 및 Synthetic 검증 |

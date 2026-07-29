@@ -1,7 +1,7 @@
 # AIHUB-71748 Processing Run 0003 Backend 계약 보완
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 - 작업 유형: `code`, `test`, `documentation`
 - 실제 Dataset payload 접근: `0`
 - 실제 Processing 호출: `0`
@@ -199,6 +199,8 @@ record를 읽거나 Approval을 발급·소비하거나 Processing·Tokenization
 
 Run 0005의 고정 ID 비교 결함은 [실패 계보](./aihub-71748-processing-run-0005-preflight.md)에 보존했고,
 명시적 identity 주입을 적용한 [Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 metadata-only로 통과했다.
+다만 Approval 발급 전 계약 결함으로 영구 폐기됐고 [Approval·Lineage 계약](./aihub-71748-approval-lineage-contract.md)이
+후속 Run을 위한 permission·schema·squash-equivalence 기준을 구현한다.
 
 ## 변경 이력
 

@@ -1,7 +1,7 @@
 # DohaLM Instruct 설계 문서
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 - 프로젝트 상태: `design_completed`
 - 실행 상태: `execution_not_approved`
 - 관련 결정: [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
@@ -44,6 +44,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 Processing Run 0004 Metadata-Only Preflight](./aihub-71748-processing-run-0004-preflight.md)
 - [AIHUB-71748 Processing Run 0005 실패 계보](./aihub-71748-processing-run-0005-preflight.md)
 - [AIHUB-71748 Processing Run 0006 Metadata-Only Preflight](./aihub-71748-processing-run-0006-preflight.md)
+- [AIHUB-71748 Approval Issuance·Squash-Merge Lineage 계약](./aihub-71748-approval-lineage-contract.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -65,12 +66,16 @@ processing_run_0002: retired_failed_closed_before_consumption
 approval_0002: retired_not_issued
 processing_run_0003: retired_failed_closed_before_approval
 approval_0003: retired_not_issued
-processing_run_0004: retired
+processing_run_0004: retired_execution_source_tree_drift
 approval_0004: retired_not_issued
 processing_run_0005: retired_preflight_validator_failure
 approval_0005: retired_not_issued
-processing_run_0006: preflight_passed
-approval_0006: prepared_not_issued
+processing_run_0006: retired_approval_contract_failure
+approval_0006: retired_not_issued
+approval_permission_model: separated
+squash_merge_lineage: supported
+processing_run_0007: not_created
+approval_0007: not_created
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
@@ -90,6 +95,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0006 Approval 계약 실패 폐기와 capability/runtime gate·squash lineage 계약 구현 |
 | 2026-07-30 | Run 0005 validator failure 영구 폐기와 Run 0006 metadata-only Preflight 통과 기록 |
 | 2026-07-29 | Run 0004 metadata-only Preflight 통과와 non-issued Approval 초안 등록 |
 | 2026-07-29 | Run 0003 metadata-only Preflight가 식별자 선언 오탐으로 Fail Closed되어 Run·Approval ID 폐기 |

@@ -21,6 +21,7 @@ from src.data.aihub_71748_processing_preflight import (
     probe_output_parent,
     validate_backend_worktree,
     validate_immutable_commit,
+    validate_immutable_lineage,
     validate_manifest_document,
     validate_output_contract,
     validate_approval_draft,
@@ -48,12 +49,18 @@ def run_preflight(
     local_mapping_path: Path,
     manifest_path: Path,
     immutable_commit: str,
+    governance_record_commit: str,
     run_id: str,
     approval_id: str,
     now: datetime | None = None,
 ) -> dict[str, object]:
     validate_explicit_identity(run_id, approval_id)
     commit = validate_immutable_commit(repository_root, immutable_commit)
+    lineage = validate_immutable_lineage(
+        repository_root,
+        execution_source_commit=commit,
+        governance_record_commit=governance_record_commit,
+    )
     fingerprints = compute_git_fingerprints(repository_root, commit)
     validate_backend_worktree(repository_root, commit)
     mapping = resolve_dataset_mapping(
@@ -74,7 +81,8 @@ def run_preflight(
         schema_version=1,
         run_id=run_id,
         approval_id=approval_id,
-        immutable_git_commit=commit,
+        execution_source_commit=commit,
+        governance_record_commit=governance_record_commit,
         manifest_sha256=fingerprints.manifest_sha256,
         backend_fingerprint=fingerprints.backend_fingerprint,
         execution_surface={
@@ -94,7 +102,10 @@ def run_preflight(
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "retired_runs": ["0001", "0002", "0003", "0004", "0005"],
+            "run_status": "preflight_passed",
+            "approval_status": "prepared_not_issued",
+            "processing_calls": 0, "payload_sessions": 0, "output_writes": 0,
+            "retired_runs": ["0001", "0002", "0003", "0004", "0005", "0006"],
             "run_0005_status": "retired_preflight_validator_failure",
             "approval_0005_status": "retired_not_issued",
         },
@@ -115,7 +126,8 @@ def run_preflight(
     validate_preflight_evidence(
         evidence, expected_fingerprint=fingerprint,
         expected_run_id=run_id, expected_approval_id=approval_id,
-        expected_immutable_commit=commit,
+        expected_execution_source_commit=commit,
+        expected_governance_record_commit=governance_record_commit,
         expected_manifest_sha256=fingerprints.manifest_sha256,
         expected_backend_fingerprint=fingerprints.backend_fingerprint,
         now=generated_at,
@@ -135,6 +147,7 @@ def run_preflight(
     }
     return {
         **asdict(evidence),
+        "lineage_validation": asdict(lineage),
         "fingerprint": fingerprint,
         "approval_draft": approval_draft,
         "approval_draft_fingerprint": approval_draft_fingerprint,
@@ -153,7 +166,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mapping", type=Path, default=Path("configs/local-datasets.yaml"))
     parser.add_argument("--manifest", type=Path, default=Path("configs/data/aihub-71748-sft-processing-v1.yaml"))
-    parser.add_argument("--immutable-commit", required=True)
+    parser.add_argument(
+        "--execution-source-commit", "--immutable-commit",
+        dest="execution_source_commit", required=True,
+    )
+    parser.add_argument("--governance-record-commit", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--approval-id", required=True)
     parser.add_argument("--output-evidence", type=Path)
@@ -165,7 +182,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = run_preflight(
             repository_root=Path.cwd(), local_mapping_path=arguments.mapping,
-            manifest_path=arguments.manifest, immutable_commit=arguments.immutable_commit,
+            manifest_path=arguments.manifest,
+            immutable_commit=arguments.execution_source_commit,
+            governance_record_commit=arguments.governance_record_commit,
             run_id=arguments.run_id, approval_id=arguments.approval_id,
         )
         if arguments.output_evidence is not None:

@@ -160,7 +160,7 @@ mapping, immutable fingerprint, output collision, parent probe와 resource 계�
 ## 25. Current Status
 
 ```yaml
-run_0004: retired
+run_0004: retired_execution_source_tree_drift
 approval_0004: retired_not_issued
 processed_dataset: not_created
 tokenization: not_approved

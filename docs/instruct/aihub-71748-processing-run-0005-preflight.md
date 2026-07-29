@@ -25,3 +25,5 @@ Run 0005와 Approval 0005는 재사용하지 않는다. 상태는 각각
 
 [Run 0006 Preflight](./aihub-71748-processing-run-0006-preflight.md)는 명시적 Run·Approval ID 주입,
 독립 mismatch 오류, execution surface 확대와 synthetic 회귀 검증을 포함한 새 immutable commit에서 수행했다.
+Run 0006도 이후 Approval 계약 불일치로 폐기됐으며 [후속 계약](./aihub-71748-approval-lineage-contract.md)이
+capability와 runtime gate, squash lineage를 분리한다.

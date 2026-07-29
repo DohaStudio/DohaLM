@@ -1,7 +1,7 @@
 # AIHUB-71748 SFT Processing Manifest
 
 - 문서 상태: `approved`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 - Manifest: `configs/data/aihub-71748-sft-processing-v1.yaml`
 - Manifest 상태: `completed_non_executable`
 - Rule threshold 상태: `approved_for_processing_manifest`
@@ -226,11 +226,14 @@ Preflight에서 식별자 선언을 사용 흔적으로 오인해 Fail Closed했
 [Run 0005](./aihub-71748-processing-run-0005-preflight.md)는 validator가 명시적 ID 대신 0004 상수를 비교한
 결함으로 폐기됐고 Approval은 발급되지 않았다. 이 결함을 수정한 새 immutable commit에서
 [Run 0006](./aihub-71748-processing-run-0006-preflight.md)는 metadata-only Preflight를 통과했다.
-Approval 0006은 `prepared_not_issued`, `execution_allowed=false`다.
+당시 Approval 0006은 `prepared_not_issued`, `execution_allowed=false`였다.
+후속 발급 검토에서 permission·schema·lineage 불일치가 발견되어 Run 0006은
+`retired_approval_contract_failure`, Approval 0006은 `retired_not_issued`로 폐기했다.
+[Approval·Lineage 계약](./aihub-71748-approval-lineage-contract.md)이 후속 Run의 발급·실행 경계를 대체한다.
 
 ## 18. Next Approval
 
-[승인 필요] 다음 단계는 live freshness 재검증과 Approval 0006 실제 발급의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
+[승인 필요] 다음 단계는 병합 후 새 immutable commit 기반 Run 0007 metadata-only Preflight의 별도 승인이다. 별도 승인 전에는 Approval 발급·소비,
 Manifest consume, Dataset Processing과 Processed Dataset 생성이 금지된다. Processing 성공도
 Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
@@ -238,6 +241,7 @@ Tokenization이나 SFT Training을 자동 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0006 Approval 계약 실패 폐기와 후속 Approval·Lineage 계약 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight와 non-issued Approval 초안 상태 연결 |
 | 2026-07-29 | Run 0003 metadata-only Preflight 오탐 Fail Closed와 ID 폐기 상태 연결 |
 | 2026-07-29 | Run 0002 폐기와 Run 0003 hardened backend·Preflight 미시작 상태 연결 |

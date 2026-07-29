@@ -1,7 +1,7 @@
 # DohaLM 문서 인덱스
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-29
+- 마지막 검토일: 2026-07-30
 
 ## 1. 문서 상태 체계
 
@@ -60,7 +60,8 @@
 | [instruct/aihub-71748-run-0003-backend-hardening.md](./instruct/aihub-71748-run-0003-backend-hardening.md) | Run 0003 immutable·Approval·guardrail 계약과 metadata-only Preflight 실패 계보 | Processing Manifest, 실제 Backend, ADR-004·010 | 새 immutable commit·Run identity 별도 승인 | `review` | 후속 Preflight 전 필수 | 2026-07-29 | metadata-only failed closed; Run·Approval retired; execution false |
 | [instruct/aihub-71748-processing-run-0004-preflight.md](./instruct/aihub-71748-processing-run-0004-preflight.md) | Run 0004 registry·source snapshot·fingerprint·output probe·resource와 non-issued Approval 초안 evidence | Processing Manifest, Run 0003 hardening, ADR-004·010 | 별도 live freshness 검증과 Approval 발급 승인 | `review` | 실제 Processing 승인 전 필수 | 2026-07-29 | metadata-only passed; Approval prepared_not_issued; execution false |
 | [instruct/aihub-71748-processing-run-0005-preflight.md](./instruct/aihub-71748-processing-run-0005-preflight.md) | Run 0005 validator identity injection 실패와 미발급 Approval의 영구 계보 | Run 0004, Processing Backend | Run 0006 | `review` | 과거 Run 계보 확인 시 필수 | 2026-07-30 | retired; payload·processing 0; execution false |
-| [instruct/aihub-71748-processing-run-0006-preflight.md](./instruct/aihub-71748-processing-run-0006-preflight.md) | 명시적 identity·10-file execution surface·source stat·output probe·non-issued Approval 초안 evidence | Run 0005, Processing Manifest | 별도 live Approval 발급 승인 | `review` | 실제 Processing 승인 전 필수 | 2026-07-30 | metadata-only passed; Approval prepared_not_issued; execution false |
+| [instruct/aihub-71748-processing-run-0006-preflight.md](./instruct/aihub-71748-processing-run-0006-preflight.md) | 명시적 identity·10-file execution surface metadata-only evidence와 Approval 계약 실패 폐기 계보 | Run 0005, Processing Manifest | Approval·Lineage 계약 | `review` | 과거 Run 계보 확인 시 필수 | 2026-07-30 | retired_approval_contract_failure; Approval not issued; execution false |
+| [instruct/aihub-71748-approval-lineage-contract.md](./instruct/aihub-71748-approval-lineage-contract.md) | Approval capability/runtime gate·strict schema·legacy 차단·squash-merge execution surface lineage 계약 | Run 0006, Processing Backend, ADR-004·010 | 별도 Run 0007 metadata-only Preflight 승인 | `implemented` | 후속 Approval·Processing 전 필수 | 2026-07-30 | Run 0007 not_created; execution false |
 | [instruct/processing-manifest-schema.md](./instruct/processing-manifest-schema.md) | Synthetic input과 AIHUB-71748 비소비 identity·Rule·output·statistics·approval Manifest schema | Processing Backend, ADR-004·010 | 별도 Processing 실행 승인 | `review` | Processing Manifest 설계 전 필수 | 2026-07-29 | AIHUB-71748 manifest completed; execution false |
 | [instruct/aihub-71748-processing-manifest.md](./instruct/aihub-71748-processing-manifest.md) | AIHUB-71748 SFT identity·Rule 순서·threshold·output·Approval의 canonical 비소비 계약 | Selection Decision, Processing Backend, ADR-004·010 | 별도 single-use Processing 실행 승인 | `approved` | AIHUB-71748 Processing 승인 전 필수 | 2026-07-29 | manifest completed; execution false |
 | [instruct/instruction-schema.md](./instruct/instruction-schema.md) | Instruction logical record와 비학습 metadata 계약 | Dataset Strategy | validator·mapping | `review` | record 생성 전 필수 | 2026-07-28 | schema not implemented |

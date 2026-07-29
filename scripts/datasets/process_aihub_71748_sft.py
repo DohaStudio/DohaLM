@@ -17,6 +17,7 @@ from src.data.aihub_71748_processing_preflight import (
     compute_git_fingerprints,
     validate_explicit_identity,
     validate_immutable_commit,
+    validate_immutable_lineage,
     validate_preflight_evidence,
 )
 from src.data.processing.aihub_71748_manifest import validate_aihub_71748_processing_manifest
@@ -24,7 +25,7 @@ from src.data.processing.aihub_71748_mapping import DatasetMappingError, existin
 from src.data.processing.aihub_71748_processor import execute_approved_processing
 from src.data.processing.aihub_71748_reader import discover_sft_sources
 from src.data.processing.approval import load_approval
-from src.data.processing.run_contract import ProcessingRunContract
+from src.data.processing.run_contract import ProcessingRunContract, RuntimeExecutionRequest
 from scripts.datasets.preflight_aihub_71748_sft_run import run_preflight
 
 
@@ -46,6 +47,7 @@ def _evidence(path: Path) -> tuple[PreflightEvidence, str]:
             "status", "payload_reads", "processing_calls", "output_writes",
             "approval_issued", "approval_consumed", "execution_allowed",
             "approval_draft", "approval_draft_fingerprint", "zero_call_contract",
+            "lineage_validation",
         }
         if set(value) != allowed | metadata or not isinstance(fingerprint, str):
             raise ValueError
@@ -59,6 +61,16 @@ def _evidence(path: Path) -> tuple[PreflightEvidence, str]:
         return PreflightEvidence(**evidence_value), fingerprint
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         raise RuntimeError("PREFLIGHT_EVIDENCE_REQUIRED") from None
+
+
+def _runtime_request(path: Path) -> RuntimeExecutionRequest:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise TypeError
+        return RuntimeExecutionRequest(**value)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        raise RuntimeError("RUNTIME_EXECUTION_NOT_APPROVED") from None
 
 
 def metadata_preflight(
@@ -103,11 +115,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id")
     parser.add_argument("--approval-id")
     parser.add_argument("--approval", "--approval-path", dest="approval", type=Path)
-    parser.add_argument("--immutable-commit")
+    parser.add_argument(
+        "--execution-source-commit", "--immutable-commit", dest="execution_source_commit",
+    )
+    parser.add_argument("--governance-record-commit")
     parser.add_argument("--preflight-evidence", type=Path)
+    parser.add_argument("--runtime-request", type=Path)
     parser.add_argument("--preflight-only", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--synthetic-dry-run", action="store_true", default=False)
     parser.add_argument("--processing-allowed", action="store_true", default=False)
+    parser.add_argument("--execution-allowed", action="store_true", default=False)
     return parser
 
 
@@ -118,36 +135,47 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if not arguments.preflight_only and (
         not arguments.processing_allowed
+        or not arguments.execution_allowed
         or not arguments.run_id
         or not arguments.approval_id
         or arguments.approval is None
-        or not arguments.immutable_commit
+        or not arguments.execution_source_commit
+        or not arguments.governance_record_commit
         or arguments.preflight_evidence is None
+        or arguments.runtime_request is None
     ):
         print(json.dumps({"status": "blocked", "error_code": "PROCESSING_NOT_APPROVED", "execution_allowed": False}))
         return 2
     try:
         if arguments.preflight_only:
             validate_explicit_identity(arguments.run_id, arguments.approval_id)
-            if not arguments.immutable_commit:
+            if not arguments.execution_source_commit:
                 raise RuntimeError("IMMUTABLE_COMMIT_REQUIRED")
+            if not arguments.governance_record_commit:
+                raise RuntimeError("PREFLIGHT_GOVERNANCE_COMMIT_REQUIRED")
             result = run_preflight(
                 repository_root=Path.cwd(),
                 local_mapping_path=arguments.mapping,
                 manifest_path=arguments.manifest,
-                immutable_commit=arguments.immutable_commit,
+                immutable_commit=arguments.execution_source_commit,
+                governance_record_commit=arguments.governance_record_commit,
                 run_id=arguments.run_id,
                 approval_id=arguments.approval_id,
             )
         else:
-            commit = validate_immutable_commit(Path.cwd(), arguments.immutable_commit)
+            commit = validate_immutable_commit(Path.cwd(), arguments.execution_source_commit)
+            validate_immutable_lineage(
+                Path.cwd(), execution_source_commit=commit,
+                governance_record_commit=arguments.governance_record_commit,
+            )
             fingerprints = compute_git_fingerprints(Path.cwd(), commit)
             evidence, evidence_fingerprint = _evidence(arguments.preflight_evidence)
             validate_preflight_evidence(
                 evidence, expected_fingerprint=evidence_fingerprint,
                 expected_run_id=arguments.run_id,
                 expected_approval_id=arguments.approval_id,
-                expected_immutable_commit=commit,
+                expected_execution_source_commit=commit,
+                expected_governance_record_commit=arguments.governance_record_commit,
                 expected_manifest_sha256=fingerprints.manifest_sha256,
                 expected_backend_fingerprint=fingerprints.backend_fingerprint,
             )
@@ -165,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
                 processing_allowed=True,
                 payload_read_allowed=True,
                 output_write_allowed=True,
-                execution_allowed=True,
+                execution_allowed=arguments.execution_allowed,
             )
             result = execute_approved_processing(
                 package_root=resolved.source_root,
@@ -178,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
                 backend_git_commit=commit,
                 backend_fingerprint=fingerprints.backend_fingerprint,
                 preflight_evidence_fingerprint=evidence_fingerprint,
+                runtime_request=_runtime_request(arguments.runtime_request),
             )
     except (RuntimeError, OSError, yaml.YAMLError) as exc:
         code = str(exc) if str(exc).isupper() else "DATASET_MAPPING_INVALID"

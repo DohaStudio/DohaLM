@@ -79,11 +79,30 @@ class GitFingerprints:
 
 
 @dataclass(frozen=True)
+class LineageValidation:
+    execution_source_commit: str
+    governance_record_commit: str
+    execution_source_exists: bool
+    governance_commit_exists: bool
+    governance_reachable_from_origin_develop: bool
+    direct_ancestry: bool
+    squash_merge_mode: bool
+    execution_surface_file_count: int
+    execution_surface_paths_equal: bool
+    execution_surface_blobs_equal: bool
+    manifest_fingerprint_equal: bool
+    backend_fingerprint_equal: bool
+    valid: bool
+    result_code: str
+
+
+@dataclass(frozen=True)
 class PreflightEvidence:
     schema_version: int
     run_id: str
     approval_id: str
-    immutable_git_commit: str
+    execution_source_commit: str
+    governance_record_commit: str
     manifest_sha256: str
     backend_fingerprint: str
     execution_surface: Mapping[str, object]
@@ -99,6 +118,12 @@ class PreflightEvidence:
     output_budget: Mapping[str, object]
     generated_at: str
     expires_at: str
+
+    @property
+    def immutable_git_commit(self) -> str:
+        """Deprecated read-only alias for legacy callers."""
+
+        return self.execution_source_commit
 
 
 def validate_explicit_identity(run_id: str | None, approval_id: str | None) -> None:
@@ -141,10 +166,82 @@ def validate_immutable_commit(repository_root: str | Path, expected_commit: str 
     status = subprocess.run(["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True)
     if status.returncode != 0 or status.stdout.strip():
         raise ProcessingPreflightError("WORKTREE_NOT_CLEAN")
-    ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", "develop", commit], cwd=root)
-    if ancestry.returncode != 0:
-        raise ProcessingPreflightError("SOURCE_COMMIT_NOT_REACHABLE")
     return commit
+
+
+def validate_immutable_lineage(
+    repository_root: str | Path,
+    *,
+    execution_source_commit: str | None,
+    governance_record_commit: str | None,
+    governance_ref: str = "origin/develop",
+) -> LineageValidation:
+    """Validate direct or squash-merge lineage through an explicit fixed surface."""
+
+    root = Path(repository_root).resolve()
+    if not execution_source_commit:
+        raise ProcessingPreflightError("EXECUTION_SOURCE_COMMIT_NOT_FOUND")
+    if not governance_record_commit:
+        raise ProcessingPreflightError("PREFLIGHT_GOVERNANCE_COMMIT_REQUIRED")
+
+    def commit(value: str, error: str) -> str:
+        try:
+            resolved = str(_git(root, "rev-parse", "--verify", f"{value}^{{commit}}", text=True)).strip()
+        except ProcessingPreflightError:
+            raise ProcessingPreflightError(error) from None
+        if resolved != value:
+            raise ProcessingPreflightError(error)
+        return resolved
+
+    execution = commit(execution_source_commit, "EXECUTION_SOURCE_COMMIT_NOT_FOUND")
+    governance = commit(governance_record_commit, "GOVERNANCE_COMMIT_NOT_FOUND")
+    reachable = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", governance, governance_ref], cwd=root,
+    ).returncode == 0
+    if not reachable:
+        raise ProcessingPreflightError("GOVERNANCE_COMMIT_NOT_REACHABLE")
+    direct = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", execution, governance], cwd=root,
+    ).returncode == 0
+    required = (MANIFEST_PATH, *BACKEND_PATHS)
+    trees = []
+    for revision in (execution, governance):
+        tree = set(str(_git(root, "ls-tree", "-r", "--name-only", revision, text=True)).splitlines())
+        trees.append(tree)
+        if not set(required) <= tree:
+            raise ProcessingPreflightError("EXECUTION_SURFACE_FILE_MISSING")
+    blobs_equal = all(
+        _git(root, "rev-parse", f"{execution}:{path}", text=True)
+        == _git(root, "rev-parse", f"{governance}:{path}", text=True)
+        for path in required
+    )
+    execution_fingerprints = compute_git_fingerprints(root, execution)
+    governance_fingerprints = compute_git_fingerprints(root, governance)
+    manifest_equal = execution_fingerprints.manifest_sha256 == governance_fingerprints.manifest_sha256
+    backend_equal = execution_fingerprints.backend_fingerprint == governance_fingerprints.backend_fingerprint
+    if not manifest_equal:
+        raise ProcessingPreflightError("MANIFEST_FINGERPRINT_MISMATCH")
+    if not backend_equal:
+        raise ProcessingPreflightError("BACKEND_FINGERPRINT_MISMATCH")
+    if not blobs_equal:
+        raise ProcessingPreflightError("EXECUTION_SOURCE_TREE_DRIFT")
+    return LineageValidation(
+        execution_source_commit=execution,
+        governance_record_commit=governance,
+        execution_source_exists=True,
+        governance_commit_exists=True,
+        governance_reachable_from_origin_develop=True,
+        direct_ancestry=direct,
+        squash_merge_mode=not direct,
+        execution_surface_file_count=len(required),
+        execution_surface_paths_equal=trees[0].intersection(required) == set(required)
+        and trees[1].intersection(required) == set(required),
+        execution_surface_blobs_equal=True,
+        manifest_fingerprint_equal=True,
+        backend_fingerprint_equal=True,
+        valid=True,
+        result_code="DIRECT_ANCESTRY_VALID" if direct else "SQUASH_MERGE_EXECUTION_SURFACE_EQUIVALENT",
+    )
 
 
 def compute_git_fingerprints(
@@ -378,7 +475,8 @@ def validate_preflight_evidence(
     expected_fingerprint: str,
     expected_run_id: str,
     expected_approval_id: str,
-    expected_immutable_commit: str,
+    expected_execution_source_commit: str,
+    expected_governance_record_commit: str,
     expected_manifest_sha256: str,
     expected_backend_fingerprint: str,
     now: datetime | None = None,
@@ -389,8 +487,12 @@ def validate_preflight_evidence(
         raise ProcessingPreflightError("PREFLIGHT_RUN_ID_MISMATCH")
     if evidence.approval_id != expected_approval_id:
         raise ProcessingPreflightError("PREFLIGHT_APPROVAL_ID_MISMATCH")
-    if evidence.immutable_git_commit != expected_immutable_commit:
+    if not evidence.governance_record_commit:
+        raise ProcessingPreflightError("PREFLIGHT_GOVERNANCE_COMMIT_REQUIRED")
+    if evidence.execution_source_commit != expected_execution_source_commit:
         raise ProcessingPreflightError("IMMUTABLE_SOURCE_COMMIT_MISMATCH")
+    if evidence.governance_record_commit != expected_governance_record_commit:
+        raise ProcessingPreflightError("PREFLIGHT_GOVERNANCE_COMMIT_REQUIRED")
     if evidence.manifest_sha256 != expected_manifest_sha256:
         raise ProcessingPreflightError("MANIFEST_FINGERPRINT_MISMATCH")
     if evidence.backend_fingerprint != expected_backend_fingerprint:
@@ -411,6 +513,17 @@ def validate_preflight_evidence(
         "final_exists", "staging_exists", "quarantine_exists",
     )):
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
+    expected_registry = {
+        "run_id_unused": True,
+        "approval_id_unused": True,
+        "run_status": "preflight_passed",
+        "approval_status": "prepared_not_issued",
+        "processing_calls": 0,
+        "payload_sessions": 0,
+        "output_writes": 0,
+    }
+    if any(evidence.registry_state.get(key) != value for key, value in expected_registry.items()):
+        raise ProcessingPreflightError("PREFLIGHT_REGISTRY_STATE_MISMATCH")
     if dict(evidence.execution_surface) != {
         "manifest_included": True,
         "validator_included": True,
@@ -421,7 +534,7 @@ def validate_preflight_evidence(
     if dict(evidence.mapping_identity) != {
         "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
         "repository_internal": False, "read_only": True,
-    } or len(evidence.immutable_git_commit) != 40:
+    } or len(evidence.execution_source_commit) != 40 or len(evidence.governance_record_commit) != 40:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     expected_budgets = {
         "runtime_budget": {"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
@@ -451,7 +564,8 @@ def build_approval_draft(
         "processing_run_id": evidence.run_id,
         "dataset_id": "AIHUB-71748",
         "component": "SFT",
-        "immutable_git_commit": evidence.immutable_git_commit,
+        "immutable_git_commit": evidence.execution_source_commit,
+        "governance_record_commit": evidence.governance_record_commit,
         "manifest_version": 1,
         "manifest_sha256": evidence.manifest_sha256,
         "backend_fingerprint": evidence.backend_fingerprint,
@@ -484,6 +598,7 @@ def build_approval_draft(
         "training_allowed": False,
         "execution_allowed": False,
         "status": "prepared_not_issued",
+        "consumed": False,
     }
 
 
@@ -507,7 +622,7 @@ def validate_approval_draft(
         raise ProcessingPreflightError("APPROVAL_DRAFT_APPROVAL_ID_MISMATCH")
     _exact_keys(draft, {
         "approval_id", "processing_run_id", "dataset_id", "component",
-        "immutable_git_commit", "manifest_version", "manifest_sha256",
+        "immutable_git_commit", "governance_record_commit", "manifest_version", "manifest_sha256",
         "backend_fingerprint", "preflight_evidence_fingerprint", "approved_by", "approved_at",
         "issued_at", "consumed_at", "completed_at", "failed_at", "maximum_runs",
         "maximum_processing_calls", "maximum_payload_open_sessions", "retry_allowed",
@@ -516,7 +631,7 @@ def validate_approval_draft(
         "record_budget", "output_budget",
         "processing_allowed", "payload_read_allowed", "output_write_allowed",
         "tokenization_allowed", "sft_backend_allowed", "training_allowed",
-        "execution_allowed", "status",
+        "execution_allowed", "status", "consumed",
     })
     expected = build_approval_draft(evidence, evidence_fingerprint=evidence_fingerprint)
     if dict(draft) != expected:

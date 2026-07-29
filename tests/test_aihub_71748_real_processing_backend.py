@@ -40,6 +40,7 @@ from src.data.processing.approval import (
     new_approval,
     validate_approval_file,
 )
+from src.data.processing.run_contract import RuntimeExecutionRequest, runtime_request_fingerprint
 
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
@@ -61,12 +62,22 @@ def _approval(contract: ProcessingRunContract):
     return new_approval(
         contract,
         immutable_git_commit="b" * 40,
+        governance_record_commit="e" * 40,
         manifest_sha256="a" * 64,
         backend_fingerprint="c" * 64,
         preflight_evidence_fingerprint="d" * 64,
         approved_by="synthetic-test",
         approved_at=STAMP,
     )
+
+
+def _runtime_request(contract: ProcessingRunContract) -> RuntimeExecutionRequest:
+    request = RuntimeExecutionRequest(
+        run_id=contract.run_id, approval_id=contract.approval_id,
+        execution_allowed=True, maximum_processing_calls=1,
+        maximum_payload_open_sessions=1, requested_at=STAMP,
+    )
+    return replace(request, request_fingerprint=runtime_request_fingerprint(request))
 
 
 def _local_config(root: Path) -> dict[str, object]:
@@ -272,26 +283,33 @@ def test_run_and_approval_reuse_are_fail_closed(tmp_path: Path) -> None:
     )
     with pytest.raises(RunContractError, match="^RUN_ID_RETIRED$"):
         new_approval(
-            retired, immutable_git_commit="b" * 40, manifest_sha256="a" * 64,
+            retired, immutable_git_commit="b" * 40, governance_record_commit="e" * 40,
+            manifest_sha256="a" * 64,
             backend_fingerprint="c" * 64, preflight_evidence_fingerprint="d" * 64,
             approved_by="synthetic-test", approved_at=STAMP,
         )
     contract = _contract()
     path = tmp_path / "synthetic-approval.json"
     created = _approval(contract)
-    issue_approval(path, created, issued_at=STAMP)
+    issue_approval(path, created, issued_at=STAMP, contract=contract)
     record = validate_approval_file(path, contract)
-    consumed = consume_approval(path, record, consumed_at=STAMP)
+    consumed = consume_approval(
+        path, record, consumed_at=STAMP, contract=contract,
+        runtime_request=_runtime_request(contract),
+    )
     assert load_approval(path).state == "consumed"
     with pytest.raises(ProcessingApprovalError, match="^APPROVAL_ALREADY_CONSUMED$"):
-        consume_approval(path, consumed, consumed_at=STAMP)
+        consume_approval(
+            path, consumed, consumed_at=STAMP, contract=contract,
+            runtime_request=_runtime_request(contract),
+        )
 
 
 def test_synthetic_full_flow_consumes_once_and_finalizes_atomically(tmp_path: Path) -> None:
     package = _package(tmp_path / "AIHUB-71748")
     contract = _contract()
     approval_path = tmp_path / "approval.json"
-    issue_approval(approval_path, _approval(contract), issued_at=STAMP)
+    issue_approval(approval_path, _approval(contract), issued_at=STAMP, contract=contract)
     manifest = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     result = execute_approved_processing(
         package_root=package,
@@ -304,6 +322,7 @@ def test_synthetic_full_flow_consumes_once_and_finalizes_atomically(tmp_path: Pa
         backend_git_commit="b" * 40,
         backend_fingerprint="c" * 64,
         preflight_evidence_fingerprint="d" * 64,
+        runtime_request=_runtime_request(contract),
         enforce_expected_statistics=False,
         now=lambda: STAMP,
     )
@@ -316,7 +335,7 @@ def test_approval_identity_mismatch_stops_before_consume(tmp_path: Path) -> None
     package = _package(tmp_path / "AIHUB-71748")
     contract = _contract()
     approval_path = tmp_path / "approval.json"
-    issue_approval(approval_path, _approval(contract), issued_at=STAMP)
+    issue_approval(approval_path, _approval(contract), issued_at=STAMP, contract=contract)
     with pytest.raises(ProcessingApprovalError, match="^APPROVAL_NOT_FOUND$"):
         execute_approved_processing(
             package_root=package,
@@ -329,6 +348,7 @@ def test_approval_identity_mismatch_stops_before_consume(tmp_path: Path) -> None
             backend_git_commit="b" * 40,
             backend_fingerprint="c" * 64,
             preflight_evidence_fingerprint="d" * 64,
+            runtime_request=_runtime_request(contract),
             enforce_expected_statistics=False,
         )
     assert load_approval(approval_path).state == "issued"
