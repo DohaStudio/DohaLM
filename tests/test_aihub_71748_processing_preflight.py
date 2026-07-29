@@ -66,6 +66,11 @@ def _evidence(**changes: object) -> PreflightEvidence:
         immutable_git_commit="a" * 40,
         manifest_sha256="b" * 64,
         backend_fingerprint="c" * 64,
+        execution_surface={
+            "manifest_included": True, "validator_included": True,
+            "processing_cli_included": True,
+            "file_count": len(preflight.BACKEND_PATHS) + 1,
+        },
         mapping_identity={
             "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
             "repository_internal": False, "read_only": True,
@@ -76,7 +81,7 @@ def _evidence(**changes: object) -> PreflightEvidence:
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "retired_runs": ["0001", "0002", "0003"],
+            "retired_runs": ["0001", "0002", "0003", "0004", "0005"],
         },
         output_state={
             "final_exists": False, "staging_exists": False,
@@ -92,18 +97,32 @@ def _evidence(**changes: object) -> PreflightEvidence:
         record_budget={"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
         output_budget={"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
         generated_at=NOW.isoformat(),
+        expires_at=(NOW + timedelta(hours=1)).isoformat(),
     )
     return replace(value, **changes)
 
 
-def test_run_0004_identity_is_current_and_run_0003_is_retired() -> None:
-    assert RUN_ID.endswith("0004") and APPROVAL_ID.endswith("0004")
+def _validate(evidence: PreflightEvidence, fingerprint: str | None = None) -> None:
+    validate_preflight_evidence(
+        evidence,
+        expected_fingerprint=fingerprint or preflight_evidence_fingerprint(evidence),
+        expected_run_id=RUN_ID,
+        expected_approval_id=APPROVAL_ID,
+        expected_immutable_commit="a" * 40,
+        expected_manifest_sha256="b" * 64,
+        expected_backend_fingerprint="c" * 64,
+        now=NOW,
+    )
+
+
+def test_run_0006_identity_is_current_and_run_0005_is_retired() -> None:
+    assert RUN_ID.endswith("0006") and APPROVAL_ID.endswith("0006")
     source = Path("synthetic-unused")
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_RETIRED$"):
         validate_run_unused(
             _mapping(source, source / "processed"), repository_root=Path.cwd(),
-            run_id="AIHUB-71748-SFT-PROCESSING-20260729-0003",
-            approval_id="AIHUB-71748-SFT-PROCESSING-APPROVAL-20260729-0003",
+            run_id="AIHUB-71748-SFT-PROCESSING-20260730-0005",
+            approval_id="AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0005",
         )
 
 
@@ -238,9 +257,13 @@ def test_output_contract_and_disk_budget(tmp_path: Path) -> None:
     source = tmp_path / "AIHUB-71748"
     source.mkdir()
     output = tmp_path / "processed" / "instruct" / "AIHUB-71748"
-    assert validate_output_contract(_mapping(source, output), minimum_free_bytes=1)["run_root_exists"] is False
+    assert validate_output_contract(
+        _mapping(source, output), minimum_free_bytes=1, run_id=RUN_ID,
+    )["run_root_exists"] is False
     with pytest.raises(ProcessingPreflightError, match="^DISK_BUDGET_INSUFFICIENT$"):
-        validate_output_contract(_mapping(source, output), minimum_free_bytes=2**63)
+        validate_output_contract(
+            _mapping(source, output), minimum_free_bytes=2**63, run_id=RUN_ID,
+        )
 
 
 def test_parent_write_probe_leaves_no_residue(tmp_path: Path) -> None:
@@ -256,19 +279,18 @@ def test_preflight_fingerprint_is_deterministic() -> None:
 
 
 def test_preflight_evidence_validates() -> None:
-    evidence = _evidence()
-    validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
+    _validate(_evidence())
 
 
 def test_preflight_fingerprint_mismatch_fails_closed() -> None:
     with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_EVIDENCE_FINGERPRINT_MISMATCH$"):
-        validate_preflight_evidence(_evidence(), expected_fingerprint="0" * 64, now=NOW)
+        _validate(_evidence(), "0" * 64)
 
 
 def test_stale_preflight_fails_closed() -> None:
     evidence = _evidence(generated_at=(NOW - timedelta(hours=2)).isoformat())
     with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_EVIDENCE_STALE$"):
-        validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
+        _validate(evidence)
 
 
 @pytest.mark.parametrize("field", ["final_exists", "staging_exists", "quarantine_exists"])
@@ -277,7 +299,7 @@ def test_preflight_output_collision_fails_closed(field: str) -> None:
     state[field] = True
     evidence = _evidence(output_state=state)
     with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
-        validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
+        _validate(evidence)
 
 
 @pytest.mark.parametrize("field,value", [("zip_count", 54), ("total_bytes", 1)])
@@ -286,7 +308,7 @@ def test_preflight_source_drift_fails_closed(field: str, value: int) -> None:
     snapshot[field] = value
     evidence = _evidence(source_snapshot=snapshot)
     with pytest.raises(ProcessingPreflightError, match="^SOURCE_PACKAGE_DRIFT$"):
-        validate_preflight_evidence(evidence, expected_fingerprint=preflight_evidence_fingerprint(evidence), now=NOW)
+        _validate(evidence)
 
 
 def test_approval_draft_is_prepared_but_grants_no_execution_rights() -> None:
@@ -295,6 +317,7 @@ def test_approval_draft_is_prepared_but_grants_no_execution_rights() -> None:
     draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
     draft_fingerprint = validate_approval_draft(
         draft, evidence=evidence, evidence_fingerprint=fingerprint,
+        expected_run_id=RUN_ID, expected_approval_id=APPROVAL_ID,
     )
     assert len(draft_fingerprint) == 64
     assert draft["status"] == "prepared_not_issued"
@@ -303,8 +326,53 @@ def test_approval_draft_is_prepared_but_grants_no_execution_rights() -> None:
         for name in (
             "processing_allowed", "payload_read_allowed", "output_write_allowed",
             "tokenization_allowed", "sft_backend_allowed", "training_allowed",
+            "execution_allowed",
         )
     )
+
+
+@pytest.mark.parametrize(
+    "run_id,approval_id,error",
+    [
+        ("", APPROVAL_ID, "RUN_ID_REQUIRED"),
+        (RUN_ID, "", "APPROVAL_ID_REQUIRED"),
+        ("invalid", APPROVAL_ID, "RUN_ID_FORMAT_INVALID"),
+        (RUN_ID, "invalid", "APPROVAL_ID_FORMAT_INVALID"),
+        (RUN_ID, "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0007", "RUN_APPROVAL_SEQUENCE_MISMATCH"),
+    ],
+)
+def test_explicit_identity_errors_are_distinct(run_id: str, approval_id: str, error: str) -> None:
+    with pytest.raises(ProcessingPreflightError, match=f"^{error}$"):
+        preflight.validate_explicit_identity(run_id, approval_id)
+
+
+def test_preflight_identity_mismatch_is_not_reuse_error() -> None:
+    evidence = _evidence(run_id="AIHUB-71748-SFT-PROCESSING-20260730-0007")
+    with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_RUN_ID_MISMATCH$"):
+        _validate(evidence)
+    evidence = _evidence(approval_id="AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0007")
+    with pytest.raises(ProcessingPreflightError, match="^PREFLIGHT_APPROVAL_ID_MISMATCH$"):
+        _validate(evidence)
+
+
+def test_approval_draft_identity_mismatches_are_distinct() -> None:
+    evidence = _evidence()
+    fingerprint = preflight_evidence_fingerprint(evidence)
+    draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
+    wrong_run = dict(draft)
+    wrong_run["processing_run_id"] = "AIHUB-71748-SFT-PROCESSING-20260730-0007"
+    with pytest.raises(ProcessingPreflightError, match="^APPROVAL_DRAFT_RUN_ID_MISMATCH$"):
+        validate_approval_draft(
+            wrong_run, evidence=evidence, evidence_fingerprint=fingerprint,
+            expected_run_id=RUN_ID, expected_approval_id=APPROVAL_ID,
+        )
+    wrong_approval = dict(draft)
+    wrong_approval["approval_id"] = "AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0007"
+    with pytest.raises(ProcessingPreflightError, match="^APPROVAL_DRAFT_APPROVAL_ID_MISMATCH$"):
+        validate_approval_draft(
+            wrong_approval, evidence=evidence, evidence_fingerprint=fingerprint,
+            expected_run_id=RUN_ID, expected_approval_id=APPROVAL_ID,
+        )
 
 
 def test_preflight_only_cli_never_enters_processing_or_approval(

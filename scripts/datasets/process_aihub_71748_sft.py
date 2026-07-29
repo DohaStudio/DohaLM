@@ -15,6 +15,7 @@ import yaml
 from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
     compute_git_fingerprints,
+    validate_explicit_identity,
     validate_immutable_commit,
     validate_preflight_evidence,
 )
@@ -118,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     if not arguments.preflight_only and (
         not arguments.processing_allowed
         or not arguments.run_id
+        or not arguments.approval_id
         or arguments.approval is None
         or not arguments.immutable_commit
         or arguments.preflight_evidence is None
@@ -126,8 +128,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         if arguments.preflight_only:
-            if not arguments.run_id or not arguments.approval_id or not arguments.immutable_commit:
-                raise RuntimeError("PREFLIGHT_IDENTITY_REQUIRED")
+            validate_explicit_identity(arguments.run_id, arguments.approval_id)
+            if not arguments.immutable_commit:
+                raise RuntimeError("IMMUTABLE_COMMIT_REQUIRED")
             result = run_preflight(
                 repository_root=Path.cwd(),
                 local_mapping_path=arguments.mapping,
@@ -140,9 +143,14 @@ def main(argv: list[str] | None = None) -> int:
             commit = validate_immutable_commit(Path.cwd(), arguments.immutable_commit)
             fingerprints = compute_git_fingerprints(Path.cwd(), commit)
             evidence, evidence_fingerprint = _evidence(arguments.preflight_evidence)
-            validate_preflight_evidence(evidence, expected_fingerprint=evidence_fingerprint)
-            if evidence.immutable_git_commit != commit:
-                raise RuntimeError("IMMUTABLE_SOURCE_COMMIT_MISMATCH")
+            validate_preflight_evidence(
+                evidence, expected_fingerprint=evidence_fingerprint,
+                expected_run_id=arguments.run_id,
+                expected_approval_id=arguments.approval_id,
+                expected_immutable_commit=commit,
+                expected_manifest_sha256=fingerprints.manifest_sha256,
+                expected_backend_fingerprint=fingerprints.backend_fingerprint,
+            )
             manifest = _yaml(arguments.manifest)
             if manifest is None:
                 raise RuntimeError("MANIFEST_NOT_FOUND")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sys
@@ -12,8 +12,6 @@ import sys
 import yaml
 
 from src.data.aihub_71748_processing_preflight import (
-    APPROVAL_ID,
-    RUN_ID,
     PreflightEvidence,
     ProcessingPreflightError,
     build_approval_draft,
@@ -29,6 +27,7 @@ from src.data.aihub_71748_processing_preflight import (
     validate_preflight_evidence,
     validate_resource_providers,
     validate_run_unused,
+    validate_explicit_identity,
 )
 from src.data.processing.aihub_71748_mapping import resolve_dataset_mapping
 
@@ -53,6 +52,7 @@ def run_preflight(
     approval_id: str,
     now: datetime | None = None,
 ) -> dict[str, object]:
+    validate_explicit_identity(run_id, approval_id)
     commit = validate_immutable_commit(repository_root, immutable_commit)
     fingerprints = compute_git_fingerprints(repository_root, commit)
     validate_backend_worktree(repository_root, commit)
@@ -69,6 +69,7 @@ def run_preflight(
     output = validate_output_contract(mapping, minimum_free_bytes=4_294_967_296, run_id=run_id)
     parent_probe_passed = probe_output_parent(mapping)
     resources = validate_resource_providers()
+    generated_at = now or datetime.now(timezone.utc)
     evidence = PreflightEvidence(
         schema_version=1,
         run_id=run_id,
@@ -76,6 +77,12 @@ def run_preflight(
         immutable_git_commit=commit,
         manifest_sha256=fingerprints.manifest_sha256,
         backend_fingerprint=fingerprints.backend_fingerprint,
+        execution_surface={
+            "manifest_included": True,
+            "validator_included": True,
+            "processing_cli_included": True,
+            "file_count": fingerprints.backend_file_count + 1,
+        },
         mapping_identity={
             "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
             "repository_internal": False, "read_only": True,
@@ -87,7 +94,9 @@ def run_preflight(
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "retired_runs": ["0001", "0002", "0003"],
+            "retired_runs": ["0001", "0002", "0003", "0004", "0005"],
+            "run_0005_status": "retired_preflight_validator_failure",
+            "approval_0005_status": "retired_not_issued",
         },
         output_state={
             "final_exists": False, "staging_exists": False,
@@ -99,15 +108,22 @@ def run_preflight(
         disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
         record_budget={"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
         output_budget={"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
-        generated_at=(now or datetime.now(timezone.utc)).isoformat(),
+        generated_at=generated_at.isoformat(),
+        expires_at=(generated_at + timedelta(hours=1)).isoformat(),
     )
     fingerprint = preflight_evidence_fingerprint(evidence)
     validate_preflight_evidence(
-        evidence, expected_fingerprint=fingerprint, now=now or datetime.now(timezone.utc),
+        evidence, expected_fingerprint=fingerprint,
+        expected_run_id=run_id, expected_approval_id=approval_id,
+        expected_immutable_commit=commit,
+        expected_manifest_sha256=fingerprints.manifest_sha256,
+        expected_backend_fingerprint=fingerprints.backend_fingerprint,
+        now=generated_at,
     )
     approval_draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
     approval_draft_fingerprint = validate_approval_draft(
         approval_draft, evidence=evidence, evidence_fingerprint=fingerprint,
+        expected_run_id=run_id, expected_approval_id=approval_id,
     )
     zero_calls = {
         "processing_engine_calls": 0, "payload_sessions": 0, "zip_entry_opens": 0,
@@ -115,6 +131,7 @@ def run_preflight(
         "policy_dispatch_calls": 0, "output_writer_calls": 0,
         "atomic_finalization_calls": 0, "approval_issue_calls": 0,
         "approval_consume_calls": 0,
+        "archive_member_enumerations": 0, "checksum_calls": 0,
     }
     return {
         **asdict(evidence),
@@ -137,8 +154,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mapping", type=Path, default=Path("configs/local-datasets.yaml"))
     parser.add_argument("--manifest", type=Path, default=Path("configs/data/aihub-71748-sft-processing-v1.yaml"))
     parser.add_argument("--immutable-commit", required=True)
-    parser.add_argument("--run-id", default=RUN_ID)
-    parser.add_argument("--approval-id", default=APPROVAL_ID)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--approval-id", required=True)
     parser.add_argument("--output-evidence", type=Path)
     return parser
 
