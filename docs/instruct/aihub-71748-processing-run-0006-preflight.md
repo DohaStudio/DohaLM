@@ -92,8 +92,12 @@ Run 0006 metadata-only Preflight 자체는 통과했지만 Approval 발급 전 p
 `retired_approval_contract_failure`, Approval 0006은 `retired_not_issued`로 영구 폐기한다. Approval 발급·소비,
 payload 접근, Processing과 output은 모두 0건이며 `execution_allowed=false`다.
 
+Run 0007도 [Processing 계약 v2](./aihub-71748-processing-contract-v2.md)의 PreflightEvidence schema 불일치를
+실행 전에 발견해 evidence 0건으로 폐기했다. 실제 다음 Run은 별도 승인될 Run 0008이다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0007 시작 전 계약 불일치 폐기와 Contract v2 후속 흐름 연결 |
 | 2026-07-30 | Approval 발급 전 계약 불일치 Fail Closed와 Run·Approval 0006 영구 폐기 연결 |

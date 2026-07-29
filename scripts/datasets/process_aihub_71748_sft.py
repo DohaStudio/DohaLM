@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import fields
 import hashlib
 import json
 from pathlib import Path
@@ -15,6 +14,7 @@ import yaml
 from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
     compute_git_fingerprints,
+    deserialize_preflight_evidence,
     validate_explicit_identity,
     validate_immutable_commit,
     validate_immutable_lineage,
@@ -25,7 +25,11 @@ from src.data.processing.aihub_71748_mapping import DatasetMappingError, existin
 from src.data.processing.aihub_71748_processor import execute_approved_processing
 from src.data.processing.aihub_71748_reader import discover_sft_sources
 from src.data.processing.approval import load_approval
-from src.data.processing.run_contract import ProcessingRunContract, RuntimeExecutionRequest
+from src.data.processing.run_contract import (
+    ProcessingRunContract,
+    RuntimeExecutionRequest,
+    deserialize_runtime_request,
+)
 from scripts.datasets.preflight_aihub_71748_sft_run import run_preflight
 
 
@@ -42,11 +46,11 @@ def _evidence(path: Path) -> tuple[PreflightEvidence, str]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         fingerprint = value.pop("fingerprint")
-        allowed = {field.name for field in fields(PreflightEvidence)}
+        allowed = set(PreflightEvidence.__dataclass_fields__)
         metadata = {
             "status", "payload_reads", "processing_calls", "output_writes",
             "approval_issued", "approval_consumed", "execution_allowed",
-            "approval_draft", "approval_draft_fingerprint", "zero_call_contract",
+            "approval_draft", "approval_draft_fingerprint",
             "lineage_validation",
         }
         if set(value) != allowed | metadata or not isinstance(fingerprint, str):
@@ -58,7 +62,7 @@ def _evidence(path: Path) -> tuple[PreflightEvidence, str]:
             or any(value[name] is not False for name in ("approval_issued", "approval_consumed", "execution_allowed"))
         ):
             raise ValueError
-        return PreflightEvidence(**evidence_value), fingerprint
+        return deserialize_preflight_evidence(evidence_value), fingerprint
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         raise RuntimeError("PREFLIGHT_EVIDENCE_REQUIRED") from None
 
@@ -68,7 +72,7 @@ def _runtime_request(path: Path) -> RuntimeExecutionRequest:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise TypeError
-        return RuntimeExecutionRequest(**value)
+        return deserialize_runtime_request(value)
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         raise RuntimeError("RUNTIME_EXECUTION_NOT_APPROVED") from None
 
@@ -114,7 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-root", type=Path)
     parser.add_argument("--run-id")
     parser.add_argument("--approval-id")
-    parser.add_argument("--approval", "--approval-path", dest="approval", type=Path)
+    parser.add_argument("--approval-file", "--approval", "--approval-path", dest="approval", type=Path)
     parser.add_argument(
         "--execution-source-commit", "--immutable-commit", dest="execution_source_commit",
     )
@@ -125,6 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--synthetic-dry-run", action="store_true", default=False)
     parser.add_argument("--processing-allowed", action="store_true", default=False)
     parser.add_argument("--execution-allowed", action="store_true", default=False)
+    parser.add_argument("--execute", action="store_true", default=False)
     return parser
 
 
@@ -133,8 +138,11 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.synthetic_dry_run:
         print(json.dumps({"status": "blocked", "error_code": "SYNTHETIC_TEST_HARNESS_REQUIRED", "execution_allowed": False}))
         return 2
+    if arguments.execute:
+        arguments.preflight_only = False
     if not arguments.preflight_only and (
-        not arguments.processing_allowed
+        not arguments.execute
+        or not arguments.processing_allowed
         or not arguments.execution_allowed
         or not arguments.run_id
         or not arguments.approval_id

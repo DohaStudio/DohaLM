@@ -35,12 +35,13 @@ from src.data.processing import (
 from src.data.processing.approval import (
     ProcessingApprovalError,
     consume_approval,
+    approval_fingerprint,
     issue_approval,
     load_approval,
     new_approval,
     validate_approval_file,
 )
-from src.data.processing.run_contract import RuntimeExecutionRequest, runtime_request_fingerprint
+from src.data.processing.run_contract import RuntimeExecutionRequest, new_runtime_execution_request
 
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
@@ -72,12 +73,21 @@ def _approval(contract: ProcessingRunContract):
 
 
 def _runtime_request(contract: ProcessingRunContract) -> RuntimeExecutionRequest:
-    request = RuntimeExecutionRequest(
-        run_id=contract.run_id, approval_id=contract.approval_id,
-        execution_allowed=True, maximum_processing_calls=1,
-        maximum_payload_open_sessions=1, requested_at=STAMP,
+    approval = _approval(contract)
+    return new_runtime_execution_request(
+        contract,
+        request_id="SYNTHETIC-RUNTIME-REQUEST-V1",
+        approval_fingerprint=approval_fingerprint(approval),
+        preflight_evidence_fingerprint=approval.preflight_evidence_fingerprint,
+        execution_source_commit=approval.execution_source_commit,
+        governance_record_commit=approval.governance_record_commit,
+        manifest_sha256=approval.manifest_sha256,
+        backend_fingerprint=approval.backend_fingerprint,
+        requested_by="synthetic-test",
+        requested_at=STAMP,
+        expires_at="2026-07-29T11:00:00+09:00",
+        nonce="synthetic-nonce",
     )
-    return replace(request, request_fingerprint=runtime_request_fingerprint(request))
 
 
 def _local_config(root: Path) -> dict[str, object]:
@@ -274,6 +284,7 @@ def test_atomic_output_writer_cleans_failed_staging(tmp_path: Path) -> None:
         write_atomic_outputs(root, train_records=[{"data_id": "forbidden"}], validation_records=[], manifest={}, statistics={}, result={})
     assert not root.exists()
     assert not root.with_name("failed.staging").exists()
+    assert root.with_name("failed.failed").is_dir()
 
 
 def test_run_and_approval_reuse_are_fail_closed(tmp_path: Path) -> None:

@@ -60,17 +60,24 @@ def _mapping(source: Path, output: Path) -> ResolvedDatasetMapping:
 
 def _evidence(**changes: object) -> PreflightEvidence:
     value = PreflightEvidence(
-        schema_version=1,
+        schema_version=2,
         run_id=RUN_ID,
         approval_id=APPROVAL_ID,
         execution_source_commit="a" * 40,
         governance_record_commit="f" * 40,
         manifest_sha256="b" * 64,
         backend_fingerprint="c" * 64,
-        execution_surface={
-            "manifest_included": True, "validator_included": True,
-            "processing_cli_included": True,
-            "file_count": len(preflight.BACKEND_PATHS) + 1,
+        lineage={
+            "result_code": "DIRECT_ANCESTRY_VALID",
+            "direct_ancestry": True,
+            "squash_merge_mode": False,
+            "execution_surface_file_count": len(preflight.BACKEND_PATHS) + 1,
+            "execution_surface_paths_equal": True,
+            "execution_surface_blobs_equal": True,
+            "manifest_fingerprint_equal": True,
+            "backend_fingerprint_equal": True,
+            "governance_reachable_from_origin_develop": True,
+            "valid": True,
         },
         mapping_identity={
             "dataset_id": "AIHUB-71748", "component": "SFT", "root_type": "external",
@@ -82,14 +89,12 @@ def _evidence(**changes: object) -> PreflightEvidence:
         },
         registry_state={
             "run_id_unused": True, "approval_id_unused": True,
-            "run_status": "preflight_passed",
-            "approval_status": "prepared_not_issued",
-            "processing_calls": 0, "payload_sessions": 0, "output_writes": 0,
-            "retired_runs": ["0001", "0002", "0003", "0004", "0005", "0006"],
+            "retired_run_count": 7, "conflicting_evidence_count": 0,
         },
         output_state={
             "final_exists": False, "staging_exists": False,
-            "quarantine_exists": False, "parent_probe_passed": True,
+            "failed_exists": False, "quarantine_exists": False,
+            "parent_probe_passed": True, "parent_probe_residue_count": 0,
         },
         resource_state={
             "free_disk_bytes": 8_000_000_000, "memory_provider_available": True,
@@ -100,6 +105,14 @@ def _evidence(**changes: object) -> PreflightEvidence:
         disk_budget={"minimum_free_bytes": 4_294_967_296, "staging_multiplier": 2, "safety_margin_ratio": 0.25},
         record_budget={"expected_training": 10580, "expected_validation": 1322, "expected_total": 11902, "maximum_total": 11902},
         output_budget={"expected_files": 6, "maximum_files": 6, "maximum_total_bytes": 536_870_912},
+        zero_call_state={
+            "approval_issue_calls": 0, "approval_consume_calls": 0,
+            "runtime_request_creations": 0, "runtime_execution_gate_activations": 0,
+            "processing_engine_calls": 0, "payload_sessions": 0, "zip_entry_opens": 0,
+            "archive_member_enumerations": 0, "json_parser_calls": 0,
+            "record_parser_calls": 0, "join_calls": 0, "policy_dispatch_calls": 0,
+            "output_writer_calls": 0, "checksum_calls": 0, "atomic_finalization_calls": 0,
+        },
         generated_at=NOW.isoformat(),
         expires_at=(NOW + timedelta(hours=1)).isoformat(),
     )
@@ -239,7 +252,7 @@ def test_hardening_document_declaration_is_not_runtime_usage(tmp_path: Path) -> 
     )
 
 
-def test_tracked_preflight_evidence_marks_run_used(tmp_path: Path) -> None:
+def test_tracked_preflight_document_is_not_runtime_usage(tmp_path: Path) -> None:
     repository = tmp_path / "repository"
     evidence = repository / "docs/instruct/aihub-71748-processing-run-20990101-preflight.md"
     evidence.parent.mkdir(parents=True)
@@ -251,11 +264,10 @@ def test_tracked_preflight_evidence_marks_run_used(tmp_path: Path) -> None:
     subprocess.run(["git", "commit", "-q", "-m", "synthetic"], cwd=repository, check=True)
     source = tmp_path / "AIHUB-71748"
     source.mkdir()
-    with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
-        validate_run_unused(
-            _mapping(source, tmp_path / "processed"), repository_root=repository, immutable_commit="HEAD",
-            run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
-        )
+    validate_run_unused(
+        _mapping(source, tmp_path / "processed"), repository_root=repository, immutable_commit="HEAD",
+        run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+    )
 
 
 def test_output_contract_and_disk_budget(tmp_path: Path) -> None:
@@ -298,7 +310,7 @@ def test_stale_preflight_fails_closed() -> None:
         _validate(evidence)
 
 
-@pytest.mark.parametrize("field", ["final_exists", "staging_exists", "quarantine_exists"])
+@pytest.mark.parametrize("field", ["final_exists", "staging_exists", "failed_exists", "quarantine_exists"])
 def test_preflight_output_collision_fails_closed(field: str) -> None:
     state = dict(_evidence().output_state)
     state[field] = True

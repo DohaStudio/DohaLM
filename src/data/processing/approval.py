@@ -12,6 +12,7 @@ import re
 from typing import Mapping
 
 from .run_contract import (
+    ExecutionCounters,
     ProcessingRunContract,
     RuntimeExecutionRequest,
     validate_run_contract,
@@ -33,11 +34,12 @@ _STATES = frozenset({
 
 @dataclass(frozen=True)
 class ApprovalRecord:
+    schema_version: int
     approval_id: str
     processing_run_id: str
     dataset_id: str
     component: str
-    immutable_git_commit: str
+    execution_source_commit: str
     governance_record_commit: str
     manifest_version: int
     manifest_sha256: str
@@ -79,6 +81,12 @@ class ApprovalRecord:
         return self.processing_run_id
 
     @property
+    def immutable_git_commit(self) -> str:
+        """Read-only legacy alias; v2 serialization uses execution_source_commit."""
+
+        return self.execution_source_commit
+
+    @property
     def state(self) -> str:
         return self.status
 
@@ -116,6 +124,19 @@ def approval_checksum(record: ApprovalRecord) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def approval_fingerprint(record: ApprovalRecord) -> str:
+    """Stable Approval identity fingerprint across lifecycle transitions."""
+
+    value = asdict(record)
+    for field_name in (
+        "approved_at", "issued_at", "consumed_at", "completed_at", "failed_at",
+        "status", "consumed", "checksum",
+    ):
+        value.pop(field_name)
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _budgets(record: ApprovalRecord) -> None:
     expected = {
         "runtime_budget": {"soft_limit_seconds": 1200, "hard_limit_seconds": 1800},
@@ -134,7 +155,7 @@ def validate_approval(record: ApprovalRecord, contract: ProcessingRunContract) -
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
     if record.checksum != approval_checksum(record):
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
-    if record.status not in _STATES:
+    if record.schema_version != 2 or record.status not in _STATES:
         raise ProcessingApprovalError("APPROVAL_STATE_TRANSITION_INVALID")
     if record.dataset_id != "AIHUB-71748" or record.component != "SFT" or record.manifest_version != 1:
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
@@ -142,7 +163,7 @@ def validate_approval(record: ApprovalRecord, contract: ProcessingRunContract) -
     if not record.governance_record_commit:
         raise ProcessingApprovalError("APPROVAL_GOVERNANCE_COMMIT_REQUIRED")
     if (
-        not _GIT_COMMIT.fullmatch(record.immutable_git_commit)
+        not _GIT_COMMIT.fullmatch(record.execution_source_commit)
         or not _GIT_COMMIT.fullmatch(record.governance_record_commit)
         or any(not _SHA256.fullmatch(value) for value in fingerprints)
     ):
@@ -150,8 +171,8 @@ def validate_approval(record: ApprovalRecord, contract: ProcessingRunContract) -
     if not record.approved_by.strip():
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
     approved = _timestamp(record.approved_at, required=True)
-    issued = _timestamp(record.issued_at, required=record.status in {"issued", "consumed", "completed", "failed", "retired_before_consumption", "retired_issue_incomplete"})
-    consumed = _timestamp(record.consumed_at, required=record.status in {"consumed", "completed", "failed"})
+    issued = _timestamp(record.issued_at, required=record.status in {"issued", "consumed", "completed", "retired_before_consumption"})
+    consumed = _timestamp(record.consumed_at, required=record.status in {"consumed", "completed"} or (record.status == "failed" and record.consumed))
     completed = _timestamp(record.completed_at, required=record.status == "completed")
     failed = _timestamp(record.failed_at, required=record.status == "failed")
     unexpected = {
@@ -179,6 +200,16 @@ def validate_approval(record: ApprovalRecord, contract: ProcessingRunContract) -
     if record.status != "failed" and record.consumed is not expected_consumed:
         raise ProcessingApprovalError("APPROVAL_STATE_TRANSITION_INVALID")
     if record.execution_allowed:
+        raise ProcessingApprovalError("APPROVAL_ARTIFACT_EXECUTION_FLAG_FORBIDDEN")
+    boolean_fields = (
+        record.retry_allowed, record.resume_allowed, record.overwrite_allowed,
+        record.extension_allowed, record.run_id_reuse_allowed,
+        record.approval_id_reuse_allowed, record.processing_allowed,
+        record.payload_read_allowed, record.output_write_allowed,
+        record.tokenization_allowed, record.sft_backend_allowed,
+        record.training_allowed, record.execution_allowed, record.consumed,
+    )
+    if not all(isinstance(value, bool) for value in boolean_fields):
         raise ProcessingApprovalError("APPROVAL_PERMISSION_ESCALATION")
     if any((
         record.maximum_runs != 1,
@@ -210,7 +241,8 @@ def validate_approval(record: ApprovalRecord, contract: ProcessingRunContract) -
 def new_approval(
     contract: ProcessingRunContract,
     *,
-    immutable_git_commit: str,
+    immutable_git_commit: str | None = None,
+    execution_source_commit: str | None = None,
     governance_record_commit: str,
     manifest_sha256: str,
     backend_fingerprint: str,
@@ -219,12 +251,20 @@ def new_approval(
     approved_at: str,
 ) -> ApprovalRecord:
     validate_run_contract(contract)
+    source_commit = execution_source_commit or immutable_git_commit
+    if source_commit is None or (
+        immutable_git_commit is not None
+        and execution_source_commit is not None
+        and immutable_git_commit != execution_source_commit
+    ):
+        raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
     record = ApprovalRecord(
+        schema_version=2,
         approval_id=contract.approval_id,
         processing_run_id=contract.run_id,
         dataset_id="AIHUB-71748",
         component="SFT",
-        immutable_git_commit=immutable_git_commit,
+        execution_source_commit=source_commit,
         governance_record_commit=governance_record_commit,
         manifest_version=1,
         manifest_sha256=manifest_sha256,
@@ -286,11 +326,14 @@ def issue_approval(
     *,
     issued_at: str,
     contract: ProcessingRunContract,
+    counters: ExecutionCounters | None = None,
 ) -> ApprovalRecord:
     _timestamp(issued_at, required=True)
     validated = validate_approval_issuance(record, contract)
     issued = _transition(validated, {"prepared_not_issued"}, "issued", issued_at=issued_at)
     _atomic_write(Path(path), issued, exclusive=True)
+    if counters is not None:
+        counters.increment("approval_issue_calls")
     return issued
 
 
@@ -309,6 +352,8 @@ def retire_approval(record: ApprovalRecord) -> ApprovalRecord:
 def deserialize_approval(value: Mapping[str, object]) -> ApprovalRecord:
     expected = {field.name for field in ApprovalRecord.__dataclass_fields__.values()}
     missing = expected - set(value)
+    if value.get("schema_version") != 2:
+        raise ProcessingApprovalError("LEGACY_APPROVAL_NOT_EXECUTABLE")
     if "governance_record_commit" in missing:
         raise ProcessingApprovalError("APPROVAL_GOVERNANCE_COMMIT_REQUIRED")
     if "consumed" in missing:
@@ -332,7 +377,9 @@ def load_legacy_approval(path: str | Path) -> LegacyApprovalRecord:
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND") from None
     if not isinstance(value, dict):
         raise ProcessingApprovalError("APPROVAL_NOT_FOUND")
-    if all(name in value for name in ("governance_record_commit", "consumed", "execution_allowed")):
+    if value.get("schema_version") == 2 and all(
+        name in value for name in ("execution_source_commit", "governance_record_commit", "consumed", "execution_allowed")
+    ):
         raise ProcessingApprovalError("APPROVAL_NOT_LEGACY")
     return LegacyApprovalRecord(values=dict(value))
 
@@ -345,6 +392,7 @@ def load_approval(path: str | Path) -> ApprovalRecord:
         return deserialize_approval(value)
     except ProcessingApprovalError as exc:
         if str(exc) in {
+            "LEGACY_APPROVAL_NOT_EXECUTABLE",
             "APPROVAL_GOVERNANCE_COMMIT_REQUIRED",
             "APPROVAL_CONSUMED_FIELD_REQUIRED",
             "APPROVAL_EXECUTION_ALLOWED_FIELD_REQUIRED",
@@ -366,17 +414,30 @@ def consume_approval(
     consumed_at: str,
     contract: ProcessingRunContract,
     runtime_request: RuntimeExecutionRequest,
+    counters: ExecutionCounters | None = None,
 ) -> ApprovalRecord:
     target = Path(path)
     validate_approval(record, contract)
-    validate_runtime_request(runtime_request, contract)
+    validate_runtime_request(
+        runtime_request,
+        contract,
+        expected_approval_fingerprint=approval_fingerprint(record),
+        expected_preflight_evidence_fingerprint=record.preflight_evidence_fingerprint,
+        expected_execution_source_commit=record.execution_source_commit,
+        expected_governance_record_commit=record.governance_record_commit,
+        expected_manifest_sha256=record.manifest_sha256,
+        expected_backend_fingerprint=record.backend_fingerprint,
+        now=_timestamp(consumed_at, required=True),
+    )
     if record.status != "issued":
         raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
     if not target.is_file() or load_approval(target) != record:
         raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
-    _timestamp(consumed_at, required=True)
     consumed = _transition(record, {"issued"}, "consumed", consumed_at=consumed_at, consumed=True)
     _atomic_write(target, consumed)
+    if counters is not None:
+        counters.increment("runtime_execution_gate_activations")
+        counters.increment("approval_consume_calls")
     return consumed
 
 
@@ -395,3 +456,12 @@ def finalize_approval(
     final = _transition(record, {"consumed"}, "completed" if success else "failed", **field)
     _atomic_write(target, final)
     return final
+
+
+def fail_approval(record: ApprovalRecord, *, failed_at: str) -> ApprovalRecord:
+    """Create a validated failed lifecycle record without granting execution."""
+
+    _timestamp(failed_at, required=True)
+    if record.status not in {"prepared_not_issued", "issued", "consumed"}:
+        raise ProcessingApprovalError("APPROVAL_STATE_TRANSITION_INVALID")
+    return _transition(record, {record.status}, "failed", failed_at=failed_at)
