@@ -105,6 +105,10 @@ processing_run_0005: retired_preflight_validator_failure
 approval_0005: retired_not_issued
 processing_run_0006: retired_approval_contract_failure
 approval_0006: retired_not_issued
+processing_run_0007: retired_contract_mismatch_before_start
+approval_0007: not_created_non_reusable
+processing_run_0008: preflight_passed
+approval_0008: prepared_not_issued
 processed_dataset: not_created
 tokenization: not_approved
 training: not_approved
@@ -126,10 +130,15 @@ execution surface에서 metadata-only Preflight를 통과했으며 Approval은 �
 [Approval·Lineage 계약](./aihub-71748-approval-lineage-contract.md)은 capability와 runtime gate를 분리하고
 Squash Merge execution surface equivalence를 지원한다.
 
+[Run 0008](./aihub-71748-processing-run-0008-preflight.md)은 metadata-only source snapshot, output collision,
+parent probe와 resource provider 검증을 통과했다. Approval 발급·소비, payload open, Processing과 output write는
+모두 0건이다. 다음 단계는 별도 승인된 live Approval 발급 검토다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 metadata-only Preflight 통과와 실제 Backend 미실행 상태 연결 |
 | 2026-07-30 | Processing 계약 v2와 Synthetic 4/2 Approval·Runtime·Output 전체 E2E 검증 연결 |
 | 2026-07-30 | Run 0006 폐기와 Approval capability/runtime request·squash lineage 계약 연결 |
 | 2026-07-29 | Run 0004 metadata-only Preflight 통과와 Approval prepared_not_issued 상태 연결 |

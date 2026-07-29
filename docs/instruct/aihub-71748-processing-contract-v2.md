@@ -150,8 +150,12 @@ Runtime request, processing output, checksum, staging·failed·quarantine artifa
 ```yaml
 processing_contract_v2: frozen
 synthetic_e2e: passed
-run_0008: not_created
-actual_dataset_access: 0
+run_0008: preflight_passed
+preflight_attempts: 1
+preflight_evidence_schema: 2
+approval_0008: prepared_not_issued
+runtime_execution_request: not_created
+actual_dataset_payload_access: 0
 actual_approval_issued: 0
 actual_processing_calls: 0
 processed_dataset: not_created
@@ -161,10 +165,13 @@ training: not_approved
 execution_allowed: false
 ```
 
-Run 0008은 이 계약이 `develop`에 병합되고 전체 회귀가 통과한 뒤 별도 사용자 승인으로만 시작한다.
+[Run 0008 metadata-only Preflight](./aihub-71748-processing-run-0008-preflight.md)는 동결 계약을 변경하지 않고
+정확히 한 번 통과했다. 다음 단계는 최신 `develop`과 evidence freshness의 live 재검증 및 Approval 0008 발급을
+위한 별도 승인이다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | 동결 계약 변경 없이 Run 0008 metadata-only Preflight 통과와 미발급 Approval draft 기록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic 4/2 전체 E2E 검증 |

@@ -46,6 +46,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 Processing Run 0006 Metadata-Only Preflight](./aihub-71748-processing-run-0006-preflight.md)
 - [AIHUB-71748 Approval Issuance·Squash-Merge Lineage 계약](./aihub-71748-approval-lineage-contract.md)
 - [AIHUB-71748 Processing 실행 계약 v2](./aihub-71748-processing-contract-v2.md)
+- [AIHUB-71748 Processing Run 0008 Metadata-Only Preflight](./aihub-71748-processing-run-0008-preflight.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -78,7 +79,9 @@ squash_merge_lineage: supported
 processing_run_0007: retired_contract_mismatch_before_start
 approval_0007: not_created_non_reusable
 processing_contract_v2: frozen_synthetic_e2e_passed
-processing_run_0008: not_created
+processing_run_0008: preflight_passed
+approval_0008: prepared_not_issued
+runtime_execution_request_0008: not_created
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
@@ -98,6 +101,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval prepared-not-issued 상태 등록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic E2E 통과 |
 | 2026-07-30 | Run 0006 Approval 계약 실패 폐기와 capability/runtime gate·squash lineage 계약 구현 |
 | 2026-07-30 | Run 0005 validator failure 영구 폐기와 Run 0006 metadata-only Preflight 통과 기록 |
