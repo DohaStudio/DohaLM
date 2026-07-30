@@ -421,6 +421,8 @@ def issue_runtime_execution_request(
 ) -> tuple[Path, RuntimeExecutionRequest]:
     if not isinstance(requested_by, str) or not requested_by.strip():
         raise RuntimeRequestArtifactError("RUNTIME_REQUEST_SCHEMA_INVALID")
+    if now is not None and not contract.synthetic:
+        raise RuntimeRequestArtifactError("RUNTIME_REQUEST_STALE")
     approval = validate_runtime_execution_request_issuance(
         repository_root=repository_root,
         processed_root=processed_root,

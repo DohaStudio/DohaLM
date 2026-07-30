@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
+import errno
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -242,6 +243,24 @@ def test_concurrent_publishers_allow_exactly_one_success(tmp_path: Path) -> None
     assert canonical_runtime_request_path(values["processed_root"], APPROVAL_ID).is_file()
 
 
+def test_competing_final_is_preserved(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import src.data.processing.runtime_request_artifact as artifact
+
+    values = _fixture(tmp_path)
+    final = canonical_runtime_request_path(values["processed_root"], APPROVAL_ID)
+    original = artifact._publish_no_replace
+
+    def competing_publish(temporary: Path, target: Path) -> None:
+        target.write_bytes(b"competing-final")
+        original(temporary, target)
+
+    monkeypatch.setattr(artifact, "_publish_no_replace", competing_publish)
+    with pytest.raises(RuntimeRequestArtifactError, match="ALREADY_EXISTS"):
+        issue_runtime_execution_request(**values)
+    assert final.read_bytes() == b"competing-final"
+    assert not final.with_name(final.name + ".tmp").exists()
+
+
 @pytest.mark.parametrize("collision", ["final", "temporary", "run", "staging", "failed", "quarantine"])
 def test_issue_fails_closed_on_all_collisions(tmp_path: Path, collision: str) -> None:
     values = _fixture(tmp_path)
@@ -285,8 +304,29 @@ def test_weak_nonce_and_nonsynthetic_injection_are_rejected(tmp_path: Path) -> N
     with pytest.raises(RuntimeRequestArtifactError, match="NONCE_INVALID"):
         issue_runtime_execution_request(**{**values, "nonce": "weak"})
     contract = replace(values["contract"], synthetic=False)
+    nonsynthetic = {**values, "contract": contract}
+    nonsynthetic.pop("now")
     with pytest.raises(RuntimeRequestArtifactError, match="SCHEMA_INVALID"):
-        issue_runtime_execution_request(**{**values, "contract": contract})
+        issue_runtime_execution_request(**nonsynthetic)
+
+
+def test_production_time_injection_is_rejected(tmp_path: Path) -> None:
+    values = _fixture(tmp_path)
+    contract = replace(values["contract"], synthetic=False)
+    processed = values["processed_root"]
+    evidence_root = processed / "runtime-evidence" / RUN_ID
+    evidence_root.mkdir(parents=True)
+    initial = evidence_root / "preflight-evidence.json"
+    refresh = evidence_root / "approval-refresh-evidence.json"
+    values["initial_evidence_path"].replace(initial)  # type: ignore[union-attr]
+    values["refresh_evidence_path"].replace(refresh)  # type: ignore[union-attr]
+    with pytest.raises(RuntimeRequestArtifactError, match="STALE"):
+        issue_runtime_execution_request(**{
+            **values,
+            "contract": contract,
+            "initial_evidence_path": initial,
+            "refresh_evidence_path": refresh,
+        })
 
 
 def test_artifact_expiry_future_time_and_reuse_fail_closed(tmp_path: Path) -> None:
@@ -327,6 +367,9 @@ def test_evidence_and_approval_state_mismatches_fail_closed(tmp_path: Path) -> N
     [
         ({"status": "prepared_not_issued"}, "APPROVAL_NOT_ISSUED"),
         ({"status": "consumed", "consumed": True, "consumed_at": NOW.isoformat()}, "APPROVAL_ALREADY_CONSUMED"),
+        ({"status": "completed"}, "APPROVAL_NOT_ISSUED"),
+        ({"status": "failed", "failed_at": NOW.isoformat()}, "APPROVAL_NOT_ISSUED"),
+        ({"status": "retired_before_consumption"}, "APPROVAL_NOT_ISSUED"),
         ({"execution_allowed": True}, "EXECUTION_FLAG_REQUIRED"),
     ],
 )
@@ -352,6 +395,43 @@ def test_writer_fsync_failure_leaves_no_final(monkeypatch: pytest.MonkeyPatch, t
     with pytest.raises(RuntimeRequestArtifactError, match="ATOMIC_WRITE_FAILED"):
         issue_runtime_execution_request(**values)
     assert not canonical_runtime_request_path(values["processed_root"], APPROVAL_ID).exists()
+
+
+def test_writer_unsupported_filesystem_has_no_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.processing.runtime_request_artifact as artifact
+
+    values = _fixture(tmp_path)
+    monkeypatch.setattr(
+        artifact.os, "link", lambda *_args: (_ for _ in ()).throw(OSError(errno.EXDEV, "synthetic")),
+    )
+    final = canonical_runtime_request_path(values["processed_root"], APPROVAL_ID)
+    with pytest.raises(RuntimeRequestArtifactError, match="NO_REPLACE_UNSUPPORTED"):
+        issue_runtime_execution_request(**values)
+    assert not final.exists()
+    assert not final.with_name(final.name + ".tmp").exists()
+
+
+def test_directory_sync_failure_preserves_final_and_blocks_reissue(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.processing.runtime_request_artifact as artifact
+
+    values = _fixture(tmp_path)
+    monkeypatch.setattr(
+        artifact,
+        "_sync_parent_directory",
+        lambda _path: (_ for _ in ()).throw(
+            RuntimeRequestArtifactError("RUNTIME_REQUEST_DIRECTORY_SYNC_FAILED"),
+        ),
+    )
+    final = canonical_runtime_request_path(values["processed_root"], APPROVAL_ID)
+    with pytest.raises(RuntimeRequestArtifactError, match="DIRECTORY_SYNC_FAILED"):
+        issue_runtime_execution_request(**values)
+    assert final.is_file()
+    with pytest.raises(RuntimeRequestArtifactError):
+        issue_runtime_execution_request(**values)
 
 
 def test_cli_requires_runtime_request_only_and_never_consumes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

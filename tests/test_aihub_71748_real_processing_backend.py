@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import json
 from pathlib import Path
+import tempfile
 import zipfile
 
 import pytest
@@ -46,6 +47,14 @@ from src.data.processing.run_contract import RuntimeExecutionRequest, new_runtim
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
 STAMP = "2026-07-29T10:00:00+09:00"
+
+
+@pytest.fixture
+def external_tmp_path() -> Path:
+    """Keep synthetic external-Dataset fixtures outside the repository."""
+
+    with tempfile.TemporaryDirectory(prefix="dohalm-aihub-71748-") as directory:
+        yield Path(directory)
 
 
 def _contract() -> ProcessingRunContract:
@@ -157,12 +166,14 @@ def test_mapping_contract_fails_closed(field: str, value: object, code: str) -> 
         validate_mapping_contract(contract)
 
 
-def test_mapping_resolution_precedence_and_repository_rejection(tmp_path: Path) -> None:
-    external = _package(tmp_path / "AIHUB-71748")
+def test_mapping_resolution_precedence_and_repository_rejection(external_tmp_path: Path) -> None:
+    external = _package(external_tmp_path / "AIHUB-71748")
     local = _local_config(external)
     explicit = resolve_dataset_mapping(repository_root=Path.cwd(), explicit_root=external, local_config={})
     configured = resolve_dataset_mapping(repository_root=Path.cwd(), local_config=local, environment={})
-    environment = resolve_dataset_mapping(repository_root=Path.cwd(), environment={"DOHALM_DATASET_ROOT": str(tmp_path)})
+    environment = resolve_dataset_mapping(
+        repository_root=Path.cwd(), environment={"DOHALM_DATASET_ROOT": str(external_tmp_path)},
+    )
     assert explicit.resolution_source == "explicit_cli"
     assert configured.resolution_source == "local_config"
     assert environment.resolution_source == "environment"
@@ -374,9 +385,9 @@ def test_runtime_monitor_cancellation_and_budget() -> None:
         monitor.check("synthetic", source_records=1)
 
 
-def test_metadata_preflight_does_not_open_payload_or_write_dataset(tmp_path: Path) -> None:
-    package = _package(tmp_path / "AIHUB-71748")
-    local = tmp_path / "local.yaml"
+def test_metadata_preflight_does_not_open_payload_or_write_dataset(external_tmp_path: Path) -> None:
+    package = _package(external_tmp_path / "AIHUB-71748")
+    local = external_tmp_path / "local.yaml"
     local.write_text(yaml.safe_dump(_local_config(package)), encoding="utf-8")
     result = metadata_preflight(
         repository_root=Path.cwd(), manifest_path=MANIFEST,

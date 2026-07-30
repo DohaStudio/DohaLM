@@ -56,6 +56,7 @@ temp collision, unsupported filesystem, publish 또는 sync 실패는 모두 Fai
 
 - request 유효기간은 정확히 1시간이다.
 - timezone-aware 시각만 허용하고 미래 발급 시각, 만료 artifact를 차단한다.
+- production 발급 시각은 시스템 UTC에서만 얻는다. `now` 주입은 합성 계약에서만 허용해 미래 시각 권한 생성을 막는다.
 - 과거 Initial/Refresh evidence는 immutable 계보와 당시 freshness 계약을 검증한다. request 발급 시 Refresh가 다시
   live여야 한다고 요구하지 않는다. Refresh freshness는 Approval 발급 시 소비됐고 request가 새로운 1시간 창을 만든다.
 - nonce는 `secrets.token_urlsafe(32)`로 생성하며 URL-safe 43자 이상을 요구한다.
