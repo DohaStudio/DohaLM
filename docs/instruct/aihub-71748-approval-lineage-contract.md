@@ -134,8 +134,8 @@ approval_0007: not_created_non_reusable
 run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
 runtime_execution_request_0008: not_created
-run_0009: preflight_passed
-approval_0009: issued_unconsumed
+run_0009: retired_runtime_request_governance_mismatch
+approval_0009: retired_before_consumption
 approval_refresh_0009: validated
 runtime_execution_request_0009: not_created
 processed_dataset: not_created
@@ -147,9 +147,10 @@ execution_allowed: false
 
 ## 19. Next Approval
 
-[확정] Run 0009 Live Refresh와 Approval 발급은 후속 승인으로 완료됐고 Approval은 issued·unconsumed다.
-[승인 필요] [RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)에 따른 실제 request
-발급은 별도 승인 대상이다. 그 전에는 Approval 소비, runtime gate, payload 접근과 Processing을 수행하지 않는다.
+[확정] Run 0009 Live Refresh와 Approval 발급 뒤 공식 retirement가 완료됐다. Approval은
+`retired_before_consumption`이며 Run 0009와 함께 영구 비재사용한다.
+[승인 필요] 다음 단계는 Run 0010 Metadata-Only Preflight다. 새 identity 승인 전에는 runtime request,
+Approval 소비, runtime gate, payload 접근과 Processing을 수행하지 않는다.
 
 ## 20. Active Run refresh와 durable issuance
 
@@ -179,20 +180,22 @@ Approval 0008을 폐기했다.
 execution surface를 과거 identity에 소급하지 않으며 Approval 0008은 미발급 상태로 영구 비재사용한다.
 
 [확정] Run 0009는 current governance commit을 새 execution source로 사용해 `DIRECT_ANCESTRY_VALID`를 통과했다.
-Preflight 뒤 후속 Live Refresh와 Approval 발급이 완료됐다. Approval artifact는 issued·unconsumed이며
-RuntimeExecutionRequest·Processing은 생성하거나 실행하지 않았다.
+Preflight·Live Refresh·Approval 발급 뒤 governance mismatch 사유로 공식 폐기했다. Approval artifact는
+`retired_before_consumption`이며 RuntimeExecutionRequest·consume·Processing은 생성하거나 실행하지 않았다.
 
 ## Issued Approval retirement
 
 [확정] issued·미소비 Approval은 [Retirement Contract](./aihub-71748-approval-retirement-contract.md)의
 `retire_approval_file(...)`을 통해서만 폐기한다. ApprovalRecord v2는 status와 checksum만 전환하고 retirement
 timestamp·reason·전후 hash는 별도 canonical evidence로 보존한다. Retirement, consume, finalize와 Runtime request
-publish는 동일 Approval lifecycle lock을 사용한다. 실제 Approval 0009 retirement는 아직 실행하지 않았다.
+publish는 동일 Approval lifecycle lock을 사용한다. Approval 0009는 reason code
+`RUNTIME_REQUEST_GOVERNANCE_MISMATCH`로 공식 폐기됐고 RuntimeExecutionRequest·consume·Processing은 0건이다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 영구 폐기 계보 기록 |
 | 2026-07-30 | issued·미소비 Approval public retirement service·evidence·lifecycle lock 계약 연결 |
 | 2026-07-30 | RuntimeExecutionRequest v1 공식 writer 계보와 Approval 0009 issued·unconsumed 상태 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 신규 immutable lineage 연결 |

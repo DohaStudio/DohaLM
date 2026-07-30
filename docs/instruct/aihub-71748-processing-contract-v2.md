@@ -159,8 +159,8 @@ run_0008: retired_backend_fingerprint_mismatch
 preflight_attempts: 1
 preflight_evidence_schema: 2
 approval_0008: retired_not_issued
-run_0009: preflight_passed
-approval_0009: issued_unconsumed
+run_0009: retired_runtime_request_governance_mismatch
+approval_0009: retired_before_consumption
 approval_refresh_0009: validated
 runtime_execution_request: not_created
 runtime_request_writer: implemented_synthetic_validated
@@ -252,20 +252,21 @@ revision이다. Run 0008은 후속 live refresh 불일치로 폐기됐으며 App
 
 [확정] [Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)는 현재 안전한 develop
 commit `841123ea2f0d3f0fccb8cf456edaf8c9faa44014`를 execution source와 governance commit으로 사용해 통과했다.
-Approval 0009는 후속 승인 작업에서 `issued`가 되었지만 `consumed=false`, `execution_allowed=false`다. Live Refresh는
-검증됐고 RuntimeExecutionRequest는 아직 생성하지 않았다.
+Approval 0009는 후속 승인 작업에서 발급된 뒤 공식 retirement service로 `retired_before_consumption` 전환됐다.
+Live Refresh는 검증됐고 RuntimeExecutionRequest·consume·Processing은 생성하거나 실행하지 않았다.
 
 ## Approval retirement service
 
 [확정] issued·미소비 Approval의 영구 폐기는 [Approval Retirement Contract](./aihub-71748-approval-retirement-contract.md)를
 따른다. 이 service는 processing capability를 실행하지 않고 기존 issue·consume·runtime·processing counter를
-증가시키지 않는다. Retired Approval은 RuntimeExecutionRequest와 consume gate에서 거부한다. 실제 Approval 0009와
-Run 0010 상태는 이번 synthetic 구현 작업에서 변경하지 않는다.
+증가시키지 않는다. Retired Approval은 RuntimeExecutionRequest와 consume gate에서 거부한다. Approval 0009는
+`RUNTIME_REQUEST_GOVERNANCE_MISMATCH`로 폐기했으며 Run 0010은 생성하지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 `retired_runtime_request_governance_mismatch` 반영 |
 | 2026-07-30 | public Approval retirement artifact service·별도 evidence·lock/CAS 정책 연결 |
 | 2026-07-30 | RuntimeExecutionRequest v1 발급 서비스·atomic writer·CLI 계약과 Approval 0009 실제 상태 반영 |
 | 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과 계보 추가 |

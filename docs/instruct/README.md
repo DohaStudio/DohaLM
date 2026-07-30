@@ -85,13 +85,13 @@ processing_contract_v2: frozen_synthetic_e2e_passed
 processing_run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
 runtime_execution_request_0008: not_created
-processing_run_0009: preflight_passed
-approval_0009: issued_unconsumed
+processing_run_0009: retired_runtime_request_governance_mismatch
+approval_0009: retired_before_consumption
 approval_refresh_0009: validated
 runtime_execution_request_0009: not_created
 runtime_request_writer: implemented_synthetic_validated
-approval_retirement_service: implemented_synthetic_validated_not_executed
-approval_retirement_0009: not_executed
+approval_retirement_service: implemented_and_executed_for_0009
+approval_retirement_0009: completed
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
@@ -111,6 +111,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009를 `retired_before_consumption`, Run 0009를 `retired_runtime_request_governance_mismatch`로 영구 폐기 |
 | 2026-07-30 | RuntimeExecutionRequest v1 writer·CLI 합성 검증과 Approval 0009 issued/unconsumed 실제 상태 반영 |
 | 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과·Approval 미발급 상태 등록 |
 | 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval prepared-not-issued 상태 등록 |

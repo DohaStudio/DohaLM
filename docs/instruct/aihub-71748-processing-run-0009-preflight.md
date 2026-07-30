@@ -179,13 +179,35 @@ repository_wide_ruff: 79_pre_existing_errors
 Processing Contract, Synthetic E2E, identity 재사용 차단과 retired Run rejection이 포함된다. 저장소 전체 Ruff의
 79건은 변경 파일 밖 기존 오류이며 이번 문서 변경에서 새 Python 오류를 추가하지 않았다.
 
+## Approval 0009 공식 Retirement
+
+[확정] PR #67 Squash Merge 뒤 canonical public `retire_approval_file(...)` service를 정확히 한 번 사용했다.
+Initial/Refresh evidence는 수정하지 않았으며 retirement evidence는
+`processed_root/approvals/AIHUB-71748-SFT-PROCESSING-APPROVAL-20260730-0009.retirement.json`에 보존한다.
+
+```yaml
+run_status: retired_runtime_request_governance_mismatch
+approval_status: retired_before_consumption
+reason_code: RUNTIME_REQUEST_GOVERNANCE_MISMATCH
+retired_at: 2026-07-30T03:16:46.462827+00:00
+before_file_sha256: 5fe6a22c595dbcf51b1849a83334593acb220588ddf3a1dcb9a9d01aff93f376
+after_file_sha256: e70b254cec8ab0dd7b26355a4e762482a03502971cf40284c7f48a6f07115299
+before_checksum: 7a0dfc9ff060c81d5d9e955e2032914a29a027f6898e6a3a6738756434e4809a
+after_checksum: f6439dd79fbad7805dfe9204aabf7116f09f7e51ddb86aa57f5011f4ec9c2ff2
+stable_fingerprint: 50dcf3c34189f7eb974da08488080d9144d6e6df856779e986f9456dd6f6d06d
+retirement_evidence_fingerprint: 359e453bbdbde06af30279f4514f21a06e57288cdb3601b5ea545f780b84cc67
+consumed: false
+execution_allowed: false
+reusable: false
+```
+
 ## 현재 상태와 다음 승인
 
 ```yaml
 run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
-run_0009: preflight_passed
-approval_0009: issued_unconsumed
+run_0009: retired_runtime_request_governance_mismatch
+approval_0009: retired_before_consumption
 approval_refresh_0009: validated
 runtime_execution_request: absent
 processed_dataset: not_created
@@ -195,16 +217,18 @@ training: not_approved
 execution_allowed: false
 ```
 
-[확정] 후속 별도 승인에서 Live Refresh 검증과 Approval 0009 발급이 완료됐다. Approval은 consumed=false,
-execution_allowed=false이며 RuntimeExecutionRequest는 없다.
+[확정] 후속 별도 승인에서 Live Refresh 검증과 Approval 0009 발급이 완료됐고, PR #67 병합 뒤 공식 public
+retirement service로 `retired_before_consumption` 전환했다. Reason code는
+`RUNTIME_REQUEST_GOVERNANCE_MISMATCH`이며 consumed=false, execution_allowed=false다. 기존 Initial/Refresh evidence는
+변경하지 않았고 RuntimeExecutionRequest·Processing은 없다.
 
-[승인 필요] 실제 RuntimeExecutionRequest 발급은
-[v1 계약](./aihub-71748-runtime-execution-request-v1.md)의 별도 승인 경계를 따른다. 현재 작업은 writer와 CLI를
-합성 검증했을 뿐 실제 Run 0009 artifact를 생성하지 않았다.
+[승인 필요] 다음 신규 identity는 Run 0010 Metadata-Only Preflight의 별도 승인 경계를 따른다. Run 0009와
+Approval 0009는 재사용하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 `retired_runtime_request_governance_mismatch` 영구 폐기 |
 | 2026-07-30 | Approval 0009 issued·unconsumed 상태와 RuntimeExecutionRequest 미생성 경계 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 metadata-only Preflight 결과 기록 |

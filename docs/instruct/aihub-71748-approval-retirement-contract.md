@@ -8,8 +8,8 @@
 ## 목적
 
 [확정] `retire_approval_file(...)`은 canonical Approval artifact를 읽고 무결성·identity·상태를 검증한 뒤
-`issued -> retired_before_consumption` 전환을 안전하게 영속화한다. 이 구현은 실제 Approval 0009를 폐기하지 않으며,
-별도 사용자 승인 전까지 synthetic 입력으로만 검증한다.
+`issued -> retired_before_consumption` 전환을 안전하게 영속화한다. Synthetic 검증과 PR #67 병합 뒤 별도 사용자
+승인으로 실제 Approval 0009에 정확히 한 번 적용했다.
 
 ## Schema 결정
 
@@ -95,12 +95,13 @@ RuntimeExecutionRequest, Preflight, Processing을 호출하지 않는다.
 
 [확정] Synthetic test로 정상 전환, 상태·identity·무결성 차단, 기존 RuntimeExecutionRequest 차단, 경쟁 변경 보존,
 동시 retirement 단일 성공, lock/temp 충돌, short write·flush·file fsync·replace·directory sync·unlock 실패,
-unsupported platform과 CLI zero-call 계약을 검증한다. 실제 Approval 0009, evidence와 processed root는 테스트 입력으로
-사용하지 않는다.
+unsupported platform과 CLI zero-call 계약을 검증했다. 실제 폐기 실행에서는 public service만 사용했으며
+RuntimeExecutionRequest·consume·Processing counter는 모두 0으로 유지됐다.
 
 ```yaml
-approval_0009: issued_unconsumed
-approval_retirement_0009: not_executed
+approval_0009: retired_before_consumption
+approval_retirement_0009: completed
+retirement_reason: RUNTIME_REQUEST_GOVERNANCE_MISMATCH
 runtime_execution_request_0009: absent
 run_0010: not_created
 processing_calls: 0
@@ -111,4 +112,5 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | PR #67 병합 후 Approval 0009 공식 retirement 완료; Run 0010 미생성 유지 |
 | 2026-07-30 | schema v2를 유지하는 public retirement service·evidence·lock/CAS·CLI 계약 초안 작성 |
