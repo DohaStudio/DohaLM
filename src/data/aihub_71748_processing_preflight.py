@@ -506,10 +506,43 @@ def _canonical_preflight_document_bytes(value: Mapping[str, object]) -> bytes:
         raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ATOMIC_WRITE_FAILED") from None
 
 
-def _validate_preflight_document(
+def validate_preflight_document(
     value: Mapping[str, object], *, expected_fingerprint: str,
+    now: datetime | None = None,
 ) -> PreflightEvidence:
+    expected_fields = set(PreflightEvidence.__dataclass_fields__) | {
+        "lineage_validation",
+        "fingerprint",
+        "approval_draft",
+        "approval_draft_fingerprint",
+        "status",
+        "payload_reads",
+        "processing_calls",
+        "output_writes",
+        "approval_issued",
+        "approval_consumed",
+        "execution_allowed",
+    }
+    if set(value) != expected_fields:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     evidence = _preflight_document_evidence(value)
+    lineage_validation = value.get("lineage_validation")
+    if (
+        not isinstance(lineage_validation, Mapping)
+        or set(lineage_validation) != set(LineageValidation.__dataclass_fields__)
+        or lineage_validation.get("execution_source_commit")
+        != evidence.execution_source_commit
+        or lineage_validation.get("governance_record_commit")
+        != evidence.governance_record_commit
+        or any(
+            lineage_validation.get(name) != evidence.lineage.get(name)
+            for name in evidence.lineage
+        )
+        or any(value.get(name) != 0 for name in (
+            "payload_reads", "processing_calls", "output_writes",
+        ))
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
     if (
         value.get("fingerprint") != expected_fingerprint
         or preflight_evidence_fingerprint(evidence) != expected_fingerprint
@@ -524,6 +557,8 @@ def _validate_preflight_document(
         expected_governance_record_commit=evidence.governance_record_commit,
         expected_manifest_sha256=evidence.manifest_sha256,
         expected_backend_fingerprint=evidence.backend_fingerprint,
+        now=now,
+        synthetic=evidence.run_id.startswith("SYNTHETIC-"),
     )
     if (
         value.get("status") != "preflight_passed"
@@ -541,10 +576,29 @@ def _validate_preflight_document(
         evidence_fingerprint=expected_fingerprint,
         expected_run_id=evidence.run_id,
         expected_approval_id=evidence.approval_id,
+        synthetic=evidence.run_id.startswith("SYNTHETIC-"),
     )
     if value.get("approval_draft_fingerprint") != draft_fingerprint:
         raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
     return evidence
+
+
+def load_preflight_evidence_file(
+    path: str | Path, *, expected_fingerprint: str,
+    now: datetime | None = None,
+) -> tuple[PreflightEvidence, dict[str, object]]:
+    """Load one canonical production evidence document and validate its contract."""
+
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED") from None
+    if not isinstance(value, dict):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    evidence = validate_preflight_document(
+        value, expected_fingerprint=expected_fingerprint, now=now,
+    )
+    return evidence, value
 
 
 def _sync_preflight_parent_directory(path: Path) -> None:
@@ -588,7 +642,7 @@ def write_preflight_evidence_file(
     """Durably publish one canonical Preflight result without replacement."""
 
     target = Path(path)
-    evidence = _validate_preflight_document(
+    evidence = validate_preflight_document(
         evidence_document, expected_fingerprint=expected_fingerprint,
     )
     if (
@@ -637,7 +691,7 @@ def write_preflight_evidence_file(
                 or not isinstance(decoded, dict)
             ):
                 raise ValueError("persisted bytes differ")
-            _validate_preflight_document(decoded, expected_fingerprint=expected_fingerprint)
+            validate_preflight_document(decoded, expected_fingerprint=expected_fingerprint)
         except (OSError, UnicodeError, ValueError, json.JSONDecodeError, ProcessingPreflightError):
             raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_INCOMPLETE") from None
     except ProcessingPreflightError:
