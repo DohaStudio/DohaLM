@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 
 import scripts.datasets.issue_aihub_71748_sft_approval as issue_cli
+import scripts.datasets.preflight_aihub_71748_sft_run as preflight_cli
+import scripts.datasets.refresh_aihub_71748_sft_approval_run as refresh_cli
 from src.data.aihub_71748_approval_refresh import (
     ApprovalRefreshEvidence,
     approval_refresh_evidence_fingerprint,
@@ -17,11 +19,17 @@ from src.data.aihub_71748_approval_refresh import (
 )
 from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
+    GitFingerprints,
+    LineageValidation,
+    SourceMetadata,
     build_approval_draft,
     canonical_preflight_evidence_path,
+    load_preflight_evidence_file,
     preflight_evidence_fingerprint,
     validate_approval_draft,
+    write_preflight_evidence_file,
 )
+from src.data.aihub_71748_approval_refresh import write_approval_refresh_evidence_file
 from src.data.processing.aihub_71748_mapping import ResolvedDatasetMapping
 from src.data.processing.approval import ProcessingApprovalError, load_approval
 
@@ -173,6 +181,13 @@ def _write_evidence(
     )
     initial_document = {
         **asdict(initial),
+        "lineage_validation": {
+            "execution_source_commit": EXECUTION,
+            "governance_record_commit": GOVERNANCE,
+            "execution_source_exists": True,
+            "governance_commit_exists": True,
+            **common["lineage"],  # type: ignore[dict-item]
+        },
         "fingerprint": initial_fingerprint,
         "approval_draft": initial_draft,
         "approval_draft_fingerprint": validate_approval_draft(
@@ -184,6 +199,9 @@ def _write_evidence(
             synthetic=True,
         ),
         "status": "preflight_passed",
+        "payload_reads": 0,
+        "processing_calls": 0,
+        "output_writes": 0,
         "approval_issued": False,
         "approval_consumed": False,
         "execution_allowed": False,
@@ -392,3 +410,134 @@ def test_issue_cli_reports_reload_failure_without_follow_on_actions(
     assert _approval_path(mapping).exists()
     assert not (mapping.processed_root / "runtime-evidence" / APPROVAL_ID).exists()
     assert not (mapping.processed_root / RUN_ID).exists()
+
+
+def test_production_builders_writers_loader_and_approval_cli_integrate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    live_now = datetime.now(timezone.utc)
+    run_id = "AIHUB-71748-SFT-PROCESSING-20990101-0013"
+    approval_id = "AIHUB-71748-SFT-PROCESSING-APPROVAL-20990101-0013"
+    mapping = _mapping(tmp_path)
+    lineage = LineageValidation(
+        execution_source_commit=EXECUTION,
+        governance_record_commit=GOVERNANCE,
+        execution_source_exists=True,
+        governance_commit_exists=True,
+        result_code="DIRECT_ANCESTRY_VALID",
+        direct_ancestry=True,
+        squash_merge_mode=False,
+        execution_surface_file_count=10,
+        execution_surface_paths_equal=True,
+        execution_surface_blobs_equal=True,
+        manifest_fingerprint_equal=True,
+        backend_fingerprint_equal=True,
+        governance_reachable_from_origin_develop=True,
+        valid=True,
+    )
+    fingerprints = GitFingerprints(
+        immutable_commit=EXECUTION, manifest_sha256=MANIFEST,
+        backend_fingerprint=BACKEND, backend_file_count=10,
+    )
+    source = SourceMetadata(
+        zip_files=55, total_bytes=17_256_335_769,
+        filename_aggregate="4" * 64, modified_time_aggregate="5" * 64,
+        modified_min_utc=live_now.isoformat(), modified_max_utc=live_now.isoformat(),
+        components=("SFTdata", "SFTlabel"), splits=("Training", "Validation"),
+    )
+    monkeypatch.setattr(preflight_cli, "validate_immutable_commit", lambda *_: EXECUTION)
+    monkeypatch.setattr(preflight_cli, "validate_immutable_lineage", lambda *_, **__: lineage)
+    monkeypatch.setattr(preflight_cli, "compute_git_fingerprints", lambda *_: fingerprints)
+    monkeypatch.setattr(preflight_cli, "validate_backend_worktree", lambda *_: None)
+    monkeypatch.setattr(preflight_cli, "resolve_dataset_mapping", lambda **_: mapping)
+    monkeypatch.setattr(preflight_cli, "discover_source_metadata", lambda *_: source)
+    monkeypatch.setattr(preflight_cli, "validate_run_unused", lambda *_, **__: None)
+    monkeypatch.setattr(preflight_cli, "validate_manifest_document", lambda *_: None)
+    monkeypatch.setattr(
+        preflight_cli, "validate_output_contract",
+        lambda *_, **__: {"free_bytes": 8_000_000_000},
+    )
+    monkeypatch.setattr(preflight_cli, "probe_output_parent", lambda *_: True)
+    monkeypatch.setattr(
+        preflight_cli, "validate_resource_providers",
+        lambda: {
+            "memory_provider_available": True,
+            "runtime_provider_available": True,
+            "current_rss_bytes": 1,
+        },
+    )
+    monkeypatch.setattr(preflight_cli, "_yaml", lambda *_: {})
+    initial = preflight_cli.run_preflight(
+        repository_root=tmp_path,
+        local_mapping_path=tmp_path / "mapping.yaml",
+        manifest_path=tmp_path / "manifest.yaml",
+        immutable_commit=EXECUTION,
+        governance_record_commit=GOVERNANCE,
+        run_id=run_id,
+        approval_id=approval_id,
+        now=live_now,
+    )
+    initial_path = canonical_preflight_evidence_path(mapping.processed_root, run_id)
+    write_preflight_evidence_file(
+        initial_path, initial, expected_fingerprint=str(initial["fingerprint"]),
+    )
+    loaded, loaded_document = load_preflight_evidence_file(
+        initial_path, expected_fingerprint=str(initial["fingerprint"]), now=live_now,
+    )
+    assert loaded.run_id == run_id
+    assert loaded_document == initial
+
+    monkeypatch.setattr(refresh_cli, "validate_governance_refresh_checkout", lambda *_, **__: lineage)
+    monkeypatch.setattr(refresh_cli, "fingerprints_for_refresh", lambda *_, **__: (MANIFEST, BACKEND))
+    monkeypatch.setattr(refresh_cli, "resolve_dataset_mapping", lambda **_: mapping)
+    monkeypatch.setattr(refresh_cli, "discover_source_metadata", lambda *_: source)
+    monkeypatch.setattr(refresh_cli, "validate_manifest_document", lambda *_: None)
+    monkeypatch.setattr(
+        refresh_cli, "validate_output_contract",
+        lambda *_, **__: {"free_bytes": 8_000_000_000},
+    )
+    monkeypatch.setattr(refresh_cli, "probe_output_parent", lambda *_: True)
+    monkeypatch.setattr(
+        refresh_cli, "validate_resource_providers",
+        lambda: {
+            "memory_provider_available": True,
+            "runtime_provider_available": True,
+            "current_rss_bytes": 1,
+        },
+    )
+    monkeypatch.setattr(refresh_cli, "_yaml", lambda *_: {})
+    refresh = refresh_cli.run_approval_refresh(
+        repository_root=tmp_path,
+        local_mapping_path=tmp_path / "mapping.yaml",
+        manifest_path=tmp_path / "manifest.yaml",
+        execution_source_commit=EXECUTION,
+        governance_record_commit=GOVERNANCE,
+        run_id=run_id,
+        approval_id=approval_id,
+        preflight_evidence_path=initial_path,
+        preflight_evidence_fingerprint=str(initial["fingerprint"]),
+        now=live_now,
+    )
+    refresh_path = canonical_approval_refresh_evidence_path(
+        mapping.processed_root, run_id,
+    )
+    write_approval_refresh_evidence_file(
+        refresh_path, refresh, expected_fingerprint=str(refresh["fingerprint"]),
+    )
+    monkeypatch.setattr(issue_cli, "_validate_git_state", lambda *_, **__: None)
+    monkeypatch.setattr(
+        issue_cli, "fingerprints_for_refresh", lambda *_, **__: (MANIFEST, BACKEND),
+    )
+    result = issue_cli.issue_from_evidence(
+        repository=tmp_path,
+        mapping=mapping,
+        run_id=run_id,
+        approval_id=approval_id,
+        execution_source_commit=EXECUTION,
+        governance_record_commit=GOVERNANCE,
+        initial_fingerprint=str(initial["fingerprint"]),
+        refresh_fingerprint=str(refresh["fingerprint"]),
+        approved_by="synthetic-user",
+        now=live_now,
+    )
+    assert result["status"] == "issued"

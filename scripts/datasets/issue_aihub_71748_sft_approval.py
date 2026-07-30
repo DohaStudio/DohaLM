@@ -27,7 +27,7 @@ from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
     ProcessingPreflightError,
     canonical_preflight_evidence_path,
-    deserialize_preflight_evidence,
+    load_preflight_evidence_file,
     preflight_evidence_fingerprint,
     validate_approval_draft,
     validate_preflight_evidence,
@@ -135,15 +135,9 @@ def _load_initial(
     backend_fingerprint: str,
     now: datetime,
 ) -> tuple[PreflightEvidence, Mapping[str, object]]:
-    document = _json(path, code="PREFLIGHT_EVIDENCE_REQUIRED")
-    fields = set(PreflightEvidence.__dataclass_fields__)
-    expected = fields | {
-        "fingerprint", "approval_draft", "approval_draft_fingerprint",
-        "status", "approval_issued", "approval_consumed", "execution_allowed",
-    }
-    if set(document) != expected:
-        raise ApprovalIssueError("PREFLIGHT_EVIDENCE_REQUIRED")
-    evidence = deserialize_preflight_evidence({name: document[name] for name in fields})
+    evidence, document = load_preflight_evidence_file(
+        path, expected_fingerprint=expected_fingerprint, now=now,
+    )
     validate_preflight_evidence(
         evidence,
         expected_fingerprint=expected_fingerprint,

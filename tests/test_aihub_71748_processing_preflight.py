@@ -155,6 +155,13 @@ def _document() -> dict[str, object]:
     )
     return {
         **evidence.__dict__,
+        "lineage_validation": {
+            "execution_source_commit": evidence.execution_source_commit,
+            "governance_record_commit": evidence.governance_record_commit,
+            "execution_source_exists": True,
+            "governance_commit_exists": True,
+            **evidence.lineage,
+        },
         "fingerprint": fingerprint,
         "approval_draft": draft,
         "approval_draft_fingerprint": draft_fingerprint,
