@@ -232,6 +232,18 @@ python -m scripts.datasets.refresh_aihub_71748_sft_approval_run \
 이 CLI는 Approval draft까지만 재검증하며 Approval issue/consume, Runtime request 생성, payload read, Processing과
 output write를 호출하지 않는다. 실제 refresh와 Approval 발급은 별도 governance 승인 전까지 금지한다.
 
+## Approval Refresh Evidence atomic writer
+
+[확정] 공식 Refresh CLI는 [Approval Refresh Evidence Writer](./aihub-71748-approval-refresh-evidence-writer.md)를
+통해 `ApprovalRefreshEvidence v1` 결과를 canonical 경로에 게시한다. exclusive temp, short-write 검사, flush,
+file fsync와 hard-link atomic no-replace를 사용하며 기존 final·경쟁 final·foreign temp를 덮어쓰거나 삭제하지 않는다.
+POSIX parent directory sync 실패와 publish 후 reload·SHA-256·fingerprint 검증 실패는 성공으로 처리하지 않는다.
+
+[확정] CLI는 resolved processed root의 `runtime-evidence/<run-id>/approval-refresh-evidence.json`만 허용한다.
+Initial Evidence와 Approval artifact 경로 또는 임의 경로는 차단한다. 이번 Synthetic 구현 검증은 실제 Run 0010
+Refresh가 아니며, 구현 병합 전 Run 0010은 `preflight_passed`, Refresh는 `not_created`, Run 0011은
+`not_created`, `execution_allowed=false`를 유지한다.
+
 ## Approval durable atomic no-replace write
 
 [확정] Approval JSON은 UTF-8 canonical bytes를 exclusive temporary file에 기록하고 short write 확인, flush와
@@ -279,6 +291,7 @@ Live Refresh는 검증됐고 RuntimeExecutionRequest·consume·Processing은 생
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval Refresh Evidence atomic no-replace writer·canonical CLI 경로·reload 검증 합성 구현 |
 | 2026-07-30 | Initial Preflight Evidence atomic no-replace writer·canonical CLI 경로·빈 parent identity 계약 합성 검증 |
 | 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 `retired_runtime_request_governance_mismatch` 반영 |
 | 2026-07-30 | public Approval retirement artifact service·별도 evidence·lock/CAS 정책 연결 |

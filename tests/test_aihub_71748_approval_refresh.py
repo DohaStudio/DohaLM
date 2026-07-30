@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
+import errno
+import hashlib
 import json
 from pathlib import Path
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from typing import Callable
 
 import pytest
 
@@ -14,11 +18,14 @@ from src.data.aihub_71748_approval_refresh import (
     ActiveRunRegistryState,
     ApprovalRefreshEvidence,
     approval_refresh_evidence_fingerprint,
+    build_refresh_approval_draft,
+    canonical_approval_refresh_evidence_path,
     deserialize_approval_refresh_evidence,
     validate_active_run_for_approval_refresh,
     validate_approval_refresh_evidence,
     validate_governance_refresh_checkout,
     validate_previous_preflight_evidence,
+    write_approval_refresh_evidence_file,
 )
 from src.data.aihub_71748_processing_preflight import (
     BACKEND_PATHS,
@@ -135,6 +142,290 @@ def _validate(evidence: ApprovalRefreshEvidence, *, now: datetime = STAMP) -> No
         expected_manifest_sha256="4" * 64, expected_backend_fingerprint="5" * 64,
         expected_previous_preflight_fingerprint="1" * 64, now=now,
     )
+
+
+def _writer_document() -> dict[str, object]:
+    generated = datetime.now(timezone.utc)
+    evidence = _evidence(
+        generated_at=generated.isoformat(),
+        expires_at=(generated + timedelta(hours=1)).isoformat(),
+    )
+    fingerprint = approval_refresh_evidence_fingerprint(evidence)
+    return {
+        **asdict(evidence),
+        "fingerprint": fingerprint,
+        "approval_draft": build_refresh_approval_draft(
+            evidence, evidence_fingerprint=fingerprint,
+        ),
+        "status": "approval_refresh_validated",
+        "approval_issued": False,
+        "approval_consumed": False,
+        "runtime_request_created": False,
+        "payload_reads": 0,
+        "processing_calls": 0,
+        "output_writes": 0,
+        "execution_allowed": False,
+    }
+
+
+def test_refresh_writer_publishes_and_reloads_canonical_document(tmp_path: Path) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    result = write_approval_refresh_evidence_file(
+        target, document, expected_fingerprint=str(document["fingerprint"]),
+    )
+    assert result == target
+    assert json.loads(target.read_text(encoding="utf-8")) == document
+    assert len(hashlib.sha256(target.read_bytes()).hexdigest()) == 64
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_refresh_writer_preserves_existing_final(tmp_path: Path) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"existing-final")
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.read_bytes() == b"existing-final"
+
+
+def test_refresh_writer_concurrent_publishers_allow_one_success(tmp_path: Path) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+
+    def publish() -> str:
+        try:
+            write_approval_refresh_evidence_file(
+                target, document, expected_fingerprint=str(document["fingerprint"]),
+            )
+        except ProcessingPreflightError as exc:
+            return str(exc)
+        return "success"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: publish(), range(2)))
+    assert results.count("success") == 1
+    assert target.is_file()
+
+
+def test_refresh_writer_preserves_competing_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    original = refresh._publish_approval_refresh_no_replace
+
+    def compete(temporary: Path, final: Path) -> None:
+        final.write_bytes(b"competing-final")
+        original(temporary, final)
+
+    monkeypatch.setattr(refresh, "_publish_approval_refresh_no_replace", compete)
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.read_bytes() == b"competing-final"
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_refresh_writer_parent_failure_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    original = Path.mkdir
+
+    def fail(path: Path, *args: object, **kwargs: object) -> None:
+        if path == target.parent:
+            raise OSError("synthetic")
+        original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", fail)
+    with pytest.raises(ProcessingPreflightError, match="PARENT_CREATE_FAILED"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+
+
+def test_refresh_writer_foreign_temp_is_preserved(tmp_path: Path) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.parent.mkdir(parents=True)
+    temporary.write_bytes(b"foreign-temp")
+    with pytest.raises(ProcessingPreflightError, match="TEMPORARY_COLLISION"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert temporary.read_bytes() == b"foreign-temp"
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("failure", ["short_write", "flush"])
+def test_refresh_writer_stream_failures_leave_no_artifact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    original_fdopen = refresh.os.fdopen
+
+    class FailingStream:
+        def __init__(self, descriptor: int) -> None:
+            self.stream = original_fdopen(descriptor, "wb")
+
+        def __enter__(self) -> "FailingStream":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.stream.close()
+
+        def write(self, payload: bytes) -> int:
+            return 0 if failure == "short_write" else self.stream.write(payload)
+
+        def flush(self) -> None:
+            if failure == "flush":
+                raise OSError("synthetic")
+            self.stream.flush()
+
+        def fileno(self) -> int:
+            return self.stream.fileno()
+
+    monkeypatch.setattr(
+        refresh.os, "fdopen", lambda descriptor, _mode: FailingStream(descriptor),
+    )
+    with pytest.raises(ProcessingPreflightError, match="ATOMIC_WRITE_FAILED"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_refresh_writer_fsync_failure_leaves_no_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    monkeypatch.setattr(
+        refresh.os, "fsync", lambda _fd: (_ for _ in ()).throw(OSError()),
+    )
+    with pytest.raises(ProcessingPreflightError, match="ATOMIC_WRITE_FAILED"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    "error_number,error_code",
+    [(errno.EIO, "ATOMIC_WRITE_FAILED"), (errno.EXDEV, "NO_REPLACE_UNSUPPORTED")],
+)
+def test_refresh_writer_publish_failures_have_no_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    error_number: int,
+    error_code: str,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    monkeypatch.setattr(
+        refresh.os, "link",
+        lambda *_args: (_ for _ in ()).throw(OSError(error_number, "synthetic")),
+    )
+    with pytest.raises(ProcessingPreflightError, match=error_code):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_refresh_writer_directory_sync_failure_preserves_incomplete_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    monkeypatch.setattr(
+        refresh, "_sync_approval_refresh_parent_directory",
+        lambda _path: (_ for _ in ()).throw(
+            ProcessingPreflightError(
+                "APPROVAL_REFRESH_EVIDENCE_DIRECTORY_SYNC_FAILED"
+            )
+        ),
+    )
+    with pytest.raises(ProcessingPreflightError, match="DIRECTORY_SYNC_FAILED"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.is_file()
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+
+
+def test_refresh_writer_reload_failure_preserves_incomplete_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    import src.data.aihub_71748_approval_refresh as refresh
+
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    monkeypatch.setattr(
+        refresh, "_read_approval_refresh_document",
+        lambda _path: (_ for _ in ()).throw(
+            ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_INCOMPLETE")
+        ),
+    )
+    with pytest.raises(ProcessingPreflightError, match="INCOMPLETE"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.is_file()
+
+
+def test_refresh_writer_rejects_fingerprint_mismatch_without_artifact(tmp_path: Path) -> None:
+    document = _writer_document()
+    target = canonical_approval_refresh_evidence_path(tmp_path, RUN_ID)
+    with pytest.raises(ProcessingPreflightError, match="FINGERPRINT_MISMATCH"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint="0" * 64,
+        )
+    assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    "target_factory",
+    [
+        lambda root: root / "runtime-evidence" / RUN_ID / "preflight-evidence.json",
+        lambda root: root / "approvals" / f"{APPROVAL_ID}.json",
+        lambda root: root / "wrong" / "approval-refresh-evidence.json",
+    ],
+)
+def test_refresh_writer_rejects_noncanonical_paths(
+    tmp_path: Path, target_factory: Callable[[Path], Path],
+) -> None:
+    document = _writer_document()
+    target = target_factory(tmp_path)
+    with pytest.raises(ProcessingPreflightError, match="PATH_INVALID"):
+        write_approval_refresh_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
 
 
 def test_active_run_refresh_accepts_only_explicit_preflight_passed_state(tmp_path: Path) -> None:
@@ -312,3 +603,77 @@ def test_refresh_cli_never_issues_or_consumes_approval(
         "--approval-refresh-only",
     ]) == 0
     assert '"execution_allowed": false' in capsys.readouterr().out
+
+
+def test_refresh_cli_uses_public_writer_at_canonical_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _writer_document()
+    processed = tmp_path / "processed"
+    target = canonical_approval_refresh_evidence_path(processed, RUN_ID)
+    calls: list[tuple[Path, str]] = []
+    monkeypatch.setattr(refresh_cli, "run_approval_refresh", lambda **_kwargs: document)
+    monkeypatch.setattr(refresh_cli, "_yaml", lambda _path: {})
+    monkeypatch.setattr(
+        refresh_cli, "resolve_dataset_mapping",
+        lambda **_kwargs: ResolvedDatasetMapping(
+            dataset_id="AIHUB-71748", component="SFT",
+            source_root=tmp_path / "source", processed_root=processed,
+            resolution_source="synthetic",
+        ),
+    )
+    monkeypatch.setattr(
+        refresh_cli,
+        "write_approval_refresh_evidence_file",
+        lambda path, _document, *, expected_fingerprint: calls.append(
+            (Path(path), expected_fingerprint)
+        ) or Path(path),
+    )
+    assert refresh_cli.main([
+        "--mapping", "synthetic.yaml",
+        "--manifest", "synthetic-manifest.yaml",
+        "--execution-source-commit", "1" * 40,
+        "--governance-record-commit", "2" * 40,
+        "--run-id", RUN_ID,
+        "--approval-id", APPROVAL_ID,
+        "--preflight-evidence", "synthetic.json",
+        "--preflight-evidence-fingerprint", "3" * 64,
+        "--approval-refresh-only",
+        "--output-evidence", str(target),
+    ]) == 0
+    assert calls == [(target, str(document["fingerprint"]))]
+
+
+def test_refresh_cli_rejects_noncanonical_output_without_writer_call(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _writer_document()
+    processed = tmp_path / "processed"
+    calls: list[Path] = []
+    monkeypatch.setattr(refresh_cli, "run_approval_refresh", lambda **_kwargs: document)
+    monkeypatch.setattr(refresh_cli, "_yaml", lambda _path: {})
+    monkeypatch.setattr(
+        refresh_cli, "resolve_dataset_mapping",
+        lambda **_kwargs: ResolvedDatasetMapping(
+            dataset_id="AIHUB-71748", component="SFT",
+            source_root=tmp_path / "source", processed_root=processed,
+            resolution_source="synthetic",
+        ),
+    )
+    monkeypatch.setattr(
+        refresh_cli, "write_approval_refresh_evidence_file",
+        lambda path, *_args, **_kwargs: calls.append(Path(path)),
+    )
+    assert refresh_cli.main([
+        "--mapping", "synthetic.yaml",
+        "--manifest", "synthetic-manifest.yaml",
+        "--execution-source-commit", "1" * 40,
+        "--governance-record-commit", "2" * 40,
+        "--run-id", RUN_ID,
+        "--approval-id", APPROVAL_ID,
+        "--preflight-evidence", "synthetic.json",
+        "--preflight-evidence-fingerprint", "3" * 64,
+        "--approval-refresh-only",
+        "--output-evidence", str(tmp_path / "wrong.json"),
+    ]) == 2
+    assert calls == []
