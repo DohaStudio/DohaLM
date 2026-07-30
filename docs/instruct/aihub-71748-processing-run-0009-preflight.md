@@ -185,8 +185,8 @@ Processing Contract, Synthetic E2E, identity 재사용 차단과 retired Run rej
 run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
 run_0009: preflight_passed
-approval_0009: prepared_not_issued
-approval_refresh_0009: not_executed
+approval_0009: issued_unconsumed
+approval_refresh_0009: validated
 runtime_execution_request: absent
 processed_dataset: not_created
 tokenization: not_approved
@@ -195,11 +195,16 @@ training: not_approved
 execution_allowed: false
 ```
 
-[승인 필요] 이 문서 PR의 리뷰·병합 후 새 governance commit에서 Run 0009 Live Refresh를 별도로 승인해야 한다.
-그 Refresh가 통과하기 전에는 Approval 0009 발급을 검토하지 않는다.
+[확정] 후속 별도 승인에서 Live Refresh 검증과 Approval 0009 발급이 완료됐다. Approval은 consumed=false,
+execution_allowed=false이며 RuntimeExecutionRequest는 없다.
+
+[승인 필요] 실제 RuntimeExecutionRequest 발급은
+[v1 계약](./aihub-71748-runtime-execution-request-v1.md)의 별도 승인 경계를 따른다. 현재 작업은 writer와 CLI를
+합성 검증했을 뿐 실제 Run 0009 artifact를 생성하지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009 issued·unconsumed 상태와 RuntimeExecutionRequest 미생성 경계 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 metadata-only Preflight 결과 기록 |
