@@ -135,8 +135,8 @@ run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
 runtime_execution_request_0008: not_created
 run_0009: preflight_passed
-approval_0009: prepared_not_issued
-approval_refresh_0009: not_executed
+approval_0009: issued_unconsumed
+approval_refresh_0009: validated
 runtime_execution_request_0009: not_created
 processed_dataset: not_created
 tokenization: not_approved
@@ -147,9 +147,9 @@ execution_allowed: false
 
 ## 19. Next Approval
 
-[승인 필요] Run 0009 결과 문서를 병합한 최신 `develop`에서 execution surface와 evidence freshness를 live
-재검증하는 별도 승인이 필요하다. 그 전에는 Approval 0009 발급·소비, Runtime request, payload 접근,
-Processing과 output 생성을 수행하지 않는다.
+[확정] Run 0009 Live Refresh와 Approval 발급은 후속 승인으로 완료됐고 Approval은 issued·unconsumed다.
+[승인 필요] [RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)에 따른 실제 request
+발급은 별도 승인 대상이다. 그 전에는 Approval 소비, runtime gate, payload 접근과 Processing을 수행하지 않는다.
 
 ## 20. Active Run refresh와 durable issuance
 
@@ -179,13 +179,14 @@ Approval 0008을 폐기했다.
 execution surface를 과거 identity에 소급하지 않으며 Approval 0008은 미발급 상태로 영구 비재사용한다.
 
 [확정] Run 0009는 current governance commit을 새 execution source로 사용해 `DIRECT_ANCESTRY_VALID`를 통과했다.
-Preflight evidence와 Approval draft만 생성했으며 Approval artifact·RuntimeExecutionRequest·Processing은 생성하거나
-실행하지 않았다.
+Preflight 뒤 후속 Live Refresh와 Approval 발급이 완료됐다. Approval artifact는 issued·unconsumed이며
+RuntimeExecutionRequest·Processing은 생성하거나 실행하지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | RuntimeExecutionRequest v1 공식 writer 계보와 Approval 0009 issued·unconsumed 상태 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 신규 immutable lineage 연결 |
 | 2026-07-30 | Approval publish를 POSIX·Windows hard-link atomic no-replace로 전환하고 경쟁 final·incomplete 재사용 차단 계약 확정 |
 | 2026-07-30 | Active Run Approval refresh 계보와 durable atomic issuance writer 계약 추가(Synthetic only) |

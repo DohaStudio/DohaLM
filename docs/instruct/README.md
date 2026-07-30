@@ -48,6 +48,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 Processing 실행 계약 v2](./aihub-71748-processing-contract-v2.md)
 - [AIHUB-71748 Processing Run 0008 Metadata-Only Preflight](./aihub-71748-processing-run-0008-preflight.md)
 - [AIHUB-71748 Processing Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)
+- [AIHUB-71748 RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -84,9 +85,10 @@ processing_run_0008: retired_backend_fingerprint_mismatch
 approval_0008: retired_not_issued
 runtime_execution_request_0008: not_created
 processing_run_0009: preflight_passed
-approval_0009: prepared_not_issued
-approval_refresh_0009: not_executed
+approval_0009: issued_unconsumed
+approval_refresh_0009: validated
 runtime_execution_request_0009: not_created
+runtime_request_writer: implemented_synthetic_validated
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
@@ -106,6 +108,7 @@ Component는 `CONDITIONALLY_SELECTED`로 공식 선정됐지만 Dataset Processi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | RuntimeExecutionRequest v1 writer·CLI 합성 검증과 Approval 0009 issued/unconsumed 실제 상태 반영 |
 | 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과·Approval 미발급 상태 등록 |
 | 2026-07-30 | Run 0008 metadata-only Preflight 통과와 Approval prepared-not-issued 상태 등록 |
 | 2026-07-30 | Processing 계약 v2 동결, Run 0007 시작 전 폐기와 Synthetic E2E 통과 |

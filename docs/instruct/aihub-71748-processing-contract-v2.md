@@ -62,6 +62,11 @@ fingerprint는 lifecycle 전환에 독립적인 identity를 나타낸다.
 
 ## RuntimeExecutionRequest v1
 
+[확정] v1 schema를 유지한다. `preflight_evidence_fingerprint`는 최신 Approval Refresh evidence를 가리키고,
+Initial evidence는 Refresh의 `previous_preflight_evidence_fingerprint`로 연결한다. `request_fingerprint`는 canonical
+payload의 integrity checksum 역할을 겸한다. 상세 계약은
+[RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)을 따른다.
+
 Runtime request는 request/run/Approval identity, Approval·Preflight fingerprint, 두 commit, Manifest·Backend
 fingerprint, one-shot budget, requester, timezone-aware 발급·만료 시각, nonce와 fingerprint를 포함한다.
 `execution_allowed=true`는 메모리 또는 Git 외부 runtime artifact에서만 허용된다. 생성 자체는 Approval을 소비하거나
@@ -155,11 +160,12 @@ preflight_attempts: 1
 preflight_evidence_schema: 2
 approval_0008: retired_not_issued
 run_0009: preflight_passed
-approval_0009: prepared_not_issued
-approval_refresh_0009: not_executed
+approval_0009: issued_unconsumed
+approval_refresh_0009: validated
 runtime_execution_request: not_created
+runtime_request_writer: implemented_synthetic_validated
 actual_dataset_payload_access: 0
-actual_approval_issued: 0
+actual_approval_issued: 1
 actual_processing_calls: 0
 processed_dataset: not_created
 tokenization: not_approved
@@ -246,12 +252,14 @@ revision이다. Run 0008은 후속 live refresh 불일치로 폐기됐으며 App
 
 [확정] [Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)는 현재 안전한 develop
 commit `841123ea2f0d3f0fccb8cf456edaf8c9faa44014`를 execution source와 governance commit으로 사용해 통과했다.
-Approval 0009는 `prepared_not_issued`, Live Refresh는 `not_executed`, `execution_allowed=false`다.
+Approval 0009는 후속 승인 작업에서 `issued`가 되었지만 `consumed=false`, `execution_allowed=false`다. Live Refresh는
+검증됐고 RuntimeExecutionRequest는 아직 생성하지 않았다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | RuntimeExecutionRequest v1 발급 서비스·atomic writer·CLI 계약과 Approval 0009 실제 상태 반영 |
 | 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과 계보 추가 |
 | 2026-07-30 | exists-check + replace TOCTOU 제거, POSIX·Windows hard-link atomic no-replace publish와 incomplete 재사용 차단 확정 |
 | 2026-07-30 | Initial/Approval refresh 분리, governance checkout 검증, ApprovalRefreshEvidence v1과 durable atomic Approval writer 보완(Synthetic only) |
