@@ -93,12 +93,12 @@ execution_allowed: false
 
 ## Run 0009 안전 상태
 
-[확정] 이 구현과 테스트는 합성 identity와 임시 경로만 사용했다. 실제 Approval 0009 artifact, Initial/Refresh
-evidence와 외부 processed root를 입력하지 않았고 실제 request를 만들지 않았다.
+[확정] 실제 RuntimeExecutionRequest 0009는 생성하지 않았다. Approval 0009는 공식 retirement service로
+`retired_before_consumption` 전환되어 이후 request 발급 대상이 아니다. Initial/Refresh evidence는 변경하지 않았다.
 
 ```yaml
 approval_0009:
-  status: issued
+  status: retired_before_consumption
   consumed: false
   execution_allowed: false
 runtime_execution_request_0009: not_created
@@ -110,9 +110,8 @@ output_writes: 0
 execution_allowed: false
 ```
 
-[승인 필요] PR 리뷰·병합 후 실제 Run 0009 request 발급 여부를 별도로 결정해야 한다. 병합 commit이 Approval의
-`governance_record_commit`과 달라지는 경우 기존 Approval로 실행을 우회하지 않고 새 lineage/Approval 결정을 먼저
-내려야 한다.
+[승인 필요] 실제 request가 필요하면 Run 0010 Metadata-Only Preflight부터 새 lineage와 Approval을 구성해야 한다.
+폐기된 Run 0009·Approval 0009로 실행을 우회하지 않는다.
 
 ## Retirement와 상호 배제
 
@@ -124,5 +123,6 @@ retirement가 동시에 성공할 수 없다. 실제 RuntimeExecutionRequest 000
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval 0009 retirement 완료와 RuntimeExecutionRequest 0009 영구 차단 상태 반영 |
 | 2026-07-30 | Approval retirement와 RuntimeExecutionRequest publish의 lifecycle lock 상호 배제 추가 |
 | 2026-07-30 | v1 의미 매핑, 공식 발급 서비스·atomic no-replace writer·CLI·합성 검증 계약 구현 |
