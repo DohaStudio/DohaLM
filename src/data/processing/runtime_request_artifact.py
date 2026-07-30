@@ -25,6 +25,8 @@ from src.data.aihub_71748_approval_refresh import (
 
 from .approval import (
     ApprovalRecord,
+    ProcessingApprovalError,
+    approval_lifecycle_lock,
     approval_fingerprint,
     load_approval,
     validate_approval,
@@ -479,10 +481,26 @@ def issue_runtime_execution_request(
         )
     except RuntimeError as exc:
         raise RuntimeRequestArtifactError(str(exc)) from None
-    approval_before = Path(approval_path).read_bytes()
-    _write_runtime_request(target, request)
-    if Path(approval_path).read_bytes() != approval_before:
-        raise RuntimeRequestArtifactError("RUNTIME_REQUEST_APPROVAL_FINGERPRINT_MISMATCH")
+    approval_target = Path(approval_path)
+    try:
+        with approval_lifecycle_lock(approval_target):
+            current_approval = load_approval(approval_target)
+            if current_approval != approval or current_approval.status != "issued":
+                raise RuntimeRequestArtifactError(
+                    "RUNTIME_REQUEST_APPROVAL_FINGERPRINT_MISMATCH",
+                )
+            if target.exists():
+                raise RuntimeRequestArtifactError("RUNTIME_REQUEST_ALREADY_EXISTS")
+            approval_before = approval_target.read_bytes()
+            _write_runtime_request(target, request)
+            if approval_target.read_bytes() != approval_before:
+                raise RuntimeRequestArtifactError(
+                    "RUNTIME_REQUEST_APPROVAL_FINGERPRINT_MISMATCH",
+                )
+    except ProcessingApprovalError:
+        raise RuntimeRequestArtifactError(
+            "RUNTIME_REQUEST_APPROVAL_FINGERPRINT_MISMATCH",
+        ) from None
     if counters is not None:
         counters.increment("runtime_request_creations")
     validated = validate_runtime_execution_request_artifact(

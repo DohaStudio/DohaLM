@@ -125,6 +125,8 @@ Candidate B 학습은 다시 실행하지 않는다.
   후속 Live Refresh 검증과 Approval 0009 발급도 완료됐다. Approval은 issued·unconsumed다.
 - [확정] RuntimeExecutionRequest v1 공식 writer·CLI는 합성 검증을 통과했다. 실제 Run 0009 request,
   Approval consume, Dataset payload·Processing은 모두 0건이며 `execution_allowed=false`다.
+- [확정] issued·미소비 Approval의 public retirement artifact service·별도 lifecycle evidence·lock/CAS·CLI가
+  합성 검증됐다. 실제 Approval 0009 retirement와 Run 0010 Preflight는 실행하지 않았다.
 
 ## 9. 다음 권장 작업
 
@@ -136,6 +138,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | issued Approval retirement service 합성 구현; Approval 0009·Run 0010 실제 상태 유지 |
 | 2026-07-30 | RuntimeExecutionRequest v1 writer·CLI 구현과 Run 0009 Approval issued·unconsumed 상태 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 metadata-only Preflight 통과 상태 반영 |
 | 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Backend·Training 미승인 상태 반영 |

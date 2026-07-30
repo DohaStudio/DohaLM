@@ -49,6 +49,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 Processing Run 0008 Metadata-Only Preflight](./aihub-71748-processing-run-0008-preflight.md)
 - [AIHUB-71748 Processing Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)
 - [AIHUB-71748 RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)
+- [AIHUB-71748 Approval Retirement Contract](./aihub-71748-approval-retirement-contract.md)
 - [Prompt Template](./instruction-prompt-template.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
@@ -89,6 +90,8 @@ approval_0009: issued_unconsumed
 approval_refresh_0009: validated
 runtime_execution_request_0009: not_created
 runtime_request_writer: implemented_synthetic_validated
+approval_retirement_service: implemented_synthetic_validated_not_executed
+approval_retirement_0009: not_executed
 rule_thresholds: approved_for_processing_manifest
 processed_dataset: not_created
 publication: not_approved
