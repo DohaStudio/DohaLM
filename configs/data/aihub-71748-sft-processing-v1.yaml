@@ -30,7 +30,7 @@ input_contract:
       - question
       - question_count
       - question_type
-      - data_category
+      - data_category.middle
     SFTlabel:
       - data_id
       - question
@@ -78,7 +78,7 @@ output_schema:
       question_type:
         source: question_type
       data_category:
-        source: data_category
+        source: data_category.middle
 
 rule_order:
   - INPUT_IDENTITY_VALIDATION

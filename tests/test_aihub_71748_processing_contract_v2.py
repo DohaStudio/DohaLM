@@ -158,7 +158,8 @@ def _package(root: Path) -> Path:
         data = [
             {
                 "data_id": f"{prefix}{index}", "question": prompts[f"{prefix}{index}"][0],
-                "question_count": 1, "question_type": "qa", "data_category": "synthetic",
+                "question_count": 1, "question_type": "qa",
+                "data_category": {"main": "synthetic", "middle": "test"},
             }
             for index in range(count)
         ]
