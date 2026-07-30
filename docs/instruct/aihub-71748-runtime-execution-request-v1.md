@@ -114,8 +114,15 @@ execution_allowed: false
 `governance_record_commit`과 달라지는 경우 기존 Approval로 실행을 우회하지 않고 새 lineage/Approval 결정을 먼저
 내려야 한다.
 
+## Retirement와 상호 배제
+
+[확정] RuntimeExecutionRequest publish는 Approval lifecycle lock 안에서 Approval이 여전히 issued인지 다시 검증한다.
+Retirement service도 같은 lock을 사용하고 기존 request artifact가 있으면 폐기를 거부한다. 따라서 request 발급과
+retirement가 동시에 성공할 수 없다. 실제 RuntimeExecutionRequest 0009는 여전히 생성되지 않았다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Approval retirement와 RuntimeExecutionRequest publish의 lifecycle lock 상호 배제 추가 |
 | 2026-07-30 | v1 의미 매핑, 공식 발급 서비스·atomic no-replace writer·CLI·합성 검증 계약 구현 |

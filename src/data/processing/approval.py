@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 import errno
@@ -10,7 +11,8 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Mapping
+import secrets
+from typing import BinaryIO, Iterator, Mapping
 
 from .run_contract import (
     ExecutionCounters,
@@ -27,10 +29,17 @@ class ProcessingApprovalError(RuntimeError):
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
+_RETIREMENT_REASON = re.compile(r"^[A-Z][A-Z0-9_]{2,127}$")
 _STATES = frozenset({
     "prepared_not_issued", "issued", "consumed", "completed", "failed",
     "retired_not_issued", "retired_before_consumption", "retired_issue_incomplete",
 })
+
+_RETIREMENT_EVIDENCE_SUFFIX = ".retirement.json"
+_LIFECYCLE_LOCK_SUFFIX = ".lifecycle.lock"
+_RETIREMENT_TEMP_SUFFIX = ".retirement.tmp"
+_RETIREMENT_EVIDENCE_TEMP_SUFFIX = ".retirement-evidence.tmp"
+_RETIREMENT_PROBE_SUFFIX = ".retirement-link-probe"
 
 
 @dataclass(frozen=True)
@@ -100,6 +109,25 @@ class LegacyApprovalRecord:
     executable: bool = False
 
 
+@dataclass(frozen=True)
+class ApprovalRetirementEvidence:
+    """Immutable audit evidence kept separately from ApprovalRecord schema v2."""
+
+    schema_version: int
+    approval_id: str
+    processing_run_id: str
+    previous_status: str
+    status: str
+    retired_at: str
+    reason_code: str
+    before_file_sha256: str
+    after_file_sha256: str
+    before_checksum: str
+    after_checksum: str
+    stable_fingerprint: str
+    evidence_fingerprint: str = ""
+
+
 def _timestamp(value: str | None, *, required: bool) -> datetime | None:
     if value is None:
         if required:
@@ -136,6 +164,40 @@ def approval_fingerprint(record: ApprovalRecord) -> str:
         value.pop(field_name)
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def approval_retirement_evidence_path(path: str | Path) -> Path:
+    target = Path(path)
+    return target.with_name(target.stem + _RETIREMENT_EVIDENCE_SUFFIX)
+
+
+def approval_retirement_evidence_fingerprint(
+    evidence: ApprovalRetirementEvidence,
+) -> str:
+    value = asdict(evidence)
+    value["evidence_fingerprint"] = ""
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_NOT_FOUND") from None
+    return digest.hexdigest()
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    try:
+        return json.dumps(
+            asdict(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ATOMIC_WRITE_FAILED") from None
 
 
 def _budgets(record: ApprovalRecord) -> None:
@@ -416,6 +478,103 @@ def _atomic_write(path: Path, record: ApprovalRecord, *, exclusive: bool = False
                 raise ProcessingApprovalError("APPROVAL_ISSUANCE_INCOMPLETE") from None
 
 
+def _retirement_compare_and_swap_hook(_path: Path) -> None:
+    """Deterministic race-test seam; production behavior is intentionally empty."""
+
+
+def _write_complete(stream: BinaryIO, payload: bytes) -> None:
+    written = stream.write(payload)
+    if written != len(payload):
+        raise OSError("short write")
+
+
+def _flush_and_sync(stream: BinaryIO) -> None:
+    stream.flush()
+    os.fsync(stream.fileno())
+
+
+def _write_retirement_temporary(path: Path, payload: bytes) -> None:
+    descriptor = -1
+    created = False
+    completed = False
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            _write_complete(stream, payload)
+            _flush_and_sync(stream)
+        completed = True
+    except FileExistsError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_TEMPORARY_COLLISION") from None
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ATOMIC_WRITE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if created and not completed and path.exists():
+            try:
+                path.unlink()
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+
+
+@contextmanager
+def _retirement_lock(path: Path) -> Iterator[None]:
+    lock_path = path.with_name(path.name + _LIFECYCLE_LOCK_SUFFIX)
+    nonce = secrets.token_urlsafe(32)
+    payload = json.dumps(
+        {"owner_pid": os.getpid(), "nonce": nonce},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    descriptor = -1
+    acquired = False
+    try:
+        try:
+            descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            raise ProcessingApprovalError("APPROVAL_RETIREMENT_LOCK_COLLISION") from None
+        acquired = True
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            _write_complete(stream, payload)
+        yield
+    except ProcessingApprovalError:
+        raise
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ATOMIC_WRITE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if acquired:
+            try:
+                if lock_path.read_bytes() != payload:
+                    raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE")
+                lock_path.unlink()
+            except ProcessingApprovalError:
+                raise
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+
+
+@contextmanager
+def approval_lifecycle_lock(path: str | Path) -> Iterator[None]:
+    """Serialize cooperative Approval lifecycle and runtime-request writers."""
+
+    with _retirement_lock(Path(path)):
+        yield
+
+
+def _cleanup_retirement_temporary(path: Path) -> None:
+    if not path.exists():
+        return
+    try:
+        path.unlink()
+    except OSError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+
+
 def _transition(record: ApprovalRecord, expected: set[str], target: str, **timestamps: str | None) -> ApprovalRecord:
     if record.status not in expected:
         code = "APPROVAL_ALREADY_FINALIZED" if record.status in {"completed", "failed", "retired"} else "APPROVAL_STATE_TRANSITION_INVALID"
@@ -529,6 +688,245 @@ def validate_approval_file(path: str | Path, contract: ProcessingRunContract) ->
     return validate_approval(load_approval(path), contract)
 
 
+def load_approval_retirement_evidence(
+    path: str | Path,
+) -> ApprovalRetirementEvidence:
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_NOT_FOUND") from None
+    expected = set(ApprovalRetirementEvidence.__dataclass_fields__)
+    if not isinstance(value, dict) or set(value) != expected:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+    try:
+        evidence = ApprovalRetirementEvidence(**value)  # type: ignore[arg-type]
+    except TypeError:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED") from None
+    if (
+        evidence.schema_version != 1
+        or evidence.previous_status != "issued"
+        or evidence.status != "retired_before_consumption"
+        or not _RETIREMENT_REASON.fullmatch(evidence.reason_code)
+        or any(
+            not _SHA256.fullmatch(item)
+            for item in (
+                evidence.before_file_sha256,
+                evidence.after_file_sha256,
+                evidence.before_checksum,
+                evidence.after_checksum,
+                evidence.stable_fingerprint,
+                evidence.evidence_fingerprint,
+            )
+        )
+        or _timestamp(evidence.retired_at, required=True) is None
+        or evidence.evidence_fingerprint
+        != approval_retirement_evidence_fingerprint(evidence)
+    ):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+    return evidence
+
+
+def _approval_contract(record: ApprovalRecord) -> ProcessingRunContract:
+    return ProcessingRunContract(
+        run_id=record.processing_run_id,
+        approval_id=record.approval_id,
+        processing_allowed=record.processing_allowed,
+        payload_read_allowed=record.payload_read_allowed,
+        output_write_allowed=record.output_write_allowed,
+        execution_allowed=False,
+    )
+
+
+def retire_approval_file(
+    path: str | Path,
+    *,
+    expected_approval_id: str,
+    expected_run_id: str,
+    expected_file_sha256: str,
+    expected_checksum: str | None = None,
+    expected_stable_fingerprint: str | None = None,
+    retired_at: str,
+    reason_code: str,
+    counters: ExecutionCounters | None = None,
+) -> ApprovalRecord:
+    """Atomically retire one issued, unconsumed Approval artifact.
+
+    The schema-v2 Approval remains exact. Timestamp and reason are recorded in
+    a sibling canonical lifecycle evidence file. Existing lock files are never
+    broken automatically; manual investigation is required for stale locks.
+    """
+
+    del counters  # Retirement must not mutate any execution counter.
+    target = Path(path)
+    evidence_path = approval_retirement_evidence_path(target)
+    runtime_request_path = (
+        target.parent.parent
+        / "runtime-evidence"
+        / expected_approval_id
+        / "runtime-execution-request.json"
+    )
+    approval_temporary = target.with_name(target.name + _RETIREMENT_TEMP_SUFFIX)
+    evidence_temporary = target.with_name(target.name + _RETIREMENT_EVIDENCE_TEMP_SUFFIX)
+    link_probe = target.with_name(target.name + _RETIREMENT_PROBE_SUFFIX)
+    if _approval_platform() not in {"posix", "nt"}:
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_UNSUPPORTED")
+    if not target.is_file():
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_NOT_FOUND")
+    if runtime_request_path.exists():
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_STATUS_INVALID")
+    if not _SHA256.fullmatch(expected_file_sha256):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+    if expected_checksum is not None and not _SHA256.fullmatch(expected_checksum):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_CHECKSUM_MISMATCH")
+    if expected_stable_fingerprint is not None and not _SHA256.fullmatch(
+        expected_stable_fingerprint,
+    ):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_FINGERPRINT_MISMATCH")
+    if not isinstance(reason_code, str) or not _RETIREMENT_REASON.fullmatch(reason_code):
+        raise ProcessingApprovalError("APPROVAL_RETIREMENT_STATUS_INVALID")
+    _timestamp(retired_at, required=True)
+
+    replaced = False
+    approval_temporary_owned = False
+    evidence_temporary_owned = False
+    link_probe_owned = False
+    try:
+        with _retirement_lock(target):
+            before_bytes = target.read_bytes()
+            before_sha256 = hashlib.sha256(before_bytes).hexdigest()
+            if before_sha256 != expected_file_sha256:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+            try:
+                record = load_approval(target)
+            except ProcessingApprovalError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED") from None
+            if record.checksum != approval_checksum(record):
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_CHECKSUM_MISMATCH")
+            if (
+                record.approval_id != expected_approval_id
+                or record.processing_run_id != expected_run_id
+            ):
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_IDENTITY_MISMATCH")
+            if expected_checksum is not None and record.checksum != expected_checksum:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_CHECKSUM_MISMATCH")
+            stable_fingerprint = approval_fingerprint(record)
+            if (
+                expected_stable_fingerprint is not None
+                and stable_fingerprint != expected_stable_fingerprint
+            ):
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_FINGERPRINT_MISMATCH")
+            if record.consumed or record.status in {"consumed", "completed"}:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ALREADY_CONSUMED")
+            if record.status != "issued" or record.execution_allowed:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_STATUS_INVALID")
+            try:
+                validate_approval(record, _approval_contract(record))
+            except ProcessingApprovalError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED") from None
+            if evidence_path.exists():
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+
+            retired = retire_approval(record)
+            validate_approval(retired, _approval_contract(retired))
+            after_bytes = _canonical_record_bytes(retired)
+            after_sha256 = hashlib.sha256(after_bytes).hexdigest()
+            evidence = ApprovalRetirementEvidence(
+                schema_version=1,
+                approval_id=retired.approval_id,
+                processing_run_id=retired.processing_run_id,
+                previous_status=record.status,
+                status=retired.status,
+                retired_at=retired_at,
+                reason_code=reason_code,
+                before_file_sha256=before_sha256,
+                after_file_sha256=after_sha256,
+                before_checksum=record.checksum,
+                after_checksum=retired.checksum,
+                stable_fingerprint=stable_fingerprint,
+            )
+            evidence = replace(
+                evidence,
+                evidence_fingerprint=approval_retirement_evidence_fingerprint(evidence),
+            )
+            _write_retirement_temporary(approval_temporary, after_bytes)
+            approval_temporary_owned = True
+            _write_retirement_temporary(
+                evidence_temporary,
+                _canonical_json_bytes(evidence),
+            )
+            evidence_temporary_owned = True
+            if link_probe.exists():
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_TEMPORARY_COLLISION")
+            try:
+                _publish_no_replace(evidence_temporary, link_probe)
+                link_probe_owned = True
+                link_probe.unlink()
+                link_probe_owned = False
+            except ProcessingApprovalError as exc:
+                if str(exc) == "APPROVAL_NO_REPLACE_UNSUPPORTED":
+                    raise ProcessingApprovalError("APPROVAL_RETIREMENT_UNSUPPORTED") from None
+                raise ProcessingApprovalError(
+                    "APPROVAL_RETIREMENT_ATOMIC_WRITE_FAILED",
+                ) from None
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+            _retirement_compare_and_swap_hook(target)
+            if (
+                not target.is_file()
+                or target.read_bytes() != before_bytes
+                or _file_sha256(target) != before_sha256
+                or runtime_request_path.exists()
+            ):
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ARTIFACT_CHANGED")
+            try:
+                os.replace(approval_temporary, target)
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_ATOMIC_WRITE_FAILED") from None
+            replaced = True
+            approval_temporary_owned = False
+            try:
+                _publish_no_replace(evidence_temporary, evidence_path)
+                evidence_temporary.unlink()
+                evidence_temporary_owned = False
+            except ProcessingApprovalError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+            except OSError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+            try:
+                _sync_parent_directory(target)
+            except ProcessingApprovalError:
+                raise ProcessingApprovalError(
+                    "APPROVAL_RETIREMENT_DIRECTORY_SYNC_FAILED",
+                ) from None
+            if target.read_bytes() != after_bytes:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE")
+            loaded = load_approval(target)
+            validate_approval(loaded, _approval_contract(loaded))
+            loaded_evidence = load_approval_retirement_evidence(evidence_path)
+            if (
+                loaded != retired
+                or loaded_evidence.after_file_sha256 != _file_sha256(target)
+                or approval_fingerprint(loaded) != stable_fingerprint
+            ):
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE")
+            return loaded
+    finally:
+        for temporary, owned in (
+            (approval_temporary, approval_temporary_owned),
+            (evidence_temporary, evidence_temporary_owned),
+            (link_probe, link_probe_owned),
+        ):
+            if owned:
+                _cleanup_retirement_temporary(temporary)
+        if replaced and target.is_file():
+            try:
+                current = load_approval(target)
+            except ProcessingApprovalError:
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE") from None
+            if current.status != "retired_before_consumption":
+                raise ProcessingApprovalError("APPROVAL_RETIREMENT_INCOMPLETE")
+
+
 def consume_approval(
     path: str | Path,
     record: ApprovalRecord,
@@ -539,24 +937,27 @@ def consume_approval(
     counters: ExecutionCounters | None = None,
 ) -> ApprovalRecord:
     target = Path(path)
-    validate_approval(record, contract)
-    validate_runtime_request(
-        runtime_request,
-        contract,
-        expected_approval_fingerprint=approval_fingerprint(record),
-        expected_preflight_evidence_fingerprint=record.preflight_evidence_fingerprint,
-        expected_execution_source_commit=record.execution_source_commit,
-        expected_governance_record_commit=record.governance_record_commit,
-        expected_manifest_sha256=record.manifest_sha256,
-        expected_backend_fingerprint=record.backend_fingerprint,
-        now=_timestamp(consumed_at, required=True),
-    )
-    if record.status != "issued":
-        raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
-    if not target.is_file() or load_approval(target) != record:
-        raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
-    consumed = _transition(record, {"issued"}, "consumed", consumed_at=consumed_at, consumed=True)
-    _atomic_write(target, consumed)
+    with approval_lifecycle_lock(target):
+        validate_approval(record, contract)
+        if record.status != "issued" or record.consumed:
+            raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
+        validate_runtime_request(
+            runtime_request,
+            contract,
+            expected_approval_fingerprint=approval_fingerprint(record),
+            expected_preflight_evidence_fingerprint=record.preflight_evidence_fingerprint,
+            expected_execution_source_commit=record.execution_source_commit,
+            expected_governance_record_commit=record.governance_record_commit,
+            expected_manifest_sha256=record.manifest_sha256,
+            expected_backend_fingerprint=record.backend_fingerprint,
+            now=_timestamp(consumed_at, required=True),
+        )
+        if not target.is_file() or load_approval(target) != record:
+            raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
+        consumed = _transition(
+            record, {"issued"}, "consumed", consumed_at=consumed_at, consumed=True,
+        )
+        _atomic_write(target, consumed)
     if counters is not None:
         counters.increment("runtime_execution_gate_activations")
         counters.increment("approval_consume_calls")
@@ -571,12 +972,15 @@ def finalize_approval(
     finalized_at: str,
 ) -> ApprovalRecord:
     target = Path(path)
-    if not target.is_file() or load_approval(target) != record:
-        raise ProcessingApprovalError("APPROVAL_ALREADY_FINALIZED")
-    _timestamp(finalized_at, required=True)
-    field = {"completed_at": finalized_at} if success else {"failed_at": finalized_at}
-    final = _transition(record, {"consumed"}, "completed" if success else "failed", **field)
-    _atomic_write(target, final)
+    with approval_lifecycle_lock(target):
+        if not target.is_file() or load_approval(target) != record:
+            raise ProcessingApprovalError("APPROVAL_ALREADY_FINALIZED")
+        _timestamp(finalized_at, required=True)
+        field = {"completed_at": finalized_at} if success else {"failed_at": finalized_at}
+        final = _transition(
+            record, {"consumed"}, "completed" if success else "failed", **field,
+        )
+        _atomic_write(target, final)
     return final
 
 

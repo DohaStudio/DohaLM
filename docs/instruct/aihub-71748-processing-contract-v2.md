@@ -255,10 +255,18 @@ commit `841123ea2f0d3f0fccb8cf456edaf8c9faa44014`를 execution source와 governa
 Approval 0009는 후속 승인 작업에서 `issued`가 되었지만 `consumed=false`, `execution_allowed=false`다. Live Refresh는
 검증됐고 RuntimeExecutionRequest는 아직 생성하지 않았다.
 
+## Approval retirement service
+
+[확정] issued·미소비 Approval의 영구 폐기는 [Approval Retirement Contract](./aihub-71748-approval-retirement-contract.md)를
+따른다. 이 service는 processing capability를 실행하지 않고 기존 issue·consume·runtime·processing counter를
+증가시키지 않는다. Retired Approval은 RuntimeExecutionRequest와 consume gate에서 거부한다. 실제 Approval 0009와
+Run 0010 상태는 이번 synthetic 구현 작업에서 변경하지 않는다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | public Approval retirement artifact service·별도 evidence·lock/CAS 정책 연결 |
 | 2026-07-30 | RuntimeExecutionRequest v1 발급 서비스·atomic writer·CLI 계약과 Approval 0009 실제 상태 반영 |
 | 2026-07-30 | Run 0008 backend drift 폐기와 Run 0009 metadata-only Preflight 통과 계보 추가 |
 | 2026-07-30 | exists-check + replace TOCTOU 제거, POSIX·Windows hard-link atomic no-replace publish와 incomplete 재사용 차단 확정 |

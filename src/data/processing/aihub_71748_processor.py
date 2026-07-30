@@ -366,6 +366,8 @@ def execute_approved_processing(
     validate_run_contract(contract)
     validate_aihub_71748_processing_manifest(manifest)
     approval = validate_approval_file(approval_path, contract)
+    if approval.status != "issued" or approval.consumed:
+        raise ProcessingApprovalError("APPROVAL_ALREADY_CONSUMED")
     if (
         approval.manifest_sha256 != manifest_sha256
         or approval.execution_source_commit != backend_git_commit

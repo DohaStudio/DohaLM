@@ -182,10 +182,18 @@ execution surface를 과거 identity에 소급하지 않으며 Approval 0008은 
 Preflight 뒤 후속 Live Refresh와 Approval 발급이 완료됐다. Approval artifact는 issued·unconsumed이며
 RuntimeExecutionRequest·Processing은 생성하거나 실행하지 않았다.
 
+## Issued Approval retirement
+
+[확정] issued·미소비 Approval은 [Retirement Contract](./aihub-71748-approval-retirement-contract.md)의
+`retire_approval_file(...)`을 통해서만 폐기한다. ApprovalRecord v2는 status와 checksum만 전환하고 retirement
+timestamp·reason·전후 hash는 별도 canonical evidence로 보존한다. Retirement, consume, finalize와 Runtime request
+publish는 동일 Approval lifecycle lock을 사용한다. 실제 Approval 0009 retirement는 아직 실행하지 않았다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | issued·미소비 Approval public retirement service·evidence·lifecycle lock 계약 연결 |
 | 2026-07-30 | RuntimeExecutionRequest v1 공식 writer 계보와 Approval 0009 issued·unconsumed 상태 반영 |
 | 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 신규 immutable lineage 연결 |
 | 2026-07-30 | Approval publish를 POSIX·Windows hard-link atomic no-replace로 전환하고 경쟁 final·incomplete 재사용 차단 계약 확정 |
