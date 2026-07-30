@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import json
 from pathlib import Path
+import stat
 import tempfile
 import zipfile
 
@@ -43,6 +44,7 @@ from src.data.processing.approval import (
     validate_approval_file,
 )
 from src.data.processing.run_contract import RuntimeExecutionRequest, new_runtime_execution_request
+from src.data.processing.aihub_71748_reader import _entry, _normalized_entry_name, _validated_entries
 
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
@@ -119,10 +121,15 @@ def _local_config(root: Path) -> dict[str, object]:
     }
 
 
-def _write_zip(path: Path, component: str, records: list[dict[str, object]]) -> None:
+def _write_zip(
+    path: Path, component: str, records: list[dict[str, object]], *,
+    extras: tuple[str, ...] = (), component_name: str | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr(f"payload/{component}.json", json.dumps({"data_info": records}))
+        for name in extras:
+            archive.writestr(name, b"unselected payload")
+        archive.writestr(component_name or f"payload/{component}.json", json.dumps({"data_info": records}))
 
 
 def _package(root: Path) -> Path:
@@ -130,10 +137,14 @@ def _package(root: Path) -> Path:
     label = [{"data_id": "one", "question": "synthetic question", "answer": {"contents": "synthetic answer", "answer_count": 1}}]
     validation_data = [{"data_id": "two", "question": "validation prompt", "question_count": 1, "question_type": "qa", "data_category": "test"}]
     validation_label = [{"data_id": "two", "question": "validation prompt", "answer": {"contents": "validation response", "answer_count": 1}}]
-    _write_zip(root / "Training" / "TS_02.synthetic.zip", "sftdata", data)
-    _write_zip(root / "Training" / "TL_02.synthetic.zip", "sftlabel", label)
-    _write_zip(root / "Validation" / "VS_02.synthetic.zip", "sftdata", validation_data)
-    _write_zip(root / "Validation" / "VL.zip", "sftlabel", validation_label)
+    _write_zip(root / "Training" / "TS_02.synthetic.zip", "sftdata", data,
+               extras=("/PPOdata.json", "/RMdata.json"), component_name="/SFTdata.json")
+    _write_zip(root / "Training" / "TL_02.synthetic.zip", "sftlabel", label,
+               extras=("/RMlabel.json",), component_name="/SFTlabel.json")
+    _write_zip(root / "Validation" / "VS_02.synthetic.zip", "sftdata", validation_data,
+               extras=("/PPOdata.json", "/RMdata.json"), component_name="/SFTdata.json")
+    _write_zip(root / "Validation" / "VL.zip", "sftlabel", validation_label,
+               extras=("/RMlabel.json",), component_name="/SFTlabel.json")
     return root
 
 
@@ -200,6 +211,109 @@ def test_source_discovery_and_streaming_parser(tmp_path: Path) -> None:
     records = list(iter_source_records(sources[0]))
     assert len(records) == 1
     assert records[0].question_count == 1
+
+
+def test_component_reader_opens_only_selected_provider_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "provider.zip"
+    _write_zip(
+        path, "sftdata",
+        [{"data_id": "one", "question": "q", "question_count": 1,
+          "question_type": "qa", "data_category": "test"}],
+        extras=("/PPOdata.json", "/RMdata.json"), component_name="/SFTdata.json",
+    )
+    opened: list[str] = []
+    original_open = zipfile.ZipFile.open
+
+    def tracking_open(archive: zipfile.ZipFile, name: object, *args: object, **kwargs: object):
+        opened.append(name.filename if isinstance(name, zipfile.ZipInfo) else str(name))
+        return original_open(archive, name, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", tracking_open)
+    assert len(list(iter_source_records(SourceArchive("training", "sftdata", path)))) == 1
+    assert opened == ["/SFTdata.json"]
+
+
+@pytest.mark.parametrize(
+    ("names", "code"),
+    [
+        (("payload/other.json",), "SOURCE_COMPONENT_JSON_MISSING"),
+        (("one/SFTdata.json", "two/sftDATA.JSON"), "SOURCE_COMPONENT_JSON_AMBIGUOUS"),
+        (("../SFTdata.json",), "SOURCE_ENTRY_PATH_UNSAFE"),
+        (("nested/../SFTdata.json",), "SOURCE_ENTRY_PATH_UNSAFE"),
+        (("//server/SFTdata.json",), "SOURCE_ENTRY_PATH_UNSAFE"),
+        (("C:/SFTdata.json",), "SOURCE_ENTRY_PATH_UNSAFE"),
+        (("one.json", "ONE.JSON"), "SOURCE_ENTRY_NAME_DUPLICATED"),
+    ],
+)
+def test_component_reader_fails_closed_for_invalid_shape(
+    tmp_path: Path, names: tuple[str, ...], code: str,
+) -> None:
+    path = tmp_path / f"{code}.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        for name in names:
+            archive.writestr(name, json.dumps({"data_info": []}))
+    with pytest.raises(AIHub71748ReaderError, match=f"^{code}$"):
+        list(iter_source_records(SourceArchive("training", "sftdata", path)))
+
+
+def test_component_reader_rejects_special_entries_and_resource_limits(tmp_path: Path) -> None:
+    symlink_path = tmp_path / "symlink.zip"
+    link = zipfile.ZipInfo("SFTdata.json")
+    link.create_system = 3
+    link.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(symlink_path, "w") as archive:
+        archive.writestr(link, b"target")
+    with pytest.raises(AIHub71748ReaderError, match="^SOURCE_ENTRY_TYPE_UNSUPPORTED$"):
+        list(iter_source_records(SourceArchive("training", "sftdata", symlink_path)))
+
+    oversized_path = tmp_path / "oversized.zip"
+    with zipfile.ZipFile(oversized_path, "w") as archive:
+        archive.writestr("SFTdata.json", b"{}")
+    with zipfile.ZipFile(oversized_path) as archive:
+        entry = archive.getinfo("SFTdata.json")
+        entry.file_size = 64 * 1024**2 + 1
+        entry.compress_size = entry.file_size
+        with pytest.raises(AIHub71748ReaderError, match="^SOURCE_COMPONENT_RESOURCE_LIMIT$"):
+            _entry(archive, "sftdata")
+
+
+def test_component_reader_rejects_nul_backslash_encryption_and_entry_limit() -> None:
+    for unsafe_name in ("SFTdata.json\x00ignored", "nested\\SFTdata.json"):
+        entry = zipfile.ZipInfo("SFTdata.json")
+        entry.filename = unsafe_name
+        with pytest.raises(AIHub71748ReaderError, match="^SOURCE_ENTRY_PATH_UNSAFE$"):
+            _normalized_entry_name(entry)
+
+    encrypted = zipfile.ZipInfo("SFTdata.json")
+    encrypted.flag_bits = 0x1
+
+    class SyntheticArchive:
+        def __init__(self, entries: list[zipfile.ZipInfo]) -> None:
+            self.entries = entries
+
+        def infolist(self) -> list[zipfile.ZipInfo]:
+            return self.entries
+
+    with pytest.raises(AIHub71748ReaderError, match="^SOURCE_ENTRY_ENCRYPTED$"):
+        _validated_entries(SyntheticArchive([encrypted]))  # type: ignore[arg-type]
+    entries = [zipfile.ZipInfo(f"entry-{index}.json") for index in range(1_025)]
+    with pytest.raises(AIHub71748ReaderError, match="^SOURCE_ARCHIVE_RESOURCE_LIMIT$"):
+        _validated_entries(SyntheticArchive(entries))  # type: ignore[arg-type]
+
+
+def test_component_reader_detects_selected_payload_crc_failure(tmp_path: Path) -> None:
+    path = tmp_path / "crc.zip"
+    payload = b'{"data_info":[]}'
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("SFTdata.json", payload)
+        archive.writestr("RMdata.json", b"unselected")
+    raw = bytearray(path.read_bytes())
+    raw[raw.index(payload)] ^= 0x01
+    path.write_bytes(raw)
+    with pytest.raises(AIHub71748ReaderError, match="^SOURCE_ARCHIVE_UNSUPPORTED$"):
+        list(iter_source_records(SourceArchive("training", "sftdata", path)))
 
 
 def test_missing_split_and_component_fail_closed(tmp_path: Path) -> None:
