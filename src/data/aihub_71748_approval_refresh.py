@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+import errno
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 from typing import Mapping, Protocol
@@ -93,6 +95,241 @@ def approval_refresh_evidence_fingerprint(evidence: ApprovalRefreshEvidence) -> 
 
 def serialize_approval_refresh_evidence(evidence: ApprovalRefreshEvidence) -> str:
     return json.dumps(asdict(evidence), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+APPROVAL_REFRESH_EVIDENCE_FILENAME = "approval-refresh-evidence.json"
+_NO_REPLACE_UNSUPPORTED_ERRNOS = frozenset({
+    errno.EXDEV,
+    errno.EINVAL,
+    errno.ENOSYS,
+    getattr(errno, "ENOTSUP", errno.ENOSYS),
+    getattr(errno, "EOPNOTSUPP", errno.ENOSYS),
+})
+
+
+def canonical_approval_refresh_evidence_path(
+    processed_root: str | Path, run_id: str,
+) -> Path:
+    """Return the sole canonical path for an Approval Refresh evidence artifact."""
+
+    return (
+        Path(processed_root) / "runtime-evidence" / run_id
+        / APPROVAL_REFRESH_EVIDENCE_FILENAME
+    )
+
+
+def _approval_refresh_document_evidence(
+    value: Mapping[str, object],
+) -> ApprovalRefreshEvidence:
+    fields = set(ApprovalRefreshEvidence.__dataclass_fields__)
+    if not fields <= set(value):
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_SCHEMA_INVALID")
+    return deserialize_approval_refresh_evidence({name: value[name] for name in fields})
+
+
+def _validate_approval_refresh_document(
+    value: Mapping[str, object], *, expected_fingerprint: str,
+) -> ApprovalRefreshEvidence:
+    evidence = _approval_refresh_document_evidence(value)
+    expected_fields = set(ApprovalRefreshEvidence.__dataclass_fields__) | {
+        "fingerprint", "approval_draft", "status", "approval_issued",
+        "approval_consumed", "runtime_request_created", "payload_reads",
+        "processing_calls", "output_writes", "execution_allowed",
+    }
+    if set(value) != expected_fields:
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_UNKNOWN_FIELD")
+    if value.get("fingerprint") != expected_fingerprint:
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_FINGERPRINT_MISMATCH")
+    validate_approval_refresh_evidence(
+        evidence,
+        expected_fingerprint=expected_fingerprint,
+        expected_run_id=evidence.run_id,
+        expected_approval_id=evidence.approval_id,
+        expected_execution_source_commit=evidence.execution_source_commit,
+        expected_governance_record_commit=evidence.governance_record_commit,
+        expected_manifest_sha256=evidence.manifest_sha256,
+        expected_backend_fingerprint=evidence.backend_fingerprint,
+        expected_previous_preflight_fingerprint=(
+            evidence.previous_preflight_evidence_fingerprint
+        ),
+    )
+    expected_draft = build_refresh_approval_draft(
+        evidence, evidence_fingerprint=expected_fingerprint,
+    )
+    if value.get("approval_draft") != expected_draft:
+        raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
+    if (
+        value.get("status") != "approval_refresh_validated"
+        or value.get("approval_issued") is not False
+        or value.get("approval_consumed") is not False
+        or value.get("runtime_request_created") is not False
+        or value.get("payload_reads") != 0
+        or value.get("processing_calls") != 0
+        or value.get("output_writes") != 0
+        or value.get("execution_allowed") is not False
+    ):
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_INVALID")
+    return evidence
+
+
+def _canonical_approval_refresh_document_bytes(
+    value: Mapping[str, object],
+) -> bytes:
+    try:
+        return json.dumps(
+            dict(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_ATOMIC_WRITE_FAILED"
+        ) from None
+
+
+def _sync_approval_refresh_parent_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = -1
+    try:
+        descriptor = os.open(
+            path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        os.fsync(descriptor)
+    except OSError:
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_DIRECTORY_SYNC_FAILED"
+        ) from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _publish_approval_refresh_no_replace(temporary: Path, final: Path) -> None:
+    if os.name not in {"nt", "posix"}:
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_NO_REPLACE_UNSUPPORTED"
+        )
+    try:
+        os.link(temporary, final)
+    except FileExistsError:
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_ALREADY_EXISTS"
+        ) from None
+    except OSError as exc:
+        if (
+            exc.errno in _NO_REPLACE_UNSUPPORTED_ERRNOS
+            or getattr(exc, "winerror", None) in {1, 50}
+        ):
+            raise ProcessingPreflightError(
+                "APPROVAL_REFRESH_EVIDENCE_NO_REPLACE_UNSUPPORTED"
+            ) from None
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_ATOMIC_WRITE_FAILED"
+        ) from None
+
+
+def _read_approval_refresh_document(path: Path) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_INCOMPLETE"
+        ) from None
+    if not isinstance(value, dict):
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_INCOMPLETE")
+    return value
+
+
+def write_approval_refresh_evidence_file(
+    path: str | Path,
+    evidence_document: Mapping[str, object],
+    *,
+    expected_fingerprint: str,
+) -> Path:
+    """Durably publish one validated Refresh result without replacement."""
+
+    target = Path(path)
+    evidence = _validate_approval_refresh_document(
+        evidence_document, expected_fingerprint=expected_fingerprint,
+    )
+    if (
+        target.name != APPROVAL_REFRESH_EVIDENCE_FILENAME
+        or target.parent.name != evidence.run_id
+        or target.parent.parent.name != "runtime-evidence"
+    ):
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_PATH_INVALID")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_PARENT_CREATE_FAILED"
+        ) from None
+    temporary = target.with_name(target.name + ".tmp")
+    if target.exists():
+        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_ALREADY_EXISTS")
+    payload = _canonical_approval_refresh_document_bytes(evidence_document)
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
+    descriptor = -1
+    published = False
+    temporary_created = False
+    try:
+        try:
+            descriptor = os.open(
+                temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600,
+            )
+            temporary_created = True
+        except FileExistsError:
+            raise ProcessingPreflightError(
+                "APPROVAL_REFRESH_EVIDENCE_TEMPORARY_COLLISION"
+            ) from None
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            if stream.write(payload) != len(payload):
+                raise OSError("short write")
+            stream.flush()
+            os.fsync(stream.fileno())
+        _publish_approval_refresh_no_replace(temporary, target)
+        published = True
+        try:
+            temporary.unlink()
+        except OSError:
+            raise ProcessingPreflightError(
+                "APPROVAL_REFRESH_EVIDENCE_INCOMPLETE"
+            ) from None
+        _sync_approval_refresh_parent_directory(target)
+        try:
+            stored = target.read_bytes()
+            if (
+                stored != payload
+                or hashlib.sha256(stored).hexdigest() != payload_sha256
+            ):
+                raise ProcessingPreflightError(
+                    "APPROVAL_REFRESH_EVIDENCE_INCOMPLETE"
+                )
+            reloaded = _read_approval_refresh_document(target)
+            _validate_approval_refresh_document(
+                reloaded, expected_fingerprint=expected_fingerprint,
+            )
+        except ProcessingPreflightError:
+            raise ProcessingPreflightError(
+                "APPROVAL_REFRESH_EVIDENCE_INCOMPLETE"
+            ) from None
+    except ProcessingPreflightError:
+        raise
+    except (OSError, ValueError):
+        raise ProcessingPreflightError(
+            "APPROVAL_REFRESH_EVIDENCE_ATOMIC_WRITE_FAILED"
+        ) from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if not published and temporary_created and temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingPreflightError(
+                    "APPROVAL_REFRESH_EVIDENCE_INCOMPLETE"
+                ) from None
+    return target
 
 
 def deserialize_approval_refresh_evidence(value: Mapping[str, object]) -> ApprovalRefreshEvidence:

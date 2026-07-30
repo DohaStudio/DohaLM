@@ -6,10 +6,8 @@ import argparse
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 import json
-import os
 from pathlib import Path
 import sys
-from typing import Mapping
 
 import yaml
 
@@ -20,11 +18,13 @@ from src.data.aihub_71748_approval_refresh import (
     ApprovalRefreshEvidence,
     approval_refresh_evidence_fingerprint,
     build_refresh_approval_draft,
+    canonical_approval_refresh_evidence_path,
     fingerprints_for_refresh,
     validate_active_run_for_approval_refresh,
     validate_approval_refresh_evidence,
     validate_governance_refresh_checkout,
     validate_previous_preflight_evidence,
+    write_approval_refresh_evidence_file,
 )
 from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
@@ -243,21 +243,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _write_evidence(path: Path, value: Mapping[str, object]) -> None:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open("xb") as stream:
-            if stream.write(payload) != len(payload):
-                raise OSError("short write")
-            stream.flush()
-            os.fsync(stream.fileno())
-    except FileExistsError:
-        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_ALREADY_EXISTS") from None
-    except OSError:
-        raise ProcessingPreflightError("APPROVAL_REFRESH_EVIDENCE_WRITE_FAILED") from None
-
-
 def main(argv: list[str] | None = None) -> int:
     arguments = build_parser().parse_args(argv)
     try:
@@ -271,7 +256,21 @@ def main(argv: list[str] | None = None) -> int:
             preflight_evidence_fingerprint=arguments.preflight_evidence_fingerprint,
         )
         if arguments.output_evidence is not None:
-            _write_evidence(arguments.output_evidence, result)
+            mapping = resolve_dataset_mapping(
+                repository_root=Path.cwd(), local_config=_yaml(arguments.mapping),
+            )
+            canonical = canonical_approval_refresh_evidence_path(
+                mapping.processed_root, arguments.run_id,
+            )
+            if arguments.output_evidence.resolve() != canonical.resolve():
+                raise ProcessingPreflightError(
+                    "APPROVAL_REFRESH_EVIDENCE_PATH_INVALID"
+                )
+            write_approval_refresh_evidence_file(
+                arguments.output_evidence,
+                result,
+                expected_fingerprint=str(result["fingerprint"]),
+            )
     except (ProcessingPreflightError, RuntimeError) as exc:
         print(json.dumps({"status": "blocked", "error_code": str(exc), "execution_allowed": False}))
         return 2
