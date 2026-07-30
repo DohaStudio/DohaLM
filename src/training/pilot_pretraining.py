@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import hashlib
 import json
 import math
@@ -35,6 +35,14 @@ def resolve_pilot_path(config: PilotPretrainingConfig, value: str) -> Path:
     if config.path_root == "repository":
         return resolve_repository_path(value)
     external_root, _ = resolve_local_paths(resolve_repository_path(config.local_dataset_config))
+    raw = str(value)
+    windows = PureWindowsPath(raw.replace("/", "\\"))
+    posix = PurePosixPath(raw.replace("\\", "/"))
+    if windows.is_absolute() or posix.is_absolute() or ".." in windows.parts or ".." in posix.parts:
+        raise TrainingError(
+            "PILOT_PATH_INVALID",
+            "Pilot artifact 경로는 configured external root 상대경로여야 합니다.",
+        )
     resolved = (external_root / value).resolve()
     if external_root not in resolved.parents:
         raise TrainingError("PILOT_PATH_INVALID", "Pilot artifact 경로가 configured external root 밖입니다.")

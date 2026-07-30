@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import pytest
-import yaml
-
 from src.model import ModelConfig
-from src.runtime.paths import repository_root
 from src.training import PilotPretrainingConfig, TrainingError
 from src.training.pilot_pretraining import resolve_pilot_path
 
@@ -48,11 +45,61 @@ def test_smoke_is_at_most_five_steps():
     assert value.max_steps == value.validation_every == value.save_every == 5
 
 
-def test_configured_external_paths_resolve_below_declared_root(tmp_path):
+def test_configured_external_paths_resolve_below_declared_root(monkeypatch, tmp_path):
     external = tmp_path / "external"
     (external / "extracted/AIHUB-71748").mkdir(parents=True)
-    local = tmp_path / "local.yaml"
-    local.write_text(yaml.safe_dump({"datasets": {"external_root": str(external), "entries": {"AIHUB-71748": {"root": "extracted/AIHUB-71748"}}}}), encoding="utf-8")
-    relative_local = local.resolve().relative_to(repository_root()).as_posix()
-    value = config(path_root="configured_external", local_dataset_config=relative_local)
+    monkeypatch.setattr(
+        "src.training.pilot_pretraining.resolve_local_paths",
+        lambda _path: (external.resolve(), (external / "extracted/AIHUB-71748").resolve()),
+    )
+    value = config(
+        path_root="configured_external",
+        local_dataset_config="configs/local-datasets.example.yaml",
+    )
     assert resolve_pilot_path(value, "analysis/pilot/run.jsonl") == (external / "analysis/pilot/run.jsonl").resolve()
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        "../outside.jsonl",
+        "analysis/../../outside.jsonl",
+        "C:/outside/run.jsonl",
+        "/tmp/outside/run.jsonl",
+    ),
+)
+def test_configured_external_paths_reject_escape(monkeypatch, tmp_path, value):
+    external = (tmp_path / "external").resolve()
+    external.mkdir()
+    monkeypatch.setattr(
+        "src.training.pilot_pretraining.resolve_local_paths",
+        lambda _path: (external, external / "extracted/AIHUB-71748"),
+    )
+    configured = config(
+        path_root="configured_external",
+        local_dataset_config="configs/local-datasets.example.yaml",
+    )
+    with pytest.raises(TrainingError, match="PILOT_PATH_INVALID"):
+        resolve_pilot_path(configured, value)
+
+
+def test_configured_external_paths_reject_symlink_escape(monkeypatch, tmp_path):
+    external = (tmp_path / "external").resolve()
+    outside = (tmp_path / "outside").resolve()
+    external.mkdir()
+    outside.mkdir()
+    link = external / "linked"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("platform does not permit symlink creation")
+    monkeypatch.setattr(
+        "src.training.pilot_pretraining.resolve_local_paths",
+        lambda _path: (external, external / "extracted/AIHUB-71748"),
+    )
+    configured = config(
+        path_root="configured_external",
+        local_dataset_config="configs/local-datasets.example.yaml",
+    )
+    with pytest.raises(TrainingError, match="PILOT_PATH_INVALID"):
+        resolve_pilot_path(configured, "linked/run.jsonl")

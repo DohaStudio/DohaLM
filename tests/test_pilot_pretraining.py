@@ -6,7 +6,6 @@ from pathlib import Path
 from src.data.checksums import checksum_value
 from src.data.tokenized_dataset import TokenizedJsonlDataset
 from src.model import DohaLMTiny, ModelConfig
-from src.runtime.paths import repository_root
 from src.tokenizer import DohaTokenizer, TrainerConfig, train_smoke_tokenizer
 from src.training import CausalLMCollator, PilotPretrainingConfig, Trainer, TrainingConfig, create_dataloader, run_pilot_pretraining
 
@@ -56,8 +55,15 @@ def test_stage_a_full_orchestration_with_synthetic_sentencepiece(monkeypatch, tm
     corpus_manifest, split_manifest = tmp_path / "corpus-manifest.json", tmp_path / "split-manifest.json"
     corpus_manifest.write_text(json.dumps({"kind": "synthetic", "local_experiment_only": True}), encoding="utf-8")
     split_manifest.write_text(json.dumps({"packing": "synthetic-test"}), encoding="utf-8")
-    root = repository_root()
-    relative = lambda path: path.resolve().relative_to(root).as_posix()
+    external_root = tmp_path.resolve()
+
+    def relative(path):
+        return path.resolve().relative_to(external_root).as_posix()
+
+    monkeypatch.setattr(
+        "src.training.pilot_pretraining.resolve_local_paths",
+        lambda _path: (external_root, external_root / "extracted/AIHUB-71748"),
+    )
     model_config = ModelConfig(vocab_size=256, context_length=8, num_layers=1, hidden_size=16, num_heads=4, head_dim=4, ffn_size=32)
     config = PilotPretrainingConfig(
         train_dataset=relative(train_path),
@@ -66,6 +72,8 @@ def test_stage_a_full_orchestration_with_synthetic_sentencepiece(monkeypatch, tm
         corpus_manifest=relative(corpus_manifest),
         split_manifest=relative(split_manifest),
         output_dir=relative(tmp_path / "pilot-run"),
+        path_root="configured_external",
+        local_dataset_config="configs/local-datasets.example.yaml",
         micro_batch_size=2,
         gradient_accumulation_steps=1,
         max_steps=5,
