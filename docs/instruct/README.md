@@ -46,6 +46,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [AIHUB-71748 Processing Run 0006 Metadata-Only Preflight](./aihub-71748-processing-run-0006-preflight.md)
 - [AIHUB-71748 Approval Issuance·Squash-Merge Lineage 계약](./aihub-71748-approval-lineage-contract.md)
 - [AIHUB-71748 Processing 실행 계약 v2](./aihub-71748-processing-contract-v2.md)
+- [AIHUB-71748 Initial Preflight Evidence Writer](./aihub-71748-initial-preflight-evidence-writer.md)
 - [AIHUB-71748 Processing Run 0008 Metadata-Only Preflight](./aihub-71748-processing-run-0008-preflight.md)
 - [AIHUB-71748 Processing Run 0009 Metadata-Only Preflight](./aihub-71748-processing-run-0009-preflight.md)
 - [AIHUB-71748 RuntimeExecutionRequest v1 계약](./aihub-71748-runtime-execution-request-v1.md)

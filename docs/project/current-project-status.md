@@ -127,6 +127,8 @@ Candidate B 학습은 다시 실행하지 않는다.
   Approval consume, Dataset payload·Processing은 모두 0건이며 `execution_allowed=false`다.
 - [확정] issued·미소비 Approval의 public retirement artifact service·별도 lifecycle evidence·lock/CAS·CLI가
   합성 검증됐고 Approval 0009에 공식 적용됐다. Run 0010 Preflight는 실행하지 않았다.
+- [확정] Initial Preflight Evidence의 canonical atomic no-replace writer와 CLI 연결은 Synthetic 검증됐다. 구현 병합 전
+  Run 0010은 `not_created`, evidence·Approval artifact는 absent, Processing은 `not_started`, `execution_allowed=false`다.
 
 ## 9. 다음 권장 작업
 
@@ -138,6 +140,7 @@ Candidate B 학습은 다시 실행하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Initial Preflight Evidence atomic writer 합성 구현; Run 0010 미생성·미실행 상태 유지 |
 | 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 영구 폐기; Run 0010 미생성 유지 |
 | 2026-07-30 | issued Approval retirement service 합성 구현; Approval 0009·Run 0010 실제 상태 유지 |
 | 2026-07-30 | RuntimeExecutionRequest v1 writer·CLI 구현과 Run 0009 Approval issued·unconsumed 상태 반영 |

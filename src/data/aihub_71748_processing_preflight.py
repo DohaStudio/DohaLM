@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import errno
 import hashlib
 import json
 import os
@@ -360,10 +361,17 @@ def validate_run_unused(
         mapping.processed_root / f"{run_id}.staging",
         mapping.processed_root / f"{run_id}.failed",
         mapping.processed_root / "quarantine" / run_id,
-        mapping.processed_root / "runtime-evidence" / run_id,
     )
     if any(path.exists() for path in run_roots):
         raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
+    evidence_root = mapping.processed_root / "runtime-evidence" / run_id
+    try:
+        if evidence_root.exists() and (
+            not evidence_root.is_dir() or any(evidence_root.iterdir())
+        ):
+            raise ProcessingPreflightError("RUN_ID_ALREADY_USED")
+    except OSError:
+        raise ProcessingPreflightError("RUN_ID_ALREADY_USED") from None
     approval_roots = (
         mapping.processed_root / "approvals" / f"{approval_id}.json",
         mapping.processed_root / "runtime-evidence" / approval_id,
@@ -464,6 +472,187 @@ def preflight_evidence_fingerprint(evidence: PreflightEvidence) -> str:
 
 def serialize_preflight_evidence(evidence: PreflightEvidence) -> str:
     return json.dumps(evidence.__dict__, sort_keys=True, separators=(",", ":"))
+
+
+PREFLIGHT_EVIDENCE_FILENAME = "preflight-evidence.json"
+_NO_REPLACE_UNSUPPORTED_ERRNOS = frozenset({
+    errno.EXDEV,
+    errno.EINVAL,
+    errno.ENOSYS,
+    getattr(errno, "ENOTSUP", errno.ENOSYS),
+    getattr(errno, "EOPNOTSUPP", errno.ENOSYS),
+})
+
+
+def canonical_preflight_evidence_path(processed_root: str | Path, run_id: str) -> Path:
+    """Return the sole canonical location for an Initial Preflight artifact."""
+
+    return Path(processed_root) / "runtime-evidence" / run_id / PREFLIGHT_EVIDENCE_FILENAME
+
+
+def _preflight_document_evidence(value: Mapping[str, object]) -> PreflightEvidence:
+    fields = set(PreflightEvidence.__dataclass_fields__)
+    if not fields <= set(value):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    return deserialize_preflight_evidence({name: value[name] for name in fields})
+
+
+def _canonical_preflight_document_bytes(value: Mapping[str, object]) -> bytes:
+    try:
+        return json.dumps(
+            dict(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ATOMIC_WRITE_FAILED") from None
+
+
+def _validate_preflight_document(
+    value: Mapping[str, object], *, expected_fingerprint: str,
+) -> PreflightEvidence:
+    evidence = _preflight_document_evidence(value)
+    if (
+        value.get("fingerprint") != expected_fingerprint
+        or preflight_evidence_fingerprint(evidence) != expected_fingerprint
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_FINGERPRINT_MISMATCH")
+    validate_preflight_evidence(
+        evidence,
+        expected_fingerprint=expected_fingerprint,
+        expected_run_id=evidence.run_id,
+        expected_approval_id=evidence.approval_id,
+        expected_execution_source_commit=evidence.execution_source_commit,
+        expected_governance_record_commit=evidence.governance_record_commit,
+        expected_manifest_sha256=evidence.manifest_sha256,
+        expected_backend_fingerprint=evidence.backend_fingerprint,
+    )
+    if (
+        value.get("status") != "preflight_passed"
+        or value.get("approval_issued") is not False
+        or value.get("approval_consumed") is not False
+        or value.get("execution_allowed") is not False
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_REQUIRED")
+    draft = value.get("approval_draft")
+    if not isinstance(draft, Mapping):
+        raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
+    draft_fingerprint = validate_approval_draft(
+        draft,
+        evidence=evidence,
+        evidence_fingerprint=expected_fingerprint,
+        expected_run_id=evidence.run_id,
+        expected_approval_id=evidence.approval_id,
+    )
+    if value.get("approval_draft_fingerprint") != draft_fingerprint:
+        raise ProcessingPreflightError("APPROVAL_DRAFT_INVALID")
+    return evidence
+
+
+def _sync_preflight_parent_directory(path: Path) -> None:
+    """Sync directory metadata where Python exposes a durable directory handle."""
+
+    if os.name == "nt":
+        return
+    descriptor = -1
+    try:
+        descriptor = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        os.fsync(descriptor)
+    except OSError:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_DIRECTORY_SYNC_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _publish_preflight_no_replace(temporary: Path, final: Path) -> None:
+    if os.name not in {"nt", "posix"}:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_NO_REPLACE_UNSUPPORTED")
+    try:
+        os.link(temporary, final)
+    except FileExistsError:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ALREADY_EXISTS") from None
+    except OSError as exc:
+        if (
+            exc.errno in _NO_REPLACE_UNSUPPORTED_ERRNOS
+            or getattr(exc, "winerror", None) in {1, 50}
+        ):
+            raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_NO_REPLACE_UNSUPPORTED") from None
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ATOMIC_WRITE_FAILED") from None
+
+
+def write_preflight_evidence_file(
+    path: str | Path,
+    evidence_document: Mapping[str, object],
+    *,
+    expected_fingerprint: str,
+) -> Path:
+    """Durably publish one canonical Preflight result without replacement."""
+
+    target = Path(path)
+    evidence = _validate_preflight_document(
+        evidence_document, expected_fingerprint=expected_fingerprint,
+    )
+    if (
+        target.name != PREFLIGHT_EVIDENCE_FILENAME
+        or target.parent.name != evidence.run_id
+        or target.parent.parent.name != "runtime-evidence"
+    ):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_PATH_INVALID")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_PARENT_CREATE_FAILED") from None
+    temporary = target.with_name(target.name + ".tmp")
+    if target.exists():
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ALREADY_EXISTS")
+    payload = _canonical_preflight_document_bytes(evidence_document)
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
+    descriptor = -1
+    published = False
+    temporary_created = False
+    try:
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            temporary_created = True
+        except FileExistsError:
+            raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_TEMPORARY_COLLISION") from None
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            if stream.write(payload) != len(payload):
+                raise OSError("short write")
+            stream.flush()
+            os.fsync(stream.fileno())
+        _publish_preflight_no_replace(temporary, target)
+        published = True
+        try:
+            temporary.unlink()
+        except OSError:
+            raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_INCOMPLETE") from None
+        _sync_preflight_parent_directory(target)
+        try:
+            stored = target.read_bytes()
+            decoded = json.loads(stored.decode("utf-8"))
+            if (
+                stored != payload
+                or hashlib.sha256(stored).hexdigest() != payload_sha256
+                or not isinstance(decoded, dict)
+            ):
+                raise ValueError("persisted bytes differ")
+            _validate_preflight_document(decoded, expected_fingerprint=expected_fingerprint)
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError, ProcessingPreflightError):
+            raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_INCOMPLETE") from None
+    except ProcessingPreflightError:
+        raise
+    except (OSError, ValueError):
+        raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_ATOMIC_WRITE_FAILED") from None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if not published and temporary_created and temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_INCOMPLETE") from None
+    return target
 
 
 def deserialize_preflight_evidence(value: Mapping[str, object]) -> PreflightEvidence:

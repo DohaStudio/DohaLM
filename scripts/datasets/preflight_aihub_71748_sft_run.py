@@ -15,6 +15,7 @@ from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
     ProcessingPreflightError,
     build_approval_draft,
+    canonical_preflight_evidence_path,
     compute_git_fingerprints,
     discover_source_metadata,
     preflight_evidence_fingerprint,
@@ -29,6 +30,7 @@ from src.data.aihub_71748_processing_preflight import (
     validate_resource_providers,
     validate_run_unused,
     validate_explicit_identity,
+    write_preflight_evidence_file,
 )
 from src.data.processing.aihub_71748_mapping import resolve_dataset_mapping
 
@@ -193,7 +195,17 @@ def main(argv: list[str] | None = None) -> int:
             run_id=arguments.run_id, approval_id=arguments.approval_id,
         )
         if arguments.output_evidence is not None:
-            arguments.output_evidence.write_text(json.dumps(result, sort_keys=True), encoding="utf-8")
+            mapping = resolve_dataset_mapping(
+                repository_root=Path.cwd(), local_config=_yaml(arguments.mapping),
+            )
+            canonical = canonical_preflight_evidence_path(mapping.processed_root, arguments.run_id)
+            if arguments.output_evidence.resolve() != canonical.resolve():
+                raise ProcessingPreflightError("PREFLIGHT_EVIDENCE_PATH_INVALID")
+            write_preflight_evidence_file(
+                arguments.output_evidence,
+                result,
+                expected_fingerprint=str(result["fingerprint"]),
+            )
     except (ProcessingPreflightError, RuntimeError) as exc:
         print(json.dumps({"status": "blocked", "error_code": str(exc), "execution_allowed": False}))
         return 2

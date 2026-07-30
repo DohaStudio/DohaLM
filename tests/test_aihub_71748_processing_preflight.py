@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+import errno
 import inspect
+import json
 from pathlib import Path
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import yaml
 
 import src.data.aihub_71748_processing_preflight as preflight
+import scripts.datasets.preflight_aihub_71748_sft_run as preflight_cli
 import scripts.datasets.process_aihub_71748_sft as process_cli
 from src.data.aihub_71748_processing_preflight import (
     APPROVAL_ID,
@@ -17,6 +21,7 @@ from src.data.aihub_71748_processing_preflight import (
     PreflightEvidence,
     ProcessingPreflightError,
     build_approval_draft,
+    canonical_preflight_evidence_path,
     compute_git_fingerprints,
     discover_source_metadata,
     preflight_evidence_fingerprint,
@@ -27,6 +32,7 @@ from src.data.aihub_71748_processing_preflight import (
     validate_output_contract,
     validate_preflight_evidence,
     validate_run_unused,
+    write_preflight_evidence_file,
 )
 from src.data.processing.aihub_71748_mapping import ResolvedDatasetMapping
 
@@ -133,6 +139,35 @@ def _validate(evidence: PreflightEvidence, fingerprint: str | None = None) -> No
     )
 
 
+def _document() -> dict[str, object]:
+    generated = datetime.now(timezone.utc)
+    evidence = _evidence(
+        run_id=UNUSED_RUN_ID,
+        approval_id=UNUSED_APPROVAL_ID,
+        generated_at=generated.isoformat(),
+        expires_at=(generated + timedelta(hours=1)).isoformat(),
+    )
+    fingerprint = preflight_evidence_fingerprint(evidence)
+    draft = build_approval_draft(evidence, evidence_fingerprint=fingerprint)
+    draft_fingerprint = validate_approval_draft(
+        draft, evidence=evidence, evidence_fingerprint=fingerprint,
+        expected_run_id=UNUSED_RUN_ID, expected_approval_id=UNUSED_APPROVAL_ID,
+    )
+    return {
+        **evidence.__dict__,
+        "fingerprint": fingerprint,
+        "approval_draft": draft,
+        "approval_draft_fingerprint": draft_fingerprint,
+        "status": "preflight_passed",
+        "payload_reads": 0,
+        "processing_calls": 0,
+        "output_writes": 0,
+        "approval_issued": False,
+        "approval_consumed": False,
+        "execution_allowed": False,
+    }
+
+
 def test_run_0006_identity_is_retired_after_approval_contract_failure() -> None:
     assert RUN_ID.endswith("0006") and APPROVAL_ID.endswith("0006")
     source = Path("synthetic-unused")
@@ -219,6 +254,300 @@ def test_run_and_approval_ids_are_unused(tmp_path: Path) -> None:
         _mapping(source, tmp_path / "processed"), repository_root=Path.cwd(), immutable_commit="HEAD",
         run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
     )
+
+
+def test_empty_runtime_evidence_parent_does_not_consume_identity(tmp_path: Path) -> None:
+    source = tmp_path / "AIHUB-71748"
+    source.mkdir()
+    output = tmp_path / "processed"
+    (output / "runtime-evidence" / UNUSED_RUN_ID).mkdir(parents=True)
+    validate_run_unused(
+        _mapping(source, output), repository_root=Path.cwd(), immutable_commit="HEAD",
+        run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+    )
+
+
+def test_runtime_evidence_artifact_consumes_identity(tmp_path: Path) -> None:
+    source = tmp_path / "AIHUB-71748"
+    source.mkdir()
+    output = tmp_path / "processed"
+    artifact = canonical_preflight_evidence_path(output, UNUSED_RUN_ID)
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("incomplete", encoding="utf-8")
+    with pytest.raises(ProcessingPreflightError, match="^RUN_ID_ALREADY_USED$"):
+        validate_run_unused(
+            _mapping(source, output), repository_root=Path.cwd(), immutable_commit="HEAD",
+            run_id=UNUSED_RUN_ID, approval_id=UNUSED_APPROVAL_ID,
+        )
+
+
+def test_preflight_writer_publishes_canonical_document(tmp_path: Path) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    written = write_preflight_evidence_file(
+        target, document, expected_fingerprint=str(document["fingerprint"]),
+    )
+    assert written == target
+    assert json.loads(target.read_text(encoding="utf-8")) == document
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_preflight_writer_existing_final_is_preserved(tmp_path: Path) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"existing-final")
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.read_bytes() == b"existing-final"
+
+
+def test_preflight_writer_parent_create_failure_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    original = Path.mkdir
+
+    def fail_target_parent(path: Path, *args: object, **kwargs: object) -> None:
+        if path == target.parent:
+            raise OSError("synthetic")
+        original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", fail_target_parent)
+    with pytest.raises(ProcessingPreflightError, match="PARENT_CREATE_FAILED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+
+
+def test_preflight_writer_temp_collision_is_preserved(tmp_path: Path) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.parent.mkdir(parents=True)
+    temporary.write_bytes(b"foreign-temp")
+    with pytest.raises(ProcessingPreflightError, match="TEMPORARY_COLLISION"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert temporary.read_bytes() == b"foreign-temp"
+    assert not target.exists()
+
+
+def test_preflight_writer_concurrent_publishers_allow_one_success(tmp_path: Path) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+
+    def publish() -> str:
+        try:
+            write_preflight_evidence_file(
+                target, document, expected_fingerprint=str(document["fingerprint"]),
+            )
+        except ProcessingPreflightError as exc:
+            return str(exc)
+        return "success"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: publish(), range(2)))
+    assert results.count("success") == 1
+    assert target.is_file()
+
+
+def test_preflight_writer_preserves_competing_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    original = preflight._publish_preflight_no_replace
+
+    def competing(temporary: Path, final: Path) -> None:
+        final.write_bytes(b"competing-final")
+        original(temporary, final)
+
+    monkeypatch.setattr(preflight, "_publish_preflight_no_replace", competing)
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.read_bytes() == b"competing-final"
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_preflight_writer_fsync_failure_leaves_no_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    monkeypatch.setattr(preflight.os, "fsync", lambda _fd: (_ for _ in ()).throw(OSError()))
+    with pytest.raises(ProcessingPreflightError, match="ATOMIC_WRITE_FAILED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("failure", ["short_write", "flush"])
+def test_preflight_writer_stream_failure_leaves_no_artifact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure: str,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    original_fdopen = preflight.os.fdopen
+
+    class FailingStream:
+        def __init__(self, descriptor: int) -> None:
+            self.stream = original_fdopen(descriptor, "wb")
+
+        def __enter__(self) -> "FailingStream":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.stream.close()
+
+        def write(self, payload: bytes) -> int:
+            if failure == "short_write":
+                return 0
+            return self.stream.write(payload)
+
+        def flush(self) -> None:
+            if failure == "flush":
+                raise OSError("synthetic")
+            self.stream.flush()
+
+        def fileno(self) -> int:
+            return self.stream.fileno()
+
+    monkeypatch.setattr(preflight.os, "fdopen", lambda descriptor, _mode: FailingStream(descriptor))
+    with pytest.raises(ProcessingPreflightError, match="ATOMIC_WRITE_FAILED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_preflight_writer_publish_failure_leaves_no_artifact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    monkeypatch.setattr(
+        preflight.os, "link",
+        lambda *_args: (_ for _ in ()).throw(OSError(errno.EIO, "synthetic")),
+    )
+    with pytest.raises(ProcessingPreflightError, match="ATOMIC_WRITE_FAILED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_preflight_writer_unsupported_filesystem_has_no_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    monkeypatch.setattr(
+        preflight.os, "link",
+        lambda *_args: (_ for _ in ()).throw(OSError(errno.EXDEV, "synthetic")),
+    )
+    with pytest.raises(ProcessingPreflightError, match="NO_REPLACE_UNSUPPORTED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_preflight_writer_directory_sync_failure_preserves_final(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    target = canonical_preflight_evidence_path(tmp_path, UNUSED_RUN_ID)
+    monkeypatch.setattr(
+        preflight, "_sync_preflight_parent_directory",
+        lambda _path: (_ for _ in ()).throw(
+            ProcessingPreflightError("PREFLIGHT_EVIDENCE_DIRECTORY_SYNC_FAILED")
+        ),
+    )
+    with pytest.raises(ProcessingPreflightError, match="DIRECTORY_SYNC_FAILED"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+    assert target.is_file()
+    with pytest.raises(ProcessingPreflightError, match="ALREADY_EXISTS"):
+        write_preflight_evidence_file(
+            target, document, expected_fingerprint=str(document["fingerprint"]),
+        )
+
+
+def test_initial_preflight_cli_uses_public_writer_at_canonical_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    processed = tmp_path / "processed"
+    target = canonical_preflight_evidence_path(processed, UNUSED_RUN_ID)
+    calls: list[tuple[Path, str]] = []
+    monkeypatch.setattr(preflight_cli, "run_preflight", lambda **_kwargs: document)
+    monkeypatch.setattr(preflight_cli, "_yaml", lambda _path: {})
+    monkeypatch.setattr(
+        preflight_cli, "resolve_dataset_mapping",
+        lambda **_kwargs: _mapping(tmp_path / "source", processed),
+    )
+    monkeypatch.setattr(
+        preflight_cli,
+        "write_preflight_evidence_file",
+        lambda path, _document, *, expected_fingerprint: calls.append(
+            (Path(path), expected_fingerprint)
+        ) or Path(path),
+    )
+    result = preflight_cli.main([
+        "--mapping", "synthetic.yaml",
+        "--manifest", "synthetic-manifest.yaml",
+        "--execution-source-commit", "a" * 40,
+        "--governance-record-commit", "b" * 40,
+        "--run-id", UNUSED_RUN_ID,
+        "--approval-id", UNUSED_APPROVAL_ID,
+        "--preflight-only",
+        "--output-evidence", str(target),
+    ])
+    assert result == 0
+    assert calls == [(target, str(document["fingerprint"]))]
+
+
+def test_initial_preflight_cli_rejects_noncanonical_evidence_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    document = _document()
+    processed = tmp_path / "processed"
+    calls: list[Path] = []
+    monkeypatch.setattr(preflight_cli, "run_preflight", lambda **_kwargs: document)
+    monkeypatch.setattr(preflight_cli, "_yaml", lambda _path: {})
+    monkeypatch.setattr(
+        preflight_cli, "resolve_dataset_mapping",
+        lambda **_kwargs: _mapping(tmp_path / "source", processed),
+    )
+    monkeypatch.setattr(
+        preflight_cli, "write_preflight_evidence_file",
+        lambda path, *_args, **_kwargs: calls.append(Path(path)),
+    )
+    result = preflight_cli.main([
+        "--mapping", "synthetic.yaml",
+        "--manifest", "synthetic-manifest.yaml",
+        "--execution-source-commit", "a" * 40,
+        "--governance-record-commit", "b" * 40,
+        "--run-id", UNUSED_RUN_ID,
+        "--approval-id", UNUSED_APPROVAL_ID,
+        "--preflight-only",
+        "--output-evidence", str(tmp_path / "wrong.json"),
+    ])
+    assert result == 2
+    assert calls == []
 
 
 @pytest.mark.parametrize("suffix", ["", ".staging", ".failed"])
