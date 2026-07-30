@@ -1,0 +1,37 @@
+schema_version: 1
+status: ready_for_tokenization
+source_dataset:
+  run_id: AIHUB-71748-SFT-PROCESSING-20260730-0015
+  expected_rows:
+    train: 10374
+    validation: 1287
+  checksums:
+    train.jsonl: dc4e38778e34910e28fb46804e0bbafed947170a5faf155c699acbcf2ccb1cbb
+    validation.jsonl: 56266aa5b422c8de12e1c5b5cf6490f11d5f2dfc907d55c397e87ea5c7a66363
+    manifest.yaml: 6159412970e01aad3941891dd6ea4a1bdfa8c6d04f9c08ce98b33c52d243c80f
+    statistics.json: ac4f0fed818a862a35465d5e63c35cef64ae37c7c9e75285ba733e8590770c51
+    processing-result.yaml: 5afb3137fba777603715d3715d3c7c3cf53287ed54eedec940d91da85b4fd054
+model:
+  id: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  license: Apache-2.0
+  trust_remote_code: false
+tokenization:
+  run_id: DOHALM-TOKENIZATION-20260730-0001
+  max_seq_length: 1536
+  candidates:
+    - 512
+    - 1024
+    - 1536
+    - 2048
+  preferred_coverage: 0.95
+  maximum_initial_length: 2048
+  user_input_separator: "\n\n"
+  assistant_only_loss: true
+  train_on_prompt: false
+  packing: false
+  preserve_assistant_first: true
+  trim_template_tokens_after_assistant_eos: true
+  source_text_persisted: false
+execution_allowed: false
+training_allowed: false
