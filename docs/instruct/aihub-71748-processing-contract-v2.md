@@ -178,6 +178,19 @@ execution_allowed: false
 후속 live refresh에서 backend fingerprint mismatch로 폐기됐다. 현재 후속 단계는 [Run 0009](./aihub-71748-processing-run-0009-preflight.md)
 문서 병합 후 최신 governance commit에서 evidence freshness를 별도로 재검증하는 것이다.
 
+## Initial Preflight Evidence atomic writer
+
+[확정] 공식 Initial Preflight CLI는 [Initial Preflight Evidence Writer](./aihub-71748-initial-preflight-evidence-writer.md)를
+통해 canonical evidence를 저장한다. exclusive temp, short-write 검사, flush, file fsync와 hard-link atomic no-replace
+publish를 사용하며 `Path.write_text()`와 `os.replace()`는 exclusive publish에 사용하지 않는다. POSIX parent directory
+fsync 실패는 성공 처리하지 않고, Windows durability 차이는 명시적 플랫폼 정책으로 유지한다. publish 후 file SHA-256,
+evidence fingerprint와 Approval draft를 reload해 재검증한다.
+
+[확정] 빈 `runtime-evidence/<run-id>/` parent만으로 identity를 사용 처리하지 않는다. canonical evidence나 다른 runtime
+artifact가 존재하면 `RUN_ID_ALREADY_USED`이며, Processing output과 Approval artifact 차단은 완화하지 않는다. 기존 final,
+경쟁 final과 incomplete final은 보존하고 같은 identity의 재게시를 차단한다. Run 0010은 writer 구현의 Synthetic 검증
+시점에는 `not_created`이며, 병합된 immutable develop commit에서 별도 공식 CLI 호출 전까지 실제 Preflight로 기록하지 않는다.
+
 ## Active Run Approval Refresh 보완 계약
 
 [확정] 최초 Preflight와 이미 예약된 Run의 Approval refresh는 서로 다른 검증 단계다. 최초 Preflight는 기존
@@ -266,6 +279,7 @@ Live Refresh는 검증됐고 RuntimeExecutionRequest·consume·Processing은 생
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-07-30 | Initial Preflight Evidence atomic no-replace writer·canonical CLI 경로·빈 parent identity 계약 합성 검증 |
 | 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 `retired_runtime_request_governance_mismatch` 반영 |
 | 2026-07-30 | public Approval retirement artifact service·별도 evidence·lock/CAS 정책 연결 |
 | 2026-07-30 | RuntimeExecutionRequest v1 발급 서비스·atomic writer·CLI 계약과 Approval 0009 실제 상태 반영 |
