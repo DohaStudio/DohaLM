@@ -124,8 +124,9 @@ def join_source_records(records: Iterable[SourceRecord]) -> tuple[JoinedRecord, 
     return tuple(joined)
 
 
-def _ngrams(value: str) -> frozenset[str]:
-    normalized = normalize_near_duplicate_text(value)
+def _normalized_ngrams(normalized: str) -> frozenset[str]:
+    """Return trigram features for a value normalized by the caller."""
+
     width = 3
     return frozenset(normalized[index:index + width] for index in range(max(1, len(normalized) - width + 1)))
 
@@ -166,7 +167,9 @@ def recompute_record_signals(
             if index != keep:
                 signals[index] = RecordSignal(**{**signals[index].__dict__, "exact_duplicate": "duplicate"})
 
-    grams = [_ngrams(value) for value in normalized]
+    grams = [_normalized_ngrams(value) for value in normalized]
+    gram_sizes = [len(features) for features in grams]
+    candidate_min = max(0.25, review_min - 0.5)
     postings: dict[str, list[int]] = defaultdict(list)
     candidates: set[tuple[int, int]] = set()
     for right, features in enumerate(grams):
@@ -175,8 +178,10 @@ def recompute_record_signals(
             for left in postings[feature]:
                 counts[left] += 1
         for left, overlap in counts.items():
-            denominator = len(grams[left] | features)
-            if denominator and overlap / denominator >= max(0.25, review_min - 0.5):
+            # |A ∪ B| = |A| + |B| - |A ∩ B|.  Avoid allocating a full
+            # union for every candidate while preserving the exact Jaccard score.
+            denominator = gram_sizes[left] + gram_sizes[right] - overlap
+            if denominator and overlap / denominator >= candidate_min:
                 candidates.add((left, right))
                 if len(candidates) > maximum_candidate_pairs:
                     raise AIHub71748ProcessingError("RECORD_LEVEL_POLICY_SIGNAL_MISSING")
@@ -185,7 +190,13 @@ def recompute_record_signals(
     for left, right in sorted(candidates):
         if (records[left].question, records[left].answer) == (records[right].question, records[right].answer):
             continue
-        score = SequenceMatcher(None, normalized[left], normalized[right]).ratio()
+        matcher = SequenceMatcher(None, normalized[left], normalized[right])
+        # Both methods are documented upper bounds for ratio().  Rejecting below
+        # the policy threshold is therefore exact, while avoiding expensive full
+        # matching for candidates that cannot qualify.
+        if matcher.real_quick_ratio() < review_min or matcher.quick_ratio() < review_min:
+            continue
+        score = matcher.ratio()
         if score < review_min:
             continue
         cross_split = records[left].split != records[right].split

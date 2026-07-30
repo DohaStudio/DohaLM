@@ -178,6 +178,13 @@ def _required_count(record: dict[str, Any], key: str) -> int:
     return value
 
 
+def _required_category(record: dict[str, Any]) -> str:
+    value = record.get("data_category")
+    if not isinstance(value, dict):
+        raise AIHub71748ReaderError("INPUT_SCHEMA_MISMATCH")
+    return _required_string(value, "middle")
+
+
 def parse_source_record(
     split: str, component: str, record: dict[str, Any]
 ) -> SourceRecord:
@@ -185,7 +192,7 @@ def parse_source_record(
     question = _required_string(record, "question")
     if component == "sftdata":
         question_type = _required_string(record, "question_type")
-        category = _required_string(record, "data_category")
+        category = _required_category(record)
         return SourceRecord(
             split,
             component,

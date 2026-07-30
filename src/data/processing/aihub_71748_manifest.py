@@ -185,7 +185,7 @@ def _validate_input_contract(manifest: Mapping[str, object]) -> None:
             "question",
             "question_count",
             "question_type",
-            "data_category",
+            "data_category.middle",
         ],
         "SFTlabel": [
             "data_id",
@@ -238,7 +238,7 @@ def _validate_output_schema(manifest: Mapping[str, object]) -> None:
         "source_record_id": {"source": "data_id", "persistence": "internal_only"},
         "source_split": {"source": "archive_derived_split"},
         "question_type": {"source": "question_type"},
-        "data_category": {"source": "data_category"},
+        "data_category": {"source": "data_category.middle"},
     }
     if dict(fields) != expected_metadata:
         raise AIHub71748ManifestError("OUTPUT_SCHEMA_MISMATCH")

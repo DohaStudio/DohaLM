@@ -44,7 +44,9 @@ from src.data.processing.approval import (
     validate_approval_file,
 )
 from src.data.processing.run_contract import RuntimeExecutionRequest, new_runtime_execution_request
-from src.data.processing.aihub_71748_reader import _entry, _normalized_entry_name, _validated_entries
+from src.data.processing.aihub_71748_reader import (
+    _entry, _normalized_entry_name, _validated_entries, parse_source_record,
+)
 
 
 MANIFEST = Path("configs/data/aihub-71748-sft-processing-v1.yaml")
@@ -133,10 +135,14 @@ def _write_zip(
 
 
 def _package(root: Path) -> Path:
-    data = [{"data_id": "one", "question": "synthetic question", "question_count": 1, "question_type": "qa", "data_category": "test"}]
-    label = [{"data_id": "one", "question": "synthetic question", "answer": {"contents": "synthetic answer", "answer_count": 1}}]
-    validation_data = [{"data_id": "two", "question": "validation prompt", "question_count": 1, "question_type": "qa", "data_category": "test"}]
-    validation_label = [{"data_id": "two", "question": "validation prompt", "answer": {"contents": "validation response", "answer_count": 1}}]
+    data = [{"data_id": "one", "question": "synthetic question", "question_count": 1, "question_type": "qa", "data_category": {"main": "synthetic", "middle": "test"}}]
+    label = [{"data_id": "one", "question": "synthetic question", "question_count": 1,
+              "question_type": "qa", "data_category": {"main": "synthetic", "middle": "test"},
+              "answer": {"contents": "synthetic answer", "answer_count": 1}}]
+    validation_data = [{"data_id": "two", "question": "validation prompt", "question_count": 1, "question_type": "qa", "data_category": {"main": "synthetic", "middle": "test"}}]
+    validation_label = [{"data_id": "two", "question": "validation prompt", "question_count": 1,
+                         "question_type": "qa", "data_category": {"main": "synthetic", "middle": "test"},
+                         "answer": {"contents": "validation response", "answer_count": 1}}]
     _write_zip(root / "Training" / "TS_02.synthetic.zip", "sftdata", data,
                extras=("/PPOdata.json", "/RMdata.json"), component_name="/SFTdata.json")
     _write_zip(root / "Training" / "TL_02.synthetic.zip", "sftlabel", label,
@@ -211,6 +217,20 @@ def test_source_discovery_and_streaming_parser(tmp_path: Path) -> None:
     records = list(iter_source_records(sources[0]))
     assert len(records) == 1
     assert records[0].question_count == 1
+    assert records[0].data_category == "test"
+
+
+@pytest.mark.parametrize(
+    "category",
+    [None, "test", {}, {"middle": None}, {"middle": ""}, {"middle": []}],
+)
+def test_source_parser_rejects_noncanonical_data_category(category: object) -> None:
+    record = {
+        "data_id": "one", "question": "synthetic question", "question_count": 1,
+        "question_type": "qa", "data_category": category,
+    }
+    with pytest.raises(AIHub71748ReaderError, match="^INPUT_SCHEMA_MISMATCH$"):
+        parse_source_record("training", "sftdata", record)
 
 
 def test_component_reader_opens_only_selected_provider_payload(
@@ -220,7 +240,7 @@ def test_component_reader_opens_only_selected_provider_payload(
     _write_zip(
         path, "sftdata",
         [{"data_id": "one", "question": "q", "question_count": 1,
-          "question_type": "qa", "data_category": "test"}],
+          "question_type": "qa", "data_category": {"main": "synthetic", "middle": "test"}}],
         extras=("/PPOdata.json", "/RMdata.json"), component_name="/SFTdata.json",
     )
     opened: list[str] = []
