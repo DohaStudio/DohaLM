@@ -187,8 +187,8 @@ def test_only_training_smoke_owns_optimizer_creation() -> None:
 
 def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     assert _expected_run_id("full", "windows") != _expected_run_id("full", "wsl")
-    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0004")
-    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0004")
+    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0005")
+    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0005")
     assert _expected_run_id("training-smoke-1", "wsl") == (
         qlora_training.WSL_TRAINING_SMOKE_STAGE1_RUN_ID
     )
@@ -197,10 +197,29 @@ def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     )
     assert qlora_training.RETIRED_WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0001")
     assert qlora_training.RETIRED_WSL_STABILITY_RUN_ID_2.endswith("WSL-20260731-0002")
-    assert qlora_training.WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0003")
-    assert qlora_training.WSL_RUN_ID.endswith("20260731-0003")
+    assert qlora_training.WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0004")
+    assert qlora_training.WSL_RUN_ID.endswith("20260731-0004")
     assert _expected_run_id("stability", "wsl") == qlora_training.WSL_STABILITY_RUN_ID
     assert _expected_run_id("full", "wsl") == qlora_training.WSL_RUN_ID
+
+
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "allocation",
+        "backward",
+        "training-smoke-1",
+        "training-smoke-2",
+        "stability",
+        "full",
+    ),
+)
+def test_wsl_runtime_ids_accept_only_the_active_value(mode: str) -> None:
+    active_run_id = _expected_run_id(mode, "wsl")
+    require_execution_approval(
+        expected_run_id=active_run_id,
+        approved_run_id=active_run_id,
+    )
 
 
 def test_wsl_prerequisite_roots_use_distinct_active_ids(tmp_path: Path) -> None:
@@ -254,14 +273,14 @@ def test_wsl_prerequisites_reject_retired_run_ids(
         )
 
 
-def test_wsl_stability_uses_0003_canonical_root(tmp_path: Path) -> None:
+def test_wsl_stability_uses_0004_canonical_root(tmp_path: Path) -> None:
     root = _roots(tmp_path, "wsl")["stability"]
     assert root == tmp_path / "stability" / qlora_training.WSL_STABILITY_RUN_ID
     assert "0001" not in root.as_posix()
 
 
 @pytest.mark.parametrize("occupied", ("final", "staging", "failed"))
-def test_wsl_stability_0003_canonical_root_is_no_replace(
+def test_wsl_stability_0004_canonical_root_is_no_replace(
     tmp_path: Path,
     occupied: str,
 ) -> None:
@@ -270,6 +289,33 @@ def test_wsl_stability_0003_canonical_root_is_no_replace(
     getattr(paths, occupied).mkdir(parents=True)
     with pytest.raises(QLoRATrainingError, match="^OUTPUT_RUN_ID_ALREADY_USED$"):
         ensure_unused_output(root)
+
+
+@pytest.mark.parametrize(
+    ("mode", "approved_run_id"),
+    (
+        ("allocation", "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0004"),
+        ("backward", "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0004"),
+        ("training-smoke-1", "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0004"),
+        ("training-smoke-2", "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0004"),
+        ("stability", "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0003"),
+        ("full", "DOHALM-V0.1-QLORA-20260731-0003"),
+        ("full", "DOHALM-V0.1-QLORA-20260731-0006"),
+        ("full", ""),
+        ("full", "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0004"),
+        ("stability", "DOHALM-V0.1-QLORA-20260731-0004"),
+        ("full", "DOHALM-V0.1-QLORA-20260731-WINDOWS"),
+    ),
+)
+def test_wsl_runtime_ids_reject_non_active_values(
+    mode: str,
+    approved_run_id: str,
+) -> None:
+    with pytest.raises(QLoRATrainingError, match="^EXPLICIT_RUN_APPROVAL_REQUIRED$"):
+        require_execution_approval(
+            expected_run_id=_expected_run_id(mode, "wsl"),
+            approved_run_id=approved_run_id,
+        )
 
 
 @pytest.mark.parametrize(
