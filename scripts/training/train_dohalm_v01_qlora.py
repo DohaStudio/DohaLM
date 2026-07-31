@@ -19,6 +19,11 @@ from src.training.qlora_training import (
     BACKWARD_DIAGNOSTIC_RUN_ID,
     RUN_ID,
     TRAINING_SMOKE_RUN_ID,
+    WSL_ALLOCATION_SMOKE_RUN_ID,
+    WSL_BACKWARD_DIAGNOSTIC_RUN_ID,
+    WSL_RUN_ID,
+    WSL_STABILITY_RUN_ID,
+    WSL_TRAINING_SMOKE_RUN_ID,
     QLoRATrainingError,
     StageReporter,
     attach_lora,
@@ -32,6 +37,7 @@ from src.training.qlora_training import (
     run_allocation_smoke,
     run_backward_diagnostic,
     run_full_training,
+    run_stability_smoke,
     run_training_smoke,
     set_reproducible_seeds,
     smoke_is_valid,
@@ -40,6 +46,7 @@ from src.training.qlora_training import (
     validate_environment,
     validate_result_artifact,
     validate_runtime_config,
+    validate_stability_result,
     validate_tokenized_dataset,
     validate_training_smoke_stage,
     verify_git_identity,
@@ -51,6 +58,7 @@ MODES = (
     "backward",
     "training-smoke-1",
     "training-smoke-2",
+    "stability",
     "full",
 )
 
@@ -58,6 +66,7 @@ MODES = (
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser()
     value.add_argument("--mode", required=True, choices=MODES)
+    value.add_argument("--profile", choices=("windows", "wsl"), default="windows")
     value.add_argument("--approved-run-id", required=True)
     value.add_argument("--expected-head", required=True)
     value.add_argument("--backward-length", type=int, choices=BACKWARD_DIAGNOSTIC_LENGTHS)
@@ -70,29 +79,55 @@ def parser() -> argparse.ArgumentParser:
     return value
 
 
-def _expected_run_id(mode: str) -> str:
-    if mode == "allocation":
-        return ALLOCATION_SMOKE_RUN_ID
-    if mode == "backward":
-        return BACKWARD_DIAGNOSTIC_RUN_ID
-    if mode.startswith("training-smoke"):
-        return TRAINING_SMOKE_RUN_ID
-    return RUN_ID
-
-
-def _roots(training_root: Path) -> dict[str, Path]:
+def _runtime_ids(profile: str) -> dict[str, str]:
+    if profile == "wsl":
+        return {
+            "allocation": WSL_ALLOCATION_SMOKE_RUN_ID,
+            "backward": WSL_BACKWARD_DIAGNOSTIC_RUN_ID,
+            "training": WSL_TRAINING_SMOKE_RUN_ID,
+            "stability": WSL_STABILITY_RUN_ID,
+            "full": WSL_RUN_ID,
+        }
     return {
-        "allocation": training_root / "smoke" / ALLOCATION_SMOKE_RUN_ID,
-        "backward": training_root / "diagnostics" / BACKWARD_DIAGNOSTIC_RUN_ID,
-        "training": training_root / "smoke" / TRAINING_SMOKE_RUN_ID,
+        "allocation": ALLOCATION_SMOKE_RUN_ID,
+        "backward": BACKWARD_DIAGNOSTIC_RUN_ID,
+        "training": TRAINING_SMOKE_RUN_ID,
+        "stability": "NOT-AVAILABLE-WINDOWS",
+        "full": RUN_ID,
     }
 
 
-def _validate_allocation(root: Path, *, expected_head: str) -> dict[str, object]:
+def _expected_run_id(mode: str, profile: str) -> str:
+    ids = _runtime_ids(profile)
+    if mode == "allocation":
+        return ids["allocation"]
+    if mode == "backward":
+        return ids["backward"]
+    if mode.startswith("training-smoke"):
+        return ids["training"]
+    return ids[mode]
+
+
+def _roots(training_root: Path, profile: str) -> dict[str, Path]:
+    ids = _runtime_ids(profile)
+    return {
+        "allocation": training_root / "smoke" / ids["allocation"],
+        "backward": training_root / "diagnostics" / ids["backward"],
+        "training": training_root / "smoke" / ids["training"],
+        "stability": training_root / "stability" / ids["stability"],
+    }
+
+
+def _validate_allocation(
+    root: Path,
+    *,
+    expected_head: str,
+    expected_run_id: str,
+) -> dict[str, object]:
     result = validate_result_artifact(
         root,
         filename="allocation-result.yaml",
-        expected_run_id=ALLOCATION_SMOKE_RUN_ID,
+        expected_run_id=expected_run_id,
     )
     git = result.get("git")
     if (
@@ -148,7 +183,10 @@ def _load_model_and_data(
 
 
 def run(arguments: argparse.Namespace) -> dict[str, object]:
-    expected_run = _expected_run_id(arguments.mode)
+    if arguments.mode == "stability" and arguments.profile != "wsl":
+        raise QLoRATrainingError("STABILITY_REQUIRES_WSL_PROFILE")
+    ids = _runtime_ids(arguments.profile)
+    expected_run = _expected_run_id(arguments.mode, arguments.profile)
     require_execution_approval(expected_run_id=expected_run, approved_run_id=arguments.approved_run_id)
     if arguments.mode == "backward" and arguments.backward_length is None:
         raise QLoRATrainingError("BACKWARD_DIAGNOSTIC_LENGTH_REQUIRED")
@@ -163,7 +201,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
     with reporter.stage("dataset_validation", timeout_seconds=120):
         dataset = validate_tokenized_dataset(arguments.tokenized_root)
     set_reproducible_seeds(42)
-    roots = _roots(arguments.training_root)
+    roots = _roots(arguments.training_root, arguments.profile)
 
     if arguments.mode == "allocation":
         paths = ensure_unused_output(roots["allocation"])
@@ -177,6 +215,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 train_dataset=train,
                 validation_dataset=validation,
                 reporter=reporter,
+                run_id=ids["allocation"],
             )
             result.update({
                 "git": git_identity,
@@ -198,7 +237,11 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             quarantine_staging(paths)
             raise
 
-    allocation = _validate_allocation(roots["allocation"], expected_head=arguments.expected_head)
+    allocation = _validate_allocation(
+        roots["allocation"],
+        expected_head=arguments.expected_head,
+        expected_run_id=ids["allocation"],
+    )
     if arguments.mode == "backward":
         assert arguments.backward_length is not None
         position = BACKWARD_DIAGNOSTIC_LENGTHS.index(arguments.backward_length)
@@ -207,6 +250,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 roots["backward"] / f"length-{prior_length}",
                 target_length=prior_length,
                 expected_head=arguments.expected_head,
+                expected_run_id=ids["backward"],
             )
         paths = ensure_unused_output(roots["backward"] / f"length-{arguments.backward_length}")
         try:
@@ -220,6 +264,8 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 validation_dataset=validation,
                 target_length=arguments.backward_length,
                 reporter=reporter,
+                run_id=ids["backward"],
+                timeout_seconds=300 if arguments.profile == "wsl" else 600,
             )
             result.update({"git": git_identity, "dataset": dataset})
             publish_result_artifact(
@@ -238,7 +284,9 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             raise
 
     validate_backward_diagnostics(
-        roots["backward"], expected_head=arguments.expected_head,
+        roots["backward"],
+        expected_head=arguments.expected_head,
+        expected_run_id=ids["backward"],
     )
     stage_one_root = roots["training"] / "stage-1"
     stage_two_root = roots["training"] / "stage-2"
@@ -250,15 +298,61 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             stage_one_root,
             stage_number=1,
             expected_head=arguments.expected_head,
+            expected_run_id=ids["training"],
         )
         paths = ensure_unused_output(stage_two_root)
         stage_number, micro_batches, validation_batches = 2, 16, 2
+    elif arguments.mode == "stability":
+        stage_two_result = validate_training_smoke_stage(
+            stage_two_root,
+            stage_number=2,
+            expected_head=arguments.expected_head,
+            expected_run_id=ids["training"],
+        )
+        paths = ensure_unused_output(roots["stability"])
+        tokenizer, base_model, model, train, _, statistics = _load_model_and_data(
+            arguments, config, reporter,
+        )
+        try:
+            result = run_stability_smoke(
+                paths=paths,
+                model=model,
+                tokenizer=tokenizer,
+                train_dataset=train,
+                config=config,
+                environment=environment,
+                git_identity=git_identity,
+                dataset_identity=dataset,
+                model_statistics_value=statistics.__dict__,
+                training_smoke_result=stage_two_result,
+                reporter=reporter,
+                run_id=ids["stability"],
+            )
+            del model, base_model
+            release_cuda()
+            return result
+        except Exception:
+            del model, base_model
+            release_cuda()
+            raise
     else:
-        result = smoke_is_valid(stage_two_root, expected_head=arguments.expected_head)
-        estimate = result.get("runtime_estimate")
+        result = smoke_is_valid(
+            stage_two_root,
+            expected_head=arguments.expected_head,
+            expected_run_id=ids["training"],
+        )
+        if arguments.profile == "wsl":
+            stability = validate_stability_result(
+                roots["stability"],
+                expected_head=arguments.expected_head,
+                expected_run_id=ids["stability"],
+            )
+            estimate = stability.get("runtime_estimate")
+        else:
+            estimate = result.get("runtime_estimate")
         if not isinstance(estimate, dict) or estimate.get("acceptable") is not True:
             raise QLoRATrainingError("FULL_RUNTIME_ESTIMATE_NOT_ACCEPTABLE")
-        full_root = arguments.training_root / "DohaLM-v0.1" / RUN_ID
+        full_root = arguments.training_root / "DohaLM-v0.1" / ids["full"]
         paths = ensure_unused_output(full_root)
         with reporter.stage("full_training", timeout_seconds=72 * 3600):
             return run_full_training(
@@ -271,6 +365,8 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 expected_head=arguments.expected_head,
                 environment=environment,
                 git_identity=git_identity,
+                run_id=ids["full"],
+                reporter=reporter,
             )
 
     tokenizer, base_model, model, _, _, statistics = _load_model_and_data(
@@ -291,6 +387,8 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
         validation_batches=validation_batches,
         stage_number=stage_number,
         reporter=reporter,
+        run_id=ids["training"],
+        micro_batch_timeout_seconds=300 if arguments.profile == "wsl" else 1800,
     )
 
 
