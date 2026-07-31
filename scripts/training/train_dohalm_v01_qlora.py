@@ -31,6 +31,7 @@ from src.training.qlora_training import (
     attach_lora,
     ensure_unused_output,
     environment_snapshot,
+    finalize_smoke_failure,
     finalize_stability_failure,
     load_tokenizer_and_model,
     model_statistics,
@@ -50,6 +51,7 @@ from src.training.qlora_training import (
     validate_environment,
     validate_result_artifact,
     validate_runtime_config,
+    validate_smoke_failure,
     validate_stability_failure,
     validate_stability_result,
     validate_tokenized_dataset,
@@ -411,6 +413,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             else ids["training_stage_2"]
         ),
         micro_batch_timeout_seconds=300 if arguments.profile == "wsl" else 1800,
+        supervisor_managed_failure=True,
     )
 
 
@@ -512,6 +515,99 @@ def _finalize_supervised_stability_failure(
     )
 
 
+def _finalize_supervised_smoke_failure(
+    argv: list[str],
+    *,
+    worker_exit_code: int,
+    failure_code: str,
+    active_stage: dict[str, object] | None,
+) -> dict[str, object] | None:
+    arguments = parser().parse_args(argv)
+    if arguments.mode not in {"training-smoke-1", "training-smoke-2"}:
+        return None
+    roots = _roots(arguments.training_root, arguments.profile)
+    root = (
+        roots["training_stage_1"]
+        if arguments.mode == "training-smoke-1"
+        else roots["training_stage_2"]
+    )
+    paths = artifact_paths(root)
+    if paths.failed.is_dir():
+        return validate_smoke_failure(
+            paths.failed,
+            expected_head=arguments.expected_head,
+            expected_run_id=arguments.approved_run_id,
+        )
+    if not paths.staging.is_dir() or paths.final.exists():
+        raise QLoRATrainingError("SMOKE_FAILURE_SOURCE_INVALID")
+    try:
+        last_state = json.loads(
+            (paths.staging / "stage-state.json").read_text(encoding="utf-8"),
+        )
+    except (OSError, UnicodeError, ValueError):
+        raise QLoRATrainingError("SMOKE_FAILURE_SOURCE_INVALID") from None
+    stage = (
+        str(active_stage.get("stage", "worker_exit"))
+        if active_stage
+        else str(last_state.get("failed_stage", "worker_exit"))
+    )
+    timeout = (
+        float(active_stage.get("timeout_seconds", 0.0))
+        if active_stage
+        else float(last_state.get("watchdog_seconds", 0.0))
+    )
+    return finalize_smoke_failure(
+        paths,
+        failure_code=failure_code,
+        failed_stage=stage,
+        worker_exit_code=worker_exit_code,
+        watchdog_seconds=timeout,
+        failed_batch_number=(
+            int(active_stage["batch_number"])
+            if active_stage and active_stage.get("batch_number") is not None
+            else int(last_state.get("failed_batch_number", 0))
+        ),
+        allocated_bytes=(
+            int(active_stage["allocated_bytes"])
+            if active_stage and active_stage.get("allocated_bytes") is not None
+            else None
+        ),
+        reserved_bytes=(
+            int(active_stage["reserved_bytes"])
+            if active_stage and active_stage.get("reserved_bytes") is not None
+            else None
+        ),
+        peak_allocated_bytes=(
+            int(active_stage["peak_allocated_bytes"])
+            if active_stage and active_stage.get("peak_allocated_bytes") is not None
+            else None
+        ),
+    )
+
+
+def _finalize_supervised_failure(
+    argv: list[str],
+    *,
+    worker_exit_code: int,
+    failure_code: str,
+    active_stage: dict[str, object] | None,
+) -> dict[str, object] | None:
+    smoke = _finalize_supervised_smoke_failure(
+        argv,
+        worker_exit_code=worker_exit_code,
+        failure_code=failure_code,
+        active_stage=active_stage,
+    )
+    if smoke is not None:
+        return smoke
+    return _finalize_supervised_stability_failure(
+        argv,
+        worker_exit_code=worker_exit_code,
+        failure_code=failure_code,
+        active_stage=active_stage,
+    )
+
+
 def supervise(argv: list[str]) -> int:
     command = [sys.executable, str(Path(__file__).resolve()), *argv, "--stage-worker"]
     process = subprocess.Popen(
@@ -563,7 +659,7 @@ def supervise(argv: list[str]) -> int:
                 else "STAGE_HARD_TIMEOUT"
             )
             try:
-                finalized = _finalize_supervised_stability_failure(
+                finalized = _finalize_supervised_failure(
                     argv,
                     worker_exit_code=int(process.returncode or -9),
                     failure_code=failure_code,
@@ -571,7 +667,7 @@ def supervise(argv: list[str]) -> int:
                 )
             except (OSError, QLoRATrainingError, ValueError) as error:
                 finalized = None
-                failure_code = f"STABILITY_FAILURE_ARTIFACT_FAILED:{error}"
+                failure_code = f"FAILURE_ARTIFACT_FAILED:{error}"
             failure = {
                 "status": "blocked",
                 "error_code": failure_code,
@@ -600,7 +696,7 @@ def supervise(argv: list[str]) -> int:
     return_code = int(process.returncode or 0)
     if return_code != 0:
         try:
-            finalized = _finalize_supervised_stability_failure(
+            finalized = _finalize_supervised_failure(
                 argv,
                 worker_exit_code=return_code,
                 failure_code=("WORKER_EXIT_124" if return_code == 124 else "WORKER_ABNORMAL_EXIT"),
@@ -609,7 +705,7 @@ def supervise(argv: list[str]) -> int:
         except (OSError, QLoRATrainingError, ValueError) as error:
             print(json.dumps({
                 "status": "blocked",
-                "error_code": f"STABILITY_FAILURE_ARTIFACT_FAILED:{error}",
+                "error_code": f"FAILURE_ARTIFACT_FAILED:{error}",
                 "worker_exit_code": return_code,
                 "failure_artifact_validated": False,
             }, sort_keys=True))

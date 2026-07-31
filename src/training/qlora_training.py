@@ -39,11 +39,15 @@ RETIRED_WSL_ALLOCATION_SMOKE_RUN_IDS = (
     "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0001",
     "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0002",
     "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0003",
+    "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0004",
+    "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0005",
 )
 RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_IDS = (
     "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0001",
     "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0002",
     "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0003",
+    "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0004",
+    "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0005",
 )
 RETIRED_WSL_TRAINING_SMOKE_RUN_IDS = (
     "DOHALM-V0.1-QLORA-TRAINING-SMOKE-WSL-20260731-0001",
@@ -51,22 +55,26 @@ RETIRED_WSL_TRAINING_SMOKE_RUN_IDS = (
     "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0002",
     "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0003",
     "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0003",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0004",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0004",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0005",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0005",
 )
 RETIRED_WSL_ALLOCATION_SMOKE_RUN_ID = RETIRED_WSL_ALLOCATION_SMOKE_RUN_IDS[0]
 RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_ID = RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_IDS[0]
 RETIRED_WSL_TRAINING_SMOKE_RUN_ID = RETIRED_WSL_TRAINING_SMOKE_RUN_IDS[0]
-WSL_ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0005"
-WSL_BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0005"
+WSL_ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0006"
+WSL_BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0006"
 WSL_TRAINING_SMOKE_STAGE1_RUN_ID = (
-    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0005"
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0006"
 )
 WSL_TRAINING_SMOKE_STAGE2_RUN_ID = (
-    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0005"
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0006"
 )
 RETIRED_WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0001"
 RETIRED_WSL_STABILITY_RUN_ID_2 = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0002"
-WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0004"
-WSL_RUN_ID = "DOHALM-V0.1-QLORA-20260731-0004"
+WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0005"
+WSL_RUN_ID = "DOHALM-V0.1-QLORA-20260731-0005"
 SOURCE_PROCESSING_RUN = "AIHUB-71748-SFT-PROCESSING-20260730-0015"
 TOKENIZATION_RUN = "DOHALM-TOKENIZATION-20260730-0001"
 MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -150,6 +158,16 @@ STABILITY_FAILURE_STATE_FIELDS = (
     "attention_mask_checksum", "category_hash", "shuffle_seed",
     "sampler_order_fingerprint", "first_64_indices_hash",
 )
+SMOKE_FAILURE_STATE_FIELDS = (
+    "schema_version", "run_id", "stage_name", "runtime_head", "status",
+    "failure_code", "failed_stage", "failed_batch_number", "optimizer_steps",
+    "worker_pid", "worker_exit_code", "watchdog_seconds", "allocated_bytes",
+    "reserved_bytes", "peak_allocated_bytes", "failed_at", "last_progress_at",
+    "batch_identity",
+)
+SMOKE_FAILURE_REQUIRED_PAYLOADS = frozenset({
+    "stage-state.json", "environment.json", "failure-result.yaml",
+})
 
 
 class QLoRATrainingError(RuntimeError):
@@ -570,6 +588,207 @@ def _write_stability_failure_checksums(root: Path) -> dict[str, str]:
     )
     _exclusive_write(root / "checksums.sha256", payload, encoding="ascii")
     return checksums
+
+
+def _write_smoke_failure_checksums(root: Path) -> dict[str, str]:
+    payload_files = sorted(
+        name for name in (*SMOKE_FAILURE_REQUIRED_PAYLOADS, "batch-metrics.jsonl")
+        if (root / name).is_file()
+    )
+    checksums = {name: sha256_file(root / name) for name in payload_files}
+    payload = "".join(f"{checksums[name]}  {name}\n" for name in payload_files)
+    _exclusive_write(root / "checksums.sha256", payload, encoding="ascii")
+    return checksums
+
+
+def _write_smoke_state(
+    path: Path,
+    *,
+    run_id: str,
+    stage_name: str,
+    runtime_head: str,
+    status: str,
+    failed_stage: str | None = None,
+    failed_batch_number: int = 0,
+    optimizer_steps: int = 0,
+    worker_exit_code: int = 0,
+    watchdog_seconds: float = 0.0,
+    allocated_bytes: int | None = None,
+    reserved_bytes: int | None = None,
+    peak_allocated_bytes: int | None = None,
+    failure_code: str | None = None,
+    failed_at: str | None = None,
+    batch_identity: Mapping[str, object] | None = None,
+    worker_pid: int | None = None,
+    last_progress_at: str | None = None,
+) -> dict[str, object]:
+    allocated, reserved, peak = _cuda_memory()
+    state = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "stage_name": stage_name,
+        "runtime_head": runtime_head,
+        "status": status,
+        "failure_code": failure_code,
+        "failed_stage": failed_stage,
+        "failed_batch_number": failed_batch_number,
+        "optimizer_steps": optimizer_steps,
+        "worker_pid": os.getpid() if worker_pid is None else worker_pid,
+        "worker_exit_code": worker_exit_code,
+        "watchdog_seconds": watchdog_seconds,
+        "allocated_bytes": allocated if allocated_bytes is None else allocated_bytes,
+        "reserved_bytes": reserved if reserved_bytes is None else reserved_bytes,
+        "peak_allocated_bytes": peak if peak_allocated_bytes is None else peak_allocated_bytes,
+        "failed_at": failed_at,
+        "last_progress_at": last_progress_at or utc_now(),
+        "batch_identity": dict(batch_identity or {}),
+    }
+    _atomic_json_replace(path, state, expected_fields=SMOKE_FAILURE_STATE_FIELDS)
+    return state
+
+
+def validate_smoke_failure(
+    root: str | Path,
+    *,
+    expected_head: str,
+    expected_run_id: str,
+) -> dict[str, object]:
+    base = Path(root)
+    names = {path.name for path in base.iterdir()} if base.is_dir() else set()
+    required = SMOKE_FAILURE_REQUIRED_PAYLOADS | {"checksums.sha256"}
+    allowed = required | {"batch-metrics.jsonl"}
+    if not required <= names or not names <= allowed:
+        raise QLoRATrainingError("SMOKE_FAILURE_FILE_SET_INVALID")
+    try:
+        state = json.loads((base / "stage-state.json").read_text(encoding="utf-8"))
+        environment = json.loads((base / "environment.json").read_text(encoding="utf-8"))
+        failure = yaml.safe_load((base / "failure-result.yaml").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError, yaml.YAMLError):
+        raise QLoRATrainingError("SMOKE_FAILURE_INVALID") from None
+    if (
+        not isinstance(state, Mapping)
+        or set(state) != set(SMOKE_FAILURE_STATE_FIELDS)
+        or not isinstance(environment, Mapping)
+        or not isinstance(failure, Mapping)
+        or state.get("status") != "failed"
+        or state.get("run_id") != expected_run_id
+        or state.get("runtime_head") != expected_head
+        or failure.get("status") != "failed"
+        or failure.get("run_id") != expected_run_id
+        or failure.get("runtime_head") != expected_head
+    ):
+        raise QLoRATrainingError("SMOKE_FAILURE_INVALID")
+    expected = _parse_checksum_file(base)
+    actual = {name: sha256_file(base / name) for name in names - {"checksums.sha256"}}
+    if expected != actual:
+        raise QLoRATrainingError("SMOKE_FAILURE_CHECKSUM_MISMATCH")
+    return dict(failure)
+
+
+def finalize_smoke_failure(
+    paths: ArtifactPaths,
+    *,
+    failure_code: str,
+    failed_stage: str,
+    worker_exit_code: int,
+    watchdog_seconds: float,
+    failed_batch_number: int = 0,
+    allocated_bytes: int | None = None,
+    reserved_bytes: int | None = None,
+    peak_allocated_bytes: int | None = None,
+    failed_at: str | None = None,
+    before_directory_sync: Callable[[], None] | None = None,
+    reload_validator: Callable[..., dict[str, object]] | None = None,
+) -> dict[str, object]:
+    if paths.final.exists() or paths.failed.exists() or not paths.staging.is_dir():
+        raise QLoRATrainingError("SMOKE_FAILURE_PUBLISH_COLLISION")
+    state_path = paths.staging / "stage-state.json"
+    environment_path = paths.staging / "environment.json"
+    try:
+        previous = json.loads(state_path.read_text(encoding="utf-8"))
+        environment = json.loads(environment_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        raise QLoRATrainingError("SMOKE_FAILURE_SOURCE_INVALID") from None
+    if (
+        not isinstance(previous, Mapping)
+        or set(previous) != set(SMOKE_FAILURE_STATE_FIELDS)
+        or not isinstance(environment, Mapping)
+    ):
+        raise QLoRATrainingError("SMOKE_FAILURE_SOURCE_INVALID")
+    run_id = str(previous.get("run_id", ""))
+    runtime_head = str(previous.get("runtime_head", ""))
+    stage_name = str(previous.get("stage_name", ""))
+    if not run_id or not runtime_head or not stage_name:
+        raise QLoRATrainingError("SMOKE_FAILURE_SOURCE_INVALID")
+    terminal_time = failed_at or utc_now()
+    state = _write_smoke_state(
+        state_path,
+        run_id=run_id,
+        stage_name=stage_name,
+        runtime_head=runtime_head,
+        status="failed",
+        failure_code=failure_code,
+        failed_stage=failed_stage,
+        failed_batch_number=failed_batch_number,
+        optimizer_steps=int(previous.get("optimizer_steps", 0)),
+        worker_exit_code=worker_exit_code,
+        watchdog_seconds=watchdog_seconds,
+        allocated_bytes=(
+            int(previous.get("allocated_bytes", 0))
+            if allocated_bytes is None else allocated_bytes
+        ),
+        reserved_bytes=(
+            int(previous.get("reserved_bytes", 0))
+            if reserved_bytes is None else reserved_bytes
+        ),
+        peak_allocated_bytes=(
+            int(previous.get("peak_allocated_bytes", 0))
+            if peak_allocated_bytes is None else peak_allocated_bytes
+        ),
+        failed_at=terminal_time,
+        batch_identity=(
+            previous.get("batch_identity")
+            if isinstance(previous.get("batch_identity"), Mapping)
+            else None
+        ),
+        worker_pid=int(previous.get("worker_pid", 0)),
+        last_progress_at=str(previous.get("last_progress_at", terminal_time)),
+    )
+    failure = {
+        "schema_version": 1,
+        "status": "failed",
+        "run_id": run_id,
+        "stage_name": stage_name,
+        "runtime_head": runtime_head,
+        "failure_code": failure_code,
+        "failed_stage": failed_stage,
+        "failed_batch_number": failed_batch_number,
+        "optimizer_steps": state["optimizer_steps"],
+        "worker_pid": state["worker_pid"],
+        "worker_exit_code": worker_exit_code,
+        "watchdog_seconds": watchdog_seconds,
+        "allocated_bytes": state["allocated_bytes"],
+        "reserved_bytes": state["reserved_bytes"],
+        "peak_allocated_bytes": state["peak_allocated_bytes"],
+        "failed_at": terminal_time,
+        "batch_identity": state["batch_identity"],
+    }
+    _exclusive_write(
+        paths.staging / "failure-result.yaml",
+        yaml.safe_dump(failure, allow_unicode=True, sort_keys=False),
+    )
+    _write_smoke_failure_checksums(paths.staging)
+    validator = reload_validator or validate_smoke_failure
+    validator(paths.staging, expected_head=runtime_head, expected_run_id=run_id)
+    _rename_directory_no_replace(paths.staging, paths.failed)
+    if before_directory_sync is not None:
+        before_directory_sync()
+    _fsync_directory(paths.failed.parent)
+    result = validator(paths.failed, expected_head=runtime_head, expected_run_id=run_id)
+    residue = list(paths.failed.parent.glob(f".{paths.final.name}*.tmp"))
+    if paths.staging.exists() or residue:
+        raise QLoRATrainingError("SMOKE_TEMP_RESIDUE")
+    return result
 
 
 def validate_stability_failure(
@@ -1509,6 +1728,7 @@ def run_training_smoke(
     reporter: StageReporter | None = None,
     run_id: str = TRAINING_SMOKE_RUN_ID,
     micro_batch_timeout_seconds: float = STAGE_TIMEOUTS["training_smoke"],
+    supervisor_managed_failure: bool = False,
 ) -> dict[str, object]:
     import torch
     from datasets import load_from_disk
@@ -1520,15 +1740,42 @@ def run_training_smoke(
     tracker = reporter or StageReporter()
     paths.staging.mkdir(parents=True)
     checkpoint = paths.staging / "checkpoint-1"
+    runtime_head = str(git_identity.get("head", ""))
+    stage_name = f"stage-{stage_number}"
+    state_path = paths.staging / "stage-state.json"
+    _exclusive_write(
+        paths.staging / "environment.json",
+        json.dumps(dict(environment), ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+    )
+    _write_smoke_state(
+        state_path,
+        run_id=run_id,
+        stage_name=stage_name,
+        runtime_head=runtime_head,
+        status="running",
+        failed_stage="initializing",
+    )
     try:
         with tracker.stage("model_loading", timeout_seconds=STAGE_TIMEOUTS["model_loading"]):
             tokenizer, base_model = load_tokenizer_and_model(config, cache_dir=cache_dir)
         with tracker.stage("lora_injection", timeout_seconds=120):
             model = attach_lora(base_model, config)
+            model.train()
+            eval_modules = [
+                name for name, module in model.named_modules() if not module.training
+            ]
+            if eval_modules:
+                raise QLoRATrainingError("MODEL_TRAINING_MODE_INCOMPLETE")
+            training_mode_validation = {
+                "top_level_training": bool(model.training),
+                "eval_module_count": len(eval_modules),
+            }
         train = load_from_disk(Path(tokenized_root) / "train")
         validation = load_from_disk(Path(tokenized_root) / "validation")
         generator = random.Random(42)
         train_indices = generator.sample(range(len(train)), micro_batches)
+        sampler_order_fingerprint = canonical_fingerprint(train_indices)
+        first_64_indices_hash = canonical_fingerprint(train_indices[:64])
         validation_indices = list(range(validation_batches))
         collator = DynamicSFTCollator(pad_token_id=int(tokenizer.pad_token_id))
         training = config["training"]
@@ -1557,10 +1804,32 @@ def run_training_smoke(
         started = time.perf_counter()
         losses = []
         micro_batch_seconds = []
+        backward_pre_memory: list[dict[str, int]] = []
         optimizer.zero_grad(set_to_none=True)
         for batch_number, index in enumerate(train_indices, start=1):
             batch_started = time.perf_counter()
-            batch = move_batch(collator([train[index]]))
+            source = train[index]
+            batch = move_batch(collator([source]))
+            statistics = batch_statistics(batch)
+            batch_identity = stability_batch_identity(
+                source,
+                dataset_index=index,
+                padded_length=statistics["padded_length"],
+                valid_label_tokens=statistics["label_tokens"],
+                shuffle_seed=42,
+                sampler_order_fingerprint=sampler_order_fingerprint,
+                first_64_indices_hash=first_64_indices_hash,
+            )
+            _write_smoke_state(
+                state_path,
+                run_id=run_id,
+                stage_name=stage_name,
+                runtime_head=runtime_head,
+                status="running",
+                failed_stage="training_smoke_forward",
+                failed_batch_number=batch_number,
+                batch_identity=batch_identity,
+            )
             with tracker.stage(
                 "training_smoke_forward",
                 timeout_seconds=micro_batch_timeout_seconds,
@@ -1572,6 +1841,23 @@ def run_training_smoke(
                 if loss is None or not torch.isfinite(loss):
                     raise QLoRATrainingError("TRAINING_SMOKE_LOSS_NONFINITE")
                 losses.append(float(loss.detach().item()))
+            allocated, reserved, peak_before = _cuda_memory()
+            backward_pre_memory.append({
+                "allocated_bytes": allocated,
+                "reserved_bytes": reserved,
+                "peak_allocated_bytes": peak_before,
+            })
+            _write_smoke_state(
+                state_path,
+                run_id=run_id,
+                stage_name=stage_name,
+                runtime_head=runtime_head,
+                status="running",
+                failed_stage="training_smoke_backward",
+                failed_batch_number=batch_number,
+                watchdog_seconds=micro_batch_timeout_seconds,
+                batch_identity=batch_identity,
+            )
             with tracker.stage(
                 "training_smoke_backward",
                 timeout_seconds=micro_batch_timeout_seconds,
@@ -1579,6 +1865,16 @@ def run_training_smoke(
             ):
                 (loss / micro_batches).backward()
                 torch.cuda.synchronize()
+            _write_smoke_state(
+                state_path,
+                run_id=run_id,
+                stage_name=stage_name,
+                runtime_head=runtime_head,
+                status="running",
+                failed_stage="training_smoke_backward_completed",
+                failed_batch_number=batch_number,
+                batch_identity=batch_identity,
+            )
             micro_batch_seconds.append(time.perf_counter() - batch_started)
             del outputs, loss, batch
         gradients_finite, gradient_norm = finite_gradients(model)
@@ -1594,6 +1890,16 @@ def run_training_smoke(
             if parameter.requires_grad
         }
         optimizer_started = time.perf_counter()
+        _write_smoke_state(
+            state_path,
+            run_id=run_id,
+            stage_name=stage_name,
+            runtime_head=runtime_head,
+            status="running",
+            failed_stage="training_smoke_optimizer_step",
+            failed_batch_number=micro_batches,
+            batch_identity=batch_identity,
+        )
         with tracker.stage(
             "training_smoke_optimizer_step",
             timeout_seconds=STAGE_TIMEOUTS["training_smoke"],
@@ -1601,6 +1907,17 @@ def run_training_smoke(
             optimizer.step()
             scheduler.step()
             torch.cuda.synchronize()
+        _write_smoke_state(
+            state_path,
+            run_id=run_id,
+            stage_name=stage_name,
+            runtime_head=runtime_head,
+            status="running",
+            failed_stage="training_smoke_optimizer_step_completed",
+            failed_batch_number=micro_batches,
+            optimizer_steps=1,
+            batch_identity=batch_identity,
+        )
         optimizer_seconds = time.perf_counter() - optimizer_started
         lora_weights_changed = any(
             not torch.equal(trainable_before[name], parameter.detach())
@@ -1659,6 +1976,7 @@ def run_training_smoke(
             torch.cuda.synchronize()
         evaluation_seconds = time.perf_counter() - eval_started
         peak = torch.cuda.max_memory_allocated()
+        peak_reserved = torch.cuda.max_memory_reserved()
         del optimizer, scheduler, model, base_model
         release_cuda()
         with tracker.stage(
@@ -1695,7 +2013,12 @@ def run_training_smoke(
             "checkpoint_seconds": checkpoint_seconds,
             "gradient_norm": gradient_norm,
             "peak_allocated_bytes": peak,
+            "peak_reserved_bytes": peak_reserved,
+            "backward_pre_allocated_bytes": backward_pre_memory[0]["allocated_bytes"],
+            "backward_pre_reserved_bytes": backward_pre_memory[0]["reserved_bytes"],
+            "backward_pre_memory": backward_pre_memory,
             "duration_seconds": time.perf_counter() - started,
+            "training_mode_validation": training_mode_validation,
             "checkpoint": "checkpoint-1",
             "checkpoint_validation": checkpoint_result,
             "checkpoint_reload": True,
@@ -1716,14 +2039,15 @@ def run_training_smoke(
             checkpoint_result["checksums"],
         )
         _write_yaml(paths.staging / "smoke-result.yaml", result)
-        _write_json(paths.staging / "environment.json", dict(environment))
+        state_path.unlink()
         write_checksums(paths.staging)
         del reload_model, reload_base, reload_loss, batch
         release_cuda()
         publish_staging(paths)
         return result
     except Exception:
-        quarantine_staging(paths)
+        if not supervisor_managed_failure:
+            quarantine_staging(paths)
         raise
 
 
