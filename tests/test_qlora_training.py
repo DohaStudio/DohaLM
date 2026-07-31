@@ -185,10 +185,16 @@ def test_only_training_smoke_owns_optimizer_creation() -> None:
     assert "create_optimizer(" in inspect.getsource(run_training_smoke)
 
 
+def test_training_smoke_recursively_sets_training_mode_before_forward() -> None:
+    source = inspect.getsource(run_training_smoke)
+    assert source.index("model.train()") < source.index("create_optimizer(")
+    assert source.index("model.train()") < source.index("outputs = model(**batch)")
+
+
 def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     assert _expected_run_id("full", "windows") != _expected_run_id("full", "wsl")
-    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0005")
-    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0005")
+    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0006")
+    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0006")
     assert _expected_run_id("training-smoke-1", "wsl") == (
         qlora_training.WSL_TRAINING_SMOKE_STAGE1_RUN_ID
     )
@@ -197,8 +203,8 @@ def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     )
     assert qlora_training.RETIRED_WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0001")
     assert qlora_training.RETIRED_WSL_STABILITY_RUN_ID_2.endswith("WSL-20260731-0002")
-    assert qlora_training.WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0004")
-    assert qlora_training.WSL_RUN_ID.endswith("20260731-0004")
+    assert qlora_training.WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0005")
+    assert qlora_training.WSL_RUN_ID.endswith("20260731-0005")
     assert _expected_run_id("stability", "wsl") == qlora_training.WSL_STABILITY_RUN_ID
     assert _expected_run_id("full", "wsl") == qlora_training.WSL_RUN_ID
 
@@ -273,14 +279,14 @@ def test_wsl_prerequisites_reject_retired_run_ids(
         )
 
 
-def test_wsl_stability_uses_0004_canonical_root(tmp_path: Path) -> None:
+def test_wsl_stability_uses_active_canonical_root(tmp_path: Path) -> None:
     root = _roots(tmp_path, "wsl")["stability"]
     assert root == tmp_path / "stability" / qlora_training.WSL_STABILITY_RUN_ID
     assert "0001" not in root.as_posix()
 
 
 @pytest.mark.parametrize("occupied", ("final", "staging", "failed"))
-def test_wsl_stability_0004_canonical_root_is_no_replace(
+def test_wsl_stability_active_canonical_root_is_no_replace(
     tmp_path: Path,
     occupied: str,
 ) -> None:
@@ -524,6 +530,183 @@ def _synthetic_stability_staging(
     return paths
 
 
+def _synthetic_smoke_staging(
+    tmp_path: Path,
+    *,
+    stage: str = "training_smoke_backward",
+    final: Path | None = None,
+    with_metrics: bool = False,
+) -> qlora_training.ArtifactPaths:
+    paths = ensure_unused_output(final or (tmp_path / "stage-1"))
+    paths.staging.mkdir()
+    (paths.staging / "environment.json").write_text(
+        json.dumps({"platform": "synthetic"}) + "\n", encoding="utf-8",
+    )
+    qlora_training._write_smoke_state(
+        paths.staging / "stage-state.json",
+        run_id="RUN",
+        stage_name="stage-1",
+        runtime_head="HEAD",
+        status="running",
+        failed_stage=stage,
+        failed_batch_number=1,
+        watchdog_seconds=300,
+        allocated_bytes=101,
+        reserved_bytes=202,
+        peak_allocated_bytes=303,
+        batch_identity={"stable_record_hash": "safe-hash"},
+    )
+    if with_metrics:
+        (paths.staging / "batch-metrics.jsonl").write_text(
+            json.dumps({"batch_number": 1, "status": "completed"}) + "\n",
+            encoding="utf-8",
+        )
+    return paths
+
+
+@pytest.mark.parametrize(
+    ("worker_exit_code", "stage"),
+    (
+        (-9, "training_smoke_forward"),
+        (-9, "training_smoke_backward"),
+        (124, "training_smoke_backward"),
+        (7, "training_smoke_optimizer_step"),
+        (9, "checkpoint_write"),
+    ),
+)
+def test_smoke_failure_artifact_is_terminal_and_exact(
+    tmp_path: Path,
+    worker_exit_code: int,
+    stage: str,
+) -> None:
+    paths = _synthetic_smoke_staging(
+        tmp_path, stage=stage, with_metrics=stage == "checkpoint_write",
+    )
+    result = qlora_training.finalize_smoke_failure(
+        paths,
+        failure_code="STAGE_HARD_TIMEOUT",
+        failed_stage=stage,
+        worker_exit_code=worker_exit_code,
+        watchdog_seconds=300,
+    )
+    assert result["status"] == "failed"
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+    assert result["worker_pid"] != 0
+    assert result["allocated_bytes"] == 101
+    assert result["reserved_bytes"] == 202
+    assert result["peak_allocated_bytes"] == 303
+    qlora_training.validate_smoke_failure(
+        paths.failed, expected_head="HEAD", expected_run_id="RUN",
+    )
+
+
+def test_smoke_failure_publish_preserves_existing_destination(tmp_path: Path) -> None:
+    paths = _synthetic_smoke_staging(tmp_path)
+    paths.failed.mkdir()
+    marker = paths.failed / "preserved.txt"
+    marker.write_text("existing", encoding="utf-8")
+    with pytest.raises(QLoRATrainingError, match="^SMOKE_FAILURE_PUBLISH_COLLISION$"):
+        qlora_training.finalize_smoke_failure(
+            paths,
+            failure_code="WORKER_ABNORMAL_EXIT",
+            failed_stage="training_smoke_backward",
+            worker_exit_code=7,
+            watchdog_seconds=300,
+        )
+    assert marker.read_text(encoding="utf-8") == "existing"
+
+
+def test_smoke_failure_directory_sync_error_never_reports_success(tmp_path: Path) -> None:
+    paths = _synthetic_smoke_staging(tmp_path)
+    with pytest.raises(OSError, match="sync failed"):
+        qlora_training.finalize_smoke_failure(
+            paths,
+            failure_code="STAGE_HARD_TIMEOUT",
+            failed_stage="training_smoke_backward",
+            worker_exit_code=-9,
+            watchdog_seconds=300,
+            before_directory_sync=lambda: (_ for _ in ()).throw(OSError("sync failed")),
+        )
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+
+
+def test_smoke_failure_reload_error_never_reports_success(tmp_path: Path) -> None:
+    paths = _synthetic_smoke_staging(tmp_path)
+    calls = 0
+
+    def validator(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise QLoRATrainingError("INJECTED_RELOAD_FAILURE")
+        return qlora_training.validate_smoke_failure(*args, **kwargs)  # type: ignore[arg-type]
+
+    with pytest.raises(QLoRATrainingError, match="^INJECTED_RELOAD_FAILURE$"):
+        qlora_training.finalize_smoke_failure(
+            paths,
+            failure_code="STAGE_HARD_TIMEOUT",
+            failed_stage="training_smoke_backward",
+            worker_exit_code=-9,
+            watchdog_seconds=300,
+            reload_validator=validator,
+        )
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+
+
+def test_smoke_failure_checksum_tamper_is_rejected(tmp_path: Path) -> None:
+    paths = _synthetic_smoke_staging(tmp_path)
+    qlora_training.finalize_smoke_failure(
+        paths,
+        failure_code="STAGE_HARD_TIMEOUT",
+        failed_stage="training_smoke_backward",
+        worker_exit_code=-9,
+        watchdog_seconds=300,
+    )
+    (paths.failed / "failure-result.yaml").write_text("tampered\n", encoding="utf-8")
+    with pytest.raises(QLoRATrainingError, match="SMOKE_FAILURE_(INVALID|CHECKSUM_MISMATCH)"):
+        qlora_training.validate_smoke_failure(
+            paths.failed, expected_head="HEAD", expected_run_id="RUN",
+        )
+
+
+@pytest.mark.parametrize("exit_code", (-9, 124, 7))
+def test_supervisor_finalizes_abnormal_smoke_worker_exit(
+    tmp_path: Path,
+    exit_code: int,
+) -> None:
+    root = _roots(tmp_path, "wsl")["training_stage_1"]
+    paths = _synthetic_smoke_staging(tmp_path, final=root)
+    result = qlora_cli._finalize_supervised_smoke_failure(
+        [
+            "--mode", "training-smoke-1",
+            "--profile", "wsl",
+            "--approved-run-id", "RUN",
+            "--expected-head", "HEAD",
+            "--tokenized-root", str(tmp_path / "tokens"),
+            "--model-cache-root", str(tmp_path / "cache"),
+            "--training-root", str(tmp_path),
+        ],
+        worker_exit_code=exit_code,
+        failure_code="WORKER_ABNORMAL_EXIT",
+        active_stage={
+            "stage": "training_smoke_backward",
+            "timeout_seconds": 300,
+            "batch_number": 1,
+            "allocated_bytes": 101,
+            "reserved_bytes": 202,
+            "peak_allocated_bytes": 303,
+        },
+    )
+    assert result is not None
+    assert result["status"] == "failed"
+    assert paths.failed.is_dir()
+
+
 @pytest.mark.parametrize(
     ("worker_exit_code", "stage"),
     ((-9, "backward_started"), (124, "backward_started"), (7, "optimizer_step_started")),
@@ -763,5 +946,5 @@ def test_stability_publish_has_dedicated_300_second_watchdog() -> None:
         ).supervise,
     )
     assert "STABILITY_RESULT_PUBLISH_TIMEOUT" in supervisor
-    assert "_finalize_supervised_stability_failure" in supervisor
+    assert "_finalize_supervised_failure" in supervisor
     assert "failure_artifact_validated" in supervisor
