@@ -369,7 +369,20 @@ def model_mode_report(model: Any) -> dict[str, Any]:
     decoder_layers = [module for module in modules if module.__class__.__name__ == "Qwen2DecoderLayer"]
     dropouts = [module for module in modules if module.__class__.__name__.casefold().endswith("dropout")]
     lora_dropouts = [module for name, module in model.named_modules() if "lora_dropout" in name]
-    active = list(getattr(model, "active_adapters", [])) if hasattr(model, "active_adapters") else []
+    active_value = getattr(model, "active_adapters", [])
+    if callable(active_value):
+        try:
+            active_value = active_value()
+        except ValueError:
+            if hasattr(model, "peft_config"):
+                raise QLoRAEvaluationError("ADAPTER_STATE_INVALID") from None
+            active_value = []
+    if isinstance(active_value, str):
+        active = [active_value]
+    elif isinstance(active_value, Sequence):
+        active = list(active_value)
+    else:
+        raise QLoRAEvaluationError("ADAPTER_STATE_INVALID")
     lora_parameters = [name for name, _ in model.named_parameters() if "lora_" in name]
     report = {
         "top_level_training": bool(model.training),

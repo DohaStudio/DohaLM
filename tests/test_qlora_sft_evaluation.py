@@ -145,6 +145,25 @@ def test_model_mode_report_fails_closed_on_dropout() -> None:
         model_mode_report(model)
 
 
+def test_model_mode_report_accepts_base_active_adapters_method() -> None:
+    model = torch.nn.Linear(2, 2)
+    model.config = SimpleNamespace(use_cache=True)
+    model.active_adapters = list  # type: ignore[attr-defined]
+    model.eval()
+    report = model_mode_report(model)
+    assert report["active_adapters"] == []
+
+
+def test_model_mode_report_accepts_base_no_adapter_error() -> None:
+    model = torch.nn.Linear(2, 2)
+    model.config = SimpleNamespace(use_cache=True)
+    def no_adapter() -> list[str]:
+        raise ValueError("No adapter loaded")
+    model.active_adapters = no_adapter  # type: ignore[attr-defined]
+    model.eval()
+    assert model_mode_report(model)["active_adapters"] == []
+
+
 def test_generation_text_metrics() -> None:
     assert _character_f1("서울입니다", "서울입니다") == 1.0
     assert _character_f1("", "서울") == 0.0
