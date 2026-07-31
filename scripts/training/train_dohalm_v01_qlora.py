@@ -23,7 +23,8 @@ from src.training.qlora_training import (
     WSL_BACKWARD_DIAGNOSTIC_RUN_ID,
     WSL_RUN_ID,
     WSL_STABILITY_RUN_ID,
-    WSL_TRAINING_SMOKE_RUN_ID,
+    WSL_TRAINING_SMOKE_STAGE1_RUN_ID,
+    WSL_TRAINING_SMOKE_STAGE2_RUN_ID,
     QLoRATrainingError,
     StageReporter,
     attach_lora,
@@ -40,6 +41,7 @@ from src.training.qlora_training import (
     run_stability_smoke,
     run_training_smoke,
     set_reproducible_seeds,
+    sha256_file,
     smoke_is_valid,
     validate_backward_diagnostic,
     validate_backward_diagnostics,
@@ -84,14 +86,16 @@ def _runtime_ids(profile: str) -> dict[str, str]:
         return {
             "allocation": WSL_ALLOCATION_SMOKE_RUN_ID,
             "backward": WSL_BACKWARD_DIAGNOSTIC_RUN_ID,
-            "training": WSL_TRAINING_SMOKE_RUN_ID,
+            "training_stage_1": WSL_TRAINING_SMOKE_STAGE1_RUN_ID,
+            "training_stage_2": WSL_TRAINING_SMOKE_STAGE2_RUN_ID,
             "stability": WSL_STABILITY_RUN_ID,
             "full": WSL_RUN_ID,
         }
     return {
         "allocation": ALLOCATION_SMOKE_RUN_ID,
         "backward": BACKWARD_DIAGNOSTIC_RUN_ID,
-        "training": TRAINING_SMOKE_RUN_ID,
+        "training_stage_1": TRAINING_SMOKE_RUN_ID,
+        "training_stage_2": TRAINING_SMOKE_RUN_ID,
         "stability": "NOT-AVAILABLE-WINDOWS",
         "full": RUN_ID,
     }
@@ -103,8 +107,10 @@ def _expected_run_id(mode: str, profile: str) -> str:
         return ids["allocation"]
     if mode == "backward":
         return ids["backward"]
-    if mode.startswith("training-smoke"):
-        return ids["training"]
+    if mode == "training-smoke-1":
+        return ids["training_stage_1"]
+    if mode == "training-smoke-2":
+        return ids["training_stage_2"]
     return ids[mode]
 
 
@@ -113,7 +119,12 @@ def _roots(training_root: Path, profile: str) -> dict[str, Path]:
     return {
         "allocation": training_root / "smoke" / ids["allocation"],
         "backward": training_root / "diagnostics" / ids["backward"],
-        "training": training_root / "smoke" / ids["training"],
+        "training_stage_1": (
+            training_root / "smoke" / ids["training_stage_1"] / "stage-1"
+        ),
+        "training_stage_2": (
+            training_root / "smoke" / ids["training_stage_2"] / "stage-2"
+        ),
         "stability": training_root / "stability" / ids["stability"],
     }
 
@@ -153,6 +164,8 @@ def _load_runtime(
         config = validate_runtime_config(arguments.config)
         environment = environment_snapshot()
         environment["execution_command"] = [sys.executable, *sys.argv]
+        environment["config_fingerprint"] = sha256_file(arguments.config)
+        environment["model_revision"] = config["model"]["revision"]  # type: ignore[index]
         validate_environment(environment)
     return git_identity, {"config": config, "environment": environment}
 
@@ -288,8 +301,8 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
         expected_head=arguments.expected_head,
         expected_run_id=ids["backward"],
     )
-    stage_one_root = roots["training"] / "stage-1"
-    stage_two_root = roots["training"] / "stage-2"
+    stage_one_root = roots["training_stage_1"]
+    stage_two_root = roots["training_stage_2"]
     if arguments.mode == "training-smoke-1":
         paths = ensure_unused_output(stage_one_root)
         stage_number, micro_batches, validation_batches = 1, 2, 1
@@ -298,7 +311,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             stage_one_root,
             stage_number=1,
             expected_head=arguments.expected_head,
-            expected_run_id=ids["training"],
+            expected_run_id=ids["training_stage_1"],
         )
         paths = ensure_unused_output(stage_two_root)
         stage_number, micro_batches, validation_batches = 2, 16, 2
@@ -307,7 +320,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
             stage_two_root,
             stage_number=2,
             expected_head=arguments.expected_head,
-            expected_run_id=ids["training"],
+            expected_run_id=ids["training_stage_2"],
         )
         paths = ensure_unused_output(roots["stability"])
         tokenizer, base_model, model, train, _, statistics = _load_model_and_data(
@@ -339,7 +352,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
         result = smoke_is_valid(
             stage_two_root,
             expected_head=arguments.expected_head,
-            expected_run_id=ids["training"],
+            expected_run_id=ids["training_stage_2"],
         )
         if arguments.profile == "wsl":
             stability = validate_stability_result(
@@ -387,7 +400,11 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
         validation_batches=validation_batches,
         stage_number=stage_number,
         reporter=reporter,
-        run_id=ids["training"],
+        run_id=(
+            ids["training_stage_1"]
+            if stage_number == 1
+            else ids["training_stage_2"]
+        ),
         micro_batch_timeout_seconds=300 if arguments.profile == "wsl" else 1800,
     )
 
