@@ -1,0 +1,43 @@
+schema_version: 1
+status: approved_for_evaluation
+evaluation_id: DOHALM-V0.1-EVAL-20260801-0001
+git_head: runtime_required
+training_run_id: DOHALM-V0.1-QLORA-20260731-0005
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  adapter_fingerprint: 7b8bdec5b730b734ca22c441d01a1a594440bf06d40afb29e8bbbf683bfb8ec6
+dataset:
+  processing_run_id: AIHUB-71748-SFT-PROCESSING-20260730-0015
+  tokenization_run_id: DOHALM-TOKENIZATION-20260730-0001
+  fingerprint: b6848e9413ecd0f63008cf18f505dda0b3197e562b5c6a9f955c1a7d41bc98a0
+  tokenizer_fingerprint: ad0a85da869c2e4577b9409df0c91e35be70f0395a20c94765c6f4fa02ea6a55
+  validation_rows: 1287
+  assistant_only_loss: true
+  original_validation_used: true
+evaluation:
+  batch_size: 1
+  pad_to_multiple_of: 8
+  ignore_index: -100
+  precision: bfloat16
+  deterministic_repeats: 2
+  comparison_batches: 10
+  seed: 42
+generation:
+  synthetic_prompt_file: configs/evaluation/dohalm-v0.1-synthetic-prompts.yaml
+  synthetic_count: 30
+  held_out_count: 50
+  expected_categories: 10
+  do_sample: false
+  max_new_tokens: 256
+  repetition_penalty: 1.05
+privacy:
+  raw_text_storage: false
+  token_id_storage: false
+  record_id_storage: false
+  restricted_text_artifact: false
+execution:
+  training_allowed: false
+  optimizer_allowed: false
+  adapter_write_allowed: false
+  overwrite_allowed: false
