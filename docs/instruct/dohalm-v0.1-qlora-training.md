@@ -91,11 +91,28 @@ Training Smoke 및 Stability ID를 소비한다. Full Run ID는
 `DOHALM-V0.1-QLORA-20260731-0002`이다. Windows artifact를 WSL 승인 근거로
 재사용하지 않는다.
 
+[확정] Stability artifact Hotfix 병합 후 prerequisite는 Allocation
+`DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0003`, Backward
+`DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0003`, Training Smoke Stage 1·2의
+각 `...-0003` ID로 현재 HEAD에서 새로 생성한다. 기존 prerequisite `0001`과 `0002`는
+폐기 상태로 보존하고 재사용하지 않는다. Stability와 Full Run ID는 각각 기존 미사용
+`DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0002`와
+`DOHALM-V0.1-QLORA-20260731-0002`를 유지한다.
+
 [확정] WSL Backward Diagnostic과 Training Smoke micro-batch timeout은 300초다.
 Full Training 전 고정 seed로 실제 train record 128개, accumulation 16,
 optimizer step 8회의 Stability Smoke를 수행한다. P50·P90·P95·P99·최대 batch 시간과
 VRAM을 기록하며 stalled batch, non-finite loss 또는 Base weight 변경이 하나라도 있으면
 Full Training을 차단한다.
+
+[확정] 성공한 Stability canonical artifact는 `stability-result.yaml`,
+`batch-metrics.jsonl`, `environment.json`, `stage-state.json`, `checksums.sha256`의
+정확한 다섯 파일만 포함한다. batch metrics는 원문·token ID·record ID 없이 micro-batch별
+canonical JSON을 append하고 매 record flush, 8 record 및 최종 시점 fsync를 적용한다.
+stage state는 매 진행 단계에서 임시 파일 완전 기록과 fsync 후 atomic replace한다.
+결과 게시 전체에는 300초 별도 watchdog을 적용하며 timeout이면 canonical final을 남기지
+않고 staging 또는 failed 정책으로 격리한다. checksum, reload, identity, count, 완료 상태와
+temp·lock residue가 모두 검증된 경우에만 성공으로 보고한다.
 
 [확정] Full Training은 각 micro-batch의 global step, micro-batch index, sequence
 length와 GPU memory를 heartbeat로 기록한다. 300초 동안 micro-batch가 완료되지 않으면
@@ -126,3 +143,4 @@ base_model_merge: false
 |---|---|
 | 2026-07-30 | QLoRA smoke·full training·adapter reload·inference 계약과 backend 추가 |
 | 2026-07-31 | WSL2 전용 Run identity·128-batch stability·300초 micro-batch heartbeat 계약 추가 |
+| 2026-07-31 | Stability durable artifact·300초 publish watchdog 계약과 prerequisite 0003 ID 확정 |

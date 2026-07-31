@@ -186,8 +186,8 @@ def test_only_training_smoke_owns_optimizer_creation() -> None:
 
 def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     assert _expected_run_id("full", "windows") != _expected_run_id("full", "wsl")
-    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0002")
-    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0002")
+    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0003")
+    assert _expected_run_id("backward", "wsl").endswith("WSL-20260731-0003")
     assert _expected_run_id("training-smoke-1", "wsl") == (
         qlora_training.WSL_TRAINING_SMOKE_STAGE1_RUN_ID
     )
@@ -227,11 +227,17 @@ def test_windows_training_smoke_roots_remain_backward_compatible(tmp_path: Path)
 
 @pytest.mark.parametrize(
     ("mode", "retired_run_id"),
-    (
-        ("allocation", qlora_training.RETIRED_WSL_ALLOCATION_SMOKE_RUN_ID),
-        ("backward", qlora_training.RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_ID),
-        ("training-smoke-1", qlora_training.RETIRED_WSL_TRAINING_SMOKE_RUN_ID),
-        ("training-smoke-2", qlora_training.RETIRED_WSL_TRAINING_SMOKE_RUN_ID),
+    tuple(
+        [("allocation", value) for value in qlora_training.RETIRED_WSL_ALLOCATION_SMOKE_RUN_IDS]
+        + [("backward", value) for value in qlora_training.RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_IDS]
+        + [
+            ("training-smoke-1", value)
+            for value in qlora_training.RETIRED_WSL_TRAINING_SMOKE_RUN_IDS
+        ]
+        + [
+            ("training-smoke-2", value)
+            for value in qlora_training.RETIRED_WSL_TRAINING_SMOKE_RUN_IDS
+        ]
     ),
 )
 def test_wsl_prerequisites_reject_retired_run_ids(
@@ -283,7 +289,7 @@ def test_wsl_stability_rejects_non_active_run_ids(
     assert not _roots(tmp_path, "wsl")["stability"].exists()
 
 
-def test_stability_smoke_runs_128_batches_and_8_steps(
+def test_stability_smoke_publishes_durable_contract(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     cpu_cuda_counters: None,
@@ -297,7 +303,7 @@ def test_stability_smoke_runs_128_batches_and_8_steps(
             lr=0.01,
         ),
     )
-    records = [_records()[index % 3] for index in range(128)]
+    records = [_records()[index % 3] for index in range(4)]
     config = {
         "training": {
             "seed": 42,
@@ -312,9 +318,13 @@ def test_stability_smoke_runs_128_batches_and_8_steps(
         tokenizer=SimpleNamespace(pad_token_id=0),
         train_dataset=records,
         config=config,
-        environment={"platform": "synthetic"},
+        environment={
+            "platform": "synthetic",
+            "config_fingerprint": "config-synthetic",
+            "model_revision": qlora_training.MODEL_REVISION,
+        },
         git_identity={"head": "abc"},
-        dataset_identity={"fingerprint": "synthetic"},
+        dataset_identity={"dataset_fingerprint": "synthetic"},
         model_statistics_value={"model": "tiny"},
         training_smoke_result={
             "evaluation_seconds": 1.0,
@@ -324,12 +334,162 @@ def test_stability_smoke_runs_128_batches_and_8_steps(
         reporter=StageReporter(stream=StringIO()),
         device="cpu",
         autocast_enabled=False,
+        micro_batches=4,
+        gradient_accumulation_steps=2,
     )
-    assert result["micro_batches"] == 128
-    assert result["optimizer_steps"] == 8
+    assert result["micro_batches"] == 4
+    assert result["optimizer_steps"] == 2
     assert result["stalled_batches"] == 0
     assert result["base_weights_changed"] is False
-    assert (tmp_path / "stability" / "checksums.sha256").is_file()
+    root = tmp_path / "stability"
+    assert {path.name for path in root.iterdir()} == qlora_training.STABILITY_REQUIRED_FILES
+    lines = (root / "batch-metrics.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 4
+    parsed = [json.loads(line) for line in lines]
+    assert all(set(record) == set(qlora_training.STABILITY_METRIC_FIELDS) for record in parsed)
+    assert all("index" not in record and "input_ids" not in record for record in parsed)
+    state = json.loads((root / "stage-state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "completed"
+    qlora_training.validate_stability_result(
+        root,
+        expected_head="abc",
+        expected_run_id=qlora_training.WSL_STABILITY_RUN_ID,
+        expected_micro_batches=4,
+        expected_optimizer_steps=2,
+        expected_config_fingerprint="config-synthetic",
+    )
+    with (root / "batch-metrics.jsonl").open("a", encoding="utf-8") as stream:
+        stream.write("{}\n")
+    with pytest.raises(QLoRATrainingError, match="^STABILITY_CHECKSUM_MISMATCH$"):
+        qlora_training.validate_stability_result(
+            root,
+            expected_head="abc",
+            expected_run_id=qlora_training.WSL_STABILITY_RUN_ID,
+            expected_micro_batches=4,
+            expected_optimizer_steps=2,
+            expected_config_fingerprint="config-synthetic",
+        )
+
+
+def test_stability_state_replace_leaves_no_partial_json(tmp_path: Path) -> None:
+    writer = qlora_training.StabilityStateWriter(
+        tmp_path / "stage-state.json", run_id="RUN", runtime_head="HEAD",
+    )
+    writer.update(status="running", current_stage="forward_started", microbatch_index=1)
+    state = json.loads((tmp_path / "stage-state.json").read_text(encoding="utf-8"))
+    assert set(state) == set(qlora_training.STABILITY_STATE_FIELDS)
+    assert state["status"] == "running"
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_stability_metrics_rejects_sensitive_or_missing_fields(tmp_path: Path) -> None:
+    writer = qlora_training.StabilityMetricsWriter(tmp_path / "batch-metrics.jsonl")
+    with pytest.raises(QLoRATrainingError, match="^STABILITY_METRIC_FIELDS_INVALID$"):
+        writer.append({"input_ids": [1, 2, 3]})
+    writer.close()
+
+
+def test_stability_metrics_fsyncs_every_eight_and_at_final(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[int] = []
+    monkeypatch.setattr(qlora_training.os, "fsync", lambda descriptor: calls.append(descriptor))
+    writer = qlora_training.StabilityMetricsWriter(tmp_path / "batch-metrics.jsonl")
+    record = {field: None for field in qlora_training.STABILITY_METRIC_FIELDS}
+    for _ in range(8):
+        writer.append(record)
+    assert len(calls) == 1
+    writer.finalize()
+    assert len(calls) == 2
+
+
+def test_stability_reload_rejects_extra_file(tmp_path: Path) -> None:
+    root = tmp_path / "stability"
+    root.mkdir()
+    for name in qlora_training.STABILITY_REQUIRED_FILES:
+        (root / name).write_text("{}\n", encoding="utf-8")
+    (root / "unexpected.tmp").write_text("residue", encoding="utf-8")
+    with pytest.raises(QLoRATrainingError, match="^STABILITY_FILE_SET_INVALID$"):
+        qlora_training.validate_stability_result(root, expected_head="abc")
+
+
+@pytest.mark.parametrize(
+    "delayed_phase",
+    (
+        "metrics_finalization",
+        "checksum_creation",
+        "atomic_publish",
+        "directory_sync",
+        "reload_validation",
+    ),
+)
+def test_stability_publish_delay_is_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cpu_cuda_counters: None,
+    delayed_phase: str,
+) -> None:
+    del cpu_cuda_counters
+    monkeypatch.setattr(
+        qlora_training,
+        "create_optimizer",
+        lambda model, **_: torch.optim.SGD(
+            [parameter for parameter in model.parameters() if parameter.requires_grad],
+            lr=0.01,
+        ),
+    )
+    delayed = False
+
+    def clock() -> float:
+        return 301.0 if delayed else 0.0
+
+    def phase_hook(phase: str) -> None:
+        nonlocal delayed
+        if phase == delayed_phase:
+            delayed = True
+
+    root = tmp_path / delayed_phase
+    with pytest.raises(
+        QLoRATrainingError, match="^STABILITY_RESULT_PUBLISH_TIMEOUT$",
+    ):
+        run_stability_smoke(
+            paths=ensure_unused_output(root),
+            model=_TinyDiagnosticModel(),
+            tokenizer=SimpleNamespace(pad_token_id=0),
+            train_dataset=[_records()[index % 3] for index in range(4)],
+            config={
+                "training": {
+                    "seed": 42,
+                    "learning_rate": 0.01,
+                    "weight_decay": 0.0,
+                    "max_grad_norm": 1.0,
+                },
+            },
+            environment={
+                "platform": "synthetic",
+                "config_fingerprint": "config-synthetic",
+                "model_revision": qlora_training.MODEL_REVISION,
+            },
+            git_identity={"head": "abc"},
+            dataset_identity={"dataset_fingerprint": "synthetic"},
+            model_statistics_value={"model": "tiny"},
+            training_smoke_result={
+                "evaluation_seconds": 1.0,
+                "eval_batches": 2,
+                "checkpoint_seconds": 1.0,
+            },
+            reporter=StageReporter(clock=clock, stream=StringIO()),
+            device="cpu",
+            autocast_enabled=False,
+            micro_batches=4,
+            gradient_accumulation_steps=2,
+            publish_phase_hook=phase_hook,
+        )
+    paths = artifact_paths(root)
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+    assert paths.failed.is_dir()
 
 
 def test_full_training_has_300_second_micro_batch_heartbeat() -> None:
@@ -337,3 +497,16 @@ def test_full_training_has_300_second_micro_batch_heartbeat() -> None:
     assert '"full_training_micro_batch"' in source
     assert 'STAGE_TIMEOUTS["full_training_micro_batch"]' in source
     assert "torch.cuda.synchronize()" in source
+
+
+def test_stability_publish_has_dedicated_300_second_watchdog() -> None:
+    assert qlora_training.STAGE_TIMEOUTS["stability_result_publish"] == 300
+    source = inspect.getsource(qlora_training.run_stability_smoke)
+    assert '"stability_result_publish"' in source
+    supervisor = inspect.getsource(
+        __import__(
+            "scripts.training.train_dohalm_v01_qlora", fromlist=["supervise"],
+        ).supervise,
+    )
+    assert "STABILITY_RESULT_PUBLISH_TIMEOUT" in supervisor
+    assert "quarantine_stability_publication" in supervisor

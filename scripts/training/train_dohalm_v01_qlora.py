@@ -27,12 +27,14 @@ from src.training.qlora_training import (
     WSL_TRAINING_SMOKE_STAGE2_RUN_ID,
     QLoRATrainingError,
     StageReporter,
+    artifact_paths,
     attach_lora,
     ensure_unused_output,
     environment_snapshot,
     load_tokenizer_and_model,
     model_statistics,
     publish_result_artifact,
+    quarantine_stability_publication,
     release_cuda,
     require_execution_approval,
     run_allocation_smoke,
@@ -359,6 +361,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 roots["stability"],
                 expected_head=arguments.expected_head,
                 expected_run_id=ids["stability"],
+                expected_config_fingerprint=sha256_file(arguments.config),
             )
             estimate = stability.get("runtime_estimate")
         else:
@@ -486,10 +489,21 @@ def supervise(argv: list[str]) -> int:
         if deadline is not None and time.monotonic() > deadline:
             process.kill()
             process.wait(timeout=30)
+            timed_out_stage = active_stage.get("stage") if active_stage else "unknown"
+            if timed_out_stage == "stability_result_publish":
+                timeout_arguments = parser().parse_args(argv)
+                stability_root = _roots(
+                    timeout_arguments.training_root, timeout_arguments.profile,
+                )["stability"]
+                quarantine_stability_publication(artifact_paths(stability_root))
             failure = {
                 "status": "blocked",
-                "error_code": "STAGE_HARD_TIMEOUT",
-                "stage": active_stage.get("stage") if active_stage else "unknown",
+                "error_code": (
+                    "STABILITY_RESULT_PUBLISH_TIMEOUT"
+                    if timed_out_stage == "stability_result_publish"
+                    else "STAGE_HARD_TIMEOUT"
+                ),
+                "stage": timed_out_stage,
                 "sequence_length": active_stage.get("sequence_length") if active_stage else None,
                 "child_pid": process.pid,
                 "allocated_bytes": active_stage.get("allocated_bytes") if active_stage else None,
