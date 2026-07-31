@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import math
@@ -33,22 +35,29 @@ ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-20260731-0002"
 BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-20260731-0001"
 TRAINING_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-TRAINING-SMOKE-20260731-0001"
 WSL_RUN_ID = "DOHALM-V0.1-QLORA-20260731-0002"
-RETIRED_WSL_ALLOCATION_SMOKE_RUN_ID = (
-    "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0001"
+RETIRED_WSL_ALLOCATION_SMOKE_RUN_IDS = (
+    "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0001",
+    "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0002",
 )
-RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_ID = (
-    "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0001"
+RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_IDS = (
+    "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0001",
+    "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0002",
 )
-RETIRED_WSL_TRAINING_SMOKE_RUN_ID = (
-    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-WSL-20260731-0001"
+RETIRED_WSL_TRAINING_SMOKE_RUN_IDS = (
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-WSL-20260731-0001",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0002",
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0002",
 )
-WSL_ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0002"
-WSL_BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0002"
+RETIRED_WSL_ALLOCATION_SMOKE_RUN_ID = RETIRED_WSL_ALLOCATION_SMOKE_RUN_IDS[0]
+RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_ID = RETIRED_WSL_BACKWARD_DIAGNOSTIC_RUN_IDS[0]
+RETIRED_WSL_TRAINING_SMOKE_RUN_ID = RETIRED_WSL_TRAINING_SMOKE_RUN_IDS[0]
+WSL_ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0003"
+WSL_BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0003"
 WSL_TRAINING_SMOKE_STAGE1_RUN_ID = (
-    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0002"
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE1-WSL-20260731-0003"
 )
 WSL_TRAINING_SMOKE_STAGE2_RUN_ID = (
-    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0002"
+    "DOHALM-V0.1-QLORA-TRAINING-SMOKE-STAGE2-WSL-20260731-0003"
 )
 RETIRED_WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0001"
 WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0002"
@@ -76,8 +85,37 @@ STAGE_TIMEOUTS = {
     "training_smoke": 1800.0,
     "training_smoke_reload": 600.0,
     "stability_micro_batch": 300.0,
+    "stability_result_publish": 300.0,
     "full_training_micro_batch": 300.0,
 }
+
+STABILITY_REQUIRED_FILES = frozenset({
+    "stability-result.yaml",
+    "batch-metrics.jsonl",
+    "environment.json",
+    "stage-state.json",
+    "checksums.sha256",
+})
+STABILITY_PAYLOAD_FILES = (
+    "batch-metrics.jsonl",
+    "environment.json",
+    "stability-result.yaml",
+    "stage-state.json",
+)
+STABILITY_METRIC_FIELDS = (
+    "run_id", "runtime_head", "microbatch_index", "optimizer_step",
+    "sequence_length", "padded_length", "valid_label_tokens",
+    "forward_seconds", "backward_seconds", "total_seconds", "loss",
+    "gradient_norm", "allocated_vram_bytes", "reserved_vram_bytes",
+    "peak_vram_bytes", "gpu_utilization_percent", "gpu_temperature_c",
+    "stage", "timestamp",
+)
+STABILITY_STATE_FIELDS = (
+    "schema_version", "run_id", "runtime_head", "status", "current_stage",
+    "microbatch_index", "optimizer_step", "last_progress_at", "worker_pid",
+    "sequence_length", "allocated_vram_bytes", "reserved_vram_bytes",
+    "elapsed_seconds", "failure_code",
+)
 
 
 class QLoRATrainingError(RuntimeError):
@@ -200,10 +238,212 @@ def quarantine_staging(paths: ArtifactPaths) -> None:
         os.replace(paths.staging, paths.failed)
 
 
+def quarantine_stability_publication(paths: ArtifactPaths) -> None:
+    """Ensure a failed or timed-out publish never remains canonical."""
+    if paths.failed.exists():
+        return
+    if paths.staging.exists():
+        os.replace(paths.staging, paths.failed)
+    elif paths.final.exists():
+        os.replace(paths.final, paths.failed)
+    _fsync_directory(paths.failed.parent)
+
+
+def _fsync_directory(path: Path) -> None:
+    """Persist directory entries where the host exposes directory fsync."""
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def publish_staging(paths: ArtifactPaths) -> None:
     if not paths.staging.is_dir() or paths.final.exists():
         raise QLoRATrainingError("OUTPUT_ATOMIC_PUBLISH_INVALID")
-    os.replace(paths.staging, paths.final)
+    if os.name == "nt":
+        try:
+            os.rename(paths.staging, paths.final)
+        except FileExistsError:
+            raise QLoRATrainingError("OUTPUT_ATOMIC_PUBLISH_COLLISION") from None
+    elif sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise QLoRATrainingError("OUTPUT_ATOMIC_NOREPLACE_UNSUPPORTED")
+        renameat2.argtypes = (
+            ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        result = renameat2(
+            -100,
+            os.fsencode(paths.staging),
+            -100,
+            os.fsencode(paths.final),
+            1,
+        )
+        if result != 0:
+            error = ctypes.get_errno()
+            if error in {errno.EEXIST, errno.ENOTEMPTY}:
+                raise QLoRATrainingError("OUTPUT_ATOMIC_PUBLISH_COLLISION")
+            if error in {errno.ENOSYS, errno.EINVAL, errno.ENOTSUP}:
+                raise QLoRATrainingError("OUTPUT_ATOMIC_NOREPLACE_UNSUPPORTED")
+            raise OSError(error, os.strerror(error), str(paths.final))
+    else:
+        raise QLoRATrainingError("OUTPUT_ATOMIC_NOREPLACE_UNSUPPORTED")
+    _fsync_directory(paths.final.parent)
+
+
+def _canonical_json(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _exclusive_write(path: Path, payload: str, *, encoding: str = "utf-8") -> None:
+    with path.open("x", encoding=encoding, newline="") as stream:
+        written = stream.write(payload)
+        if written != len(payload):
+            raise QLoRATrainingError("STABILITY_ARTIFACT_SHORT_WRITE")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _atomic_json_replace(path: Path, value: Mapping[str, object]) -> None:
+    if set(value) != set(STABILITY_STATE_FIELDS):
+        raise QLoRATrainingError("STABILITY_STAGE_STATE_INVALID")
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    if temporary.exists():
+        raise QLoRATrainingError("STABILITY_TEMP_RESIDUE")
+    try:
+        _exclusive_write(temporary, _canonical_json(dict(value)) + "\n")
+        os.replace(temporary, path)
+        _fsync_directory(path.parent)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+class StabilityMetricsWriter:
+    """Append canonical, non-sensitive microbatch metrics durably."""
+
+    def __init__(self, path: Path, *, fsync_every_records: int = 8) -> None:
+        self.path = path
+        self.fsync_every_records = fsync_every_records
+        self.count = 0
+        self._stream = path.open("x", encoding="utf-8", newline="")
+
+    def append(self, record: Mapping[str, object]) -> None:
+        if tuple(record) != STABILITY_METRIC_FIELDS:
+            raise QLoRATrainingError("STABILITY_METRIC_FIELDS_INVALID")
+        payload = _canonical_json(dict(record)) + "\n"
+        written = self._stream.write(payload)
+        if written != len(payload):
+            raise QLoRATrainingError("STABILITY_METRIC_SHORT_WRITE")
+        self.count += 1
+        self._stream.flush()
+        if self.count % self.fsync_every_records == 0:
+            os.fsync(self._stream.fileno())
+
+    def finalize(self) -> None:
+        if self._stream.closed:
+            return
+        self._stream.flush()
+        os.fsync(self._stream.fileno())
+        self._stream.close()
+
+    def close(self) -> None:
+        if not self._stream.closed:
+            self._stream.close()
+
+
+class StabilityStateWriter:
+    """Atomically replace the current Stability lifecycle state."""
+
+    def __init__(self, path: Path, *, run_id: str, runtime_head: str) -> None:
+        self.path = path
+        self.run_id = run_id
+        self.runtime_head = runtime_head
+        self.started = time.perf_counter()
+        self.update(status="starting", current_stage="stability_started")
+
+    def update(
+        self,
+        *,
+        status: str,
+        current_stage: str,
+        microbatch_index: int = 0,
+        optimizer_step: int = 0,
+        sequence_length: int = 0,
+        failure_code: str | None = None,
+    ) -> None:
+        if status not in {"starting", "running", "publishing", "completed", "failed"}:
+            raise QLoRATrainingError("STABILITY_STAGE_STATUS_INVALID")
+        allocated, reserved, _ = _cuda_memory()
+        state = {
+            "schema_version": 1,
+            "run_id": self.run_id,
+            "runtime_head": self.runtime_head,
+            "status": status,
+            "current_stage": current_stage,
+            "microbatch_index": microbatch_index,
+            "optimizer_step": optimizer_step,
+            "last_progress_at": utc_now(),
+            "worker_pid": os.getpid(),
+            "sequence_length": sequence_length,
+            "allocated_vram_bytes": allocated,
+            "reserved_vram_bytes": reserved,
+            "elapsed_seconds": time.perf_counter() - self.started,
+            "failure_code": failure_code,
+        }
+        _atomic_json_replace(self.path, state)
+
+
+def _cuda_memory() -> tuple[int, int, int]:
+    torch_module = sys.modules.get("torch")
+    if torch_module is None or not torch_module.cuda.is_available():
+        return 0, 0, 0
+    return (
+        int(torch_module.cuda.memory_allocated()),
+        int(torch_module.cuda.memory_reserved()),
+        int(torch_module.cuda.max_memory_allocated()),
+    )
+
+
+def _gpu_health() -> tuple[float | None, float | None]:
+    torch_module = sys.modules.get("torch")
+    if torch_module is None or not torch_module.cuda.is_available():
+        return None, None
+    try:
+        completed = subprocess.run(
+            [
+                "nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu",
+                "--format=csv,noheader,nounits", "--id=0",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=5,
+        )
+        utilization, temperature = completed.stdout.strip().split(",", maxsplit=1)
+        return float(utilization.strip()), float(temperature.strip())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None, None
+
+
+def _write_stability_checksums(root: Path) -> dict[str, str]:
+    checksums = {name: sha256_file(root / name) for name in STABILITY_PAYLOAD_FILES}
+    payload = "".join(f"{checksums[name]}  {name}\n" for name in STABILITY_PAYLOAD_FILES)
+    _exclusive_write(root / "checksums.sha256", payload, encoding="ascii")
+    return checksums
+
+
+def _stability_residue(paths: ArtifactPaths) -> list[Path]:
+    candidates = [paths.staging, paths.failed]
+    candidates.extend(paths.final.parent.glob(f".{paths.final.name}*.tmp"))
+    candidates.extend(paths.final.parent.glob(f"{paths.final.name}*.lock"))
+    return [candidate for candidate in candidates if candidate.exists()]
 
 
 def require_execution_approval(*, expected_run_id: str, approved_run_id: str) -> None:
@@ -1203,17 +1443,34 @@ def run_stability_smoke(
     run_id: str = WSL_STABILITY_RUN_ID,
     device: str = "cuda:0",
     autocast_enabled: bool = True,
+    micro_batches: int = 128,
+    gradient_accumulation_steps: int = 16,
 ) -> dict[str, object]:
     import torch
     from transformers import get_cosine_schedule_with_warmup
 
     tracker = reporter or StageReporter()
+    expected_optimizer_steps = micro_batches // gradient_accumulation_steps
+    if (
+        micro_batches <= 0
+        or gradient_accumulation_steps <= 0
+        or micro_batches % gradient_accumulation_steps
+    ):
+        raise QLoRATrainingError("STABILITY_BUDGET_INVALID")
+    paths.staging.mkdir(parents=True)
+    runtime_head = str(git_identity.get("head", ""))
+    state = StabilityStateWriter(
+        paths.staging / "stage-state.json", run_id=run_id, runtime_head=runtime_head,
+    )
+    metrics = StabilityMetricsWriter(paths.staging / "batch-metrics.jsonl")
     try:
         training = config["training"]
         assert isinstance(training, Mapping)
         indices = list(range(len(train_dataset)))
         random.Random(int(training["seed"])).shuffle(indices)
-        indices = indices[:128]
+        indices = indices[:micro_batches]
+        if len(indices) != micro_batches:
+            raise QLoRATrainingError("STABILITY_DATASET_TOO_SMALL")
         collator = DynamicSFTCollator(pad_token_id=int(tokenizer.pad_token_id))
         optimizer = create_optimizer(
             model,
@@ -1221,7 +1478,7 @@ def run_stability_smoke(
             weight_decay=float(training["weight_decay"]),
         )
         scheduler = get_cosine_schedule_with_warmup(
-            optimizer, num_warmup_steps=0, num_training_steps=8,
+            optimizer, num_warmup_steps=0, num_training_steps=expected_optimizer_steps,
         )
         base_versions = {
             name: parameter._version
@@ -1244,7 +1501,18 @@ def run_stability_smoke(
         for micro_batch, index in enumerate(indices, start=1):
             batch = move_batch(collator([train_dataset[index]]), device=device)
             statistics = batch_statistics(batch)
+            sequence_length = statistics["actual_sequence_length"]
+            state.update(
+                status="running", current_stage="batch_loaded",
+                microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                sequence_length=sequence_length,
+            )
             forward_started = time.perf_counter()
+            state.update(
+                status="running", current_stage="forward_started",
+                microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                sequence_length=sequence_length,
+            )
             with tracker.stage(
                 "stability_forward",
                 timeout_seconds=STAGE_TIMEOUTS["stability_micro_batch"],
@@ -1260,34 +1528,42 @@ def run_stability_smoke(
                     loss = outputs.loss
                 torch.cuda.synchronize()
             forward_seconds = time.perf_counter() - forward_started
+            state.update(
+                status="running", current_stage="forward_completed",
+                microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                sequence_length=sequence_length,
+            )
             if loss is None or not torch.isfinite(loss):
                 raise QLoRATrainingError("STABILITY_LOSS_NONFINITE")
             backward_started = time.perf_counter()
+            state.update(
+                status="running", current_stage="backward_started",
+                microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                sequence_length=sequence_length,
+            )
             with tracker.stage(
                 "stability_backward",
                 timeout_seconds=STAGE_TIMEOUTS["stability_micro_batch"],
                 micro_batch=micro_batch,
                 sequence_length=statistics["actual_sequence_length"],
             ):
-                (loss / 16).backward()
+                (loss / gradient_accumulation_steps).backward()
                 torch.cuda.synchronize()
             backward_seconds = time.perf_counter() - backward_started
-            records.append({
-                "micro_batch": micro_batch,
-                "index": index,
-                **statistics,
-                "loss": float(loss.detach().item()),
-                "forward_seconds": forward_seconds,
-                "backward_seconds": backward_seconds,
-                "total_seconds": forward_seconds + backward_seconds,
-                "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
-                "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
-            })
-            del outputs, loss, batch
-            if micro_batch % 16 == 0:
-                gradients_finite, _ = finite_gradients(model)
-                if not gradients_finite:
-                    raise QLoRATrainingError("STABILITY_GRADIENT_NONFINITE")
+            state.update(
+                status="running", current_stage="backward_completed",
+                microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                sequence_length=sequence_length,
+            )
+            gradients_finite, gradient_norm = finite_gradients(model)
+            if not gradients_finite:
+                raise QLoRATrainingError("STABILITY_GRADIENT_NONFINITE")
+            if micro_batch % gradient_accumulation_steps == 0:
+                state.update(
+                    status="running", current_stage="optimizer_step_started",
+                    microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                    sequence_length=sequence_length,
+                )
                 torch.nn.utils.clip_grad_norm_(
                     [parameter for parameter in model.parameters() if parameter.requires_grad],
                     float(training["max_grad_norm"]),
@@ -1299,7 +1575,39 @@ def run_stability_smoke(
                 optimizer_times.append(time.perf_counter() - optimizer_started)
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_steps += 1
-        if optimizer_steps != 8:
+                state.update(
+                    status="running", current_stage="optimizer_step_completed",
+                    microbatch_index=micro_batch, optimizer_step=optimizer_steps,
+                    sequence_length=sequence_length,
+                )
+            allocated, reserved, peak = _cuda_memory()
+            utilization, temperature = _gpu_health()
+            loss_value = float(loss.detach().item())
+            record = {
+                "run_id": run_id,
+                "runtime_head": runtime_head,
+                "microbatch_index": micro_batch,
+                "optimizer_step": optimizer_steps,
+                "sequence_length": sequence_length,
+                "padded_length": statistics["padded_length"],
+                "valid_label_tokens": statistics["label_tokens"],
+                "forward_seconds": forward_seconds,
+                "backward_seconds": backward_seconds,
+                "total_seconds": forward_seconds + backward_seconds,
+                "loss": loss_value,
+                "gradient_norm": gradient_norm,
+                "allocated_vram_bytes": allocated,
+                "reserved_vram_bytes": reserved,
+                "peak_vram_bytes": peak,
+                "gpu_utilization_percent": utilization,
+                "gpu_temperature_c": temperature,
+                "stage": "microbatch_completed",
+                "timestamp": utc_now(),
+            }
+            metrics.append(record)
+            records.append(record)
+            del outputs, loss, batch
+        if optimizer_steps != expected_optimizer_steps:
             raise QLoRATrainingError("STABILITY_OPTIMIZER_STEP_MISMATCH")
         lora_changed = any(
             not torch.equal(trainable_before[name], parameter.detach())
@@ -1344,7 +1652,6 @@ def run_stability_smoke(
             "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
             "lora_weights_changed": True,
             "base_weights_changed": False,
-            "records": records,
             "git": dict(git_identity),
             "dataset": dict(dataset_identity),
             "model_statistics": dict(model_statistics_value),
@@ -1360,15 +1667,69 @@ def run_stability_smoke(
                 "acceptance_limit_hours": 72,
             },
         }
-        publish_result_artifact(
-            paths,
-            filename="stability-result.yaml",
-            result=result,
-            environment=environment,
-        )
+        with tracker.stage(
+            "stability_result_publish",
+            timeout_seconds=STAGE_TIMEOUTS["stability_result_publish"],
+        ):
+            state.update(
+                status="publishing", current_stage="metrics_finalizing",
+                microbatch_index=micro_batches, optimizer_step=optimizer_steps,
+            )
+            metrics.finalize()
+            state.update(
+                status="publishing", current_stage="result_publishing",
+                microbatch_index=micro_batches, optimizer_step=optimizer_steps,
+            )
+            _exclusive_write(
+                paths.staging / "stability-result.yaml",
+                yaml.safe_dump(result, allow_unicode=True, sort_keys=False),
+            )
+            _exclusive_write(
+                paths.staging / "environment.json",
+                json.dumps(dict(environment), ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            )
+            state.update(
+                status="completed", current_stage="completed",
+                microbatch_index=micro_batches, optimizer_step=optimizer_steps,
+            )
+            _write_stability_checksums(paths.staging)
+            validate_stability_result(
+                paths.staging,
+                expected_head=runtime_head,
+                expected_run_id=run_id,
+                expected_micro_batches=micro_batches,
+                expected_optimizer_steps=expected_optimizer_steps,
+                expected_config_fingerprint=str(environment.get("config_fingerprint", "")),
+            )
+            publish_staging(paths)
+            validate_stability_result(
+                paths.final,
+                expected_head=runtime_head,
+                expected_run_id=run_id,
+                expected_micro_batches=micro_batches,
+                expected_optimizer_steps=expected_optimizer_steps,
+                expected_config_fingerprint=str(environment.get("config_fingerprint", "")),
+            )
+            if _stability_residue(paths):
+                raise QLoRATrainingError("STABILITY_TEMP_RESIDUE")
         return result
-    except Exception:
-        quarantine_staging(paths)
+    except Exception as error:
+        metrics.close()
+        if paths.staging.exists():
+            try:
+                state.update(
+                    status="failed", current_stage="failed",
+                    failure_code=(
+                        str(error) if isinstance(error, QLoRATrainingError)
+                        else type(error).__name__
+                    ),
+                )
+            except (OSError, QLoRATrainingError, ValueError) as state_error:
+                tracker.emit(
+                    "stability_stage_state", "failed",
+                    error_code=str(state_error),
+                )
+        quarantine_stability_publication(paths)
         raise
 
 
@@ -1377,16 +1738,38 @@ def validate_stability_result(
     *,
     expected_head: str,
     expected_run_id: str = WSL_STABILITY_RUN_ID,
+    expected_micro_batches: int = 128,
+    expected_optimizer_steps: int = 8,
+    expected_config_fingerprint: str | None = None,
 ) -> dict[str, object]:
-    result = validate_result_artifact(
-        root,
-        filename="stability-result.yaml",
-        expected_run_id=expected_run_id,
-    )
+    base = Path(root)
+    if {path.name for path in base.iterdir()} != STABILITY_REQUIRED_FILES:
+        raise QLoRATrainingError("STABILITY_FILE_SET_INVALID")
+    try:
+        result = yaml.safe_load((base / "stability-result.yaml").read_text(encoding="utf-8"))
+        environment = json.loads((base / "environment.json").read_text(encoding="utf-8"))
+        state = json.loads((base / "stage-state.json").read_text(encoding="utf-8"))
+        metric_lines = (base / "batch-metrics.jsonl").read_text(encoding="utf-8").splitlines()
+        metrics = [json.loads(line) for line in metric_lines]
+    except (OSError, UnicodeError, ValueError, yaml.YAMLError):
+        raise QLoRATrainingError("STABILITY_RESULT_INVALID") from None
+    if not isinstance(result, Mapping) or not isinstance(environment, Mapping):
+        raise QLoRATrainingError("STABILITY_RESULT_INVALID")
+    expected_checksums = _parse_checksum_file(base)
+    actual_checksums = {name: sha256_file(base / name) for name in STABILITY_PAYLOAD_FILES}
+    if expected_checksums != actual_checksums:
+        raise QLoRATrainingError("STABILITY_CHECKSUM_MISMATCH")
     git = result.get("git")
+    dataset = result.get("dataset")
+    model = result.get("model_statistics")
+    synthetic = environment.get("platform") == "synthetic"
+    expected_dataset_fingerprint = "synthetic" if synthetic else DATASET_FINGERPRINT
+    accumulation = expected_micro_batches // expected_optimizer_steps
     if (
-        result.get("micro_batches") != 128
-        or result.get("optimizer_steps") != 8
+        result.get("status") != "passed"
+        or result.get("run_id") != expected_run_id
+        or result.get("micro_batches") != expected_micro_batches
+        or result.get("optimizer_steps") != expected_optimizer_steps
         or result.get("stalled_batches") != 0
         or result.get("nonfinite_losses") != 0
         or result.get("lora_weights_changed") is not True
@@ -1394,9 +1777,29 @@ def validate_stability_result(
         or float(result.get("max_batch_seconds", 301)) >= 300
         or not isinstance(git, Mapping)
         or git.get("head") != expected_head
+        or not isinstance(dataset, Mapping)
+        or dataset.get("dataset_fingerprint") != expected_dataset_fingerprint
+        or not isinstance(model, Mapping)
+        or state.get("status") != "completed"
+        or state.get("current_stage") != "completed"
+        or state.get("run_id") != expected_run_id
+        or state.get("runtime_head") != expected_head
+        or len(metrics) != expected_micro_batches
+        or any(set(metric) != set(STABILITY_METRIC_FIELDS) for metric in metrics)
+        or [metric.get("microbatch_index") for metric in metrics]
+        != list(range(1, expected_micro_batches + 1))
+        or [metric.get("optimizer_step") for metric in metrics]
+        != [index // accumulation for index in range(1, expected_micro_batches + 1)]
+        or any(metric.get("run_id") != expected_run_id for metric in metrics)
+        or any(metric.get("runtime_head") != expected_head for metric in metrics)
+        or (
+            expected_config_fingerprint is not None
+            and environment.get("config_fingerprint") != expected_config_fingerprint
+        )
+        or environment.get("model_revision") != MODEL_REVISION
     ):
         raise QLoRATrainingError("STABILITY_RESULT_INVALID")
-    return result
+    return dict(result)
 
 
 def validate_training_smoke_stage(
