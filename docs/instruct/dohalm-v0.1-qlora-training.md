@@ -80,6 +80,32 @@ Stage 1·2 artifact의 checksum과 계약을 모두 검증하고, Stage 2 실측
 72시간 이내일 때만 진입할 수 있다. 실패·timeout 시 자동 retry, runtime 연장 또는
 하이퍼파라미터 완화는 하지 않는다.
 
+## WSL2 실행 계약
+
+[확정] Windows Run `DOHALM-V0.1-QLORA-20260730-0001`은 Step 71 이후
+BitsAndBytes 4-bit backward가 31분 이상 진행되지 않아 terminal failure로 격리됐다.
+checkpoint와 final adapter는 생성되지 않았으며 이 identity는 재사용하지 않는다.
+
+[확정] WSL2에서는 `--profile wsl`을 사용하고 별도 Allocation, Backward,
+Training Smoke 및 Stability ID를 소비한다. Full Run ID는
+`DOHALM-V0.1-QLORA-20260731-0002`이다. Windows artifact를 WSL 승인 근거로
+재사용하지 않는다.
+
+[확정] WSL Backward Diagnostic과 Training Smoke micro-batch timeout은 300초다.
+Full Training 전 고정 seed로 실제 train record 128개, accumulation 16,
+optimizer step 8회의 Stability Smoke를 수행한다. P50·P90·P95·P99·최대 batch 시간과
+VRAM을 기록하며 stalled batch, non-finite loss 또는 Base weight 변경이 하나라도 있으면
+Full Training을 차단한다.
+
+[확정] Full Training은 각 micro-batch의 global step, micro-batch index, sequence
+length와 GPU memory를 heartbeat로 기록한다. 300초 동안 micro-batch가 완료되지 않으면
+supervisor가 해당 worker PID만 종료하고 자동 retry하지 않는다.
+
+[확정] 모델·Dataset·Tokenization·LoRA·optimizer·epoch 설정은 유지한다. 기존 config의
+`save_steps: 250`, `eval_steps: 100`, `save_total_limit: 2`도 변경하지 않으므로 config
+fingerprint를 새로 만들지 않는다. WSL Linux filesystem의 venv, cache, Dataset 복사본,
+training output은 Git에 포함하지 않는다.
+
 ## 상태
 
 ```yaml
@@ -88,6 +114,8 @@ allocation_smoke: not_started
 backward_diagnostic: not_started
 training_smoke: not_started
 full_training: not_started
+windows_run_0001: failed_terminal
+wsl_run_0002: not_started
 adapter: not_created
 base_model_merge: false
 ```
@@ -97,3 +125,4 @@ base_model_merge: false
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-07-30 | QLoRA smoke·full training·adapter reload·inference 계약과 backend 추가 |
+| 2026-07-31 | WSL2 전용 Run identity·128-batch stability·300초 micro-batch heartbeat 계약 추가 |

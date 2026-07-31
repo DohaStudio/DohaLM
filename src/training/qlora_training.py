@@ -32,6 +32,11 @@ RUN_ID = "DOHALM-V0.1-QLORA-20260730-0001"
 ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-20260731-0002"
 BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-20260731-0001"
 TRAINING_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-TRAINING-SMOKE-20260731-0001"
+WSL_RUN_ID = "DOHALM-V0.1-QLORA-20260731-0002"
+WSL_ALLOCATION_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-ALLOCATION-SMOKE-WSL-20260731-0001"
+WSL_BACKWARD_DIAGNOSTIC_RUN_ID = "DOHALM-V0.1-QLORA-BACKWARD-DIAG-WSL-20260731-0001"
+WSL_TRAINING_SMOKE_RUN_ID = "DOHALM-V0.1-QLORA-TRAINING-SMOKE-WSL-20260731-0001"
+WSL_STABILITY_RUN_ID = "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0001"
 SOURCE_PROCESSING_RUN = "AIHUB-71748-SFT-PROCESSING-20260730-0015"
 TOKENIZATION_RUN = "DOHALM-TOKENIZATION-20260730-0001"
 MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -55,6 +60,8 @@ STAGE_TIMEOUTS = {
     "backward_diagnostic": 600.0,
     "training_smoke": 1800.0,
     "training_smoke_reload": 600.0,
+    "stability_micro_batch": 300.0,
+    "full_training_micro_batch": 300.0,
 }
 
 
@@ -666,6 +673,7 @@ def run_allocation_smoke(
     reporter: StageReporter | None = None,
     device: str = "cuda:0",
     autocast_enabled: bool = True,
+    run_id: str = ALLOCATION_SMOKE_RUN_ID,
 ) -> dict[str, object]:
     import torch
 
@@ -724,7 +732,7 @@ def run_allocation_smoke(
         torch.cuda.empty_cache()
     result = {
         "status": "passed",
-        "run_id": ALLOCATION_SMOKE_RUN_ID,
+        "run_id": run_id,
         "model_loaded": True,
         "quantized_modules_valid": True,
         "lora_attached": True,
@@ -752,6 +760,8 @@ def run_backward_diagnostic(
     reporter: StageReporter | None = None,
     device: str = "cuda:0",
     autocast_enabled: bool = True,
+    run_id: str = BACKWARD_DIAGNOSTIC_RUN_ID,
+    timeout_seconds: float = STAGE_TIMEOUTS["backward_diagnostic"],
 ) -> dict[str, object]:
     import torch
 
@@ -771,7 +781,7 @@ def run_backward_diagnostic(
     started = time.perf_counter()
     with tracker.stage(
         "backward_diagnostic",
-        timeout_seconds=STAGE_TIMEOUTS["backward_diagnostic"],
+        timeout_seconds=timeout_seconds,
         sequence_length=statistics["actual_sequence_length"],
     ):
         forward_started = time.perf_counter()
@@ -804,13 +814,13 @@ def run_backward_diagnostic(
     total_seconds = time.perf_counter() - started
     if backward_seconds <= 120:
         classification = "BACKWARD_PRACTICAL"
-    elif backward_seconds <= STAGE_TIMEOUTS["backward_diagnostic"]:
+    elif backward_seconds <= timeout_seconds:
         classification = "BACKWARD_SLOW_BUT_BOUNDED"
     else:
         classification = "BACKWARD_TIMEOUT"
     result = {
         "status": "passed",
-        "run_id": BACKWARD_DIAGNOSTIC_RUN_ID,
+        "run_id": run_id,
         "target_length": target_length,
         "split": split,
         "index": index,
@@ -932,6 +942,8 @@ def run_training_smoke(
     validation_batches: int,
     stage_number: int,
     reporter: StageReporter | None = None,
+    run_id: str = TRAINING_SMOKE_RUN_ID,
+    micro_batch_timeout_seconds: float = STAGE_TIMEOUTS["training_smoke"],
 ) -> dict[str, object]:
     import torch
     from datasets import load_from_disk
@@ -986,7 +998,7 @@ def run_training_smoke(
             batch = move_batch(collator([train[index]]))
             with tracker.stage(
                 "training_smoke_forward",
-                timeout_seconds=STAGE_TIMEOUTS["training_smoke"],
+                timeout_seconds=micro_batch_timeout_seconds,
                 batch_number=batch_number,
             ):
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
@@ -997,7 +1009,7 @@ def run_training_smoke(
                 losses.append(float(loss.detach().item()))
             with tracker.stage(
                 "training_smoke_backward",
-                timeout_seconds=STAGE_TIMEOUTS["training_smoke"],
+                timeout_seconds=micro_batch_timeout_seconds,
                 batch_number=batch_number,
             ):
                 (loss / micro_batches).backward()
@@ -1099,7 +1111,7 @@ def run_training_smoke(
             raise QLoRATrainingError("TRAINING_SMOKE_CHECKPOINT_RELOAD_FAILED")
         result = {
             "status": "passed",
-            "run_id": TRAINING_SMOKE_RUN_ID,
+            "run_id": run_id,
             "stage_number": stage_number,
             "created_at": utc_now(),
             "allocation_smoke": dict(allocation_result),
@@ -1150,16 +1162,239 @@ def run_training_smoke(
         raise
 
 
+def _percentile(values: Sequence[float], percentile: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * percentile
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def run_stability_smoke(
+    *,
+    paths: ArtifactPaths,
+    model: Any,
+    tokenizer: Any,
+    train_dataset: Any,
+    config: Mapping[str, object],
+    environment: Mapping[str, object],
+    git_identity: Mapping[str, object],
+    dataset_identity: Mapping[str, object],
+    model_statistics_value: Mapping[str, object],
+    training_smoke_result: Mapping[str, object],
+    reporter: StageReporter | None = None,
+    run_id: str = WSL_STABILITY_RUN_ID,
+    device: str = "cuda:0",
+    autocast_enabled: bool = True,
+) -> dict[str, object]:
+    import torch
+    from transformers import get_cosine_schedule_with_warmup
+
+    tracker = reporter or StageReporter()
+    try:
+        training = config["training"]
+        assert isinstance(training, Mapping)
+        indices = list(range(len(train_dataset)))
+        random.Random(int(training["seed"])).shuffle(indices)
+        indices = indices[:128]
+        collator = DynamicSFTCollator(pad_token_id=int(tokenizer.pad_token_id))
+        optimizer = create_optimizer(
+            model,
+            learning_rate=float(training["learning_rate"]),
+            weight_decay=float(training["weight_decay"]),
+        )
+        scheduler = get_cosine_schedule_with_warmup(
+            optimizer, num_warmup_steps=0, num_training_steps=8,
+        )
+        base_versions = {
+            name: parameter._version
+            for name, parameter in model.named_parameters()
+            if "lora_" not in name
+        }
+        trainable_before = {
+            name: parameter.detach().clone()
+            for name, parameter in model.named_parameters()
+            if parameter.requires_grad
+        }
+        model.train()
+        optimizer.zero_grad(set_to_none=True)
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        started = time.perf_counter()
+        records: list[dict[str, object]] = []
+        optimizer_steps = 0
+        optimizer_times: list[float] = []
+        for micro_batch, index in enumerate(indices, start=1):
+            batch = move_batch(collator([train_dataset[index]]), device=device)
+            statistics = batch_statistics(batch)
+            forward_started = time.perf_counter()
+            with tracker.stage(
+                "stability_forward",
+                timeout_seconds=STAGE_TIMEOUTS["stability_micro_batch"],
+                micro_batch=micro_batch,
+                sequence_length=statistics["actual_sequence_length"],
+            ):
+                with torch.autocast(
+                    device_type=device.split(":", maxsplit=1)[0],
+                    dtype=torch.bfloat16,
+                    enabled=autocast_enabled,
+                ):
+                    outputs = model(**batch)
+                    loss = outputs.loss
+                torch.cuda.synchronize()
+            forward_seconds = time.perf_counter() - forward_started
+            if loss is None or not torch.isfinite(loss):
+                raise QLoRATrainingError("STABILITY_LOSS_NONFINITE")
+            backward_started = time.perf_counter()
+            with tracker.stage(
+                "stability_backward",
+                timeout_seconds=STAGE_TIMEOUTS["stability_micro_batch"],
+                micro_batch=micro_batch,
+                sequence_length=statistics["actual_sequence_length"],
+            ):
+                (loss / 16).backward()
+                torch.cuda.synchronize()
+            backward_seconds = time.perf_counter() - backward_started
+            records.append({
+                "micro_batch": micro_batch,
+                "index": index,
+                **statistics,
+                "loss": float(loss.detach().item()),
+                "forward_seconds": forward_seconds,
+                "backward_seconds": backward_seconds,
+                "total_seconds": forward_seconds + backward_seconds,
+                "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+                "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+            })
+            del outputs, loss, batch
+            if micro_batch % 16 == 0:
+                gradients_finite, _ = finite_gradients(model)
+                if not gradients_finite:
+                    raise QLoRATrainingError("STABILITY_GRADIENT_NONFINITE")
+                torch.nn.utils.clip_grad_norm_(
+                    [parameter for parameter in model.parameters() if parameter.requires_grad],
+                    float(training["max_grad_norm"]),
+                )
+                optimizer_started = time.perf_counter()
+                optimizer.step()
+                scheduler.step()
+                torch.cuda.synchronize()
+                optimizer_times.append(time.perf_counter() - optimizer_started)
+                optimizer.zero_grad(set_to_none=True)
+                optimizer_steps += 1
+        if optimizer_steps != 8:
+            raise QLoRATrainingError("STABILITY_OPTIMIZER_STEP_MISMATCH")
+        lora_changed = any(
+            not torch.equal(trainable_before[name], parameter.detach())
+            for name, parameter in model.named_parameters()
+            if parameter.requires_grad
+        )
+        base_changed = any(
+            base_versions[name] != parameter._version
+            for name, parameter in model.named_parameters()
+            if "lora_" not in name
+        )
+        if not lora_changed or base_changed:
+            raise QLoRATrainingError("STABILITY_WEIGHT_CONTRACT_FAILED")
+        durations = [float(record["total_seconds"]) for record in records]
+        training_seconds = (sum(durations) / len(durations)) * EXPECTED_ROWS["train"] * 3
+        optimizer_seconds = (sum(optimizer_times) / len(optimizer_times)) * 1947
+        evaluation_per_batch = float(training_smoke_result["evaluation_seconds"]) / int(
+            training_smoke_result["eval_batches"],
+        )
+        evaluation_seconds = evaluation_per_batch * EXPECTED_ROWS["validation"] * 20
+        checkpoint_seconds = float(training_smoke_result["checkpoint_seconds"]) * 7
+        total_estimate = (
+            training_seconds + optimizer_seconds + evaluation_seconds + checkpoint_seconds
+        )
+        result: dict[str, object] = {
+            "status": "passed",
+            "run_id": run_id,
+            "created_at": utc_now(),
+            "micro_batches": len(records),
+            "optimizer_steps": optimizer_steps,
+            "stalled_batches": 0,
+            "nonfinite_losses": 0,
+            "mean_batch_seconds": sum(durations) / len(durations),
+            "p50_batch_seconds": _percentile(durations, 0.50),
+            "p90_batch_seconds": _percentile(durations, 0.90),
+            "p95_batch_seconds": _percentile(durations, 0.95),
+            "p99_batch_seconds": _percentile(durations, 0.99),
+            "max_batch_seconds": max(durations),
+            "mean_optimizer_seconds": sum(optimizer_times) / len(optimizer_times),
+            "duration_seconds": time.perf_counter() - started,
+            "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+            "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+            "lora_weights_changed": True,
+            "base_weights_changed": False,
+            "records": records,
+            "git": dict(git_identity),
+            "dataset": dict(dataset_identity),
+            "model_statistics": dict(model_statistics_value),
+            "runtime_estimate": {
+                "training_seconds": training_seconds,
+                "optimizer_seconds": optimizer_seconds,
+                "evaluation_seconds": evaluation_seconds,
+                "checkpoint_seconds": checkpoint_seconds,
+                "epoch_seconds": total_estimate / 3,
+                "total_seconds": total_estimate,
+                "total_hours": total_estimate / 3600,
+                "acceptable": total_estimate <= 72 * 3600,
+                "acceptance_limit_hours": 72,
+            },
+        }
+        publish_result_artifact(
+            paths,
+            filename="stability-result.yaml",
+            result=result,
+            environment=environment,
+        )
+        return result
+    except Exception:
+        quarantine_staging(paths)
+        raise
+
+
+def validate_stability_result(
+    root: str | Path,
+    *,
+    expected_head: str,
+    expected_run_id: str = WSL_STABILITY_RUN_ID,
+) -> dict[str, object]:
+    result = validate_result_artifact(
+        root,
+        filename="stability-result.yaml",
+        expected_run_id=expected_run_id,
+    )
+    git = result.get("git")
+    if (
+        result.get("micro_batches") != 128
+        or result.get("optimizer_steps") != 8
+        or result.get("stalled_batches") != 0
+        or result.get("nonfinite_losses") != 0
+        or result.get("lora_weights_changed") is not True
+        or result.get("base_weights_changed") is not False
+        or float(result.get("max_batch_seconds", 301)) >= 300
+        or not isinstance(git, Mapping)
+        or git.get("head") != expected_head
+    ):
+        raise QLoRATrainingError("STABILITY_RESULT_INVALID")
+    return result
+
+
 def validate_training_smoke_stage(
     smoke_root: str | Path,
     *,
     stage_number: int,
     expected_head: str,
+    expected_run_id: str = TRAINING_SMOKE_RUN_ID,
 ) -> dict[str, object]:
     result = validate_result_artifact(
         smoke_root,
         filename="smoke-result.yaml",
-        expected_run_id=TRAINING_SMOKE_RUN_ID,
+        expected_run_id=expected_run_id,
     )
     allocation = result.get("allocation_smoke")
     git = result.get("git")
@@ -1181,11 +1416,17 @@ def validate_training_smoke_stage(
     return dict(result)
 
 
-def smoke_is_valid(smoke_root: str | Path, *, expected_head: str) -> dict[str, object]:
+def smoke_is_valid(
+    smoke_root: str | Path,
+    *,
+    expected_head: str,
+    expected_run_id: str = TRAINING_SMOKE_RUN_ID,
+) -> dict[str, object]:
     return validate_training_smoke_stage(
         smoke_root,
         stage_number=2,
         expected_head=expected_head,
+        expected_run_id=expected_run_id,
     )
 
 
@@ -1194,11 +1435,12 @@ def validate_backward_diagnostic(
     *,
     target_length: int,
     expected_head: str | None = None,
+    expected_run_id: str = BACKWARD_DIAGNOSTIC_RUN_ID,
 ) -> dict[str, object]:
     result = validate_result_artifact(
         root,
         filename="backward-result.yaml",
-        expected_run_id=BACKWARD_DIAGNOSTIC_RUN_ID,
+        expected_run_id=expected_run_id,
     )
     git = result.get("git")
     if (
@@ -1220,6 +1462,7 @@ def validate_backward_diagnostics(
     root: str | Path,
     *,
     expected_head: str | None = None,
+    expected_run_id: str = BACKWARD_DIAGNOSTIC_RUN_ID,
 ) -> list[dict[str, object]]:
     base = Path(root)
     results = []
@@ -1228,6 +1471,7 @@ def validate_backward_diagnostics(
             base / f"length-{length}",
             target_length=length,
             expected_head=expected_head,
+            expected_run_id=expected_run_id,
         )
         results.append(result)
     return results
@@ -1550,10 +1794,39 @@ def run_full_training(
     expected_head: str,
     environment: Mapping[str, object],
     git_identity: Mapping[str, object],
+    run_id: str = RUN_ID,
+    reporter: StageReporter | None = None,
 ) -> dict[str, object]:
     import torch
     from datasets import load_from_disk
     from transformers import Trainer
+
+    tracker = reporter or StageReporter()
+
+    class HeartbeatTrainer(Trainer):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self.micro_batch_index = 0
+
+        def training_step(
+            self,
+            model: Any,
+            inputs: dict[str, Any],
+            num_items_in_batch: Any = None,
+        ) -> Any:
+            self.micro_batch_index += 1
+            attention_mask = inputs.get("attention_mask")
+            sequence_length = int(attention_mask.sum().item()) if attention_mask is not None else -1
+            with tracker.stage(
+                "full_training_micro_batch",
+                timeout_seconds=STAGE_TIMEOUTS["full_training_micro_batch"],
+                global_step=int(self.state.global_step),
+                micro_batch=self.micro_batch_index,
+                sequence_length=sequence_length,
+            ):
+                loss = super().training_step(model, inputs, num_items_in_batch)
+                torch.cuda.synchronize()
+                return loss
 
     paths.staging.mkdir(parents=True)
     started = time.perf_counter()
@@ -1567,7 +1840,7 @@ def run_full_training(
         arguments = training_arguments(
             output_dir=paths.staging,
             config=config,
-            run_name=RUN_ID,
+            run_name=run_id,
         )
         collator = DynamicSFTCollator(pad_token_id=int(tokenizer.pad_token_id))
         metrics_path = paths.staging / "metrics.jsonl"
@@ -1577,7 +1850,7 @@ def run_full_training(
             dataset_root=Path(tokenized_root),
             metrics_path=metrics_path,
         )
-        trainer = Trainer(
+        trainer = HeartbeatTrainer(
             model=model,
             args=arguments,
             train_dataset=train,
@@ -1654,7 +1927,7 @@ def run_full_training(
         adapter_fingerprint = canonical_fingerprint(adapter_identity)
         result: dict[str, object] = {
             "status": "completed",
-            "run_id": RUN_ID,
+            "run_id": run_id,
             "started_at": started_at,
             "ended_at": utc_now(),
             "git": dict(git_identity),

@@ -9,6 +9,8 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from scripts.training.train_dohalm_v01_qlora import _expected_run_id
+from src.training import qlora_training
 from src.training.qlora_training import (
     DynamicSFTCollator,
     QLoRATrainingError,
@@ -20,6 +22,7 @@ from src.training.qlora_training import (
     require_execution_approval,
     run_allocation_smoke,
     run_backward_diagnostic,
+    run_stability_smoke,
     run_training_smoke,
     validate_checkpoint,
     validate_runtime_config,
@@ -179,3 +182,65 @@ def test_only_training_smoke_owns_optimizer_creation() -> None:
     assert "create_optimizer(" not in inspect.getsource(run_allocation_smoke)
     assert "create_optimizer(" not in inspect.getsource(run_backward_diagnostic)
     assert "create_optimizer(" in inspect.getsource(run_training_smoke)
+
+
+def test_wsl_runtime_ids_are_separate_from_windows() -> None:
+    assert _expected_run_id("full", "windows") != _expected_run_id("full", "wsl")
+    assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0001")
+    assert _expected_run_id("stability", "wsl") == qlora_training.WSL_STABILITY_RUN_ID
+
+
+def test_stability_smoke_runs_128_batches_and_8_steps(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cpu_cuda_counters: None,
+) -> None:
+    del cpu_cuda_counters
+    monkeypatch.setattr(
+        qlora_training,
+        "create_optimizer",
+        lambda model, **_: torch.optim.SGD(
+            [parameter for parameter in model.parameters() if parameter.requires_grad],
+            lr=0.01,
+        ),
+    )
+    records = [_records()[index % 3] for index in range(128)]
+    config = {
+        "training": {
+            "seed": 42,
+            "learning_rate": 0.01,
+            "weight_decay": 0.0,
+            "max_grad_norm": 1.0,
+        },
+    }
+    result = run_stability_smoke(
+        paths=ensure_unused_output(tmp_path / "stability"),
+        model=_TinyDiagnosticModel(),
+        tokenizer=SimpleNamespace(pad_token_id=0),
+        train_dataset=records,
+        config=config,
+        environment={"platform": "synthetic"},
+        git_identity={"head": "abc"},
+        dataset_identity={"fingerprint": "synthetic"},
+        model_statistics_value={"model": "tiny"},
+        training_smoke_result={
+            "evaluation_seconds": 1.0,
+            "eval_batches": 2,
+            "checkpoint_seconds": 1.0,
+        },
+        reporter=StageReporter(stream=StringIO()),
+        device="cpu",
+        autocast_enabled=False,
+    )
+    assert result["micro_batches"] == 128
+    assert result["optimizer_steps"] == 8
+    assert result["stalled_batches"] == 0
+    assert result["base_weights_changed"] is False
+    assert (tmp_path / "stability" / "checksums.sha256").is_file()
+
+
+def test_full_training_has_300_second_micro_batch_heartbeat() -> None:
+    source = inspect.getsource(qlora_training.run_full_training)
+    assert '"full_training_micro_batch"' in source
+    assert 'STAGE_TIMEOUTS["full_training_micro_batch"]' in source
+    assert "torch.cuda.synchronize()" in source
