@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from scripts.training.train_dohalm_v01_qlora import _expected_run_id
+from scripts.training.train_dohalm_v01_qlora import _expected_run_id, _roots
 from src.training import qlora_training
 from src.training.qlora_training import (
     DynamicSFTCollator,
@@ -187,7 +187,48 @@ def test_only_training_smoke_owns_optimizer_creation() -> None:
 def test_wsl_runtime_ids_are_separate_from_windows() -> None:
     assert _expected_run_id("full", "windows") != _expected_run_id("full", "wsl")
     assert _expected_run_id("allocation", "wsl").endswith("WSL-20260731-0001")
+    assert qlora_training.RETIRED_WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0001")
+    assert qlora_training.WSL_STABILITY_RUN_ID.endswith("WSL-20260731-0002")
     assert _expected_run_id("stability", "wsl") == qlora_training.WSL_STABILITY_RUN_ID
+    assert _expected_run_id("full", "wsl") == qlora_training.WSL_RUN_ID
+
+
+def test_wsl_stability_uses_0002_canonical_root(tmp_path: Path) -> None:
+    root = _roots(tmp_path, "wsl")["stability"]
+    assert root == tmp_path / "stability" / qlora_training.WSL_STABILITY_RUN_ID
+    assert "0001" not in root.as_posix()
+
+
+@pytest.mark.parametrize("occupied", ("final", "staging", "failed"))
+def test_wsl_stability_0002_canonical_root_is_no_replace(
+    tmp_path: Path,
+    occupied: str,
+) -> None:
+    root = _roots(tmp_path / occupied, "wsl")["stability"]
+    paths = artifact_paths(root)
+    getattr(paths, occupied).mkdir(parents=True)
+    with pytest.raises(QLoRATrainingError, match="^OUTPUT_RUN_ID_ALREADY_USED$"):
+        ensure_unused_output(root)
+
+
+@pytest.mark.parametrize(
+    "rejected_run_id",
+    (
+        qlora_training.RETIRED_WSL_STABILITY_RUN_ID,
+        "DOHALM-V0.1-QLORA-STABILITY-WSL-20260731-0003",
+        qlora_training.WSL_RUN_ID,
+        "NOT-AVAILABLE-WINDOWS",
+        "",
+    ),
+)
+def test_wsl_stability_rejects_non_active_run_ids(
+    tmp_path: Path,
+    rejected_run_id: str,
+) -> None:
+    expected = _expected_run_id("stability", "wsl")
+    with pytest.raises(QLoRATrainingError, match="^EXPLICIT_RUN_APPROVAL_REQUIRED$"):
+        require_execution_approval(expected_run_id=expected, approved_run_id=rejected_run_id)
+    assert not _roots(tmp_path, "wsl")["stability"].exists()
 
 
 def test_stability_smoke_runs_128_batches_and_8_steps(
