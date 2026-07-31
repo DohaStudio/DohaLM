@@ -31,10 +31,10 @@ from src.training.qlora_training import (
     attach_lora,
     ensure_unused_output,
     environment_snapshot,
+    finalize_stability_failure,
     load_tokenizer_and_model,
     model_statistics,
     publish_result_artifact,
-    quarantine_stability_publication,
     release_cuda,
     require_execution_approval,
     run_allocation_smoke,
@@ -50,6 +50,7 @@ from src.training.qlora_training import (
     validate_environment,
     validate_result_artifact,
     validate_runtime_config,
+    validate_stability_failure,
     validate_stability_result,
     validate_tokenized_dataset,
     validate_training_smoke_stage,
@@ -342,6 +343,7 @@ def run(arguments: argparse.Namespace) -> dict[str, object]:
                 training_smoke_result=stage_two_result,
                 reporter=reporter,
                 run_id=ids["stability"],
+                supervisor_managed_failure=True,
             )
             del model, base_model
             release_cuda()
@@ -445,6 +447,71 @@ def _gpu_timeout_snapshot() -> dict[str, object]:
         return {"gpu_snapshot": "unavailable"}
 
 
+def _finalize_supervised_stability_failure(
+    argv: list[str],
+    *,
+    worker_exit_code: int,
+    failure_code: str,
+    active_stage: dict[str, object] | None,
+) -> dict[str, object] | None:
+    arguments = parser().parse_args(argv)
+    if arguments.mode != "stability":
+        return None
+    stability_root = _roots(arguments.training_root, arguments.profile)["stability"]
+    paths = artifact_paths(stability_root)
+    if paths.failed.is_dir():
+        return validate_stability_failure(
+            paths.failed,
+            expected_head=arguments.expected_head,
+            expected_run_id=arguments.approved_run_id,
+        )
+    if not paths.staging.is_dir() or paths.final.exists():
+        raise QLoRATrainingError("STABILITY_FAILURE_SOURCE_INVALID")
+    try:
+        last_state = json.loads(
+            (paths.staging / "stage-state.json").read_text(encoding="utf-8"),
+        )
+    except (OSError, UnicodeError, ValueError):
+        raise QLoRATrainingError("STABILITY_FAILURE_SOURCE_INVALID") from None
+    stage = (
+        str(active_stage.get("stage", "worker_exit"))
+        if active_stage
+        else str(last_state.get("current_stage", "worker_exit"))
+    )
+    timeout = (
+        float(active_stage.get("timeout_seconds", 0.0))
+        if active_stage
+        else 300.0
+    )
+    return finalize_stability_failure(
+        paths,
+        failure_code=failure_code,
+        failed_stage=stage,
+        worker_exit_code=worker_exit_code,
+        watchdog_seconds=timeout,
+        failed_microbatch_index=(
+            int(active_stage["micro_batch"])
+            if active_stage and active_stage.get("micro_batch") is not None
+            else None
+        ),
+        sequence_length=(
+            int(active_stage["sequence_length"])
+            if active_stage and active_stage.get("sequence_length") is not None
+            else None
+        ),
+        allocated_vram_bytes=(
+            int(active_stage["allocated_bytes"])
+            if active_stage and active_stage.get("allocated_bytes") is not None
+            else None
+        ),
+        reserved_vram_bytes=(
+            int(active_stage["reserved_bytes"])
+            if active_stage and active_stage.get("reserved_bytes") is not None
+            else None
+        ),
+    )
+
+
 def supervise(argv: list[str]) -> int:
     command = [sys.executable, str(Path(__file__).resolve()), *argv, "--stage-worker"]
     process = subprocess.Popen(
@@ -490,19 +557,24 @@ def supervise(argv: list[str]) -> int:
             process.kill()
             process.wait(timeout=30)
             timed_out_stage = active_stage.get("stage") if active_stage else "unknown"
-            if timed_out_stage == "stability_result_publish":
-                timeout_arguments = parser().parse_args(argv)
-                stability_root = _roots(
-                    timeout_arguments.training_root, timeout_arguments.profile,
-                )["stability"]
-                quarantine_stability_publication(artifact_paths(stability_root))
+            failure_code = (
+                "STABILITY_RESULT_PUBLISH_TIMEOUT"
+                if timed_out_stage == "stability_result_publish"
+                else "STAGE_HARD_TIMEOUT"
+            )
+            try:
+                finalized = _finalize_supervised_stability_failure(
+                    argv,
+                    worker_exit_code=int(process.returncode or -9),
+                    failure_code=failure_code,
+                    active_stage=active_stage,
+                )
+            except (OSError, QLoRATrainingError, ValueError) as error:
+                finalized = None
+                failure_code = f"STABILITY_FAILURE_ARTIFACT_FAILED:{error}"
             failure = {
                 "status": "blocked",
-                "error_code": (
-                    "STABILITY_RESULT_PUBLISH_TIMEOUT"
-                    if timed_out_stage == "stability_result_publish"
-                    else "STAGE_HARD_TIMEOUT"
-                ),
+                "error_code": failure_code,
                 "stage": timed_out_stage,
                 "sequence_length": active_stage.get("sequence_length") if active_stage else None,
                 "child_pid": process.pid,
@@ -511,6 +583,7 @@ def supervise(argv: list[str]) -> int:
                 "peak_allocated_bytes": (
                     active_stage.get("peak_allocated_bytes") if active_stage else None
                 ),
+                "failure_artifact_validated": finalized is not None,
                 **_gpu_timeout_snapshot(),
             }
             print(json.dumps(failure, sort_keys=True))
@@ -524,7 +597,31 @@ def supervise(argv: list[str]) -> int:
         else:
             print(line, end="", file=sys.stderr, flush=True)
     print("".join(stdout_lines), end="")
-    return int(process.returncode or 0)
+    return_code = int(process.returncode or 0)
+    if return_code != 0:
+        try:
+            finalized = _finalize_supervised_stability_failure(
+                argv,
+                worker_exit_code=return_code,
+                failure_code=("WORKER_EXIT_124" if return_code == 124 else "WORKER_ABNORMAL_EXIT"),
+                active_stage=active_stage,
+            )
+        except (OSError, QLoRATrainingError, ValueError) as error:
+            print(json.dumps({
+                "status": "blocked",
+                "error_code": f"STABILITY_FAILURE_ARTIFACT_FAILED:{error}",
+                "worker_exit_code": return_code,
+                "failure_artifact_validated": False,
+            }, sort_keys=True))
+            return 2
+        if finalized is not None:
+            print(json.dumps({
+                "status": "blocked",
+                "error_code": str(finalized["failure_code"]),
+                "worker_exit_code": return_code,
+                "failure_artifact_validated": True,
+            }, sort_keys=True))
+    return return_code
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -55,6 +55,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [Prompt Template](./instruction-prompt-template.md)
 - [DohaLM v0.1 Tokenization 및 QLoRA 준비](./dohalm-v0.1-tokenization-readiness.md)
 - [DohaLM v0.1 QLoRA 학습 실행 계약](./dohalm-v0.1-qlora-training.md)
+- [DohaLM v0.1 QLoRA Backward Stall 진단](./dohalm-v0.1-qlora-stall-diagnostic.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
 - [Instruction Safety](./instruction-safety.md)
