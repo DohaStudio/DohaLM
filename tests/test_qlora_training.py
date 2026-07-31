@@ -414,6 +414,84 @@ def test_stability_reload_rejects_extra_file(tmp_path: Path) -> None:
         qlora_training.validate_stability_result(root, expected_head="abc")
 
 
+@pytest.mark.parametrize(
+    "delayed_phase",
+    (
+        "metrics_finalization",
+        "checksum_creation",
+        "atomic_publish",
+        "directory_sync",
+        "reload_validation",
+    ),
+)
+def test_stability_publish_delay_is_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cpu_cuda_counters: None,
+    delayed_phase: str,
+) -> None:
+    del cpu_cuda_counters
+    monkeypatch.setattr(
+        qlora_training,
+        "create_optimizer",
+        lambda model, **_: torch.optim.SGD(
+            [parameter for parameter in model.parameters() if parameter.requires_grad],
+            lr=0.01,
+        ),
+    )
+    delayed = False
+
+    def clock() -> float:
+        return 301.0 if delayed else 0.0
+
+    def phase_hook(phase: str) -> None:
+        nonlocal delayed
+        if phase == delayed_phase:
+            delayed = True
+
+    root = tmp_path / delayed_phase
+    with pytest.raises(
+        QLoRATrainingError, match="^STABILITY_RESULT_PUBLISH_TIMEOUT$",
+    ):
+        run_stability_smoke(
+            paths=ensure_unused_output(root),
+            model=_TinyDiagnosticModel(),
+            tokenizer=SimpleNamespace(pad_token_id=0),
+            train_dataset=[_records()[index % 3] for index in range(4)],
+            config={
+                "training": {
+                    "seed": 42,
+                    "learning_rate": 0.01,
+                    "weight_decay": 0.0,
+                    "max_grad_norm": 1.0,
+                },
+            },
+            environment={
+                "platform": "synthetic",
+                "config_fingerprint": "config-synthetic",
+                "model_revision": qlora_training.MODEL_REVISION,
+            },
+            git_identity={"head": "abc"},
+            dataset_identity={"dataset_fingerprint": "synthetic"},
+            model_statistics_value={"model": "tiny"},
+            training_smoke_result={
+                "evaluation_seconds": 1.0,
+                "eval_batches": 2,
+                "checkpoint_seconds": 1.0,
+            },
+            reporter=StageReporter(clock=clock, stream=StringIO()),
+            device="cpu",
+            autocast_enabled=False,
+            micro_batches=4,
+            gradient_accumulation_steps=2,
+            publish_phase_hook=phase_hook,
+        )
+    paths = artifact_paths(root)
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+    assert paths.failed.is_dir()
+
+
 def test_full_training_has_300_second_micro_batch_heartbeat() -> None:
     source = inspect.getsource(qlora_training.run_full_training)
     assert '"full_training_micro_batch"' in source

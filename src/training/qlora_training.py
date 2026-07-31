@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -193,7 +193,12 @@ class StageReporter:
         elapsed = self.clock() - started
         if elapsed > timeout_seconds:
             self.emit(name, "timeout", elapsed_seconds=elapsed, **metadata)
-            raise QLoRATrainingError(f"STAGE_TIMEOUT_{name.upper()}")
+            error_code = (
+                "STABILITY_RESULT_PUBLISH_TIMEOUT"
+                if name == "stability_result_publish"
+                else f"STAGE_TIMEOUT_{name.upper()}"
+            )
+            raise QLoRATrainingError(error_code)
         self.emit(name, "passed", elapsed_seconds=elapsed, **metadata)
 
 
@@ -260,7 +265,11 @@ def _fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def publish_staging(paths: ArtifactPaths) -> None:
+def publish_staging(
+    paths: ArtifactPaths,
+    *,
+    before_directory_sync: Callable[[], None] | None = None,
+) -> None:
     if not paths.staging.is_dir() or paths.final.exists():
         raise QLoRATrainingError("OUTPUT_ATOMIC_PUBLISH_INVALID")
     if os.name == "nt":
@@ -293,6 +302,8 @@ def publish_staging(paths: ArtifactPaths) -> None:
             raise OSError(error, os.strerror(error), str(paths.final))
     else:
         raise QLoRATrainingError("OUTPUT_ATOMIC_NOREPLACE_UNSUPPORTED")
+    if before_directory_sync is not None:
+        before_directory_sync()
     _fsync_directory(paths.final.parent)
 
 
@@ -1445,11 +1456,13 @@ def run_stability_smoke(
     autocast_enabled: bool = True,
     micro_batches: int = 128,
     gradient_accumulation_steps: int = 16,
+    publish_phase_hook: Callable[[str], None] | None = None,
 ) -> dict[str, object]:
     import torch
     from transformers import get_cosine_schedule_with_warmup
 
     tracker = reporter or StageReporter()
+    phase_hook = publish_phase_hook or (lambda _phase: None)
     expected_optimizer_steps = micro_batches // gradient_accumulation_steps
     if (
         micro_batches <= 0
@@ -1671,6 +1684,7 @@ def run_stability_smoke(
             "stability_result_publish",
             timeout_seconds=STAGE_TIMEOUTS["stability_result_publish"],
         ):
+            phase_hook("metrics_finalization")
             state.update(
                 status="publishing", current_stage="metrics_finalizing",
                 microbatch_index=micro_batches, optimizer_step=optimizer_steps,
@@ -1692,6 +1706,7 @@ def run_stability_smoke(
                 status="completed", current_stage="completed",
                 microbatch_index=micro_batches, optimizer_step=optimizer_steps,
             )
+            phase_hook("checksum_creation")
             _write_stability_checksums(paths.staging)
             validate_stability_result(
                 paths.staging,
@@ -1701,7 +1716,12 @@ def run_stability_smoke(
                 expected_optimizer_steps=expected_optimizer_steps,
                 expected_config_fingerprint=str(environment.get("config_fingerprint", "")),
             )
-            publish_staging(paths)
+            phase_hook("atomic_publish")
+            publish_staging(
+                paths,
+                before_directory_sync=lambda: phase_hook("directory_sync"),
+            )
+            phase_hook("reload_validation")
             validate_stability_result(
                 paths.final,
                 expected_head=runtime_head,
