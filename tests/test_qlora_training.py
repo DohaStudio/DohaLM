@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from scripts.training import train_dohalm_v01_qlora as qlora_cli
 from scripts.training.train_dohalm_v01_qlora import _expected_run_id, _roots
 from src.training import qlora_training
 from src.training.qlora_training import (
@@ -389,6 +390,41 @@ def test_stability_metrics_rejects_sensitive_or_missing_fields(tmp_path: Path) -
     writer.close()
 
 
+def test_stability_batch_identity_is_deterministic_and_non_identifying() -> None:
+    record = {
+        "input_ids": [10, 20, 30],
+        "labels": [-100, 20, 30],
+        "attention_mask": [1, 1, 1],
+        "category": "synthetic-category",
+        "instruction": "must never be copied",
+    }
+    first = qlora_training.stability_batch_identity(
+        record,
+        dataset_index=17,
+        padded_length=8,
+        valid_label_tokens=2,
+        shuffle_seed=42,
+        sampler_order_fingerprint="sampler",
+        first_64_indices_hash="first64",
+    )
+    second = qlora_training.stability_batch_identity(
+        record,
+        dataset_index=17,
+        padded_length=8,
+        valid_label_tokens=2,
+        shuffle_seed=42,
+        sampler_order_fingerprint="sampler",
+        first_64_indices_hash="first64",
+    )
+    assert first == second
+    serialized = json.dumps(first)
+    assert "must never be copied" not in serialized
+    assert "synthetic-category" not in serialized
+    assert "[10, 20, 30]" not in serialized
+    assert first["dataset_index"] == 17
+    assert first["shuffle_seed"] == 42
+
+
 def test_stability_metrics_fsyncs_every_eight_and_at_final(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -402,6 +438,176 @@ def test_stability_metrics_fsyncs_every_eight_and_at_final(
     assert len(calls) == 1
     writer.finalize()
     assert len(calls) == 2
+
+
+def _synthetic_stability_staging(
+    tmp_path: Path,
+    *,
+    stage: str = "backward_started",
+    final: Path | None = None,
+) -> qlora_training.ArtifactPaths:
+    paths = ensure_unused_output(final or (tmp_path / "stability"))
+    paths.staging.mkdir()
+    state = qlora_training.StabilityStateWriter(
+        paths.staging / "stage-state.json", run_id="RUN", runtime_head="HEAD",
+    )
+    state.update(
+        status="running",
+        current_stage=stage,
+        microbatch_index=42,
+        optimizer_step=2,
+        sequence_length=536,
+    )
+    metrics = qlora_training.StabilityMetricsWriter(
+        paths.staging / "batch-metrics.jsonl",
+    )
+    record = {field: None for field in qlora_training.STABILITY_METRIC_FIELDS}
+    record.update({
+        "run_id": "RUN",
+        "runtime_head": "HEAD",
+        "microbatch_index": 41,
+        "optimizer_step": 2,
+    })
+    metrics.append(record)
+    metrics.finalize()
+    (paths.staging / "environment.json").write_text(
+        json.dumps({"platform": "synthetic"}) + "\n", encoding="utf-8",
+    )
+    return paths
+
+
+@pytest.mark.parametrize(
+    ("worker_exit_code", "stage"),
+    ((-9, "backward_started"), (124, "backward_started"), (7, "optimizer_step_started")),
+)
+def test_stability_failure_artifact_is_terminal_and_exact(
+    tmp_path: Path,
+    worker_exit_code: int,
+    stage: str,
+) -> None:
+    paths = _synthetic_stability_staging(tmp_path, stage=stage)
+    result = qlora_training.finalize_stability_failure(
+        paths,
+        failure_code="STAGE_HARD_TIMEOUT",
+        failed_stage=stage,
+        worker_exit_code=worker_exit_code,
+        watchdog_seconds=300,
+    )
+    assert result["status"] == "failed"
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+    assert {path.name for path in paths.failed.iterdir()} == (
+        qlora_training.STABILITY_FAILURE_REQUIRED_FILES
+    )
+    state = json.loads((paths.failed / "stage-state.json").read_text(encoding="utf-8"))
+    assert set(state) == set(qlora_training.STABILITY_FAILURE_STATE_FIELDS)
+    assert state["status"] == "failed"
+    assert state["failed_stage"] == stage
+    assert state["failed_microbatch_index"] == 42
+    assert state["worker_exit_code"] == worker_exit_code
+    qlora_training.validate_stability_failure(
+        paths.failed, expected_head="HEAD", expected_run_id="RUN",
+    )
+
+
+def test_stability_failure_publish_preserves_existing_destination(tmp_path: Path) -> None:
+    paths = _synthetic_stability_staging(tmp_path)
+    paths.failed.mkdir()
+    marker = paths.failed / "preserved.txt"
+    marker.write_text("existing", encoding="utf-8")
+    with pytest.raises(QLoRATrainingError, match="^STABILITY_FAILURE_PUBLISH_COLLISION$"):
+        qlora_training.finalize_stability_failure(
+            paths,
+            failure_code="WORKER_ABNORMAL_EXIT",
+            failed_stage="backward_started",
+            worker_exit_code=7,
+            watchdog_seconds=300,
+        )
+    assert marker.read_text(encoding="utf-8") == "existing"
+
+
+def test_stability_failure_directory_sync_error_never_reports_success(tmp_path: Path) -> None:
+    paths = _synthetic_stability_staging(tmp_path)
+    with pytest.raises(OSError, match="sync failed"):
+        qlora_training.finalize_stability_failure(
+            paths,
+            failure_code="STAGE_HARD_TIMEOUT",
+            failed_stage="backward_started",
+            worker_exit_code=-9,
+            watchdog_seconds=300,
+            before_directory_sync=lambda: (_ for _ in ()).throw(OSError("sync failed")),
+        )
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+
+
+def test_stability_failure_reload_error_never_reports_success(tmp_path: Path) -> None:
+    paths = _synthetic_stability_staging(tmp_path)
+    calls = 0
+
+    def validator(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise QLoRATrainingError("INJECTED_RELOAD_FAILURE")
+        return qlora_training.validate_stability_failure(*args, **kwargs)  # type: ignore[arg-type]
+
+    with pytest.raises(QLoRATrainingError, match="^INJECTED_RELOAD_FAILURE$"):
+        qlora_training.finalize_stability_failure(
+            paths,
+            failure_code="STAGE_HARD_TIMEOUT",
+            failed_stage="backward_started",
+            worker_exit_code=-9,
+            watchdog_seconds=300,
+            reload_validator=validator,
+        )
+    assert paths.failed.is_dir()
+    assert not paths.final.exists()
+    assert not paths.staging.exists()
+
+
+@pytest.mark.parametrize("exit_code", (-9, 124, 7))
+def test_supervisor_finalizes_abnormal_stability_worker_exit(
+    tmp_path: Path,
+    exit_code: int,
+) -> None:
+    root = _roots(tmp_path, "wsl")["stability"]
+    paths = _synthetic_stability_staging(tmp_path, final=root)
+    assert paths.final == root
+    result = qlora_cli._finalize_supervised_stability_failure(
+        [
+            "--mode", "stability",
+            "--profile", "wsl",
+            "--approved-run-id", "RUN",
+            "--expected-head", "HEAD",
+            "--tokenized-root", str(tmp_path / "tokens"),
+            "--model-cache-root", str(tmp_path / "cache"),
+            "--training-root", str(tmp_path),
+        ],
+        worker_exit_code=exit_code,
+        failure_code="WORKER_ABNORMAL_EXIT",
+        active_stage={
+            "stage": "stability_backward",
+            "timeout_seconds": 300,
+            "micro_batch": 42,
+            "sequence_length": 536,
+        },
+    )
+    assert result is not None
+    assert result["status"] == "failed"
+    assert paths.failed.is_dir()
+
+
+def test_stability_and_full_training_release_only_cached_cuda_blocks() -> None:
+    stability_source = inspect.getsource(qlora_training.run_stability_smoke)
+    full_source = inspect.getsource(qlora_training.run_full_training)
+    assert "del outputs, loss, batch" in stability_source
+    assert "torch.cuda.empty_cache()" in stability_source
+    assert "torch.cuda.synchronize()\n                torch.cuda.empty_cache()" in full_source
+    assert 'STAGE_TIMEOUTS["stability_micro_batch"]' in stability_source
+    assert 'STAGE_TIMEOUTS["full_training_micro_batch"]' in full_source
 
 
 def test_stability_reload_rejects_extra_file(tmp_path: Path) -> None:
@@ -509,4 +715,5 @@ def test_stability_publish_has_dedicated_300_second_watchdog() -> None:
         ).supervise,
     )
     assert "STABILITY_RESULT_PUBLISH_TIMEOUT" in supervisor
-    assert "quarantine_stability_publication" in supervisor
+    assert "_finalize_supervised_stability_failure" in supervisor
+    assert "failure_artifact_validated" in supervisor
