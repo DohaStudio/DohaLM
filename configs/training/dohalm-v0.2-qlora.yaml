@@ -1,0 +1,74 @@
+schema_version: 1
+status: approved_for_single_execution
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  trust_remote_code: false
+quantization:
+  load_in_4bit: true
+  quant_type: nf4
+  use_double_quant: true
+  compute_dtype: bfloat16
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+training:
+  epochs: 2
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 16
+  learning_rate: 0.0002
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  lr_scheduler_type: cosine
+  gradient_checkpointing: true
+  bf16: true
+  fp16: false
+  logging_steps: 10
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: steps
+  save_steps: 250
+  save_total_limit: 2
+  seed: 42
+  data_seed: 42
+  optimizer: paged_adamw_8bit
+  max_grad_norm: 1.0
+  load_best_model_at_end: false
+  packing: false
+  max_seq_length: 1536
+  dynamic_padding: true
+  assistant_only_loss: true
+dataset:
+  dataset_id: DOHALM-V0.2-DATASET-SIDECAR-20260801-0001
+  tokenization_id: DOHALM-V0.2-TOKENIZATION-20260801-0001
+  artifact_fingerprint: sha256:ff6808122a5539c70ebb5d4bc503bda223852d25bba9149eb123f55a8c2b3b8e
+  train_rows: 10374
+  validation_rows: 1287
+sampling:
+  implementation: WeightedRandomSampler
+  replacement: true
+  draws_per_epoch: 10374
+  base_seed: 42
+  world_size: 1
+  validation_sampler: sequential
+  validation_weighted: false
+evaluation:
+  generation_prompts: 20
+  category_balanced: true
+  length_balanced: true
+  deterministic: true
+  do_sample: false
+  max_new_tokens: 256
+  repetition_penalty: 1.05
+  no_repeat_ngram_size: 0
+  baseline_character_f1: 0.4105867990028522
+  baseline_rouge_l: 0.2725672754797666
+runtime:
+  microbatch_watchdog_seconds: 300
+  publish_watchdog_seconds: 300
+  maximum_estimated_hours: 48
+training_allowed: true
+execution_allowed: true

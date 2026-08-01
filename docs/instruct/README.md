@@ -105,6 +105,8 @@ sft_training: not_approved_not_started
 publication: not_approved
 ```
 
+[DohaLM v0.2 Weighted QLoRA 실행 계약](./dohalm-v0.2-qlora-training.md)
+
 여기서 `backend: not_started`는 SFT 학습 Backend 상태다. Dataset Processing은 Run 0015에서 완료됐고
 DohaLM v0.1 tokenized Dataset도 생성·검증됐지만 SFT 학습 실행 권한을 부여하지 않는다.
 
