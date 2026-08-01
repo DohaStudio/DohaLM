@@ -100,13 +100,13 @@ def _validate_paths(arguments: argparse.Namespace) -> None:
     )
     if any(not path.resolve().is_dir() for path in required):
         raise QLoRAEvaluationError("EVALUATION_PATH_INVALID")
-    output = arguments.output_root.resolve()
-    if any(_inside(output, path) or _inside(path, output) for path in (
+    final_output = (arguments.output_root / arguments.evaluation_id).resolve()
+    if any(_inside(final_output, path) or _inside(path, final_output) for path in (
         arguments.repository, arguments.training_run_root, arguments.processed_root,
         arguments.raw_dataset_root, arguments.baseline_evaluation_root,
     )):
         raise QLoRAEvaluationError("EVALUATION_OUTPUT_OVERLAP")
-    if (output / arguments.evaluation_id).exists():
+    if final_output.exists():
         raise QLoRAEvaluationError("EVALUATION_OUTPUT_CONFLICT")
 
 

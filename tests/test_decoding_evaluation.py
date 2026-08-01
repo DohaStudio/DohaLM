@@ -21,6 +21,7 @@ from src.evaluation.decoding_evaluation import (
     validate_eos_contract,
 )
 from src.evaluation.qlora_sft import PromptRecord, QLoRAEvaluationError, verify_checksum_manifest, write_evaluation_artifact
+from scripts.evaluation.evaluate_dohalm_v01_decoding import _validate_paths
 
 
 CONFIG = Path("configs/evaluation/dohalm-v0.1-decoding-evaluation.yaml")
@@ -76,6 +77,27 @@ def test_config_is_evaluation_only_and_has_no_absolute_paths() -> None:
     }
     source = CONFIG.read_text(encoding="utf-8")
     assert "/home/" not in source and "D:/" not in source
+
+
+def test_output_root_may_contain_baseline_as_a_sibling(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    training = tmp_path / "training"
+    processed = tmp_path / "processed"
+    raw = tmp_path / "raw"
+    cache = tmp_path / "cache"
+    output = tmp_path / "evaluation"
+    baseline = output / "baseline"
+    for path in (repository, training, processed, raw, cache, baseline):
+        path.mkdir(parents=True, exist_ok=True)
+    arguments = SimpleNamespace(
+        repository=repository, training_run_root=training, processed_root=processed,
+        raw_dataset_root=raw, model_cache_root=cache,
+        baseline_evaluation_root=baseline, output_root=output, evaluation_id="new-evaluation",
+    )
+    _validate_paths(arguments)
+    (output / "new-evaluation").mkdir()
+    with pytest.raises(QLoRAEvaluationError, match="EVALUATION_OUTPUT_CONFLICT"):
+        _validate_paths(arguments)
 
 
 def test_eos_contract_and_termination_reasons() -> None:
