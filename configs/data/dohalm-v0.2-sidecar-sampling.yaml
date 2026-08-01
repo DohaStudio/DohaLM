@@ -44,7 +44,7 @@ target_length_distribution:
 length_weight:
   method: target_ratio_divided_by_observed_ratio
   minimum: 0.25
-  maximum: 3.00
+  maximum: 2.00
 
 category_weight:
   method: sqrt_inverse_frequency

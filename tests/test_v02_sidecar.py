@@ -316,4 +316,9 @@ def test_repository_policy_is_valid_and_non_executable() -> None:
     assert policy["tokenization_allowed"] is False
     assert policy["training_allowed"] is False
     assert sum(policy["target_length_distribution"].values()) == 1.0
+    assert policy["length_weight"] == {
+        "method": "target_ratio_divided_by_observed_ratio",
+        "minimum": 0.25,
+        "maximum": 2.0,
+    }
     assert yaml.safe_load(yaml.safe_dump(policy)) == policy
