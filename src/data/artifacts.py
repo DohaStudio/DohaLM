@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import json
+import ctypes
+import errno
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,49 @@ import yaml
 
 from .checksums import artifact_checksum, canonical_json_bytes
 from .errors import DataIssue, DataPipelineError
+
+
+def _fsync_directory(path: Path) -> None:
+    """Persist directory entries where the host supports directory fsync."""
+
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _rename_directory_no_replace(source: Path, destination: Path) -> None:
+    """Atomically publish a directory without replacing an existing entry."""
+
+    if not source.is_dir() or destination.exists():
+        raise FileExistsError(destination)
+    if os.name == "nt":
+        os.rename(source, destination)
+        return
+    if not sys.platform.startswith("linux"):
+        raise OSError(errno.ENOTSUP, "atomic no-replace directory publish unsupported")
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise OSError(errno.ENOSYS, "renameat2 unavailable")
+    renameat2.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    renameat2.restype = ctypes.c_int
+    result = renameat2(-100, os.fsencode(source), -100, os.fsencode(destination), 1)
+    if result == 0:
+        return
+    error = ctypes.get_errno()
+    if error in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise FileExistsError(destination)
+    raise OSError(error, os.strerror(error), str(destination))
 
 
 def write_json(path: Path, value: Any) -> None:
@@ -80,12 +125,16 @@ class AtomicArtifactDirectory:
         if self.staging_path is None:
             raise RuntimeError("staging 디렉터리가 준비되지 않았습니다.")
         try:
-            os.replace(self.staging_path, self.final_path)
+            _rename_directory_no_replace(self.staging_path, self.final_path)
+            _fsync_directory(self.final_path.parent)
         except OSError as exc:
             raise DataPipelineError(DataIssue("ARTIFACT_WRITE_ERROR", "artifact_write", "최종 산출물을 게시할 수 없습니다.")) from exc
         self.staging_path = None
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
-        if self.staging_path is not None and self.staging_path.exists():
-            if self.staging_path.parent == self.final_path.parent.resolve():
-                shutil.rmtree(self.staging_path)
+        if (
+            self.staging_path is not None
+            and self.staging_path.exists()
+            and self.staging_path.parent == self.final_path.parent.resolve()
+        ):
+            shutil.rmtree(self.staging_path)

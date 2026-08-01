@@ -1,0 +1,82 @@
+schema_version: 1
+policy_id: DOHALM-V0.2-SAMPLING-POLICY-20260801-0001
+dataset_id: DOHALM-V0.2-DATASET-SIDECAR-20260801-0001
+
+source:
+  processing_run_id: AIHUB-71748-SFT-PROCESSING-20260730-0015
+  tokenization_run_id: DOHALM-TOKENIZATION-20260730-0001
+  dataset_fingerprint: b6848e9413ecd0f63008cf18f505dda0b3197e562b5c6a9f955c1a7d41bc98a0
+  rows:
+    train: 10374
+    validation: 1287
+  checksums:
+    train.jsonl: dc4e38778e34910e28fb46804e0bbafed947170a5faf155c699acbcf2ccb1cbb
+    validation.jsonl: 56266aa5b422c8de12e1c5b5cf6490f11d5f2dfc907d55c397e87ea5c7a66363
+    manifest.yaml: 6159412970e01aad3941891dd6ea4a1bdfa8c6d04f9c08ce98b33c52d243c80f
+    statistics.json: ac4f0fed818a862a35465d5e63c35cef64ae37c7c9e75285ba733e8590770c51
+    processing-result.yaml: 5afb3137fba777603715d3715d3c7c3cf53287ed54eedec940d91da85b4fd054
+
+tokenization:
+  eos_token_id: 151645
+  eos_policy: exactly_one_final_assistant_label
+  jsonl_eos_embedded: false
+
+length_buckets:
+  short:
+    minimum_tokens: 0
+    maximum_tokens: 128
+  medium:
+    minimum_tokens: 129
+    maximum_tokens: 256
+  long:
+    minimum_tokens: 257
+    maximum_tokens: 512
+  very_long:
+    minimum_tokens: 513
+    maximum_tokens: null
+
+target_length_distribution:
+  short: 0.25
+  medium: 0.35
+  long: 0.30
+  very_long: 0.10
+
+length_weight:
+  method: target_ratio_divided_by_observed_ratio
+  minimum: 0.25
+  maximum: 3.00
+
+category_weight:
+  method: sqrt_inverse_frequency
+  minimum: 0.75
+  maximum: 1.35
+
+quality_weight:
+  complete_and_normal: 1.00
+  strong_repeat_candidate: 0.50
+  incomplete_candidate: 0.50
+  repeat_and_incomplete: 0.25
+  ambiguous_category: 0.90
+  near_duplicate_participant: 0.85
+
+final_weight:
+  normalization: mean_one_with_bounded_projection
+  minimum: 0.25
+  maximum: 3.00
+  minimum_train_ess_ratio: 0.60
+
+near_duplicate:
+  method: normalized_character_trigram_candidates_plus_sequence_matcher
+  review_threshold: 0.90
+  high_similarity_threshold: 0.98
+  maximum_candidate_pairs: 2000000
+  persist_pairs: false
+
+validation:
+  sampling_weight: 1.0
+  shuffle: false
+  sampling_policy_applied: false
+
+execution_allowed: false
+tokenization_allowed: false
+training_allowed: false
