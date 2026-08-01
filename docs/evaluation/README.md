@@ -16,6 +16,7 @@
 - [모델 평가 리더보드](./model-evaluation-leaderboard.md)
 - [평가 Readiness](./evaluation-readiness.md)
 - [DohaLM v0.1 QLoRA 독립 평가 계약](./dohalm-v0.1-qlora-evaluation.md)
+- [DohaLM v0.1 Decoding 최적화 평가](./dohalm-v0.1-decoding-evaluation.md)
 - [Candidate A Final Quick 결과](./candidate-a-final-quick-result.md)
 - [Candidate A Final Full 결과](./candidate-a-final-full-result.md)
 - [Initial·Pilot·Candidate A 동일 Quick 비교](./initial-pilot-candidate-a-quick-comparison.md)

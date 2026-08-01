@@ -1,0 +1,63 @@
+schema_version: 1
+status: approved_for_evaluation
+evaluation_id: DOHALM-V0.1-DECODING-EVAL-20260801-0001
+git_head: runtime_required
+training_run_id: DOHALM-V0.1-QLORA-20260731-0005
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  adapter_fingerprint: 7b8bdec5b730b734ca22c441d01a1a594440bf06d40afb29e8bbbf683bfb8ec6
+  candidates:
+    - checkpoint-1750
+    - final-adapter
+dataset:
+  processing_run_id: AIHUB-71748-SFT-PROCESSING-20260730-0015
+  tokenization_run_id: DOHALM-TOKENIZATION-20260730-0001
+  fingerprint: b6848e9413ecd0f63008cf18f505dda0b3197e562b5c6a9f955c1a7d41bc98a0
+  tokenizer_fingerprint: ad0a85da869c2e4577b9409df0c91e35be70f0395a20c94765c6f4fa02ea6a55
+  validation_rows: 1287
+baseline:
+  evaluation_id: DOHALM-V0.1-EVAL-20260801-0001
+  evaluation_fingerprint: sha256:cc06d3f0c22d83b54c6afd838fb38c86844f3a70162af04beb7669bd45485aaa
+  base_token_weighted_loss: 1.3642690035238056
+  base_character_f1: 0.4105867990028522
+  base_rouge_l: 0.2725672754797666
+  checkpoint_1750_token_weighted_loss: 1.1619925001445888
+  checkpoint_1750_character_f1: 0.47813921631088696
+  checkpoint_1750_rouge_l: 0.3179148048755995
+  final_token_weighted_loss: 1.1618884019588098
+  final_character_f1: 0.4696465298851247
+  final_rouge_l: 0.3125096407393873
+prompts:
+  total: 80
+  synthetic: 30
+  held_out_validation: 50
+  category_balanced: true
+  training_exact_overlap: false
+  row_hash_list_fingerprint: sha256:23bb702e84cfde2add0aec2c760d1d104c6040c0e1df6ccc73452adde01384e2
+grid:
+  max_new_tokens: [64, 96, 128, 192, 256]
+  repetition_penalty: [1.0, 1.05, 1.1, 1.15, 1.2]
+  no_repeat_ngram_size: [0, 3, 4, 5]
+  deterministic_repeats: 2
+  seed: 42
+targets:
+  minimum:
+    eos_termination_rate: 0.70
+    max_length_hit_rate: 0.20
+    repetition_rate: 0.30
+    incomplete_rate: 0.25
+    character_f1: 0.4106
+    rouge_l: 0.2726
+  deployment:
+    eos_termination_rate: 0.80
+    max_length_hit_rate: 0.10
+    repetition_rate: 0.15
+    incomplete_rate: 0.15
+    character_f1: 0.46
+    rouge_l: 0.30
+execution:
+  training_allowed: false
+  optimizer_allowed: false
+  adapter_write_allowed: false
+  overwrite_allowed: false
