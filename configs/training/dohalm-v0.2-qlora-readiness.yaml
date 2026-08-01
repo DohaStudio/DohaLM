@@ -1,0 +1,50 @@
+schema_version: 1
+status: ready_not_approved
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  trust_remote_code: false
+quantization:
+  load_in_4bit: true
+  quant_type: nf4
+  use_double_quant: true
+  compute_dtype: bfloat16
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+training:
+  epochs: 2
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 16
+  expected_draws_per_epoch: 10374
+  expected_optimizer_steps_per_epoch: 649
+  expected_optimizer_steps_total: 1298
+  learning_rate: 0.0002
+  max_seq_length: 1536
+  packing: false
+  assistant_only_loss: true
+  weighted_sampling: true
+  sampling_base_seed: 42
+  world_size: 1
+evaluation:
+  validation_weighted: false
+  generation_eval_prompts: 20
+  category_balanced: true
+  length_balanced: true
+  deterministic: true
+  metrics: [validation_token_weighted_loss, character_f1, rouge_l, eos_termination, repetition, incomplete]
+  hard_blockers:
+    character_f1_below_base: reject
+    rouge_l_below_base: reject
+    repetition_rate_over_50_percent: reject
+    special_token_exposure: reject
+    empty_output: reject
+  checkpoint_score_weights: pending_training_approval
+resume:
+  automatic_resume: false
+  required_state: [current_epoch, sampler_seed, draw_order_fingerprint]
+training_allowed: false
+execution_allowed: false
