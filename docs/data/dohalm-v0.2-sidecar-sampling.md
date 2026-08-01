@@ -55,13 +55,18 @@ duplicate 신호 `1`, 동일 문장·강한 반복 `2`, 연속 문장 반복 `3`
 
 최종 가중치는 다음 순서로 계산한다.
 
-1. 길이: `target ratio / observed ratio`, 범위 `0.25–3.00`.
+1. 길이: `target ratio / observed ratio`, 범위 `0.25–2.00`.
 2. Category: `sqrt(mean category count / category count)`, 범위 `0.75–1.35`.
 3. 품질: 여러 신호를 곱하지 않고 가장 보수적인 단일 tier를 선택한다.
 4. 결합값을 범위 `0.25–3.00` 안에서 평균 1이 되도록 투영한다.
 
 Train ESS 비율이 `0.60` 미만이면 Fail Closed한다. Validation에는 Sampling
 정책을 적용하지 않으며 모든 가중치를 `1.0`, shuffle을 `false`로 유지한다.
+
+초기 상한 `3.00`은 실제 Train에서 ESS `0.553901`로 실패했다. Dataset 행과
+ESS 기준을 유지한 채 길이 상한만 `2.00`으로 제한한 진단 후보는 ESS
+`0.638948`을 기록했다. 따라서 목표 `25/35/30/10`을 달성했다고 과장하지 않고,
+clamp 후 분석적으로 계산한 예상 분포와 목표 차이를 Statistics에 함께 기록한다.
 
 ## 5. 산출물과 fingerprint
 
