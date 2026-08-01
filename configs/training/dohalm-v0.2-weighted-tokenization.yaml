@@ -1,0 +1,30 @@
+schema_version: 1
+status: ready_for_tokenization
+dataset:
+  id: DOHALM-V0.2-DATASET-SIDECAR-20260801-0001
+  package_fingerprint: b1b760710ced0b47addc4bffed51f25185ff72bbb4fba1724782a65d7f11229f
+  sidecar_fingerprint: 4a13952b3f59937a19badad67630f18fd3a0b2902b7c57e0d1ea746699fdfe9c
+  sampling_policy_fingerprint: 30f1b4e3f8318f6086e19898bbe16edae7d6d5428326bada04bc0f8004eabb93
+tokenization:
+  id: DOHALM-V0.2-TOKENIZATION-20260801-0001
+  reuse_source_id: DOHALM-TOKENIZATION-20260730-0001
+  reuse_mode: verified_byte_identical
+  max_seq_length: 1536
+  packing: false
+  dynamic_padding: true
+  assistant_only_loss: true
+  train_on_prompt: false
+sampling:
+  replacement: true
+  draws_per_epoch: 10374
+  base_seed: 42
+  epoch_seed_formula: base_seed + epoch_index
+  world_size: 1
+  rank: 0
+validation:
+  sampler: sequential
+  shuffle: false
+  weighted: false
+tokenization_allowed: true
+training_allowed: false
+execution_allowed: false
