@@ -1,0 +1,68 @@
+schema_version: 1
+policy_id: DOHALM-V0.3-SHORT-ANSWER-POLICY-20260802-0001
+dataset_id: DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001
+
+source:
+  processing_run_id: AIHUB-71748-SFT-PROCESSING-20260730-0015
+  sidecar_dataset_id: DOHALM-V0.2-DATASET-SIDECAR-20260801-0001
+  source_dataset_fingerprint: b6848e9413ecd0f63008cf18f505dda0b3197e562b5c6a9f955c1a7d41bc98a0
+  sidecar_fingerprint: sha256:4a13952b3f59937a19badad67630f18fd3a0b2902b7c57e0d1ea746699fdfe9c
+  rows:
+    train: 10374
+    validation: 1287
+  checksums:
+    train.jsonl: dc4e38778e34910e28fb46804e0bbafed947170a5faf155c699acbcf2ccb1cbb
+    validation.jsonl: 56266aa5b422c8de12e1c5b5cf6490f11d5f2dfc907d55c397e87ea5c7a66363
+    quality-sidecar.jsonl: 5c02664800abed901412150058677c5517baf6b0ed446531dd6e6ed6e2c51889
+
+target_composition:
+  original: 0.40
+  short: 0.45
+  medium: 0.15
+
+generation:
+  method: extractive_first
+  constrained_abstractive: review_only
+  maximum_short_variants_per_source: 1
+  maximum_medium_variants_per_source: 1
+  do_sample: false
+  temperature: null
+  top_p: null
+  seed: 42
+
+prompt:
+  version: dohalm-v0.3-short-answer-prompt-v1
+  text: >-
+    질문에 직접 답하고 원문에 없는 사실을 추가하지 않는다. 핵심 수치, 이름,
+    조건을 보존하며 80~180 assistant token의 완결된 한국어 답변을 목표로 한다.
+    반복, 미완성 목록, 설명 문구와 메타 발언을 출력하지 않는다.
+
+semantic_evaluator:
+  model_id: Qwen/Qwen2.5-1.5B-Instruct
+  model_revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  method: last-hidden-mean-cosine-v1
+  batch_size: 4
+  maximum_tokens: 1536
+  seed: 42
+
+quality:
+  semantic_threshold: 0.85
+  completion_required: 1.0
+  repetition_policy: strong_repeat_false
+  numeric_integrity_required: true
+  entity_integrity_required: true
+
+dry_run:
+  records_per_category: 20
+  expected_categories: 10
+  expected_records: 200
+  thresholds:
+    semantic_pass_rate: 0.90
+    completion_pass_rate: 0.95
+    strong_repetition_rate: 0.02
+    numeric_mismatch_rate: 0.0
+    entity_mismatch_rate: 0.0
+
+dataset_generation_allowed: true
+tokenization_allowed: false
+training_allowed: false
