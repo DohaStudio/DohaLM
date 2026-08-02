@@ -474,6 +474,70 @@ def _jsonl_sha(values: Sequence[Mapping[str, object]]) -> str:
     return digest.hexdigest()
 
 
+def parsed_split_fingerprint(
+    split: str, records: Sequence[Mapping[str, object]]
+) -> str:
+    """Fingerprint ordered parsed records without depending on JSON formatting."""
+
+    row_fingerprints = [
+        hashlib.sha256(
+            canonical_json_bytes(
+                {"split": split, "row_index": index, "record": dict(record)}
+            )
+        ).hexdigest()
+        for index, record in enumerate(records)
+    ]
+    return checksum_value(
+        {
+            "algorithm": "ordered-parsed-records-v1",
+            "split": split,
+            "row_fingerprints": row_fingerprints,
+        }
+    )
+
+
+def parsed_records_equal(
+    first: Sequence[Mapping[str, object]], second: Sequence[Mapping[str, object]]
+) -> bool:
+    """Compare JSON values strictly while ignoring serialization-only differences."""
+
+    return len(first) == len(second) and all(
+        canonical_json_bytes(dict(left)) == canonical_json_bytes(dict(right))
+        for left, right in zip(first, second)
+    )
+
+
+def inspect_dataset_identity(output_root: str | Path) -> dict[str, object]:
+    """Inspect every filesystem identity surface used by the v0.3 writer."""
+
+    final = Path(output_root).resolve()
+    parent = final.parent
+    exact_staging = final.with_name(final.name + ".staging")
+    failed = final.with_name(final.name + ".failed")
+    identity_record = final.with_name(final.name + ".identity.json")
+    atomic_staging = (
+        sorted(parent.glob(f".{final.name}.staging-*")) if parent.exists() else []
+    )
+    result: dict[str, object] = {
+        "final_absent": not final.exists(),
+        "staging_absent": not exact_staging.exists() and not atomic_staging,
+        "failed_absent": not failed.exists(),
+        "identity_record_absent": not identity_record.exists(),
+        "publish_started": bool(final.exists() or exact_staging.exists() or atomic_staging),
+        "atomic_staging_count": len(atomic_staging),
+    }
+    result["identity_reusable"] = all(
+        result[key]
+        for key in (
+            "final_absent",
+            "staging_absent",
+            "failed_absent",
+            "identity_record_absent",
+        )
+    ) and not result["publish_started"]
+    return result
+
+
 def publish_package(
     *,
     source_root: str | Path,
@@ -483,11 +547,7 @@ def publish_package(
     git_head: str,
 ) -> dict[str, object]:
     output = Path(output_root).resolve()
-    if (
-        output.exists()
-        or output.with_name(output.name + ".staging").exists()
-        or output.with_name(output.name + ".failed").exists()
-    ):
+    if not inspect_dataset_identity(output)["identity_reusable"]:
         raise V03ShortAnswerError("OUTPUT_ID_ALREADY_USED")
     result = generate_candidates(
         source_root=source_root, evaluator=evaluator, policy=policy, dry_run=False
@@ -617,6 +677,17 @@ def publish_package(
         if item["variant_type"] == "medium"
     ]
     accepted_quality = accepted_sidecar
+    source_train_parsed_fingerprint = parsed_split_fingerprint(
+        "train", original_train
+    )
+    output_prefix_parsed_fingerprint = parsed_split_fingerprint(
+        "train", new_train[: len(original_train)]
+    )
+    if (
+        source_train_parsed_fingerprint != output_prefix_parsed_fingerprint
+        or not parsed_records_equal(original_train, new_train[: len(original_train)])
+    ):
+        raise V03ShortAnswerError("SOURCE_COPY_NOT_IDENTICAL")
     statistics_value = {
         "source_rows": {"train": len(original_train), "validation": len(validation)},
         "generation": rates,
@@ -687,6 +758,18 @@ def publish_package(
         "dataset_id": DATASET_ID,
         "dataset_version": DATASET_VERSION,
         "source": policy["source"],
+        "source_integrity": {
+            "source_train_raw_sha256": policy["source"]["checksums"]["train.jsonl"],
+            "source_validation_raw_sha256": policy["source"]["checksums"][
+                "validation.jsonl"
+            ],
+            "source_train_parsed_fingerprint": source_train_parsed_fingerprint,
+            "output_original_prefix_parsed_fingerprint": output_prefix_parsed_fingerprint,
+            "parsed_records_equal": True,
+            "original_prefix_rows": len(original_train),
+            "original_prefix_order_preserved": True,
+            "validation_byte_identical": True,
+        },
         "generation": {
             "policy_id": policy["policy_id"],
             **evaluator.identity,
@@ -759,7 +842,7 @@ def publish_package(
             source / "validation.jsonl"
         ).read_bytes():
             raise V03ShortAnswerError("VALIDATION_CHANGED")
-        validate_package(staging, policy=policy)
+        validate_package(staging, policy=policy, source_root=source)
         atomic.publish()
     return {
         "status": "completed",
@@ -794,7 +877,10 @@ def _score_counts(
 
 
 def validate_package(
-    root: str | Path, *, policy: Mapping[str, object]
+    root: str | Path,
+    *,
+    policy: Mapping[str, object],
+    source_root: str | Path,
 ) -> dict[str, object]:
     path = Path(root)
     expected = frozenset((*PACKAGE_FILES, "checksums.sha256"))
@@ -847,12 +933,40 @@ def validate_package(
     source_rows = source["rows"]
     source_checksums = source["checksums"]
     assert isinstance(source_rows, Mapping) and isinstance(source_checksums, Mapping)
-    original_rows = int(source_rows["train"])
+    source_path = Path(source_root).resolve()
+    source_train_path = source_path / "train.jsonl"
+    source_validation_path = source_path / "validation.jsonl"
     if (
-        _jsonl_sha(train[:original_rows]) != source_checksums["train.jsonl"]
-        or checksums["validation.jsonl"] != source_checksums["validation.jsonl"]
+        _sha(source_train_path) != source_checksums["train.jsonl"]
+        or _sha(source_validation_path) != source_checksums["validation.jsonl"]
+    ):
+        raise V03ShortAnswerError("SOURCE_CHECKSUM_MISMATCH")
+    source_train = _read_jsonl(source_train_path)
+    original_rows = int(source_rows["train"])
+    output_prefix = train[:original_rows]
+    source_parsed_fingerprint = parsed_split_fingerprint("train", source_train)
+    output_parsed_fingerprint = parsed_split_fingerprint("train", output_prefix)
+    if (
+        len(source_train) != original_rows
+        or not parsed_records_equal(source_train, output_prefix)
+        or source_parsed_fingerprint != output_parsed_fingerprint
+        or (path / "validation.jsonl").read_bytes()
+        != source_validation_path.read_bytes()
     ):
         raise V03ShortAnswerError("SOURCE_COPY_NOT_IDENTICAL")
+    source_integrity = manifest.get("source_integrity")
+    expected_source_integrity = {
+        "source_train_raw_sha256": source_checksums["train.jsonl"],
+        "source_validation_raw_sha256": source_checksums["validation.jsonl"],
+        "source_train_parsed_fingerprint": source_parsed_fingerprint,
+        "output_original_prefix_parsed_fingerprint": output_parsed_fingerprint,
+        "parsed_records_equal": True,
+        "original_prefix_rows": original_rows,
+        "original_prefix_order_preserved": True,
+        "validation_byte_identical": True,
+    }
+    if source_integrity != expected_source_integrity:
+        raise V03ShortAnswerError("SOURCE_INTEGRITY_METADATA_INVALID")
     fingerprints = manifest.get("fingerprints")
     if not isinstance(fingerprints, Mapping):
         raise V03ShortAnswerError("FINGERPRINT_INVALID")
@@ -886,4 +1000,5 @@ def validate_package(
     return {
         "rows": {"train": len(train), "validation": len(validation)},
         "checksums": checksums,
+        "source_integrity": expected_source_integrity,
     }

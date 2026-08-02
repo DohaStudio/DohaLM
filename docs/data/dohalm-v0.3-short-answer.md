@@ -86,6 +86,21 @@ entity_mismatch_rate: 0
 
 final과 명시적 `.staging`·`.failed` identity가 존재하면 덮어쓰지 않는다. 같은 부모의 exclusive staging에서 fsync, checksum, reload 후 atomic no-replace로 한 번만 게시한다. Dataset은 Git에 추가하지 않는다.
 
+## Source copy 검증 계약
+
+[확정] Source raw integrity와 output original-prefix 정합성은 서로 다른 개념으로 검증한다. Source
+`train.jsonl`과 `validation.jsonl`의 raw byte SHA-256은 승인된 checksum과 비교한다. Output Train의
+앞 10,374개 original record는 Source Train을 JSON object로 parse한 값과 순서대로 비교한다.
+
+[확정] Parsed equality는 공백, key order, 개행과 canonical serialization 차이를 허용한다. 문자열,
+Unicode code point, field 집합, null·boolean·number type, nested object와 array 순서가 달라지면 차단한다.
+각 row는 split, row index와 canonical parsed record로 fingerprint하고 ordered row fingerprint를 결합해
+Source와 output prefix의 split fingerprint를 각각 기록한다.
+
+[확정] Validation은 parsed equality가 아니라 source file과 byte-identical한 상태를 계속 요구한다.
+`inspect_dataset_identity()`는 final, 명시적 staging·failed·`.identity.json` 및 atomic hidden staging을 함께 검사하고,
+하나라도 존재하면 같은 Dataset ID 게시를 차단한다.
+
 ## 현재 상태
 
 ```yaml
@@ -103,3 +118,4 @@ optimizer_steps: 0
 |---|---|
 | 2026-08-02 | 공식 200건 Dry Run 통과 결과와 Full Generation 진입 가능 상태 반영 |
 | 2026-08-02 | v0.3 의미 보존형 short-answer 생성·품질·writer 계약 초안 작성 |
+| 2026-08-02 | Source raw checksum과 parsed original-prefix equality를 분리하고 production-shape JSONL 검증 계약을 추가 |
