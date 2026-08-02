@@ -48,10 +48,14 @@ Validation 1,287행은 순차·비가중·short 미포함 정책을 유지한다
 별도 승인 전까지 허용하지 않는다.
 
 ```yaml
-tokenization: ready_for_single_execution_after_merge
-sampler_simulation: ready_for_single_execution_after_merge
+tokenization: failed_publish_observability_loss_identity_review_required
+tokenization_failure_contract: implemented_synthetic_validated
+sampler_simulation: blocked_until_verified_tokenization
 qlora_training: not_approved
 training_started: false
 optimizer_steps: 0
 execution_allowed: false
 ```
+
+Publish 실패 보존과 Run identity 재사용 정책은
+[v0.3 Tokenization publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md)을 따른다.

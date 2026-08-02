@@ -5,13 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
+import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
-from src.data.artifacts import AtomicArtifactDirectory, _fsync_directory, write_json, write_yaml
+from src.data.artifacts import _fsync_directory, _rename_directory_no_replace, write_json, write_yaml
 from src.data.checksums import checksum_value, file_checksum
 from src.training.sft_tokenization import (
     EncodedRecord,
@@ -172,13 +174,175 @@ def _fsync_tree(root: Path) -> None:
             _fsync_directory(path)
 
 
-def build_package(*, source_root: Path, reuse_root: Path, tokenizer_root: Path, output_root: Path, git_head: str) -> dict[str, object]:
+def _notify(
+    callback: Callable[..., None] | None,
+    stage: str,
+    **values: int | str,
+) -> None:
+    if callback is not None:
+        callback(stage, **values)
+
+
+def _encode_split(
+    tokenizer: Any,
+    path: Path,
+    *,
+    offset: int,
+    stage: str,
+    completed_stage: str,
+    callback: Callable[..., None] | None,
+) -> list[EncodedRecord]:
+    records: list[EncodedRecord] = []
+    _notify(callback, stage, records_seen=offset, records_completed=offset)
+    for index, logical in enumerate(iter_logical_records(path), start=1):
+        records.append(encode_record(tokenizer, logical))
+        if index % 128 == 0:
+            _notify(
+                callback,
+                stage,
+                records_seen=offset + index,
+                records_completed=offset + index,
+            )
+    _notify(
+        callback,
+        completed_stage,
+        records_seen=offset + len(records),
+        records_completed=offset + len(records),
+    )
+    return records
+
+
+def _injected(value: str | None, phase: str) -> None:
+    if value == phase:
+        raise OSError(f"injected {phase} failure")
+
+
+def _publish_package_files(
+    *,
+    output_root: Path,
+    train_rows: list[dict[str, list[int]]],
+    validation_rows: list[dict[str, list[int]]],
+    row_alignment: Mapping[str, object],
+    lineage_alignment: Mapping[str, object],
+    manifest: Mapping[str, object],
+    statistics_value: Mapping[str, object],
+    sampler_readiness: Mapping[str, object],
+    callback: Callable[..., None] | None,
+    failure_injection: str | None,
+) -> dict[str, str]:
     try:
         from datasets import Dataset, load_from_disk
+    except ImportError:
+        raise V03TokenizationError("TOKENIZATION_DEPENDENCY_MISSING") from None
+    staging: Path | None = None
+    published = False
+    try:
+        _notify(callback, "publish_started")
+        _notify(callback, "publish_staging_creation")
+        try:
+            _injected(failure_injection, "staging_create")
+            output_root.parent.mkdir(parents=True, exist_ok=True)
+            staging = Path(tempfile.mkdtemp(
+                prefix=f".{output_root.name}.staging-", dir=output_root.parent,
+            )).resolve()
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_STAGING_CREATE_FAILED") from None
+        _notify(callback, "publish_artifact_write")
+        try:
+            _injected(failure_injection, "artifact_write")
+            Dataset.from_list(train_rows).save_to_disk(staging / "train")
+            Dataset.from_list(validation_rows).save_to_disk(staging / "validation")
+            write_json(staging / "row-alignment.json", dict(row_alignment))
+            write_json(staging / "lineage-alignment.json", dict(lineage_alignment))
+            write_yaml(staging / "tokenization-manifest.yaml", dict(manifest))
+            write_json(staging / "tokenization-statistics.json", dict(statistics_value))
+            write_yaml(staging / "sampler-readiness.yaml", dict(sampler_readiness))
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_ARTIFACT_WRITE_FAILED") from None
+        _notify(callback, "artifact_files_written", files_written=7)
+        _notify(callback, "publish_file_fsync", files_written=7)
+        try:
+            _injected(failure_injection, "file_fsync")
+            _fsync_tree(staging)
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_FILE_FSYNC_FAILED") from None
+        _notify(callback, "publish_checksum_inventory", files_written=7)
+        try:
+            _injected(failure_injection, "checksum")
+            checksums = _write_checksums(staging)
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_CHECKSUM_FAILED") from None
+        _notify(callback, "checksums_created", files_written=len(checksums))
+        _notify(callback, "publish_staging_reload", files_written=len(checksums))
+        try:
+            _injected(failure_injection, "staging_reload")
+            if len(load_from_disk(staging / "train")) != ROWS["train"] or len(load_from_disk(staging / "validation")) != ROWS["validation"]:
+                raise ValueError("row count mismatch")
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_STAGING_RELOAD_FAILED") from None
+        if failure_injection == "staging_cleanup":
+            raise V03TokenizationError("TOKENIZATION_STAGING_CLEANUP_FAILED")
+        _notify(callback, "publish_final_collision_check", files_written=len(checksums))
+        if output_root.exists():
+            raise V03TokenizationError("TOKENIZATION_FINAL_COLLISION")
+        _notify(callback, "publish_atomic_no_replace", files_written=len(checksums))
+        try:
+            _injected(failure_injection, "atomic_publish")
+            _rename_directory_no_replace(staging, output_root)
+            published = True
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_ATOMIC_PUBLISH_FAILED") from None
+        _notify(callback, "publish_directory_fsync", files_written=len(checksums))
+        try:
+            _injected(failure_injection, "directory_fsync")
+            _fsync_directory(output_root.parent)
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_DIRECTORY_FSYNC_FAILED") from None
+        _notify(callback, "publish_final_reload", files_written=len(checksums))
+        try:
+            _injected(failure_injection, "final_reload")
+            if len(load_from_disk(output_root / "train")) != ROWS["train"] or len(load_from_disk(output_root / "validation")) != ROWS["validation"]:
+                raise ValueError("row count mismatch")
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_FINAL_RELOAD_FAILED") from None
+        _notify(callback, "publish_final_checksum", files_written=len(checksums))
+        try:
+            _injected(failure_injection, "final_checksum")
+            if any(_sha(output_root / name) != digest for name, digest in checksums.items()):
+                raise ValueError("checksum mismatch")
+        except Exception:
+            raise V03TokenizationError("TOKENIZATION_FINAL_CHECKSUM_FAILED") from None
+        _notify(callback, "publish_completed", files_written=len(checksums))
+        return checksums
+    finally:
+        if staging is not None and staging.exists():
+            try:
+                _injected(failure_injection, "staging_cleanup")
+                shutil.rmtree(staging)
+                _fsync_directory(staging.parent)
+            except Exception:
+                if not published:
+                    raise V03TokenizationError("TOKENIZATION_STAGING_CLEANUP_FAILED") from None
+
+
+def build_package(
+    *,
+    source_root: Path,
+    reuse_root: Path,
+    tokenizer_root: Path,
+    output_root: Path,
+    git_head: str,
+    stage_callback: Callable[..., None] | None = None,
+    failure_injection: str | None = None,
+) -> dict[str, object]:
+    try:
+        from datasets import load_from_disk
         from transformers import AutoTokenizer
     except ImportError:
         raise V03TokenizationError("TOKENIZATION_DEPENDENCY_MISSING") from None
+    _notify(stage_callback, "preflight")
     source = validate_source(source_root)
+    _notify(stage_callback, "source_validated")
     if any(path.exists() for path in (output_root, output_root.with_name(output_root.name + ".staging"), output_root.with_name(output_root.name + ".failed"))) or list(output_root.parent.glob(f".{output_root.name}.staging-*")):
         raise V03TokenizationError("TOKENIZATION_RUN_ID_ALREADY_USED")
     fingerprint, tokenizer_checksums = tokenizer_fingerprint(tokenizer_root)
@@ -187,11 +351,27 @@ def build_package(*, source_root: Path, reuse_root: Path, tokenizer_root: Path, 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_root, local_files_only=True, trust_remote_code=False)
     if tokenizer.eos_token_id != EOS_TOKEN_ID or tokenizer.pad_token_id != 151643:
         raise V03TokenizationError("TOKENIZER_SPECIAL_TOKEN_MISMATCH")
-    train_encoded = [encode_record(tokenizer, item) for item in iter_logical_records(source_root / "train.jsonl")]
-    validation_encoded = [encode_record(tokenizer, item) for item in iter_logical_records(source_root / "validation.jsonl")]
+    _notify(stage_callback, "tokenizer_loaded")
+    train_encoded = _encode_split(
+        tokenizer,
+        source_root / "train.jsonl",
+        offset=0,
+        stage="short_tokenization_started",
+        completed_stage="short_tokenization_completed",
+        callback=stage_callback,
+    )
+    validation_encoded = _encode_split(
+        tokenizer,
+        source_root / "validation.jsonl",
+        offset=len(train_encoded),
+        stage="validation_prepared",
+        completed_stage="validation_prepared",
+        callback=stage_callback,
+    )
     for record in (*train_encoded, *validation_encoded):
         validate_encoded(record)
     candidates, selected = analyze_candidates((*train_encoded, *validation_encoded))
+    _notify(stage_callback, "length_analysis_completed", records_seen=18926, records_completed=18926)
     train_rows = [item.as_dataset_record() for item in train_encoded]
     validation_rows = [item.as_dataset_record() for item in validation_encoded]
     rows_meta = source["rows"]
@@ -266,21 +446,20 @@ def build_package(*, source_root: Path, reuse_root: Path, tokenizer_root: Path, 
             reuse.update({"eligible": True, "reused_original_rows": ROWS["original"], "reused_validation_rows": ROWS["validation"], "reason": "verified_token_row_identical"})
         else:
             reuse["reason"] = "tokenization_contract_or_row_mismatch"
+    _notify(stage_callback, "original_reuse_validated", records_seen=18926, records_completed=18926)
     semantic_manifest = {"schema_version": 1, "tokenization_id": TOKENIZATION_ID, "dataset": {"id": DATASET_ID, "package_fingerprint": f"sha256:{PACKAGE_FINGERPRINT}", "manifest_fingerprint": f"sha256:{MANIFEST_FINGERPRINT}", "source_checksums": source["checksums"]}, "tokenizer": {"model": "Qwen/Qwen2.5-1.5B-Instruct", "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306", "fingerprint": fingerprint, "checksums": tokenizer_checksums}, "contract": {"max_seq_length": selected, "packing": False, "assistant_only_loss": True, "eos_exactly_one": True}, "reuse": reuse, "git_head": git_head, "training_started": False, "training_allowed": False, "execution_allowed": False}
     manifest = {**semantic_manifest, "fingerprints": {"manifest": checksum_value(semantic_manifest), "statistics": checksum_value(statistics_value), "row_alignment": checksum_value(row_alignment), "lineage_alignment": checksum_value(lineage_alignment), "sampler_readiness": checksum_value(sampler_readiness)}}
-    atomic = AtomicArtifactDirectory(output_root)
-    with atomic as staging:
-        Dataset.from_list(train_rows).save_to_disk(staging / "train")
-        Dataset.from_list(validation_rows).save_to_disk(staging / "validation")
-        write_json(staging / "row-alignment.json", row_alignment)
-        write_json(staging / "lineage-alignment.json", lineage_alignment)
-        write_yaml(staging / "tokenization-manifest.yaml", manifest)
-        write_json(staging / "tokenization-statistics.json", statistics_value)
-        write_yaml(staging / "sampler-readiness.yaml", sampler_readiness)
-        _fsync_tree(staging)
-        checksums = _write_checksums(staging)
-        _fsync_directory(staging)
-        if len(load_from_disk(staging / "train")) != ROWS["train"] or len(load_from_disk(staging / "validation")) != ROWS["validation"]:
-            raise V03TokenizationError("ARTIFACT_RELOAD_FAILED")
-        atomic.publish()
+    _notify(stage_callback, "alignment_validated", records_seen=18926, records_completed=18926)
+    checksums = _publish_package_files(
+        output_root=output_root,
+        train_rows=train_rows,
+        validation_rows=validation_rows,
+        row_alignment=row_alignment,
+        lineage_alignment=lineage_alignment,
+        manifest=manifest,
+        statistics_value=statistics_value,
+        sampler_readiness=sampler_readiness,
+        callback=stage_callback,
+        failure_injection=failure_injection,
+    )
     return {"status": "completed", "tokenization_id": TOKENIZATION_ID, "selected_max_seq_length": selected, "statistics": statistics_value, "reuse": reuse, "checksums": checksums, "artifact_fingerprint": checksum_value({"algorithm": "ordered-file-checksums-v1", "files": sorted(checksums.items())})}
