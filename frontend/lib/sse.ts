@@ -13,11 +13,15 @@ const knownEvents = new Set(["start", "delta", "done", "error"]);
 export class SSEParser {
   private buffer = "";
   private terminal = false;
+  private pendingCarriageReturn = false;
 
   constructor(private readonly emit: (event: StreamEvent) => void) {}
 
   feed(chunk: string): void {
-    this.buffer += chunk.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    let normalized = this.pendingCarriageReturn ? `\r${chunk}` : chunk;
+    this.pendingCarriageReturn = normalized.endsWith("\r");
+    if (this.pendingCarriageReturn) normalized = normalized.slice(0, -1);
+    this.buffer += normalized.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     let boundary = this.buffer.indexOf("\n\n");
     while (boundary >= 0) {
       const block = this.buffer.slice(0, boundary);
@@ -28,6 +32,8 @@ export class SSEParser {
   }
 
   finish(): void {
+    if (this.pendingCarriageReturn) this.buffer += "\n";
+    this.pendingCarriageReturn = false;
     if (this.buffer.trim()) this.parseBlock(this.buffer);
     this.buffer = "";
     if (!this.terminal) {

@@ -39,6 +39,16 @@ describe("SSEParser", () => {
     expect(delta).toHaveBeenCalledWith({ content: "한국어" });
   });
 
+  it("preserves CRLF boundaries split across chunks", () => {
+    const emit = vi.fn();
+    const parser = new SSEParser(emit);
+    parser.feed('event: delta\r\ndata: {"content":"A"}\r');
+    parser.feed('\n\r\nevent: done\r\ndata: {"finish_reason":"stop"}\r');
+    parser.feed('\n\r\n');
+    parser.finish();
+    expect(emit.mock.calls.map(([event]) => event.event)).toEqual(["delta", "done"]);
+  });
+
   it("accepts an error as the sole terminal event", async () => {
     const bytes = new TextEncoder().encode('event: error\ndata: {"code":"STREAM_FAILED","message":"failed","request_id":"req_1"}\n\n');
     const onError = vi.fn();

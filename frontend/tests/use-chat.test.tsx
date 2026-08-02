@@ -62,4 +62,14 @@ describe("useChat", () => {
     act(() => result.current.reset());
     expect(result.current.messages).toEqual([]);
   });
+
+  it("rejects invalid generation settings before fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChat());
+    act(() => result.current.setSettings({ ...result.current.settings, top_p: 0 }));
+    await act(async () => { expect(await result.current.send("질문")).toBe(false); });
+    expect(result.current.error).toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

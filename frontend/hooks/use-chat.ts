@@ -32,6 +32,24 @@ function updateMessage(
   return values.map((message) => (message.id === id ? update(message) : message));
 }
 
+export function validGenerationSettings(value: GenerationSettings): boolean {
+  return (
+    Number.isInteger(value.max_new_tokens) &&
+    value.max_new_tokens >= 1 &&
+    value.max_new_tokens <= 1024 &&
+    Number.isFinite(value.temperature) &&
+    value.temperature >= 0 &&
+    value.temperature <= 2 &&
+    Number.isFinite(value.top_p) &&
+    value.top_p > 0 &&
+    value.top_p <= 1 &&
+    Number.isFinite(value.repetition_penalty) &&
+    value.repetition_penalty >= 0.5 &&
+    value.repetition_penalty <= 2 &&
+    (value.seed == null || Number.isInteger(value.seed))
+  );
+}
+
 export function useChat() {
   const [messages, setMessages] = useState<ClientMessage[]>([]);
   const [settings, setSettings] = useState<GenerationSettings>(initialSettings);
@@ -103,6 +121,10 @@ export function useChat() {
     async (content: string) => {
       const normalized = content.trim();
       if (busy || !normalized || normalized.length > MAX_MESSAGE_LENGTH) return false;
+      if (!validGenerationSettings(settings)) {
+        setError(new DohaAPIError("VALIDATION_ERROR", "생성 설정값의 허용 범위를 확인하세요."));
+        return false;
+      }
       const history = messages.filter(
         (message) => message.status === "complete" && message.content && message.role !== "system",
       );
