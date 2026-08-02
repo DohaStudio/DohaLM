@@ -56,6 +56,23 @@ entity_mismatch_rate: 0
 
 기준 미달, Source checksum 변경, model snapshot 누락, cross-split duplicate, lineage 누락, checksum·reload 실패 또는 output identity 충돌 시 게시하지 않는다.
 
+### Dry Run 결과
+
+[확정] Feature commit `b889137ddc761a7b23735e1be59a12659f2e7d89`에서 10개 category별 20건, 총 200건을 공식 CLI로 평가했다.
+
+| 항목 | 결과 |
+|---|---:|
+| 시도 | 200 |
+| 자동 합격 | 187 |
+| Review | 13 |
+| Semantic pass | 100% |
+| Completion pass | 100% |
+| Strong repetition | 0% |
+| Numeric mismatch | 0% |
+| Entity mismatch | 0% |
+
+[확정] Full Generation 진입 기준을 모두 통과했으며 임계값은 변경하지 않았다.
+
 ## Schema와 Artifact
 
 학습 JSONL은 `instruction/input/output/system`을 유지한다. 품질·lineage는 별도 sidecar에 저장하며 질문·답변·token sequence를 포함하지 않는다.
@@ -72,8 +89,8 @@ final과 명시적 `.staging`·`.failed` identity가 존재하면 덮어쓰지 �
 ## 현재 상태
 
 ```yaml
-policy: implemented_pending_validation
-dry_run: not_started
+policy: implemented
+dry_run: passed
 v03_dataset: not_created
 tokenization_started: false
 training_started: false
@@ -84,4 +101,5 @@ optimizer_steps: 0
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-02 | 공식 200건 Dry Run 통과 결과와 Full Generation 진입 가능 상태 반영 |
 | 2026-08-02 | v0.3 의미 보존형 short-answer 생성·품질·writer 계약 초안 작성 |
