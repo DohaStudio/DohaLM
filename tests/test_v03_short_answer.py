@@ -21,7 +21,10 @@ from src.data.v03_short_answer import (
     _source_record_hash,
     _variant_hash,
     generate_candidates,
+    inspect_dataset_identity,
     load_policy,
+    parsed_records_equal,
+    parsed_split_fingerprint,
     publish_package,
     validate_package,
 )
@@ -163,6 +166,45 @@ def test_record_identity_is_parent_variant_and_policy_scoped() -> None:
     )
 
 
+def test_parsed_equality_ignores_formatting_but_preserves_json_types() -> None:
+    first = [{"text": " exact ", "value": 1, "nested": [None, True]}]
+    reordered = [{"nested": [None, True], "value": 1, "text": " exact "}]
+    assert parsed_records_equal(first, reordered)
+    assert parsed_split_fingerprint("train", first) == parsed_split_fingerprint(
+        "train", reordered
+    )
+    for changed in (
+        [{"text": "exact", "value": 1, "nested": [None, True]}],
+        [{"text": " exact ", "nested": [None, True]}],
+        [{"text": " exact ", "value": "1", "nested": [None, True]}],
+        [{"text": " exáct ", "value": 1, "nested": [None, True]}],
+        [{"text": " exact ", "value": 1, "nested": ["", True]}],
+        [{"text": " exact ", "value": 1, "nested": [True, None]}],
+        [{"text": " exact ", "value": 1, "nested": [None, True], "extra": 0}],
+    ):
+        assert not parsed_records_equal(first, changed)
+
+
+def test_dataset_identity_checks_all_writer_surfaces(tmp_path: Path) -> None:
+    output = tmp_path / "dataset-id"
+    assert inspect_dataset_identity(output)["identity_reusable"] is True
+    hidden_staging = tmp_path / ".dataset-id.staging-production"
+    hidden_staging.mkdir()
+    identity = inspect_dataset_identity(output)
+    assert identity["staging_absent"] is False
+    assert identity["publish_started"] is True
+    assert identity["identity_reusable"] is False
+
+
+@pytest.mark.parametrize("suffix", ("", ".staging", ".failed", ".identity.json"))
+def test_dataset_identity_rejects_exact_identity_artifacts(
+    tmp_path: Path, suffix: str
+) -> None:
+    output = tmp_path / "dataset-id"
+    output.with_name(output.name + suffix).mkdir()
+    assert inspect_dataset_identity(output)["identity_reusable"] is False
+
+
 def test_sidecar_rejects_raw_fields() -> None:
     validate_no_raw_text({"record_hash": "a" * 64})
     with pytest.raises(ValueError, match="RAW_TEXT_FIELD_FORBIDDEN"):
@@ -195,6 +237,31 @@ def test_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.parametrize("mutation", ("space", "newline", "key_order", "eof"))
+def test_source_raw_integrity_rejects_serialization_mutation(
+    tmp_path: Path, mutation: str
+) -> None:
+    source, policy = _fixture(tmp_path)
+    path = source / "train.jsonl"
+    original = path.read_bytes()
+    if mutation == "space":
+        path.write_bytes(original + b" ")
+    elif mutation == "newline":
+        path.write_bytes(original.replace(b"\n", b"\r\n", 1))
+    elif mutation == "key_order":
+        records = [json.loads(line) for line in original.splitlines()]
+        with path.open("w", encoding="utf-8", newline="\n") as stream:
+            for record in records:
+                stream.write(json.dumps(dict(reversed(tuple(record.items())))))
+                stream.write("\n")
+    else:
+        path.write_bytes(original.rstrip(b"\n"))
+    with pytest.raises(V03ShortAnswerError, match="SOURCE_CHECKSUM_MISMATCH"):
+        generate_candidates(
+            source_root=source, evaluator=FakeEvaluator(), policy=policy, dry_run=True
+        )
+
+
 def test_package_is_atomic_reloadable_and_no_replace(tmp_path: Path) -> None:
     source, policy = _fixture(tmp_path)
     output = tmp_path / "v03"
@@ -208,7 +275,9 @@ def test_package_is_atomic_reloadable_and_no_replace(tmp_path: Path) -> None:
     )
     assert result["status"] == "completed"
     assert (output / "validation.jsonl").read_bytes() == validation_before
-    assert validate_package(output, policy=policy)["rows"]["validation"] == 1
+    validated = validate_package(output, policy=policy, source_root=source)
+    assert validated["rows"]["validation"] == 1
+    assert validated["source_integrity"]["parsed_records_equal"] is True
     assert not list(tmp_path.glob(".v03.staging-*"))
     statistics = json.loads((output / "statistics.json").read_text(encoding="utf-8"))
     assert set(statistics["length_distribution"]) == {
@@ -252,4 +321,36 @@ def test_package_is_atomic_reloadable_and_no_replace(tmp_path: Path) -> None:
                 f"{hashlib.sha256((output / name).read_bytes()).hexdigest()}  {name}\n"
             )
     with pytest.raises(V03ShortAnswerError, match="FINGERPRINT_MISMATCH"):
-        validate_package(output, policy=policy)
+        validate_package(output, policy=policy, source_root=source)
+
+
+def test_production_shape_noncanonical_source_passes_parsed_copy_validation(
+    tmp_path: Path,
+) -> None:
+    source, policy = _fixture(tmp_path)
+    train = [
+        json.loads(line)
+        for line in (source / "train.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    with (source / "train.jsonl").open("w", encoding="utf-8", newline="\n") as stream:
+        for record in train:
+            stream.write(
+                json.dumps(record, ensure_ascii=False, separators=(", ", ": "))
+            )
+            stream.write("\n")
+    raw_sha = hashlib.sha256((source / "train.jsonl").read_bytes()).hexdigest()
+    canonical_sha = hashlib.sha256(
+        b"".join(canonical_json_bytes(item) for item in train)
+    ).hexdigest()
+    assert raw_sha != canonical_sha
+    policy["source"]["checksums"]["train.jsonl"] = raw_sha
+    output = tmp_path / "production-shape"
+    publish_package(
+        source_root=source,
+        output_root=output,
+        policy=policy,
+        evaluator=FakeEvaluator(),
+        git_head="b" * 40,
+    )
+    validated = validate_package(output, policy=policy, source_root=source)
+    assert validated["source_integrity"]["parsed_records_equal"] is True
