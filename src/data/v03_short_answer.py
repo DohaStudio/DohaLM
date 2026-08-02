@@ -551,36 +551,126 @@ def publish_package(
     variants = Counter(
         str(item["variant_type"]) for item in full_sidecar if item["split"] == "train"
     )
+    review = result["review"]
+    assert isinstance(review, list)
     category_counts: dict[str, Counter[str]] = defaultdict(Counter)
-    for item in sidecar_new:
-        category_counts[str(item["category"])][
-            "accepted" if item["accepted"] else "review"
-        ] += 1
+    generation_method_counts: dict[str, Counter[str]] = defaultdict(Counter)
+    for item in accepted_sidecar:
+        category = str(item["category"])
+        method = str(item["generation_method"])
+        category_counts[category].update(("candidates", "accepted"))
+        generation_method_counts[method].update(("candidates", "accepted"))
+    for item in review:
+        category = str(item["category"])
+        method = str(item["generation_method"])
+        category_counts[category].update(("candidates", "review", "rejected"))
+        generation_method_counts[method].update(("candidates", "review", "rejected"))
+    category_statistics = {}
+    for key, counts in sorted(category_counts.items()):
+        category_statistics[key] = {
+            **dict(counts),
+            "acceptance_rate": counts["accepted"] / (counts["candidates"] or 1),
+            "generated_answer_tokens": _summary(
+                [
+                    float(item["generated_answer_tokens"])
+                    for item in sidecar_new
+                    if str(item["category"]) == key
+                ]
+            ),
+        }
+    generation_method_statistics = {
+        key: {
+            **dict(counts),
+            "acceptance_rate": counts["accepted"] / (counts["candidates"] or 1),
+        }
+        for key, counts in sorted(generation_method_counts.items())
+    }
+    review_reasons = Counter(
+        str(reason) for item in review for reason in item["review_reasons"]
+    )
+    train_rows = len(new_train)
+    composition = {
+        "target": dict(policy["target_composition"]),
+        "actual": {
+            "original": len(original_train) / train_rows,
+            "short": variants.get("short", 0) / train_rows,
+            "medium": variants.get("medium", 0) / train_rows,
+        },
+    }
+    composition["difference"] = {
+        key: composition["actual"][key] - composition["target"][key]
+        for key in ("original", "short", "medium")
+    }
+    original_lengths = [
+        float(item["generated_answer_tokens"])
+        for item in mapped_original
+        if item["split"] == "train"
+    ]
+    short_lengths = [
+        float(item["generated_answer_tokens"])
+        for item in accepted_sidecar
+        if item["variant_type"] == "short"
+    ]
+    medium_lengths = [
+        float(item["generated_answer_tokens"])
+        for item in accepted_sidecar
+        if item["variant_type"] == "medium"
+    ]
+    accepted_quality = accepted_sidecar
     statistics_value = {
         "source_rows": {"train": len(original_train), "validation": len(validation)},
         "generation": rates,
         "variants": dict(sorted(variants.items())),
-        "category": {
-            key: dict(value) for key, value in sorted(category_counts.items())
+        "composition": composition,
+        "category": category_statistics,
+        "generation_method": generation_method_statistics,
+        "length_distribution": {
+            "original": _summary(original_lengths),
+            "short": _summary(short_lengths),
+            "medium": _summary(medium_lengths),
+            "combined_train": _summary(
+                [*original_lengths, *short_lengths, *medium_lengths]
+            ),
+        },
+        "review_queue": {
+            "total": len(review),
+            "reasons": dict(sorted(review_reasons.items())),
+            "restricted_raw_text_artifact": "absent",
         },
         "quality": {
             "completion_rate": sum(
-                item["completion_score"] == 1.0 for item in sidecar_new
+                item["completion_score"] == 1.0 for item in accepted_quality
             )
-            / (len(sidecar_new) or 1),
-            "strong_repetition_rate": rates["strong_repetition_rate"],
+            / (len(accepted_quality) or 1),
+            "strong_repetition_rate": sum(
+                item["repetition_score"] == 3 for item in accepted_quality
+            )
+            / (len(accepted_quality) or 1),
             "numeric_mismatch": sum(
-                item["numeric_preservation_score"] != 1.0 for item in sidecar_new
+                item["numeric_preservation_score"] != 1.0
+                for item in accepted_quality
             ),
             "entity_mismatch": sum(
-                item["entity_preservation_score"] != 1.0 for item in sidecar_new
+                item["entity_preservation_score"] != 1.0 for item in accepted_quality
             ),
+            "contradiction_detected": review_reasons["contradiction"],
+            "new_fact_detected": review_reasons["new_fact_risk"],
             "semantic": _summary(
-                [float(item["semantic_preservation_score"]) for item in sidecar_new]
+                [
+                    float(item["semantic_preservation_score"])
+                    for item in accepted_quality
+                ]
             ),
             "compression": _summary(
-                [float(item["compression_ratio"]) for item in sidecar_new]
+                [float(item["compression_ratio"]) for item in accepted_quality]
             ),
+            "completion_score": _score_counts(accepted_quality, "completion_score"),
+            "repetition_score": _score_counts(accepted_quality, "repetition_score"),
+        },
+        "lineage": {
+            "parent_child_pairs": len(accepted_lineage),
+            "missing_parents": 0,
+            "hash_collisions": 0,
         },
         "cross_split_duplicate_count": 0,
     }
@@ -695,6 +785,12 @@ def _summary(values: list[float]) -> dict[str, float]:
         "p95": pick(0.95),
         "max": ordered[-1],
     }
+
+
+def _score_counts(
+    records: Sequence[Mapping[str, object]], field: str
+) -> dict[str, int]:
+    return dict(sorted(Counter(str(item[field]) for item in records).items()))
 
 
 def validate_package(
