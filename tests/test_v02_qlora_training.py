@@ -16,6 +16,7 @@ from src.training.v02_qlora_training import (
     V02QLoRAError,
     full_training_preflight,
     generation_verdict,
+    expected_checkpoint_steps,
     output_roots,
     run_ids,
     validate_config,
@@ -138,3 +139,9 @@ def test_cli_requires_explicit_physical_flag() -> None:
 
 def test_simulation_epoch0_identity_is_immutable() -> None:
     assert SIMULATION_EPOCH0_FINGERPRINT == "sha256:b8157713c04bf2cdb7fd178031de1b8cb3f19287246577d14663940fb12998d3"
+
+
+def test_full_checkpoint_schedule_includes_terminal_step() -> None:
+    assert expected_checkpoint_steps(save_steps=250, total_optimizer_steps=1298) == (
+        250, 500, 750, 1000, 1250, 1298,
+    )

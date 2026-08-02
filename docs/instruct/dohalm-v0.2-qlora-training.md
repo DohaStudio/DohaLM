@@ -61,6 +61,10 @@ Full artifact에는 `checkpoints/`, `final-adapter/`, `training-config.yaml`, `t
 
 Smoke 실패 시 후속 단계를 실행하지 않는다. Stability 실패 또는 48시간 초과 추정이면 full training을 실행하지 않는다. Full training 실패 시 자동 retry/resume을 하지 않고 마지막 정상 checkpoint와 격리된 실패 artifact를 보존한다.
 
+종료 step이 save 주기의 배수가 아니면 정확히 하나의 terminal checkpoint를 허용한다. v0.2 Run의
+terminal step은 1,298이며 허용 checkpoint는 `250/500/750/1000/1250/1298`이다. 완료된 학습의
+후처리만 복구하는 절차는 [Terminal Checkpoint 및 Evaluation-Only Recovery 계약](./dohalm-v0.2-evaluation-recovery.md)을 따른다.
+
 ## Readiness
 
 ```yaml
