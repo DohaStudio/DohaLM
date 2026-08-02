@@ -9,7 +9,7 @@ export function EmptyState({ onSelect }: { onSelect: (value: string) => void }) 
     <section className="empty-state">
       <span className="eyebrow">DEVELOPMENT PREVIEW</span>
       <h2>한국어를 위한<br /><span>작은 언어 모델.</span></h2>
-      <p>현재 MockProvider 기반 개발 모드입니다. 실제 모델 weight는 아직 연결되지 않았습니다.</p>
+      <p>FastAPI Provider 상태를 확인한 뒤 로컬 모델과 안전하게 대화할 수 있습니다.</p>
       <div className="suggestion-grid" aria-label="예시 질문">
         {suggestions.map((suggestion, index) => (
           <button key={suggestion} type="button" onClick={() => onSelect(suggestion)}>

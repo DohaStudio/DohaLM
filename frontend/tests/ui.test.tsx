@@ -11,7 +11,7 @@ describe("chat UI", () => {
     render(<EmptyState onSelect={select} />);
     fireEvent.click(screen.getByRole("button", { name: /DohaLM 프로젝트/ }));
     expect(select).toHaveBeenCalledOnce();
-    expect(screen.getByText(/MockProvider 기반/)).toBeInTheDocument();
+    expect(screen.getByText(/로컬 모델과 안전하게 대화/)).toBeInTheDocument();
   });
 
   it("distinguishes online provider status", () => {

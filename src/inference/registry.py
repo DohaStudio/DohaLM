@@ -5,11 +5,18 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from src.inference.base import InferenceProvider
-from src.inference.providers import BaseQwenProvider, DohaLMAdapterProvider, MockProvider
+from src.inference.model_loader import BaseQwenConfig
+from src.inference.providers import (
+    BaseQwenProvider,
+    DohaLMAdapterProvider,
+    MockProvider,
+)
 
 
 class ProviderRegistry:
-    def __init__(self, providers: Iterable[InferenceProvider], active_provider: str) -> None:
+    def __init__(
+        self, providers: Iterable[InferenceProvider], active_provider: str
+    ) -> None:
         self._providers = {provider.provider_name: provider for provider in providers}
         if active_provider not in self._providers:
             raise ValueError("UNKNOWN_INFERENCE_PROVIDER")
@@ -28,11 +35,16 @@ class ProviderRegistry:
             await provider.close()
 
 
-def create_provider_registry(active_provider: str, *, chunk_delay_ms: int = 20) -> ProviderRegistry:
+def create_provider_registry(
+    active_provider: str,
+    *,
+    chunk_delay_ms: int = 20,
+    base_qwen_config: BaseQwenConfig | None = None,
+) -> ProviderRegistry:
     return ProviderRegistry(
         (
             MockProvider(chunk_delay_ms=chunk_delay_ms),
-            BaseQwenProvider(),
+            BaseQwenProvider(base_qwen_config),
             DohaLMAdapterProvider(),
         ),
         active_provider=active_provider,

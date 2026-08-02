@@ -61,8 +61,19 @@ def test_openapi_documents_all_mvp_endpoints() -> None:
     with TestClient(create_app(settings())) as client:
         document = client.get("/openapi.json").json()
         assert client.get("/docs").status_code == 200
-    assert {"/health", "/ready", "/api/v1/models", "/api/v1/chat", "/api/v1/chat/stream"} <= set(document["paths"])
-    assert "text/event-stream" in document["paths"]["/api/v1/chat/stream"]["post"]["responses"]["200"]["content"]
+    assert {
+        "/health",
+        "/ready",
+        "/api/v1/models",
+        "/api/v1/chat",
+        "/api/v1/chat/stream",
+    } <= set(document["paths"])
+    assert (
+        "text/event-stream"
+        in document["paths"]["/api/v1/chat/stream"]["post"]["responses"]["200"][
+            "content"
+        ]
+    )
 
 
 def test_cors_uses_explicit_development_origin_without_credentials() -> None:
@@ -99,3 +110,17 @@ def test_settings_load_environment_without_local_path_disclosure(monkeypatch) ->
     with TestClient(create_app(value)) as client:
         serialized = client.get("/api/v1/models").text
     assert "private" not in serialized
+
+
+def test_base_qwen_settings_defaults_and_environment(monkeypatch) -> None:
+    defaults = APISettings(_env_file=None)
+    assert defaults.base_model_quantization == "nf4"
+    assert defaults.max_concurrent_generations == 1
+    assert defaults.model_load_timeout_seconds == 300
+    assert defaults.generation_timeout_seconds == 120
+    assert defaults.model_unload_on_shutdown is True
+    monkeypatch.setenv("DOHALM_BASE_MODEL_QUANTIZATION", "BF16")
+    monkeypatch.setenv("DOHALM_GENERATION_TIMEOUT_SECONDS", "30")
+    configured = APISettings(_env_file=None)
+    assert configured.base_model_quantization == "bf16"
+    assert configured.generation_timeout_seconds == 30

@@ -18,7 +18,10 @@ export function ChatShell() {
 
   const submit = async () => {
     const sent = await chat.send(draft);
-    if (sent) setDraft("");
+    if (sent) {
+      setDraft("");
+      await model.refresh();
+    }
   };
   const reset = () => {
     if (chat.messages.length && !window.confirm("현재 대화를 지우고 새로 시작할까요?")) return;
@@ -50,7 +53,7 @@ export function ChatShell() {
         )}
         <GenerationSettingsPanel value={chat.settings} disabled={chat.busy} onChange={chat.setSettings} />
         <MessageComposer busy={chat.busy} draft={draft} onDraftChange={setDraft} onSend={() => void submit()} onStop={chat.stop} />
-        <p className="footer-note">DohaLM은 현재 개발용 MockProvider를 사용합니다. 중요한 정보는 반드시 확인하세요.</p>
+        <p className="footer-note">DohaLM은 선택된 로컬 Provider로 답변합니다. 중요한 정보는 반드시 확인하세요.</p>
       </div>
     </main>
   );

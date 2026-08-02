@@ -73,7 +73,9 @@ async def chat(
     )
     prompt = result.prompt_tokens
     completion = result.completion_tokens
-    total = prompt + completion if prompt is not None and completion is not None else None
+    total = (
+        prompt + completion if prompt is not None and completion is not None else None
+    )
     return ChatResponse(
         id=_chat_id(),
         model=service.provider.model_id,
@@ -118,21 +120,34 @@ async def stream_chat(
                 "provider": service.provider.provider_name,
             },
         )
+        finish_reason = "stop"
         try:
-            async with asyncio.timeout(settings.request_timeout_seconds):
+            timeout_seconds = (
+                settings.generation_timeout_seconds
+                if service.provider.provider_name == "base-qwen"
+                else settings.request_timeout_seconds
+            )
+            async with asyncio.timeout(timeout_seconds):
                 async for chunk in service.stream(generation_request):
-                    yield _event("delta", {"content": chunk.content})
-            yield _event("done", {"finish_reason": "stop"})
+                    if chunk.finish_reason is not None:
+                        finish_reason = chunk.finish_reason
+                    if chunk.content:
+                        yield _event("delta", {"content": chunk.content})
+            yield _event("done", {"finish_reason": finish_reason})
             logger.info(
-                "stream_complete request_id=%s provider=%s model_id=%s finish_reason=stop",
+                "stream_complete request_id=%s provider=%s model_id=%s finish_reason=%s",
                 request_id_value,
                 service.provider.provider_name,
                 service.provider.model_id,
+                finish_reason,
             )
         except asyncio.CancelledError:
             raise
         except TimeoutError:
-            logger.warning("stream_failed request_id=%s error_code=INFERENCE_TIMEOUT", request_id_value)
+            logger.warning(
+                "stream_failed request_id=%s error_code=INFERENCE_TIMEOUT",
+                request_id_value,
+            )
             yield _event(
                 "error",
                 {
@@ -142,7 +157,9 @@ async def stream_chat(
                 },
             )
         except ProviderUnavailableError as exc:
-            logger.warning("stream_failed request_id=%s error_code=%s", request_id_value, exc.code)
+            logger.warning(
+                "stream_failed request_id=%s error_code=%s", request_id_value, exc.code
+            )
             yield _event(
                 "error",
                 {
@@ -152,7 +169,9 @@ async def stream_chat(
                 },
             )
         except APIError as exc:
-            logger.warning("stream_failed request_id=%s error_code=%s", request_id_value, exc.code)
+            logger.warning(
+                "stream_failed request_id=%s error_code=%s", request_id_value, exc.code
+            )
             yield _event(
                 "error",
                 {
@@ -162,7 +181,9 @@ async def stream_chat(
                 },
             )
         except Exception:
-            logger.warning("stream_failed request_id=%s error_code=STREAM_FAILED", request_id_value)
+            logger.warning(
+                "stream_failed request_id=%s error_code=STREAM_FAILED", request_id_value
+            )
             yield _event(
                 "error",
                 {
