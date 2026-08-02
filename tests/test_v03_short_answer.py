@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+import yaml
 
 from src.data.checksums import canonical_json_bytes
 from src.data.v03_quality_validation import (
@@ -14,6 +15,7 @@ from src.data.v03_quality_validation import (
     validate_no_raw_text,
 )
 from src.data.v03_short_answer import (
+    PACKAGE_FILES,
     V03ShortAnswerError,
     _source_record_hash,
     _variant_hash,
@@ -164,6 +166,8 @@ def test_sidecar_rejects_raw_fields() -> None:
     validate_no_raw_text({"record_hash": "a" * 64})
     with pytest.raises(ValueError, match="RAW_TEXT_FIELD_FORBIDDEN"):
         validate_no_raw_text({"record_hash": "a" * 64, "output": "secret"})
+    with pytest.raises(ValueError, match="RAW_TEXT_FIELD_FORBIDDEN"):
+        validate_no_raw_text({"quality_scores": {"text": "secret"}})
 
 
 def test_synthetic_candidate_flow_and_source_preservation(tmp_path: Path) -> None:
@@ -213,3 +217,18 @@ def test_package_is_atomic_reloadable_and_no_replace(tmp_path: Path) -> None:
             evaluator=FakeEvaluator(),
             git_head="a" * 40,
         )
+
+    manifest = yaml.safe_load((output / "manifest.yaml").read_text(encoding="utf-8"))
+    manifest["fingerprints"]["sidecar"] = "sha256:" + "0" * 64
+    (output / "manifest.yaml").write_text(
+        yaml.safe_dump(manifest, allow_unicode=True, sort_keys=True), encoding="utf-8"
+    )
+    with (output / "checksums.sha256").open(
+        "w", encoding="ascii", newline="\n"
+    ) as stream:
+        for name in PACKAGE_FILES:
+            stream.write(
+                f"{hashlib.sha256((output / name).read_bytes()).hexdigest()}  {name}\n"
+            )
+    with pytest.raises(V03ShortAnswerError, match="FINGERPRINT_MISMATCH"):
+        validate_package(output, policy=policy)

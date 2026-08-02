@@ -467,6 +467,13 @@ def _write_checksums(root: Path) -> dict[str, str]:
     return checksums
 
 
+def _jsonl_sha(values: Sequence[Mapping[str, object]]) -> str:
+    digest = hashlib.sha256()
+    for value in values:
+        digest.update(canonical_json_bytes(dict(value)))
+    return digest.hexdigest()
+
+
 def publish_package(
     *,
     source_root: str | Path,
@@ -618,18 +625,34 @@ def publish_package(
         "tokenization_started": False,
         "training_started": False,
     }
-    manifest["fingerprints"] = {
+    fingerprints = {
         "sidecar": checksum_value({"records": full_sidecar}),
-        "lineage": checksum_value({"records": result["lineage"]}),
+        "lineage": checksum_value({"records": accepted_lineage}),
+        "review_queue": checksum_value({"records": result["review"]}),
         "statistics": checksum_value(statistics_value),
         "generation_policy": checksum_value(dict(policy)),
     }
-    manifest["fingerprints"]["package"] = checksum_value(
-        {
-            "manifest": {key: manifest[key] for key in manifest if key != "lineage"},
-            "fingerprints": manifest["fingerprints"],
-        }
-    )
+    fingerprints["manifest"] = checksum_value(dict(manifest))
+    source_policy = policy["source"]
+    assert isinstance(source_policy, Mapping)
+    source_checksums = source_policy["checksums"]
+    assert isinstance(source_checksums, Mapping)
+    package_algorithm = {
+        "algorithm": "canonical-json-ordered-components-v1",
+        "components": [
+            ["train.jsonl", _jsonl_sha(new_train)],
+            ["validation.jsonl", str(source_checksums["validation.jsonl"])],
+            ["quality-sidecar", fingerprints["sidecar"]],
+            ["lineage", fingerprints["lineage"]],
+            ["review-queue", fingerprints["review_queue"]],
+            ["statistics", fingerprints["statistics"]],
+            ["generation-policy", fingerprints["generation_policy"]],
+            ["manifest-semantic", fingerprints["manifest"]],
+        ],
+    }
+    fingerprints["package_algorithm"] = package_algorithm
+    fingerprints["package"] = checksum_value(package_algorithm)
+    manifest["fingerprints"] = fingerprints
     atomic = AtomicArtifactDirectory(output)
     with atomic as staging:
         write_jsonl(staging / "train.jsonl", new_train)
@@ -714,12 +737,56 @@ def validate_package(
     statistics_value = json.loads(
         (path / "statistics.json").read_text(encoding="utf-8")
     )
+    generation_policy = yaml.safe_load(
+        (path / "generation-policy.yaml").read_text(encoding="utf-8")
+    )
     if manifest["content"]["validation_rows"] != len(validation) or manifest["content"][
         "rows_added"
     ] != len(lineage):
         raise V03ShortAnswerError("PACKAGE_CONSISTENCY_INVALID")
     if statistics_value["cross_split_duplicate_count"] != 0:
         raise V03ShortAnswerError("CROSS_SPLIT_DUPLICATE")
+    source = policy["source"]
+    assert isinstance(source, Mapping)
+    source_rows = source["rows"]
+    source_checksums = source["checksums"]
+    assert isinstance(source_rows, Mapping) and isinstance(source_checksums, Mapping)
+    original_rows = int(source_rows["train"])
+    if (
+        _jsonl_sha(train[:original_rows]) != source_checksums["train.jsonl"]
+        or checksums["validation.jsonl"] != source_checksums["validation.jsonl"]
+    ):
+        raise V03ShortAnswerError("SOURCE_COPY_NOT_IDENTICAL")
+    fingerprints = manifest.get("fingerprints")
+    if not isinstance(fingerprints, Mapping):
+        raise V03ShortAnswerError("FINGERPRINT_INVALID")
+    manifest_semantic = dict(manifest)
+    manifest_semantic.pop("fingerprints", None)
+    calculated: dict[str, object] = {
+        "sidecar": checksum_value({"records": sidecar}),
+        "lineage": checksum_value({"records": lineage}),
+        "review_queue": checksum_value({"records": review}),
+        "statistics": checksum_value(statistics_value),
+        "generation_policy": checksum_value(generation_policy),
+        "manifest": checksum_value(manifest_semantic),
+    }
+    package_algorithm = {
+        "algorithm": "canonical-json-ordered-components-v1",
+        "components": [
+            ["train.jsonl", checksums["train.jsonl"]],
+            ["validation.jsonl", checksums["validation.jsonl"]],
+            ["quality-sidecar", calculated["sidecar"]],
+            ["lineage", calculated["lineage"]],
+            ["review-queue", calculated["review_queue"]],
+            ["statistics", calculated["statistics"]],
+            ["generation-policy", calculated["generation_policy"]],
+            ["manifest-semantic", calculated["manifest"]],
+        ],
+    }
+    calculated["package_algorithm"] = package_algorithm
+    calculated["package"] = checksum_value(package_algorithm)
+    if any(fingerprints.get(key) != value for key, value in calculated.items()):
+        raise V03ShortAnswerError("FINGERPRINT_MISMATCH")
     return {
         "rows": {"train": len(train), "validation": len(validation)},
         "checksums": checksums,

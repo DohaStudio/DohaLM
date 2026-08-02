@@ -179,3 +179,10 @@ def validate_no_raw_text(record: Mapping[str, object]) -> None:
     }
     if forbidden & set(record):
         raise ValueError("RAW_TEXT_FIELD_FORBIDDEN")
+    for value in record.values():
+        if isinstance(value, Mapping):
+            validate_no_raw_text(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, Mapping):
+                    validate_no_raw_text(item)
