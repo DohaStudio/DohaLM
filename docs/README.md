@@ -102,6 +102,7 @@ safety·readiness 설계를 완료했지만 dataset·backend·SFT·publication�
 | [ADR-008](./decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md) | 모델 단계별 EOS 평가 정책 | `approved` |
 | [ADR-009](./decisions/ADR-009-candidate-b-official-reassessment.md) | Candidate B current Base baseline | `approved` |
 | [ADR-010](./decisions/ADR-010-dohalm-instruct-strategy.md) | DohaLM Instruct 전략·Readiness | `approved` |
+| [FastAPI 백엔드 MVP](./service/dohalm-backend-mvp.md) | MockProvider 기반 HTTP·SSE API와 Provider 교체 계약 | `review` |
 
 ## 6. 현재 상태
 
@@ -118,7 +119,8 @@ safety·readiness 설계를 완료했지만 dataset·backend·SFT·publication�
 - [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
 - [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer와 Candidate B current
   Base baseline은 고정됐다. Instruct dataset·backend·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
-- [후순위] FastAPI, Next.js, 배포와 외부 평가는 Tiny 학습·평가 검증 이후 진행한다.
+- [구현] FastAPI 백엔드 MVP는 MockProvider만 사용하며 실제 model·Adapter는 별도 승인 전까지 연결하지 않는다.
+- [후순위] Next.js, 배포와 외부 평가는 별도 단계에서 진행한다.
 
 ## 7. 변경 이력
 

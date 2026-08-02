@@ -1,0 +1,22 @@
+schema_version: 1
+service:
+  title: DohaLM API
+  version: 0.1.0
+  host: 127.0.0.1
+  port: 8000
+  api_prefix: /api/v1
+  cors_origins:
+    - http://localhost:3000
+  request_timeout_seconds: 60
+  stream_chunk_delay_ms: 20
+  log_level: INFO
+inference:
+  active_provider: mock
+  allowed_providers:
+    - mock
+    - base-qwen
+    - dohalm-adapter
+  model_cache_root: null
+  adapter_root: null
+  model_weight_loading_allowed: false
+  gpu_inference_allowed: false

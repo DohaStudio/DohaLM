@@ -19,7 +19,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 토크나이저 | 운영 `operating-16k-v2/unigram-16k` 승인, vocabulary 16,000·Gate 3 `passed` |
 | 사전학습 | canonical Pilot 100-step과 Candidate A 10M Token 완료; 추가 학습 미승인 |
 | SFT | Processing Run 0015와 Qwen2.5 1.5B tokenization 완료, QLoRA 설정 준비, Training 미승인·미실행 |
-| 추론 API | 스캐폴드만 존재, 미구현 |
+| 추론 API | FastAPI MVP 구현, MockProvider 기본; 실제 model·Adapter 미연결 |
 | Frontend | 안내 스캐폴드만 존재, 미구현 |
 
 Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gate 3은 승인된 v2 Unigram을 근거로 2026-07-26 `passed`가 됐습니다. Gate 7은 동일 64문서의 packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume와 571개 테스트를 근거로 2026-07-27 사용자 승인되어 `passed`입니다. 이 결과는 memorization 검증이며, 이후 별도 승인으로 canonical Pilot과 Candidate A를 완료했습니다.
@@ -157,6 +157,13 @@ python -m scripts.training.validate_gate_evidence --help
 python -m scripts.training.validate_pilot_readiness --help
 python -m scripts.training.inspect_gate_proposal --help
 python -m pytest -q
+```
+
+FastAPI 백엔드 MVP는 [실행 안내](docs/service/dohalm-backend-mvp.md)를 따른다.
+
+```powershell
+python -m pip install -r requirements-api.txt
+uvicorn server.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 `pretrain.yaml`과 `sft.yaml`의 미결정값은 실행 전에 확정해야 하며, `--allow-incomplete`는 상태 점검용 출력에만 사용합니다.
