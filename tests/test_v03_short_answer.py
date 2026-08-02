@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from copy import deepcopy
 from pathlib import Path
 
@@ -209,6 +210,26 @@ def test_package_is_atomic_reloadable_and_no_replace(tmp_path: Path) -> None:
     assert (output / "validation.jsonl").read_bytes() == validation_before
     assert validate_package(output, policy=policy)["rows"]["validation"] == 1
     assert not list(tmp_path.glob(".v03.staging-*"))
+    statistics = json.loads((output / "statistics.json").read_text(encoding="utf-8"))
+    assert set(statistics["length_distribution"]) == {
+        "original",
+        "short",
+        "medium",
+        "combined_train",
+    }
+    assert statistics["length_distribution"]["short"]["p95"] <= 180
+    assert statistics["composition"]["target"] == policy["target_composition"]
+    assert statistics["generation_method"]["extractive"]["accepted"] == 20
+    assert statistics["review_queue"] == {
+        "total": 0,
+        "reasons": {},
+        "restricted_raw_text_artifact": "absent",
+    }
+    assert statistics["lineage"] == {
+        "parent_child_pairs": 20,
+        "missing_parents": 0,
+        "hash_collisions": 0,
+    }
     with pytest.raises(V03ShortAnswerError, match="OUTPUT_ID_ALREADY_USED"):
         publish_package(
             source_root=source,
