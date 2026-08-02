@@ -18,6 +18,7 @@ from server.core.logging import configure_server_logging
 from server.core.request_id import REQUEST_ID_HEADER, request_id
 from server.services.inference import InferenceService
 from src.inference import ProviderRegistry, create_provider_registry
+from src.inference.model_loader import BaseQwenConfig
 
 RegistryFactory = Callable[[APISettings], ProviderRegistry]
 
@@ -26,6 +27,18 @@ def _default_registry(settings: APISettings) -> ProviderRegistry:
     return create_provider_registry(
         settings.inference_provider,
         chunk_delay_ms=settings.stream_chunk_delay_ms,
+        base_qwen_config=BaseQwenConfig(
+            model_id=settings.base_model_id,
+            revision=settings.base_model_revision,
+            snapshot=settings.base_model_snapshot,
+            quantization=settings.base_model_quantization,
+            device=settings.base_model_device,
+            max_concurrent_generations=settings.max_concurrent_generations,
+            load_timeout_seconds=settings.model_load_timeout_seconds,
+            generation_timeout_seconds=settings.generation_timeout_seconds,
+            unload_on_shutdown=settings.model_unload_on_shutdown,
+            minimum_free_vram_mib=settings.minimum_free_vram_mib,
+        ),
     )
 
 
@@ -44,7 +57,11 @@ def create_app(
         application.state.provider_registry = registry
         application.state.inference_service = InferenceService(
             registry.active,
-            timeout_seconds=resolved.request_timeout_seconds,
+            timeout_seconds=(
+                resolved.generation_timeout_seconds
+                if resolved.inference_provider == "base-qwen"
+                else resolved.request_timeout_seconds
+            ),
         )
         await registry.active.health()
         try:
@@ -74,7 +91,11 @@ def create_app(
         identifier = request_id(request.headers.get(REQUEST_ID_HEADER))
         request.state.request_id = identifier
         content_length = request.headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > resolved.max_request_body_bytes:
+        if (
+            content_length
+            and content_length.isdigit()
+            and int(content_length) > resolved.max_request_body_bytes
+        ):
             error = APIError(
                 "VALIDATION_ERROR",
                 "Request body is too large.",

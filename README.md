@@ -19,8 +19,8 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 토크나이저 | 운영 `operating-16k-v2/unigram-16k` 승인, vocabulary 16,000·Gate 3 `passed` |
 | 사전학습 | canonical Pilot 100-step과 Candidate A 10M Token 완료; 추가 학습 미승인 |
 | SFT | Processing Run 0015와 Qwen2.5 1.5B tokenization 완료, QLoRA 설정 준비, Training 미승인·미실행 |
-| 추론 API | FastAPI MVP 구현, MockProvider 기본; 실제 model·Adapter 미연결 |
-| Frontend | Next.js 채팅 MVP 구현, MockProvider HTTP·SSE 연동 |
+| 추론 API | FastAPI MVP와 local-only Base Qwen lazy Provider 구현·실측; DohaLM Adapter 미연결 |
+| Frontend | Next.js 채팅 MVP의 Base Qwen HTTP·SSE·취소·재시도 Chrome E2E 통과 |
 
 Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gate 3은 승인된 v2 Unigram을 근거로 2026-07-26 `passed`가 됐습니다. Gate 7은 동일 64문서의 packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume와 571개 테스트를 근거로 2026-07-27 사용자 승인되어 `passed`입니다. 이 결과는 memorization 검증이며, 이후 별도 승인으로 canonical Pilot과 Candidate A를 완료했습니다.
 
@@ -37,7 +37,7 @@ DohaLM은 한국어 Foundation Model 기반과 재현 가능한 학습·평가·
 - 한국어 SentencePiece 토크나이저를 직접 학습합니다.
 - Decoder-only Transformer 핵심 구성요소와 학습 루프를 직접 구현합니다.
 - 사전학습, SFT, 평가, 체크포인트 복원과 자기회귀 생성을 재현 가능하게 검증합니다.
-- 핵심 모델 검증 이후 FastAPI 추론 서버와 Next.js 채팅 화면의 연결을 검토합니다.
+- FastAPI·Next.js는 Base Qwen local-only smoke까지 검증됐으며 후속 DohaLM Adapter 연결은 별도 승인으로 진행합니다.
 - 최종 결과를 바탕으로 AI Hub K-AI Leaderboard 제출 가능성을 검토합니다.
 
 ## 비목표
@@ -160,6 +160,7 @@ python -m pytest -q
 ```
 
 FastAPI 백엔드 MVP는 [실행 안내](docs/service/dohalm-backend-mvp.md)를 따른다.
+[Base Qwen 로컬 Provider](docs/service/dohalm-base-qwen-provider.md)는 고정 snapshot과 `base-qwen` 설정에서만 활성화한다.
 
 ```powershell
 python -m pip install -r requirements-api.txt

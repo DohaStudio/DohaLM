@@ -12,6 +12,7 @@ class ProviderStatus(str, Enum):
     READY = "ready"
     NOT_LOADED = "not_loaded"
     LOADING = "loading"
+    UNLOADING = "unloading"
     NOT_AVAILABLE = "not_available"
     UNAVAILABLE = "unavailable"
     ERROR = "error"
@@ -56,6 +57,7 @@ class GenerationResult:
 @dataclass(frozen=True)
 class GenerationChunk:
     content: str
+    finish_reason: str | None = None
 
 
 class ProviderUnavailableError(RuntimeError):

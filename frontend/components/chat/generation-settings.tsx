@@ -19,7 +19,7 @@ export function GenerationSettingsPanel({ value, disabled, onChange }: Props) {
   );
   return (
     <details className="generation-settings">
-      <summary>생성 설정 <span>MockProvider에서는 응답 내용에 반영되지 않을 수 있습니다.</span></summary>
+      <summary>생성 설정 <span>현재 Provider가 지원하는 범위에서 적용됩니다.</span></summary>
       <div className="settings-grid">
         {field("max_new_tokens", "최대 토큰", 1, 1024, 1)}
         {field("temperature", "Temperature", 0, 2, 0.1)}

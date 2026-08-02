@@ -1,6 +1,6 @@
 # DohaLM Frontend
 
-Next.js App Router와 React hooks로 구성한 개발용 채팅 MVP다. 현재 FastAPI의 `MockProvider`만 사용하며 model weight, Adapter 또는 GPU를 로드하지 않는다.
+Next.js App Router와 React hooks로 구성한 개발용 채팅 MVP다. FastAPI의 `mock` 또는 승인된 로컬 `base-qwen` Provider와 동일한 HTTP·SSE 계약으로 통신한다.
 
 ```powershell
 npm install

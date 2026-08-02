@@ -7,7 +7,7 @@
 
 ## 범위와 구조
 
-[확정] 이 MVP는 FastAPI의 MockProvider와 실제 HTTP·SSE로 통신하는 메모리 기반 단일 페이지 채팅 UI다. 실제 model weight, Adapter, GPU inference, Dataset, Tokenization, Training, 인증, DB와 배포는 범위 밖이다.
+[확정] 이 MVP는 FastAPI의 MockProvider 또는 승인된 local-only Base Qwen Provider와 실제 HTTP·SSE로 통신하는 메모리 기반 단일 페이지 채팅 UI다. DohaLM Adapter, Dataset, Tokenization, Training, 인증, DB와 배포는 범위 밖이다.
 
 ```text
 app/                 App Router page, layout, global error boundary
@@ -89,18 +89,20 @@ npm run build
 npm audit --audit-level=high
 ```
 
-통합 smoke에서는 Frontend와 MockProvider Backend를 동시에 실행하고 page 200, CORS, health, readiness, models, 일반 Chat과 SSE `start/delta/done`을 확인한다. 브라우저 자동화가 없으면 이 HTTP 절차와 API/client·hook·UI 테스트 결과를 함께 기록한다.
+통합 smoke에서는 Frontend와 Backend를 동시에 실행하고 page 200, CORS, health, readiness, models, 일반 Chat과 SSE
+`start/delta/done`을 확인한다. Base Qwen Chrome E2E는 실제 streaming, 중단, 후속 retry, 새 대화, 오류·재시도와
+390px viewport를 검증한다. 모델 응답 문구는 고정하지 않고 non-empty와 상태 전이만 검사한다.
 
 ## 현재 제한
 
 ```yaml
 frontend_mvp: implemented
-active_provider: mock
+active_provider: mock_default_base_qwen_explicitly_verified
 conversation_storage: memory_only
 authentication: absent
-actual_model_provider: not_connected
-model_weight_loaded: false
-gpu_inference_started: false
+actual_model_provider: base_qwen_local_only_verified
+model_weight_loaded: true_in_explicit_smoke_only
+gpu_inference_started: true_in_explicit_smoke_only
 training_started: false
 deployment: not_started
 ```

@@ -69,7 +69,10 @@ def test_chat_is_deterministic_structured_and_accepts_multi_turn() -> None:
         {"messages": [{"role": "user", "content": "   "}]},
         {"messages": [{"role": "tool", "content": "금지"}]},
         {"messages": [{"role": "user", "content": "x" * 8001}]},
-        {"messages": [{"role": "user", "content": "x"}], "generation": {"max_new_tokens": 0}},
+        {
+            "messages": [{"role": "user", "content": "x"}],
+            "generation": {"max_new_tokens": 0},
+        },
         {"messages": [{"role": "user", "content": "x"}], "generation": {"top_p": 0}},
         {"messages": [{"role": "user", "content": "x"}], "unknown": True},
     ],
@@ -93,7 +96,10 @@ def test_message_count_total_length_and_body_size_limits() -> None:
         )
         total = api.post(
             "/api/v1/chat",
-            json={"messages": [{"role": "system", "content": "x" * 8000}] * 4 + [{"role": "user", "content": "x"}]},
+            json={
+                "messages": [{"role": "system", "content": "x" * 8000}] * 4
+                + [{"role": "user", "content": "x"}]
+            },
         )
         oversized = api.post(
             "/api/v1/chat",
@@ -122,11 +128,11 @@ def test_request_id_accepts_only_safe_shape() -> None:
     assert rejected.headers["X-Request-ID"] != "../../secret"
 
 
-def test_placeholder_chat_error_does_not_expose_local_paths() -> None:
+def test_base_qwen_load_error_does_not_expose_local_paths() -> None:
     with client(inference_provider="base-qwen") as api:
         response = api.post("/api/v1/chat", json=payload())
     assert response.status_code == 503
-    assert response.json()["error"]["code"] == "MODEL_NOT_LOADED"
+    assert response.json()["error"]["code"] == "MODEL_LOAD_FAILED"
     assert "C:\\" not in response.text
     assert "/home/" not in response.text
 

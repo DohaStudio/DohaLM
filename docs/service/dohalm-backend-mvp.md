@@ -16,7 +16,7 @@ FastAPI application
 ├── inference service
 └── provider registry
     ├── MockProvider             ready
-    ├── BaseQwenProvider         not_loaded placeholder
+    ├── BaseQwenProvider         local-only lazy load
     └── DohaLMAdapterProvider    not_available placeholder
 ```
 
@@ -89,7 +89,8 @@ curl -N -X POST http://127.0.0.1:8000/api/v1/chat/stream \
 ## Provider 교체
 
 `DOHALM_INFERENCE_PROVIDER`는 `mock`, `base-qwen`, `dohalm-adapter`만 허용한다.
-`base-qwen`은 revision metadata만 보유하며 weight를 로드하지 않고 `MODEL_NOT_LOADED`를 반환한다.
+`base-qwen`은 고정 local snapshot을 첫 요청에서 한 번만 lazy load한다. Load 전 readiness는 503이며 load 후 일반 Chat과
+SSE를 제공한다. 설정·실측·취소·메모리 정책은 [Base Qwen 로컬 Provider](./dohalm-base-qwen-provider.md)를 따른다.
 `dohalm-adapter`는 배포 승인 Adapter를 자동 탐색하지 않고 `ADAPTER_NOT_AVAILABLE`을 반환한다.
 
 ## 보안 제한
@@ -106,10 +107,10 @@ curl -N -X POST http://127.0.0.1:8000/api/v1/chat/stream \
 ```yaml
 backend_mvp: implemented
 mock_provider: ready
-base_qwen_provider: placeholder_not_loaded
+base_qwen_provider: implemented_local_only_lazy
 dohalm_adapter_provider: placeholder_not_available
-model_weight_loaded: false
-gpu_inference_started: false
+model_weight_loaded: true_in_explicit_smoke_only
+gpu_inference_started: true_in_explicit_smoke_only
 training_started: false
 dataset_modified: false
 ```
