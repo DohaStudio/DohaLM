@@ -20,7 +20,7 @@ DohaLM은 한국어 소형 Decoder-only Transformer와 학습·평가·추론 �
 | 사전학습 | canonical Pilot 100-step과 Candidate A 10M Token 완료; 추가 학습 미승인 |
 | SFT | Processing Run 0015와 Qwen2.5 1.5B tokenization 완료, QLoRA 설정 준비, Training 미승인·미실행 |
 | 추론 API | FastAPI MVP 구현, MockProvider 기본; 실제 model·Adapter 미연결 |
-| Frontend | 안내 스캐폴드만 존재, 미구현 |
+| Frontend | Next.js 채팅 MVP 구현, MockProvider HTTP·SSE 연동 |
 
 Gate 4·5·6은 evidence bundle과 514개 테스트를 근거로 2026-07-24, Gate 3은 승인된 v2 Unigram을 근거로 2026-07-26 `passed`가 됐습니다. Gate 7은 동일 64문서의 packed top-1 99.9047%, 네 prefix exact continuation, checkpoint/resume와 571개 테스트를 근거로 2026-07-27 사용자 승인되어 `passed`입니다. 이 결과는 memorization 검증이며, 이후 별도 승인으로 canonical Pilot과 Candidate A를 완료했습니다.
 
@@ -78,9 +78,9 @@ configs/       검증 가능한 모델·실행 설정
 data/          원본·정제·토큰화·SFT 데이터 경로
 docs/          프로젝트 기준 문서와 ADR
 scripts/       실행 스크립트 스캐폴드
-server/        FastAPI 서버 스캐폴드
+server/        FastAPI 백엔드 MVP
 src/           Phase 0 기반과 Phase 1 최소 데이터 파이프라인 구현
-frontend/      Frontend 안내 스캐폴드
+frontend/      Next.js App Router 채팅 MVP
 tests/         테스트 경로
 checkpoints/   로컬 체크포인트 경로
 ```
@@ -164,6 +164,14 @@ FastAPI 백엔드 MVP는 [실행 안내](docs/service/dohalm-backend-mvp.md)를 
 ```powershell
 python -m pip install -r requirements-api.txt
 uvicorn server.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Next.js Frontend MVP는 [Frontend 실행 안내](docs/service/dohalm-frontend-mvp.md)를 따른다.
+
+```powershell
+cd frontend
+npm install
+npm run dev
 ```
 
 `pretrain.yaml`과 `sft.yaml`의 미결정값은 실행 전에 확정해야 하며, `--allow-incomplete`는 상태 점검용 출력에만 사용합니다.
