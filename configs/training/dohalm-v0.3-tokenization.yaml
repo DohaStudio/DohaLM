@@ -1,0 +1,45 @@
+schema_version: 1
+status: ready_for_single_execution_after_merge
+dataset:
+  id: DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001
+  package_fingerprint: 16204818cedbe079e5a8ad436e1d0e1f315995d0655cadad1ac3f391a559d752
+  manifest_fingerprint: fd7211e65a1db6ac949fdc18d098f76b1bff9318772b211a88f55aa0ccae3885
+  rows:
+    train_original: 10374
+    train_short: 7265
+    train_total: 17639
+    validation: 1287
+tokenizer:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  fingerprint: ad0a85da869c2e4577b9409df0c91e35be70f0395a20c94765c6f4fa02ea6a55
+tokenization:
+  id: DOHALM-V0.3-TOKENIZATION-20260802-0001
+  max_seq_length_candidates: [1024, 1152, 1280, 1536]
+  selection: smallest_lossless
+  assistant_truncation_allowed: false
+  eos_truncation_allowed: false
+  packing: false
+  dynamic_padding: true
+  assistant_only_loss: true
+  train_on_prompt: false
+  eos_exactly_one: true
+reuse:
+  source_id: DOHALM-TOKENIZATION-20260730-0001
+  mode: conditional_exact_contract_only
+sampling:
+  simulation_id: DOHALM-V0.3-SAMPLING-SIMULATION-20260802-0001
+  candidates: [standard_shuffle, variant_balanced, parent_group_shuffle]
+  recommended: parent_group_shuffle
+  replacement: false
+  draws_per_epoch: 17639
+  base_seed: 42
+  group_layout: separated_two_pass
+validation:
+  sampler: sequential
+  shuffle: false
+  short_variant_included: false
+  weighted_sampling: false
+tokenization_allowed: true
+training_allowed: false
+execution_allowed: false

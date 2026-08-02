@@ -1,0 +1,52 @@
+schema_version: 1
+status: ready_after_tokenization_and_sampler_simulation
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  trust_remote_code: false
+quantization:
+  load_in_4bit: true
+  quant_type: nf4
+  use_double_quant: true
+  compute_dtype: bfloat16
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+training:
+  epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 16
+  draws_per_epoch: 17639
+  expected_optimizer_steps: 1103
+  learning_rate: 0.0001
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  lr_scheduler_type: cosine
+  max_seq_length: resolve_from_tokenization_manifest
+  packing: false
+  assistant_only_loss: true
+  gradient_checkpointing: true
+  bf16: true
+  seed: 42
+  sampler: parent_group_shuffle
+checkpoint:
+  target_count: 5
+  save_steps: 220
+  generation_eval_steps: [220, 440, 660, 880, 1103]
+evaluation:
+  validation_sampler: sequential
+  generation_prompt_count: 40
+  deterministic: true
+  metrics: [character_f1, rouge_l, eos_termination, max_length_hit, repetition, incomplete, average_generated_tokens, conciseness, answer_reference_length_ratio, overlong_response]
+  deployment_targets:
+    character_f1: "> 0.48"
+    rouge_l: "> 0.32"
+    eos_rate: ">= 0.70"
+    repetition_rate: "< 0.30"
+    incomplete_rate: "< 0.30"
+    max_length_hit_rate: "< 0.25"
+training_allowed: false
+execution_allowed: false

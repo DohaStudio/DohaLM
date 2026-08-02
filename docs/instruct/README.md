@@ -58,6 +58,7 @@ SFT backend, checkpoint와 모델은 생성하지 않는다.
 - [DohaLM v0.1 QLoRA Backward Stall 진단](./dohalm-v0.1-qlora-stall-diagnostic.md)
 - [DohaLM v0.2 Weighted Tokenization 및 Dataloader Readiness](./dohalm-v0.2-weighted-tokenization-readiness.md)
 - [DohaLM v0.2 Terminal Checkpoint 및 Evaluation-Only Recovery](./dohalm-v0.2-evaluation-recovery.md)
+- [DohaLM v0.3 Tokenization 및 QLoRA Readiness](./dohalm-v0.3-tokenization-readiness.md)
 - [Instruction Evaluation](./instruction-evaluation.md)
 - [Tool Calling 전략](./tool-calling-strategy.md)
 - [Instruction Safety](./instruction-safety.md)
