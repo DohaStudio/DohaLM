@@ -580,6 +580,28 @@ def generation_verdict(generation: Mapping[str, object]) -> dict[str, object]:
     }
 
 
+def expected_checkpoint_steps(*, save_steps: int, total_optimizer_steps: int) -> tuple[int, ...]:
+    """Return scheduled checkpoints plus at most one non-aligned terminal checkpoint."""
+    if save_steps <= 0 or total_optimizer_steps <= 0:
+        raise V02QLoRAError("CHECKPOINT_SCHEDULE_INVALID")
+    scheduled = tuple(range(save_steps, total_optimizer_steps, save_steps))
+    terminal = () if total_optimizer_steps % save_steps == 0 else (total_optimizer_steps,)
+    return (*scheduled, *terminal)
+
+
+def validate_checkpoint_steps(
+    steps: Sequence[int], *, save_steps: int, total_optimizer_steps: int,
+) -> tuple[int, ...]:
+    """Fail closed unless checkpoint steps exactly match the approved schedule."""
+    normalized = tuple(int(step) for step in steps)
+    expected = expected_checkpoint_steps(
+        save_steps=save_steps, total_optimizer_steps=total_optimizer_steps,
+    )
+    if normalized != expected or len(normalized) != len(set(normalized)):
+        raise V02QLoRAError("CHECKPOINT_SCHEDULE_INVALID")
+    return normalized
+
+
 def full_training_preflight(
     *, stage_results: Mapping[str, Mapping[str, object]], estimate: Mapping[str, object],
 ) -> dict[str, object]:
@@ -701,21 +723,42 @@ def _generation_prompts(sidecar_root: Path) -> tuple[list[Any], str]:
     return prompts, identity
 
 
-def _token_weighted_validation_loss(model: Any, validation: Any, collator: Any) -> float:
+def _validation_loss_metrics(model: Any, validation: Any, collator: Any) -> dict[str, object]:
     model.eval()
     total_loss = 0.0
     total_tokens = 0
+    batch_losses: list[float] = []
     with torch.inference_mode():
         for index in range(len(validation)):
             batch = common.move_batch(collator([validation[index]]))
             label_tokens = int((batch["labels"] != -100).sum().item())
-            loss = model(**batch).loss
+            device_type = "cuda" if torch.cuda.is_available() else "cpu"
+            with torch.autocast(
+                device_type=device_type, dtype=torch.bfloat16, enabled=device_type == "cuda",
+            ):
+                loss = model(**batch).loss
             if loss is None or not torch.isfinite(loss) or label_tokens <= 0:
                 raise V02QLoRAError("VALIDATION_LOSS_INVALID")
-            total_loss += float(loss.item()) * label_tokens
+            value = float(loss.item())
+            batch_losses.append(value)
+            total_loss += value * label_tokens
             total_tokens += label_tokens
     model.train()
-    return total_loss / total_tokens
+    token_weighted = total_loss / total_tokens
+    return {
+        "rows": len(validation),
+        "token_weighted_loss": token_weighted,
+        "batch_mean_loss": statistics.fmean(batch_losses),
+        "perplexity": math.exp(token_weighted),
+        "valid_label_tokens": total_tokens,
+        "validation_sampler": "SequentialSampler",
+        "validation_weighted": False,
+        "bf16_autocast": torch.cuda.is_available(),
+    }
+
+
+def _token_weighted_validation_loss(model: Any, validation: Any, collator: Any) -> float:
+    return float(_validation_loss_metrics(model, validation, collator)["token_weighted_loss"])
 
 
 def _evaluate_adapter(
@@ -729,7 +772,7 @@ def _evaluate_adapter(
     model = PeftModel.from_pretrained(base, adapter_root, is_trainable=False)
     model.eval()
     collator = common.DynamicSFTCollator(pad_token_id=int(tokenizer.pad_token_id))
-    validation_loss = _token_weighted_validation_loss(model, validation, collator)
+    validation_metrics = _validation_loss_metrics(model, validation, collator)
     generation = evaluate_generation(
         model, tokenizer, prompts, max_new_tokens=256, repetition_penalty=1.05,
         train_output_hashes=set(),
@@ -738,7 +781,8 @@ def _evaluate_adapter(
     overall = aggregate["overall"]
     verdict = generation_verdict(overall)
     result = {
-        "token_weighted_validation_loss": validation_loss,
+        "token_weighted_validation_loss": validation_metrics["token_weighted_loss"],
+        "validation": validation_metrics,
         "generation": aggregate,
         "verdict": verdict,
         "raw_text_stored": False, "token_ids_stored": False,
@@ -802,9 +846,11 @@ def run_full_training(
             (path for path in checkpoints_root.glob("checkpoint-*") if path.is_dir()),
             key=lambda path: int(path.name.rsplit("-", 1)[1]),
         )
-        expected = [250, 500, 750, 1000, 1250]
-        if [int(path.name.rsplit("-", 1)[1]) for path in checkpoint_dirs] != expected:
-            raise V02QLoRAError("CHECKPOINT_SCHEDULE_INVALID")
+        validate_checkpoint_steps(
+            [int(path.name.rsplit("-", 1)[1]) for path in checkpoint_dirs],
+            save_steps=int(config["training"]["save_steps"]),
+            total_optimizer_steps=1298,
+        )
         evaluations: dict[str, object] = {}
         for checkpoint in [*checkpoint_dirs, final_adapter]:
             common.validate_checkpoint(checkpoint)
