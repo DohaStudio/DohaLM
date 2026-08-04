@@ -1,159 +1,194 @@
 # DohaLM Current Project Status
 
-- 문서 상태: `review`
-- 기준 시점: 2026-07-29
-- 기준 학습 commit: Run 0001 `bdcf85d4fd60aefb15178ec4041735737bb86b1b` / Run 0002 `4c2eced3bf70551fbf7bc8ebde6666062584d92b`
-- 관련 근거: [개발 Roadmap](../quality/development-roadmap.md), [Candidate A 결과](../training/full-pretraining-candidate-a-result.md), [Evaluation Framework](../evaluation/README.md), [Candidate B Readiness](../training/candidate-b-readiness.md)
+- 문서 상태: `current`
+- 기준 시점: 2026-08-04
+- 기준 브랜치: `develop`
+- 관련 문서: [개발 Roadmap](../quality/development-roadmap.md), [Model Family Roadmap](./model-family-roadmap.md), [DohaLM Instruct](../instruct/README.md), [Backend MVP](../service/dohalm-backend-mvp.md), [Frontend MVP](../service/dohalm-frontend-mvp.md)
 
-## 1. 통합 상태
+## 1. 프로젝트 정의
 
-| 영역 | 상태 | 근거 |
+DohaLM은 다음 두 축을 함께 검증하는 로컬 AI 프로젝트다.
+
+1. 한국어 소형 Decoder-only Transformer를 직접 구현·학습·평가하는 Foundation Model 연구 트랙
+2. Qwen Base와 QLoRA Adapter를 이용해 다른 프로젝트에서 재사용할 수 있는 로컬 Instruct Runtime을 만드는 응용 트랙
+
+두 트랙의 모델 계보는 분리한다.
+
+- `DohaLM-Tiny Candidate B`: 직접 구현하고 사전학습한 현재 공식 Tiny Base baseline
+- `Qwen Base + DohaLM General Instruct Adapter`: 실제 서비스 기능에 사용할 재사용형 Instruct Runtime 후보
+
+Qwen 기반 Adapter는 DohaLM-Tiny에 연결되는 Adapter가 아니다. 학습에 사용한 동일 Qwen Base·Tokenizer·Chat Template과 함께 사용한다.
+
+## 2. 통합 상태
+
+| 영역 | 상태 | 핵심 결과 |
 |---|---|---|
-| Gate 0 | `approved` | 사용자 승인 |
-| Gate 1~7 | `passed` | Roadmap과 Gate evidence |
-| 운영 Tokenizer | `approved` | `operating-16k-v2/unigram-16k`, vocab 16,000, UNK 0%, exact round-trip 100% |
-| Dataset lineage | `completed` | canonical pilot-v2 Training lineage·split·PII·tokenization·packing fingerprint |
-| Tiny Overfit | `passed` | 64문서, 1,000-step, packed Top-1 99.9047%, exact continuation |
-| Pilot runtime smoke | `passed` | canonical pilot-v2 5-step |
-| Pilot 100-step | `completed` | 100 optimizer step, 204,800 token, approval consumed |
-| Candidate A 10M | `completed` | 4,883 step, 10,000,384 scheduled token |
+| Gate 0 | `approved` | 프로젝트 범위 승인 |
+| Gate 1~7 | `passed` | 환경·데이터·Tokenizer·모델·Trainer·Tiny Overfit 검증 완료 |
+| 운영 Tokenizer | `approved` | `operating-16k-v2/unigram-16k`, vocabulary 16,000 |
+| DohaLM-Tiny | `completed` | forward·loss·generation·Trainer·checkpoint/resume 구현 |
+| Tiny Overfit | `passed` | 64문서 1,000-step packed memorization 검증 |
+| Pilot / Candidate A | `completed` | canonical Pilot 100-step, Candidate A 10M token |
+| Candidate B | `current_base_baseline` | 25,001,984 token 학습·Final Quick/Full 평가 완료 |
+| Candidate B 생성 종료 | `diagnostic_limit` | pure greedy EOS 0%, maximum-length 종료 100%; Base 진단 결과로 보존 |
 | Evaluation Framework | `completed` | Quick·Full·EOS·position·category·stability·privacy·lineage |
-| Foundation framework | `completed` | Base data·tokenizer·training·evaluation·lineage·approval 체계 |
-| DohaLM Base Tiny | `completed` | Candidate B current baseline, Candidate A historical baseline |
-| Candidate A Full baseline | `historical` | ADR-007 당시 baseline; ADR-009 이후 회귀 비교용 보존 |
-| Candidate B design/backend | `fix_validated` | numeric checkpoint validation·quarantine 보존 정책 포함 |
-| Candidate B first execution | `failed` | 12,208 step 후 checkpoint 문자열 정렬 버그; 공식 결과 없음 |
-| Candidate B Run 0002 training | `completed` | 12,208 step, 25,001,984 token, retry/resume/extension 없음 |
-| Candidate B Final Quick | `completed` | 기존 final checkpoint evaluation-only 결과 |
-| Candidate B Final Full | `completed` | same-artifact Quick reference, 불변성·checksum 검증 통과 |
-| Candidate B official result | `evaluated_contract_not_passed` | teacher-forced 개선, greedy EOS·maximum-length 조건 미충족 |
-| EOS Generation·Decoding diagnostic | `completed` | 동일 A/B prompt, greedy 128 EOS 0%; assisted-only 종료 |
-| ADR-008·모델 단계별 EOS 정책 | `approved` | teacher-forced/generation, pure/assisted, Base/Instruct/Chat 계약 분리 |
-| Candidate B ADR-008 reassessment | `approved_as_base_baseline` | ADR-009; historical 계약 판정과 분리 |
-| Current official Base baseline | `candidate_b` | Full·EOS teacher-forced·position·stability 개선, generation 비악화 |
-| Candidate B derivative parent | `approved_experimental` | 실제 파생 학습·publication은 미승인 |
-| DohaLM Instruct | `design_completed` | ADR-010·schema·template·evaluation·safety·readiness 문서 |
-| Instruct processing backend | `implemented_synthetic_validated` | 메모리 전용 Rule·Manifest schema·Validation·Statistics, 실제 Processing 미승인 |
-| Instruct execution | `not_approved` | AIHUB-71748 SFT conditionally selected, processing·SFT backend not_started, execution_allowed false |
-| Chat·Code·SQL·Recruit·Game·Agent | `not_started` | 각 family 별도 design·data·학습 승인 필요 |
+| AIHUB-71748 SFT Processing | `completed` | Processing Run 0015 완료 |
+| Qwen SFT Tokenization | `completed` | DohaLM v0.1 Qwen tokenization 완료 |
+| QLoRA Training | `not_started` | 설정 준비, 실제 General Instruct Adapter 미생성 |
+| FastAPI MVP | `implemented` | Mock·Base Qwen Provider, Chat API, SSE, cancellation 구현 |
+| Base Qwen Provider | `verified_local_only` | lazy load·일반 Chat·SSE·Chrome E2E 검증 |
+| DohaLM Adapter Provider | `placeholder` | Adapter artifact 부재로 실제 로딩 미구현 |
+| Next.js Frontend | `implemented` | HTTP·SSE·취소·재시도·반응형 Chrome E2E 통과 |
+| 배포 | `out_of_scope` | 로컬 전용 프로젝트로 유지 |
 
-첫 실패 Run 0001과 성공 Run 0002의 Approval·failure evidence는 외부 제한 경로에서 read-only로 보존한다.
-Run 0002 checkpoint 4,883/9,766/12,208, Final Quick·Full과 EOS ranking 진단이 완료됐다.
-Candidate B 학습은 다시 실행하지 않는다.
+## 3. 완료된 Foundation Model 트랙
 
-## 2. Gate 최신 상태
+### 3.1 기반과 데이터
 
-| Gate | 상태 | 핵심 결과 |
-|---|---|---|
-| 0 | `approved` | 프로젝트 범위 승인 |
-| 1 | `passed` | 환경·설정 기반 |
-| 2 | `passed` | 데이터 pipeline 계약 |
-| 3 | `passed` | 운영 16k v2 Unigram |
-| 4 | `passed` | 모델 component |
-| 5 | `passed` | 통합 forward/loss/generation |
-| 6 | `passed` | Trainer·AMP·checkpoint/resume |
-| 7 | `passed` | 실제 corpus Tiny Overfit |
+- Gate 0 승인, Gate 1~7 통과
+- 환경·설정·경로·데이터 lineage·split·PII·checksum 계약 검증
+- 운영 16k Unigram Tokenizer 승인
+- 직접 구현한 Decoder-only Transformer와 Trainer 검증
+- FP16 AMP, scheduler, gradient clipping, checkpoint와 resume 검증
 
-## 3. Dataset와 Tokenizer
+### 3.2 학습과 평가
 
-- [확정] AIHUB-71748 license는 `approved_student_noncommercial`; 상업 이용과 원본·파생 데이터 재배포는 `not_approved`다.
-- [확정] source package registry는 제공자 version·취득 증빙이 미확정이므로 `reviewing`을 유지한다.
-- [확정] 이와 별개로 승인된 canonical `pilot-v2` derivative와 고정 training lineage는 Pilot과 Candidate A에 사용됐다.
-- [확정] AI Hub 원래 Validation, 외부 benchmark, SFT·RLHF·preference 데이터는 Base 학습에 사용하지 않았다.
+- canonical Pilot 100-step 완료
+- Candidate A 10M token 완료
+- Candidate B 25M token 완료
+- Candidate B를 ADR-009 기준 현재 공식 Base baseline으로 사용
+- Candidate A는 historical regression baseline으로 보존
+- Candidate B 추가 training·resume·extension·Candidate C는 현재 범위에 포함하지 않음
 
-## 4. Pilot와 Candidate A
+Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure greedy EOS 종료 문제는 남아 있다. 이 결과는 실패를 숨기지 않고 Base 모델의 실험·평가 결과로 보존한다.
 
-- Pilot: `PILOT-100-V2-20260727-0001`, 100 step, 204,800 token, NaN/OOM/AMP skip 0.
-- Candidate A: `FULL-PRETRAIN-CANDIDATE-A-20260727-0001`, 4,883 step, 10,000,384 token, NaN/OOM/AMP skip 0.
-- Candidate A Final Full: loss 6.369027, PPL 583.4899, Top-1/5/10 16.8417%/29.2154%/35.5767%.
-- Candidate A 실행 승인은 소비됐고 추가 학습·resume·publication은 승인되지 않았다.
+## 4. 현재 1차 목표: 재사용 가능한 DohaLM Runtime
 
-## 5. Evaluation
+현재 최우선 목표는 Qwen Base 기반 General Instruct Adapter를 완성하고 로컬 Runtime에 연결하는 것이다.
 
-- [확정] Initial/Pilot/Candidate A Mid/Final 동일 Quick 비교와 Candidate A Final Full을 완료했다.
-- [확정] Candidate A Final Full은 historical internal baseline이며 수치·fingerprint를 회귀 기준으로 보존한다.
-- [확정] Candidate B Final Full은 ADR-009에 따른 현재 공식 Base baseline이다.
-- [확정] Final Quick은 `approximately_representative`이며 optimistic bias가 있어 공식 판정은 Full을 사용한다.
-- [확정] EOS 4,799 input과 4,782 target 차이는 label shift에 따른 position-0 제외 17건으로 완전히 설명됐다.
-- [확정] ADR-008, 모델 단계별 EOS Success Policy, Quick representativeness policy와 Candidate B historical Evaluation Contract는 approved다.
-- Quick v2는 `planned_awaiting_separate_approval`이다.
+```text
+DohaLM Runtime
+├── Runtime
+├── Adapter Loader
+├── Chat API
+├── Streaming
+└── Prompt Engine
+```
 
-## 6. Candidate B 현재 상태
+### 4.1 General Instruct Adapter
 
-- Budget: 25,000,000 requested / 25,001,984 scheduled token, 12,208 step.
-- Initialization: fresh seed 17, Candidate A checkpoint/state 재사용 금지.
-- Checkpoint: 4,883 / 9,766 / 12,208.
-- Quick: start / 4,883 / final. Full: training 종료 후 final evaluation-only 1회.
-- 첫 실행: `FULL-PRETRAIN-CANDIDATE-B-20260728-0001`, 12,208 step 도달 후 `failed`.
-- 첫 Approval: `CANDIDATE-B-APPROVAL-20260728-0001`, atomic consumed, 재사용 불가.
-- 실패 원인: checkpoint 이름의 lexicographic ordering; checkpoint는 기존 cleanup으로 미보존.
-- 보완: numeric ordering·invalid/missing/duplicate/unexpected/final/metadata 진단과 향후 quarantine 정책 구현.
-- Quick Evaluation: `completed`; Full Evaluation: `completed`; EOS diagnostic: `completed`.
-- Teacher-forced loss·Top-k·EOS rank는 Candidate A보다 개선됐지만 greedy EOS 0%와 maximum-length 100%로 계약 미통과.
-- 동일 조건 16/32/64/128-token 진단에서도 pure greedy EOS는 0%; 상태 제안은 `decoding_assisted_termination_only`, 공식 상태는 불변.
-- Training Run 0002: `completed`; 추가 training/retry/resume/extension: `not_approved`.
-- Historical contract: Candidate B `evaluated_contract_not_passed`; ADR-008 reassessment:
-  `approved_as_base_baseline`.
-- Official Base baseline: Candidate B Final Full; Candidate A: `historical_base_baseline: true`.
-- Candidate B derivative parent eligibility: `approved_experimental`; 파생 학습·publication은 `not_approved`.
+남은 작업:
 
-## 7. 미승인·미착수
+1. Processing Run 0015 산출물 최종 검증
+2. Prompt serialization·Chat Template·assistant loss mask·EOS 계약 확정
+3. QLoRA CPU/GPU smoke training
+4. 소규모 overfit 검증
+5. 본 QLoRA 학습
+6. Adapter artifact와 metadata 생성
+7. Base Qwen 대비 Instruct 평가
 
-- Candidate B 추가 training, Candidate C, Candidate B resume/retry/extension
-- Quick v2 생성
-- SFT, RLHF, Preference Training
-- Instruct·Chat·Code·SQL·Recruit·Game·Agent·Vision/Multimodal 학습
-- Model/checkpoint/tokenizer/dataset publication과 deployment
-- Service decoding 채택·구현, Instruct·Chat EOS numeric thresholds
-- Instruct·Chat·Domain CPT·EOS-aware SFT 실행과 data contract
-- Instruction dataset processing·다운로드·생성, SFT backend와 Instruct evaluation 실행
+완성 artifact는 최소 다음을 포함한다.
 
-## 8. Instruct Project
+```text
+dohalm-general-instruct-adapter/
+├── adapter_config.json
+├── adapter_model.safetensors
+├── tokenizer / chat template reference
+├── generation_config.json
+├── model_metadata.json
+└── README.md
+```
 
-- Parent: Candidate B Final, immutable, `approved_experimental`.
-- Version 후보: `dohalm-instruct-tiny-v1`; 실제 model artifact는 `not_created`.
-- Dataset: AIHUB-71748 SFT Component `CONDITIONALLY_SELECTED`; Processing Backend는 Synthetic 검증 완료, 실제 Processing·Manifest 생성은 미승인·미실행.
-- Prompt·Evaluation·Tool Calling·Safety: framework 설계 완료, 구현·수치 threshold 미승인.
-- Chat lineage: `Base → Instruct → Chat`; Chat project는 `not_started`.
-- Readiness: `design_completed`, `execution_allowed: false`, training·publication `not_approved`.
+### 4.2 Runtime 연결
 
-### AIHUB-71748 Processing Run 상태
+Adapter 생성 후 다음을 구현한다.
 
-- [확정] Run 0008은 Approval no-replace 보안 수정에 따른 backend fingerprint 불일치로
-  `retired_backend_fingerprint_mismatch`, Approval 0008은 `retired_not_issued`다.
-- [확정] Run 0009 metadata-only Preflight와 Live Refresh 뒤 발급된 Approval 0009는 공식 retirement service로
-  `retired_before_consumption` 전환됐다. Run 상태는 `retired_runtime_request_governance_mismatch`다.
-- [확정] RuntimeExecutionRequest v1 공식 writer·CLI는 합성 검증을 통과했다. 실제 Run 0009 request,
-  Approval consume, Dataset payload·Processing은 모두 0건이며 `execution_allowed=false`다.
-- [확정] issued·미소비 Approval의 public retirement artifact service·별도 lifecycle evidence·lock/CAS·CLI가
-  합성 검증됐고 Approval 0009에 공식 적용됐다. Run 0010 Preflight는 실행하지 않았다.
-- [확정] Initial Preflight Evidence의 canonical atomic no-replace writer와 CLI 연결은 Synthetic 검증됐고 Run 0010
-  Initial Preflight는 `preflight_passed`다. Approval artifact는 absent, Processing은 `not_started`, `execution_allowed=false`다.
-- [확정] Run 0010 Initial Preflight는 `preflight_passed`지만 Refresh writer 보완 전 Live Refresh는 Fail Closed했다.
-  Approval Refresh Evidence atomic writer는 Synthetic 검증됐으며 구현 병합 전 Refresh 0010과 Run 0011은 미생성이다.
+- `DohaLMAdapterProvider` 실제 로딩
+- 동일 Qwen Base·Tokenizer·Chat Template 강제 검증
+- lazy loading과 readiness
+- 일반 Chat과 SSE streaming
+- cancellation·timeout·오류 계약
+- Adapter 버전과 model metadata 표시
+- Frontend 실제 브라우저 E2E
 
-## 9. 다음 권장 작업
+## 5. 1차 목표의 활용 범위
 
-1. Run 0010 Metadata-Only Preflight를 신규 identity로 별도 승인
-2. Prompt serialization·mask·EOS와 evaluation numeric 계약 별도 승인
-3. SFT Backend 구현·CPU fail-closed 검증은 별도 작업으로 승인
+General Instruct Runtime은 다음과 같은 텍스트 기능에 공통으로 재사용한다.
+
+- 게시판 글 작성과 제목 자동 생성
+- 요약·교정·번역
+- 아이디어와 프롬프트 생성
+- 일반 질의응답
+- LogLens·ERP 등 다른 로컬 프로젝트의 LLM 기능
+- DohaMusic의 곡 기획·가사 보조·음악 생성 프롬프트 작성
+
+Adapter는 특정 프로젝트 코드에 종속시키지 않고 공통 Runtime을 통해 호출하는 구조를 우선한다.
+
+## 6. 후속 목표
+
+### 6.1 2차 목표: Memory와 확장 기능
+
+1차 Runtime 완료 이후 검토한다.
+
+```text
+DohaLM Extended Runtime
+├── Memory
+├── RAG
+├── Tool Calling
+└── Agent
+```
+
+Memory는 1차 완료 조건이 아니다. 대화 기록, 사용자 취향, 프로젝트 지식을 장기적으로 참조해야 할 때 별도 설계한다.
+
+### 6.2 3차 목표: DohaMusic
+
+DohaMusic은 DohaLM을 활용하는 개인 전용 로컬 응용 프로젝트다.
+
+```text
+DohaMusic
+├── 곡 콘셉트 생성
+├── 가사 구조·초안·수정
+├── 음악 생성 모델용 프롬프트
+├── 개인 가사 저장·검색
+├── 가사 스타일 분석
+└── 개인 Music Adapter
+```
+
+초기에는 General Instruct Runtime과 저장된 가사 검색을 사용한다. 본인이 작성한 가사가 충분히 축적되면 별도 Music Adapter를 QLoRA로 추가 학습한다. 실제 오디오·MIDI 생성은 DohaLM의 역할이 아니며 별도의 음악 생성 모델이 담당한다.
+
+## 7. 현재 범위 밖
+
+- 클라우드·외부 공개 배포
+- Docker·Nginx·도메인·HTTPS·CI/CD 배포 파이프라인
+- 다중 사용자 계정과 운영 인증
+- 상용 공개 API
+- Candidate B 추가 학습, Candidate C
+- RLHF와 Preference Training
+- 실제 음원·보컬·MIDI 생성 모델 개발
+- Model/checkpoint/tokenizer/dataset 공개 배포
+
+로컬 실행 재현, 테스트, 문서, 시연 영상은 포트폴리오 완성 범위에 포함한다.
+
+## 8. 다음 작업 순서
+
+1. 현재 문서와 코드 상태 동기화
+2. SFT Processing Run 0015 산출물 검증
+3. QLoRA 학습 계약과 smoke 확정
+4. General Instruct Adapter 학습
+5. Instruct 전후 평가
+6. `DohaLMAdapterProvider` 구현
+7. Frontend Adapter 연결과 E2E
+8. 공통 Runtime 사용 예제와 README 정리
+9. DohaMusic에서 Runtime 연동
+10. 개인 가사 저장·검색 후 Music Adapter 확장
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-07-30 | Approval Refresh Evidence atomic writer 합성 구현; Refresh 0010·Run 0011 미생성 상태 유지 |
-| 2026-07-30 | Initial Preflight Evidence atomic writer 합성 구현; Run 0010 미생성·미실행 상태 유지 |
-| 2026-07-30 | Approval 0009 공식 retirement와 Run 0009 영구 폐기; Run 0010 미생성 유지 |
-| 2026-07-30 | issued Approval retirement service 합성 구현; Approval 0009·Run 0010 실제 상태 유지 |
-| 2026-07-30 | RuntimeExecutionRequest v1 writer·CLI 구현과 Run 0009 Approval issued·unconsumed 상태 반영 |
-| 2026-07-30 | Run 0008 backend fingerprint mismatch 폐기와 Run 0009 metadata-only Preflight 통과 상태 반영 |
-| 2026-07-29 | AIHUB-71748 SFT 공식 조건부 선정과 Processing·Backend·Training 미승인 상태 반영 |
-| 2026-07-28 | ADR-010 DohaLM Instruct design_completed·execution_not_approved 상태 반영 |
-| 2026-07-28 | ADR-009 Candidate B current Base baseline 승격과 experimental derivative parent 적격성 반영 |
-| 2026-07-28 | ADR-008·모델 단계별 EOS 정책 승인과 Candidate B 재평가·derivative parent 미승인 경계 반영 |
-| 2026-07-28 | 동일 Candidate A/B EOS generation·decoding 진단 완료와 공식 상태 불변 반영 |
-| 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교 완료와 계약 미통과 판정 반영 |
-| 2026-07-28 | Candidate B Run 0002 학습·checkpoint·Quick 완료와 Full evaluator blocker 반영 |
-| 2026-07-28 | Candidate B 첫 실행 실패·승인 소비·checkpoint 미보존과 validator/quarantine 보완 상태 반영 |
-| 2026-07-28 | Gate 0~7, tokenizer, Pilot, Candidate A, Evaluation과 Candidate B 현재 blocker 통합 snapshot 작성 |
+| 2026-08-04 | Foundation 연구 트랙과 Qwen 기반 응용 트랙 분리 명시 |
+| 2026-08-04 | 현재 상태를 Processing Run 0015·Qwen tokenization·Base Qwen E2E 기준으로 갱신 |
+| 2026-08-04 | 1차 목표를 General Instruct Adapter와 Runtime·Adapter Loader·Chat API·Streaming·Prompt Engine으로 확정 |
+| 2026-08-04 | Memory를 2차 목표로 이동하고 DohaMusic을 3차 개인 응용 프로젝트로 정의 |
+| 2026-08-04 | 클라우드·외부 배포를 프로젝트 범위 밖으로 확정 |
+| 2026-07-28 | Candidate B current Base baseline과 평가 상태 기록 |
