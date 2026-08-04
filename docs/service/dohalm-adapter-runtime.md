@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-05
-- 구현 상태: `adapter_manifest_implemented_synthetic_validated`
+- 구현 상태: `adapter_artifact_validator_implemented_synthetic_validated`
 - 기준 문서: [README](../../README.md), [Current Project Status](../project/current-project-status.md), [Instruct Strategy](../instruct/instruct-strategy.md)
 - 선행 구현: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Base Qwen Provider](./dohalm-base-qwen-provider.md), [Frontend MVP](./dohalm-frontend-mvp.md)
 
@@ -12,8 +12,8 @@
 Adapter Loader의 책임, manifest, 검증 순서, Provider lifecycle과 구현 Task를 정의한다. 기존 FastAPI Chat·SSE,
 Provider Registry, Base Qwen loader와 Next.js MVP를 최대한 재사용한다.
 
-[확정] Task 1은 immutable manifest model, strict JSON loader와 정적 schema/path 검증을 구현하고 synthetic test로
-검증했다. Artifact 파일 존재·checksum 계산, Adapter Validator, PEFT Loader와 Provider 연결은 시작하지 않았으며,
+[확정] Task 1은 immutable manifest model과 strict loader를 구현했고 Task 2는 manifest가 명시한 artifact의
+존재·checksum·정적 내용과 계보를 synthetic test로 검증했다. PEFT Loader와 Provider 연결은 시작하지 않았으며,
 어떤 v0.1/v0.2 Adapter도 Runtime 후보로 승인하거나 `deployment_ready`로 승격하지 않는다.
 
 - [제외] Foundation Model Track과 Candidate B의 weight·Tokenizer·평가 계약 변경
@@ -184,15 +184,16 @@ Task 2 Adapter Validator가 별도로 검증한다.
 | `created_at` | timezone이 있는 UTC RFC 3339, 현재 시각 기반의 자동 승인에는 사용하지 않음 |
 | `adapter_config`, `adapter_weights`, `metadata` | top-level artifact reference의 root-relative path와 checksum; 파일 검증은 Task 2 범위 |
 
-### 4.3 Task 1 구현 상태
+### 4.3 Task 1·2 구현 상태
 
 ```yaml
 adapter_manifest: implemented_synthetic_validated
 strict_json_loader: implemented_synthetic_validated
 static_schema_validation: implemented_synthetic_validated
-artifact_existence_validation: not_started
-artifact_checksum_verification: not_started
-adapter_artifact_validator: not_started
+artifact_existence_validation: implemented_synthetic_validated
+artifact_checksum_verification: implemented_synthetic_validated
+adapter_artifact_validator: implemented_synthetic_validated
+base_snapshot_validator: static_identity_only
 peft_adapter_loader: not_started
 provider_integration: not_started
 runtime_adapter_loading: unavailable
@@ -201,6 +202,21 @@ runtime_adapter_loading: unavailable
 [확정] `src/inference/adapter_manifest.py`는 frozen dataclass, duplicate-key 차단, 1 MiB manifest 상한,
 strict UTC `created_at`, exact schema, safe relative path containment와 구조화된 내부 오류를 제공한다. 테스트 fixture는
 `synthetic-not-for-runtime`으로 표시하며 실제 artifact 파일을 포함하지 않는다.
+
+[확정] `src/inference/adapter_validation.py`는 실제 모델을 load하지 않고 다음 정적 계약을 fail closed로 검증한다.
+
+- config·metadata·generation config는 각각 1 MiB, training result는 4 MiB, safetensors는 8 GiB 이하
+- regular file·non-symlink·root containment·streaming SHA-256과 검증 전/열린 handle/검증 후 파일 identity 일치
+- Adapter config의 `LORA`, `CAUSAL_LM`, Base identity, rank·alpha·dropout·target·bias·inference mode 핵심 필드;
+  PEFT 추가 필드는 허용
+- safetensors의 16 MiB 이하 JSON header, tensor metadata와 data offset 범위·중복·겹침; tensor payload는 load하지 않음
+- metadata schema v1의 Adapter·Base·Tokenizer·Template·training/evaluation lineage와 artifact checksum 참조;
+  versioned 핵심 필드 외 확장 필드는 허용
+- generation config exact allowlist와 현재 Chat API 범위, manifest의 `api_bounds_only` request override 경계
+- 절대경로와 검증 시각을 제외한 canonical JSON 기반 `sha256:<64 lowercase hex>` validation fingerprint
+
+[확정] 이 결과는 **manifest와 artifact 사이의 정적 일관성**만 증명한다. 실제 local Base snapshot, Tokenizer 파일,
+Chat Template 문자열, dependency version과 PEFT attach는 검증하지 않으므로 Runtime Adapter Loading은 계속 `unavailable`이다.
 
 ## 5. Validator와 Fail Closed 규칙
 
@@ -349,9 +365,11 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 
 ### Task 2 — Adapter Validator
 
-- Base, Tokenizer, Chat Template, Adapter config/weight, Metadata, Generation Config validator 구현
-- 현재 training/evaluation 결과의 기존 checksum·fingerprint 검증 함수를 가능한 범위에서 재사용
-- 완료 조건: 각 mismatch가 weight load 전에 `ADAPTER_INCOMPATIBLE`로 수렴하고 내부 reason은 테스트로 구분됨
+- 상태: `implemented_synthetic_validated`
+- config·weight·metadata·generation config·training result의 file type, size, checksum과 strict core schema 검증
+- safetensors header만 streaming parse하고 pickle·merged/full-model artifact를 거부
+- manifest와 Adapter config·metadata 사이의 Base·Tokenizer·Template·evaluation·training lineage cross-check
+- synthetic unit test를 통과했으며 실제 Base snapshot·Tokenizer·PEFT load 검증은 Task 3 이후로 유지
 
 ### Task 3 — Adapter Loader
 
@@ -393,9 +411,10 @@ Task 1 파일은 구현됐고, 나머지는 후속 구현 계획이다.
 
 ```text
 src/inference/adapter_manifest.py                    implemented
-src/inference/adapter_validation.py
+src/inference/adapter_validation.py                  implemented
 src/inference/adapter_loader.py
 tests/inference/test_adapter_manifest.py             implemented
+tests/inference/test_adapter_validation.py           implemented
 tests/fixtures/adapter_manifest/synthetic-not-for-runtime/adapter-manifest.json  implemented
 tests/test_adapter_loader.py
 tests/test_adapter_provider.py
@@ -451,19 +470,20 @@ frontend/e2e/base-qwen-chat.spec.ts
 ## 12. 구현 시작 권장 순서
 
 1. 공개 API additive schema와 Adapter 후보 eligibility 승인 경계를 먼저 검토한다.
-2. 실제 weight 없이 Task 1 manifest와 Task 2 validator를 synthetic fixture로 구현한다.
-3. Task 3 Loader를 test double로 검증하고 실패 cleanup·single-flight를 고정한다.
+2. Task 1 manifest와 Task 2 static validator의 synthetic 검증 결과를 유지한다.
+3. Task 3 Loader를 test double로 검증하고 실제 Base·Tokenizer·Template·dependency 검증, 실패 cleanup·single-flight를 고정한다.
 4. Task 4 Provider를 연결해 unavailable/incompatible/not_loaded 상태를 API 밖에서도 먼저 검증한다.
 5. Task 5 API 회귀를 통과한 뒤 Task 6의 최소 Frontend 상태 표시를 추가한다.
 6. 마지막에만 사용자가 승인한 실제 Adapter로 Task 7 GPU·Browser E2E를 실행한다.
 
-[확정] 가장 먼저 구현할 작업은 **Task 1 — Adapter Manifest**다. 후보 선정이 지연돼도 strict schema와 synthetic
-validator는 구현 가능하지만, 실제 Adapter READY와 `implemented_verified` 판정은 immutable 후보·평가 eligibility와
+[확정] 다음 구현 작업은 **Task 3 — Adapter Loader**다. Task 1·2의 strict schema와 static validator는 구현됐지만,
+실제 Adapter READY와 `implemented_verified` 판정은 immutable 후보·평가 eligibility와
 GPU/E2E 근거가 모두 있어야 한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Task 2 정적 Adapter Artifact Validator, safetensors header parser, lineage·generation 검증과 synthetic 회귀 반영 |
 | 2026-08-05 | Task 1 immutable Adapter Manifest·strict JSON loader·정적 schema/path 검증과 42개 synthetic test 반영 |
 | 2026-08-04 | 현재 Provider·API·Frontend와 QLoRA artifact 계보를 기준으로 fail-closed Adapter Runtime 설계와 구현 Task 작성 |
