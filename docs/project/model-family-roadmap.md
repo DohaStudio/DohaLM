@@ -66,7 +66,7 @@ flowchart TB
 | 1 | Qwen Base | 고정 revision local load, generate/stream/unload GPU smoke | `implemented_verified` |
 | 2 | General Instruct Adapter (QLoRA) | 선정된 Adapter가 Base 대비 평가와 runtime eligibility 통과 | `implemented_not_integrated` |
 | 3 | Runtime | Provider lifecycle, timeout, cancellation, memory 회수 | `implemented_verified` |
-| 4 | Adapter Loader | 명시적 경로·fingerprint·Base compatibility·fail-closed load/unload | `planned` |
+| 4 | Adapter Loader | 명시적 경로·fingerprint·Base compatibility·fail-closed load/unload | `design_complete` |
 | 5 | Chat API | schema, health/readiness/models, 오류·보안 경계 | `implemented_verified` |
 | 6 | Streaming | SSE 순서, 취소, timeout, worker 정리 | `implemented_verified` |
 | 7 | Prompt Engine | versioned template, role/system policy, token budget, test | `design_complete` |
@@ -103,5 +103,6 @@ Code, SQL, Recruit, Game과 Vision/Multimodal은 삭제된 목표가 아니라 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Adapter Loader manifest·validator·lifecycle 설계 완료와 구현 미착수 상태 반영 |
 | 2026-08-04 | 기존 Model Family 혼합 구조를 Foundation, Runtime 1·2차, DohaMusic 3차 순서로 재구성 |
 | 2026-07-28 | Base·Instruct·Chat·Domain 중심 장기 Family 초안 작성 |

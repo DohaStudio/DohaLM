@@ -21,7 +21,7 @@ README
 2. [Foundation Model Strategy](./project/foundation-model-strategy.md): Foundation 연구와 Runtime/Application의 계보 경계
 3. [Current Project Status](./project/current-project-status.md): 실제 코드·테스트·실측 기준 상태
 4. [Roadmap](./project/model-family-roadmap.md): 남은 작업과 진입 순서
-5. [FastAPI Runtime](./service/dohalm-backend-mvp.md), [Base Qwen Provider](./service/dohalm-base-qwen-provider.md), [Frontend](./service/dohalm-frontend-mvp.md): 현재 서비스 실행 계약
+5. [FastAPI Runtime](./service/dohalm-backend-mvp.md), [Base Qwen Provider](./service/dohalm-base-qwen-provider.md), [Adapter Runtime 설계](./service/dohalm-adapter-runtime.md), [Frontend](./service/dohalm-frontend-mvp.md): 현재 서비스 실행·후속 구현 계약
 
 [Domain Model Strategy](./project/domain-model-strategy.md)는 DohaMusic과 장기 Domain 후보를,
 [Instruct Strategy](./instruct/instruct-strategy.md)는 Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime Adapter를 구분합니다.
@@ -31,7 +31,7 @@ README
 | 트랙 | 현재 범위 | 우선 문서 |
 |---|---|---|
 | Foundation Model | DohaLM-Tiny, Tokenizer, Candidate A/B, Evaluation Framework | [모델 아키텍처](./architecture/model-architecture.md), [Evaluation](./evaluation/README.md), [Model Lineage](./project/model-lineage.md) |
-| Runtime 1차 | Qwen Base, General Instruct Adapter, Runtime, Loader, Chat API, Streaming, Prompt Engine | [Instruct 안내](./instruct/README.md), [FastAPI](./service/dohalm-backend-mvp.md), [Base Qwen](./service/dohalm-base-qwen-provider.md) |
+| Runtime 1차 | Qwen Base, General Instruct Adapter, Runtime, Loader, Chat API, Streaming, Prompt Engine | [Instruct 안내](./instruct/README.md), [FastAPI](./service/dohalm-backend-mvp.md), [Base Qwen](./service/dohalm-base-qwen-provider.md), [Adapter Runtime](./service/dohalm-adapter-runtime.md) |
 | Runtime 2차 | Memory, RAG, Tool Calling, Agent | [Roadmap](./project/model-family-roadmap.md), [Tool Calling 전략](./instruct/tool-calling-strategy.md) |
 | Application 3차 | DohaMusic, Lyrics Search, Style Analysis, Personal Music Adapter | [Domain Strategy](./project/domain-model-strategy.md) |
 
@@ -55,7 +55,7 @@ README
 
 - Foundation Model Track의 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다.
 - ADR-010은 Candidate B 기반 Foundation Instruct 설계 승인이지 Qwen Adapter 실행 승인이 아닙니다.
-- Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐지만 Adapter Loader는 placeholder입니다.
+- Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐습니다. Adapter Loader는 설계 완료 상태지만 구현은 placeholder입니다.
 - Memory, RAG, Tool Calling, Agent와 DohaMusic은 계획 상태입니다.
 - Docker, Kubernetes, Cloud와 운영 배포는 현재 범위 밖입니다.
 - 실제 데이터, checkpoint, Adapter와 로컬 경로는 Git과 문서에 포함하지 않습니다.
@@ -76,5 +76,6 @@ README
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Runtime 1차 진입점에 General Instruct Adapter Runtime 설계 추가 |
 | 2026-08-04 | README → Strategy → Current Status → Roadmap → Service 읽기 흐름과 트랙별 진입점으로 재구성 |
 | 2026-07-28 | Model Family·Instruct 문서 진입점 추가 |

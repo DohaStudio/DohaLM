@@ -5,6 +5,7 @@
 - 대상 모델: `Qwen/Qwen2.5-1.5B-Instruct`
 - 고정 revision: `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`
 - 선행 문서: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Frontend MVP](./dohalm-frontend-mvp.md)
+- 후속 문서: [General Instruct Adapter Runtime 설계](./dohalm-adapter-runtime.md)
 
 ## 범위와 안전 경계
 

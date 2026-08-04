@@ -91,7 +91,8 @@ curl -N -X POST http://127.0.0.1:8000/api/v1/chat/stream \
 `DOHALM_INFERENCE_PROVIDER`는 `mock`, `base-qwen`, `dohalm-adapter`만 허용한다.
 `base-qwen`은 고정 local snapshot을 첫 요청에서 한 번만 lazy load한다. Load 전 readiness는 503이며 load 후 일반 Chat과
 SSE를 제공한다. 설정·실측·취소·메모리 정책은 [Base Qwen 로컬 Provider](./dohalm-base-qwen-provider.md)를 따른다.
-`dohalm-adapter`는 배포 승인 Adapter를 자동 탐색하지 않고 `ADAPTER_NOT_AVAILABLE`을 반환한다.
+`dohalm-adapter`는 배포 승인 Adapter를 자동 탐색하지 않고 `ADAPTER_NOT_AVAILABLE`을 반환한다. 후속 manifest·validator·
+lifecycle과 구현 Task는 [General Instruct Adapter Runtime 설계](./dohalm-adapter-runtime.md)를 따른다.
 
 ## 보안 제한
 

@@ -24,7 +24,7 @@
 | Runtime v0.1 | `implemented_not_integrated` | Qwen tokenization, QLoRA Adapter와 독립 평가 이력 |
 | Runtime v0.2 | `implemented_not_integrated` | weighted 2-epoch 학습 완료 기록; 평가 recovery·배포 판정 분리 |
 | Runtime v0.3 | `blocked` | Dataset full 생성 전, Tokenization publish 실패 보존; 재시도 미승인 |
-| Adapter Loader | `planned` | 서비스 Provider는 fail-closed placeholder |
+| Adapter Loader | `design_complete` | [Runtime 설계](../service/dohalm-adapter-runtime.md) 완료; 서비스 Provider는 fail-closed placeholder |
 | Tool Calling | `planned` | 전략 문서만 있고 실행 Runtime 없음 |
 
 ## 3. 권장 읽기 순서
@@ -79,5 +79,6 @@ Run 0001~0014는 현재 계획이 아닌 감사·실패 계보입니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | General Instruct Adapter Runtime 설계와 구현 계획 연결 |
 | 2026-08-04 | Foundation Instruct와 Qwen Runtime Adapter 계보 분리, 상세 Run 중복을 인덱스 링크로 축약 |
 | 2026-07-30 | AIHUB-71748 Processing 및 QLoRA 문서 진입점 확장 |

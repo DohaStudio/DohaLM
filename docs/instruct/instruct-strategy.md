@@ -47,7 +47,8 @@ Qwen Base revision
 ```
 
 현재 학습·평가 backend와 v0.1/v0.2 실행 이력은 있지만, 저장소 Runtime에는 배포 승인 Adapter가 없습니다.
-`src/inference/providers/dohalm_adapter.py`는 placeholder이며 generate/stream 요청을 `ADAPTER_NOT_AVAILABLE`로 차단합니다.
+[Adapter Runtime 설계](../service/dohalm-adapter-runtime.md)는 완료됐지만
+`src/inference/providers/dohalm_adapter.py`는 아직 placeholder이며 generate/stream 요청을 `ADAPTER_NOT_AVAILABLE`로 차단합니다.
 
 ### 완료 조건
 
@@ -80,5 +81,6 @@ QLoRA 학습 완료만으로 위 조건을 충족하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | fail-closed Adapter Runtime 설계 문서와 구현 미착수 상태 연결 |
 | 2026-08-04 | Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime General Instruct Adapter를 분리 |
 | 2026-07-28 | Candidate B immutable parent 기반 Instruct 설계 작성 |

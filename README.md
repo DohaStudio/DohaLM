@@ -17,6 +17,7 @@ DohaLM Foundation Model이 서비스 준비를 마친 것은 아니며, Foundati
 2. [Current Project Status](docs/project/current-project-status.md) — 코드·실측 기준 현재 상태
 3. [Model Family Roadmap](docs/project/model-family-roadmap.md) — 1·2·3차 목표와 진입 조건
 4. [Service 문서](docs/service/dohalm-backend-mvp.md) — 현재 로컬 Runtime과 UI 실행 계약
+   - [Adapter Runtime 설계](docs/service/dohalm-adapter-runtime.md) — General Instruct Adapter manifest·검증·lifecycle·구현 계획
 
 Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strategy.md), Instruct의 두 계보는
 [Instruct Strategy](docs/instruct/instruct-strategy.md), 전체 문서 목록은 [문서 안내서](docs/README.md)를 따릅니다.
@@ -53,7 +54,7 @@ Gate 0은 `approved`, Gate 1~7은 `passed`입니다. 세부 수치와 실행 이
 | Qwen Base | `implemented_verified` | 고정 local snapshot, lazy load, BF16 GPU·브라우저 smoke 통과 |
 | General Instruct Adapter (QLoRA) | `implemented_not_integrated` | 학습·평가 backend와 v0.1/v0.2 실행 이력 존재; 배포 승인 Adapter 없음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock·Base Qwen·fail-closed Adapter provider 경계 |
-| Adapter Loader | `planned` | 현재 `DohaLMAdapterProvider`는 `ADAPTER_NOT_AVAILABLE` placeholder |
+| Adapter Loader | `design_complete` | fail-closed manifest·검증·lifecycle 설계 완료; Provider 구현은 placeholder |
 | Chat API | `implemented_verified` | FastAPI 일반 Chat, health/readiness/models |
 | Streaming | `implemented_verified` | SSE, timeout, cancellation, worker 정리 |
 | Prompt Engine | `design_complete` | Qwen 공식 chat template 직렬화는 구현; 독립 정책·template engine은 미구현 |
