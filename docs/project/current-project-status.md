@@ -40,7 +40,7 @@ Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-g
 | Qwen Base loader | `implemented_verified` | 고정 revision·local-only·lazy load, BF16 CUDA smoke |
 | General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 코드와 기록 존재; 현재 API가 Adapter를 load하지 않음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock, Base Qwen, fail-closed Adapter provider |
-| Adapter Loader | `implementation_in_progress` | [Manifest·strict loader와 정적 Artifact Validator](../service/dohalm-adapter-runtime.md)는 `implemented_synthetic_validated`; 실제 Base·Tokenizer·PEFT Loader·Provider 연결은 미착수이며 Provider는 항상 `ADAPTER_NOT_AVAILABLE` |
+| Adapter Loader | `implementation_in_progress` | [Manifest·Artifact Validator](../service/dohalm-adapter-runtime.md)는 synthetic, local-only PEFT Loader는 mock 검증 완료; 실제 Adapter/GPU load와 Provider 연결은 미검증이며 Provider는 항상 `ADAPTER_NOT_AVAILABLE` |
 | Chat API | `implemented_verified` | health/readiness/models, 일반 Chat, 오류·timeout 계약 |
 | Streaming | `implemented_verified` | SSE, cancellation, semaphore, worker join |
 | Prompt Engine | `design_complete` | Base Qwen 공식 chat template 적용만 구현; 독립 engine은 없음 |
@@ -95,7 +95,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 1. 배포 후보 General Instruct Adapter를 명시적으로 선정하고 Adapter config·weight, Base·Tokenizer·Chat Template,
    generation config와 평가 fingerprint를 하나의 manifest로 고정
-2. 정적 Artifact Validator 이후 fail-closed PEFT Adapter Loader 구현과 실제 Base/Tokenizer/Adapter 조합 검증
+2. 승인 후보와 exact PEFT dependency를 고정하고 구현된 Loader로 실제 Base/Tokenizer/Adapter 조합과 GPU 검증
 3. Adapter를 통한 일반 Chat·SSE·취소·unload 회귀 및 GPU·브라우저 smoke
 4. Prompt Engine의 template/version/system policy 경계 구현
 
@@ -110,7 +110,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 ## 7. 다음 권장 작업
 
 1. General Instruct Adapter 선정·평가 상태를 하나의 manifest로 고정
-2. Adapter Loader 구현
+2. Adapter Loader의 실제 승인 후보·GPU 검증과 Provider 연결
 3. Prompt Engine 최소 계약 확정
 4. 1차 Runtime end-to-end 검증 후 Memory 설계 시작
 
@@ -118,6 +118,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 Adapter/GPU·Provider 연결 미검증 상태 반영 |
 | 2026-08-05 | Adapter Manifest·strict loader·정적 Artifact Validator synthetic 검증 완료와 PEFT Loader·Runtime 연결 미착수 상태 반영 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계 완료와 Loader 구현 미착수 상태 반영 |
 | 2026-08-04 | 원격 7383f84의 Candidate B 생성 한계, Qwen compatibility와 DohaMusic 오디오 범위를 통합 |
