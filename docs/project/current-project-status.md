@@ -1,7 +1,7 @@
 # DohaLM Current Project Status
 
 - 문서 상태: `review`
-- 기준 시점: 2026-08-04
+- 기준 시점: 2026-08-05
 - 기준 브랜치: `develop`
 - 기준 문서: [README](../../README.md)
 - 관련 근거: [Foundation Strategy](./foundation-model-strategy.md), [Roadmap](./model-family-roadmap.md), [Evaluation Framework](../evaluation/README.md), [Service 문서](../service/dohalm-backend-mvp.md)
@@ -40,7 +40,7 @@ Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-g
 | Qwen Base loader | `implemented_verified` | 고정 revision·local-only·lazy load, BF16 CUDA smoke |
 | General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 코드와 기록 존재; 현재 API가 Adapter를 load하지 않음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock, Base Qwen, fail-closed Adapter provider |
-| Adapter Loader | `design_complete` | [manifest·validator·lifecycle 설계](../service/dohalm-adapter-runtime.md) 완료; Provider는 항상 `ADAPTER_NOT_AVAILABLE` |
+| Adapter Loader | `design_complete` | [Manifest·strict loader](../service/dohalm-adapter-runtime.md)는 `implemented_synthetic_validated`; Artifact Validator·PEFT Loader·Provider 연결은 미착수이며 Provider는 항상 `ADAPTER_NOT_AVAILABLE` |
 | Chat API | `implemented_verified` | health/readiness/models, 일반 Chat, 오류·timeout 계약 |
 | Streaming | `implemented_verified` | SSE, cancellation, semaphore, worker join |
 | Prompt Engine | `design_complete` | Base Qwen 공식 chat template 적용만 구현; 독립 engine은 없음 |
@@ -118,6 +118,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Adapter Manifest·strict loader synthetic 검증 완료와 Artifact Validator·Runtime 연결 미착수 상태 반영 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계 완료와 Loader 구현 미착수 상태 반영 |
 | 2026-08-04 | 원격 7383f84의 Candidate B 생성 한계, Qwen compatibility와 DohaMusic 오디오 범위를 통합 |
 | 2026-08-04 | Foundation과 Runtime 상태 분리, Base Qwen/API/Streaming 현행 구현 및 Adapter Loader 미구현 반영 |

@@ -1,8 +1,8 @@
 # DohaLM General Instruct Adapter Runtime 설계
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
-- 구현 상태: `design_complete_implementation_not_started`
+- 마지막 검토일: 2026-08-05
+- 구현 상태: `adapter_manifest_implemented_synthetic_validated`
 - 기준 문서: [README](../../README.md), [Current Project Status](../project/current-project-status.md), [Instruct Strategy](../instruct/instruct-strategy.md)
 - 선행 구현: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Base Qwen Provider](./dohalm-base-qwen-provider.md), [Frontend MVP](./dohalm-frontend-mvp.md)
 
@@ -12,7 +12,8 @@
 Adapter Loader의 책임, manifest, 검증 순서, Provider lifecycle과 구현 Task를 정의한다. 기존 FastAPI Chat·SSE,
 Provider Registry, Base Qwen loader와 Next.js MVP를 최대한 재사용한다.
 
-[확정] 이번 단계는 설계와 구현 계획만 다룬다. 코드·설정·데이터·외부 Adapter artifact는 변경하지 않았고,
+[확정] Task 1은 immutable manifest model, strict JSON loader와 정적 schema/path 검증을 구현하고 synthetic test로
+검증했다. Artifact 파일 존재·checksum 계산, Adapter Validator, PEFT Loader와 Provider 연결은 시작하지 않았으며,
 어떤 v0.1/v0.2 Adapter도 Runtime 후보로 승인하거나 `deployment_ready`로 승격하지 않는다.
 
 - [제외] Foundation Model Track과 Candidate B의 weight·Tokenizer·평가 계약 변경
@@ -117,12 +118,13 @@ LoadedAdapterRuntime
 
 ### 4.1 파일과 canonical 규칙
 
-[제안] manifest 파일명은 `adapter-manifest.json`, schema version은 `1`로 시작한다. JSON은 UTF-8, 중복 key 금지,
-최상위 exact field set과 canonical key ordering으로 검증한다. 실제 Adapter root는 `.env`에서 명시하고 manifest에는
-그 밖으로 나가는 절대경로를 기록하지 않는다.
+[확정] manifest 기본 파일명은 `adapter-manifest.json`, 지원 schema version은 `1`이다. Loader는 호출자가 명시한
+단일 `Path`만 읽으며 JSON은 strict UTF-8, 중복 key 금지, 최상위·중첩 exact field set으로 검증한다. 실제 Adapter
+root 밖으로 나가는 절대경로와 `..`는 허용하지 않는다.
 
-[확정] 아래 값은 schema 예시이며 실제 후보 값이 아니다. `<...>` 값은 후보 선정 Task에서 외부 artifact 증거로
-채워야 하며 placeholder가 하나라도 남으면 Loader는 `ADAPTER_INCOMPATIBLE`로 거부한다.
+[확정] SHA-256과 fingerprint는 prefix 없는 64자리 lowercase hexadecimal만 허용한다. 아래 값은 schema 예시이며
+실제 후보 값이 아니다. Task 1 Loader는 구조·자료형·문자열·hash·경로만 검증하며 실제 후보 identity와 eligibility는
+Task 2 Adapter Validator가 별도로 검증한다.
 
 ```json
 {
@@ -132,39 +134,37 @@ LoadedAdapterRuntime
   "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
   "base_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
   "tokenizer": "Qwen/Qwen2.5-1.5B-Instruct",
-  "tokenizer_hash": "sha256:<64-lowercase-hex>",
+  "tokenizer_hash": "<64-lowercase-hex>",
   "chat_template": {
     "source": "tokenizer_config.json#chat_template",
-    "sha256": "sha256:<64-lowercase-hex>"
+    "sha256": "<64-lowercase-hex>"
   },
   "peft_version": "<exact-training-compatible-version>",
   "transformers_version": "4.57.6",
   "torch_version": "2.7.1+cu118",
   "generation_config": {
     "path": "generation-config.json",
-    "sha256": "sha256:<64-lowercase-hex>",
+    "sha256": "<64-lowercase-hex>",
     "request_override_policy": "api_bounds_only"
   },
-  "evaluation_fingerprint": "sha256:<64-lowercase-hex>",
+  "evaluation_fingerprint": "<64-lowercase-hex>",
   "training_run": {
     "id": "<immutable-training-run-id>",
     "result_path": "training-result.yaml",
-    "result_sha256": "sha256:<64-lowercase-hex>"
+    "result_sha256": "<64-lowercase-hex>"
   },
   "created_at": "<UTC-RFC3339>",
-  "artifacts": {
-    "adapter_config": {
-      "path": "adapter_config.json",
-      "sha256": "sha256:<64-lowercase-hex>"
-    },
-    "adapter_weights": {
-      "path": "adapter_model.safetensors",
-      "sha256": "sha256:<64-lowercase-hex>"
-    },
-    "metadata": {
-      "path": "adapter-metadata.json",
-      "sha256": "sha256:<64-lowercase-hex>"
-    }
+  "adapter_config": {
+    "path": "adapter_config.json",
+    "sha256": "<64-lowercase-hex>"
+  },
+  "adapter_weights": {
+    "path": "adapter_model.safetensors",
+    "sha256": "<64-lowercase-hex>"
+  },
+  "metadata": {
+    "path": "adapter-metadata.json",
+    "sha256": "<64-lowercase-hex>"
   }
 }
 ```
@@ -182,7 +182,25 @@ LoadedAdapterRuntime
 | `evaluation_fingerprint` | 배포 후보를 판정한 immutable evaluation 결과 identity; 결과 상태도 Metadata Loader가 검증 |
 | `training_run` | immutable run ID와 training result checksum 연결 |
 | `created_at` | timezone이 있는 UTC RFC 3339, 현재 시각 기반의 자동 승인에는 사용하지 않음 |
-| `artifacts` | 허용된 세 artifact의 root-relative path와 checksum; 실제 weight는 safetensors만 허용 |
+| `adapter_config`, `adapter_weights`, `metadata` | top-level artifact reference의 root-relative path와 checksum; 파일 검증은 Task 2 범위 |
+
+### 4.3 Task 1 구현 상태
+
+```yaml
+adapter_manifest: implemented_synthetic_validated
+strict_json_loader: implemented_synthetic_validated
+static_schema_validation: implemented_synthetic_validated
+artifact_existence_validation: not_started
+artifact_checksum_verification: not_started
+adapter_artifact_validator: not_started
+peft_adapter_loader: not_started
+provider_integration: not_started
+runtime_adapter_loading: unavailable
+```
+
+[확정] `src/inference/adapter_manifest.py`는 frozen dataclass, duplicate-key 차단, 1 MiB manifest 상한,
+strict UTC `created_at`, exact schema, safe relative path containment와 구조화된 내부 오류를 제공한다. 테스트 fixture는
+`synthetic-not-for-runtime`으로 표시하며 실제 artifact 파일을 포함하지 않는다.
 
 ## 5. Validator와 Fail Closed 규칙
 
@@ -324,9 +342,10 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 
 ### Task 1 — Adapter Manifest
 
-- strict dataclass/schema, canonical JSON loader, path containment, checksum과 fixture 작성
-- 실제 후보를 선택하지 않은 상태에서도 placeholder/누락 manifest를 거부하는 unit test
-- 완료 조건: valid synthetic manifest만 immutable value로 load되고 malformed/unknown/path traversal이 모두 차단됨
+- 상태: `implemented_synthetic_validated`
+- frozen dataclass/schema, strict JSON loader, duplicate-key 차단, path containment와 synthetic fixture 구현
+- valid synthetic manifest, malformed/unknown/path traversal과 자료형·hash·시간 오류 단위 테스트 통과
+- artifact 존재·checksum 내용·실제 후보 eligibility 검증은 Task 2로 분리
 
 ### Task 2 — Adapter Validator
 
@@ -368,15 +387,16 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 
 ## 10. 예상 변경 파일
 
-아래 목록은 구현 계획이며 이번 문서 작업에서 수정하지 않는다.
+Task 1 파일은 구현됐고, 나머지는 후속 구현 계획이다.
 
 ### 새 파일 후보
 
 ```text
-src/inference/adapter_manifest.py
+src/inference/adapter_manifest.py                    implemented
 src/inference/adapter_validation.py
 src/inference/adapter_loader.py
-tests/test_adapter_manifest.py
+tests/inference/test_adapter_manifest.py             implemented
+tests/fixtures/adapter_manifest/synthetic-not-for-runtime/adapter-manifest.json  implemented
 tests/test_adapter_loader.py
 tests/test_adapter_provider.py
 ```
@@ -445,4 +465,5 @@ GPU/E2E 근거가 모두 있어야 한다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Task 1 immutable Adapter Manifest·strict JSON loader·정적 schema/path 검증과 42개 synthetic test 반영 |
 | 2026-08-04 | 현재 Provider·API·Frontend와 QLoRA artifact 계보를 기준으로 fail-closed Adapter Runtime 설계와 구현 Task 작성 |

@@ -54,7 +54,7 @@ Gate 0은 `approved`, Gate 1~7은 `passed`입니다. 세부 수치와 실행 이
 | Qwen Base | `implemented_verified` | 고정 local snapshot, lazy load, BF16 GPU·브라우저 smoke 통과 |
 | General Instruct Adapter (QLoRA) | `implemented_not_integrated` | 학습·평가 backend와 v0.1/v0.2 실행 이력 존재; 배포 승인 Adapter 없음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock·Base Qwen·fail-closed Adapter provider 경계 |
-| Adapter Loader | `design_complete` | fail-closed manifest·검증·lifecycle 설계 완료; Provider 구현은 placeholder |
+| Adapter Loader | `design_complete` | Manifest·strict loader는 synthetic 검증 완료; Artifact Validator·PEFT Loader·Provider는 미구현 |
 | Chat API | `implemented_verified` | FastAPI 일반 Chat, health/readiness/models |
 | Streaming | `implemented_verified` | SSE, timeout, cancellation, worker 정리 |
 | Prompt Engine | `design_complete` | Qwen 공식 chat template 직렬화는 구현; 독립 정책·template engine은 미구현 |

@@ -208,7 +208,7 @@
 | [service/dohalm-backend-mvp.md](./service/dohalm-backend-mvp.md) | Runtime 1차 FastAPI Chat·SSE·오류·lifecycle과 Provider 계약 | Roadmap, Provider interface | Adapter Loader·2차 Runtime | `review` | API 실행·검증 기준 | 2026-08-04 | Base Qwen 통과; Adapter placeholder |
 | [service/dohalm-frontend-mvp.md](./service/dohalm-frontend-mvp.md) | Next.js Chat UI·SSE·취소·재시도·접근성 계약 | FastAPI Runtime | Adapter E2E | `review` | Frontend 실행·검증 기준 | 2026-08-04 | Base Qwen Chrome E2E 통과; 저장·인증 없음 |
 | [service/dohalm-base-qwen-provider.md](./service/dohalm-base-qwen-provider.md) | 고정 local Qwen snapshot lazy load·generate·stream·취소·unload와 GPU 실측 | FastAPI, Frontend | General Instruct Adapter Loader | `review` | Base Qwen 실행 전 필수 | 2026-08-04 | BF16 선정; Foundation 계보 아님; Adapter 미연결 |
-| [service/dohalm-adapter-runtime.md](./service/dohalm-adapter-runtime.md) | General Instruct Adapter manifest·validator·fail-closed lifecycle과 Task 기반 구현 계획 | README, Instruct Strategy, Base Qwen Provider | Adapter Loader 구현·API·Frontend·E2E | `review` | Adapter 구현 전 필수 | 2026-08-04 | 배포 후보·PEFT version·API additive schema 승인 필요 |
+| [service/dohalm-adapter-runtime.md](./service/dohalm-adapter-runtime.md) | General Instruct Adapter manifest·validator·fail-closed lifecycle과 Task 기반 구현 계획 | README, Instruct Strategy, Base Qwen Provider | Adapter Validator·Loader·API·Frontend·E2E | `review` | Adapter 구현 전 필수 | 2026-08-05 | Manifest synthetic 검증 완료; 배포 후보·PEFT version·API schema 승인 필요 |
 | `14-database-design.md` | 영속화 필요성과 데이터 구조 결정 | [시스템 아키텍처](./architecture/system-architecture.md), `12-api-specification.md`, `13-frontend-specification.md` | `19-deployment-plan.md` | `planned` | 조건부 | — | DB 사용 여부, 보존·삭제 정책 |
 | [training/experiment-management.md](./training/experiment-management.md) | 실험 ID·metadata·상태·실패·산출물 계보 관리 | [개발 규칙](./governance/development-rules.md), [사전학습 계획](./training/pretraining-plan.md), [평가 계획](./evaluation/evaluation-plan.md), [산출물 및 설정 정책](./governance/artifact-and-configuration-policy.md), ADR-005 | [재현성 정책](./quality/reproducibility-policy.md), [실험 템플릿](./training/experiment-template.md), [개발 로드맵](./quality/development-roadmap.md), [테스트 체크리스트](./quality/testing-checklist.md), `20-leaderboard-strategy.md` | `review` | 본 학습 전 필수 | 2026-07-23 | ID 발급, schema, 보존 기간, artifact backend |
 | [training/gpu-memory-strategy.md](./training/gpu-memory-strategy.md) | 8GB VRAM 산식·측정·OOM 대응 정의 | [모델 아키텍처](./architecture/model-architecture.md), ADR-001, ADR-002 | [사전학습 계획](./training/pretraining-plan.md), [개발 로드맵](./quality/development-roadmap.md), [테스트 체크리스트](./quality/testing-checklist.md), `11-inference-design.md` | `draft` | 학습 구현 전 필수 | 2026-07-23 | micro-batch, accumulation, checkpointing, 실측값 |
@@ -291,6 +291,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Adapter Manifest·strict loader의 synthetic 검증 완료와 후속 Validator 미착수 상태 동기화 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계 문서를 Service 인덱스에 등록 |
 | 2026-08-02 | [확정] v0.3 의미 보존형 Short-Answer Dataset 생성·품질·Fail Closed 문서를 등록함 |
 | 2026-07-29 | [확정] AIHUB-71748 Run 0004 metadata-only Preflight 통과와 non-issued Approval 초안 등록 |

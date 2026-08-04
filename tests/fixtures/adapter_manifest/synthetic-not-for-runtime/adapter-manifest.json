@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "adapter_name": "synthetic-not-for-runtime",
+  "adapter_version": "0.0.0-test",
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "base_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+  "tokenizer": "Qwen/Qwen2.5-1.5B-Instruct",
+  "tokenizer_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "chat_template": {
+    "source": "tokenizer_config.json#chat_template",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "peft_version": "0.0.0-synthetic",
+  "transformers_version": "4.57.6",
+  "torch_version": "2.7.1+cu118",
+  "generation_config": {
+    "path": "artifacts/generation-config.json",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "request_override_policy": "api_bounds_only"
+  },
+  "evaluation_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "training_run": {
+    "id": "SYNTHETIC-NOT-FOR-RUNTIME",
+    "result_path": "artifacts/training-result.yaml",
+    "result_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "created_at": "2026-08-05T00:00:00Z",
+  "adapter_config": {
+    "path": "artifacts/adapter_config.json",
+    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "adapter_weights": {
+    "path": "artifacts/adapter_model.safetensors",
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "metadata": {
+    "path": "artifacts/adapter-metadata.json",
+    "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  }
+}
