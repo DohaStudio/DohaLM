@@ -1,7 +1,7 @@
 # DohaLM 버전 계획
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
 - 선행 문서: [개발 로드맵](../quality/development-roadmap.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](../quality/test-strategy.md), [위험 등록부](../governance/risk-register.md)
 - 후속 문서: 실제 릴리스 계획 및 태그 정책 `[검증 필요]`
 - 구현 전 필수 여부: 릴리스 계획 수립 시 필수
@@ -10,6 +10,7 @@
 
 - [확정] 이 문서는 구현 순서와 품질 게이트를 버전 이정표로 연결한다.
 - [확정] 아래 버전은 계획상 권장 이정표이며, 실제 Git 태그나 릴리스가 생성되었다는 뜻이 아니다.
+- [확정] 이 표는 초기 Foundation 중심 이정표를 보존한 역사적 계획이다. 현재 1·2·3차 우선순위는 [Roadmap](./model-family-roadmap.md), 구현 상태는 [Current Project Status](./current-project-status.md)가 기준이다.
 - [확정] 버전 완료는 [Definition of Done](../governance/definition-of-done.md)과 해당 단계 게이트를 모두 통과한 경우에만 선언한다.
 - [확정] `DohaLM-Tiny`의 재현 가능한 학습 파이프라인을 먼저 완성한 뒤 추론 API와 채팅 UI를 진행한다.
 - [검증 필요] 실제 배포 전 버전 규칙, 변경 로그 형식, 호환성 보장 범위는 별도로 승인한다.
@@ -40,6 +41,8 @@
 
 - [확정] `v0.1` 권장 이정표의 Phase 0 구현·검증과 Gate 0·1 조건은 충족했다. 이는 실제 Git 태그나 릴리스가 생성되었다는 뜻이 아니다.
 - [확정] `v0.2` 권장 이정표의 Phase 1 구현·검증과 Gate 2 조건은 충족했다. 실제 Git 태그나 릴리스는 생성하지 않았다.
+- [확정] `v1.1`·`v1.2`에 계획했던 Base Qwen FastAPI·Next.js 기능은 로컬 구현·검증됐지만 해당 version 릴리스나 General Instruct Adapter Runtime 완료를 의미하지 않는다.
+- [제외] Docker, Kubernetes, Cloud와 운영 배포는 현재 버전 계획의 실행 범위가 아니다.
 
 ## 3. 버전 승격 규칙
 
@@ -60,6 +63,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | 초기 version 표를 역사적 계획으로 구분하고 Base Qwen API·UI 구현 및 배포 제외 경계 반영 |
 | 2026-07-28 | 저장소 이정표와 장기 Model Family·artifact version 체계를 분리함 |
 | 2026-07-23 | [확정] Gate 2 승인에 따라 v0.2 권장 이정표에 DATA-001~016과 75개 테스트·CLI 검증 범위를 반영함; tag·release는 생성하지 않음 |
 | 2026-07-23 | [확정] v0.3 권장 이정표에 Phase 2 상세 계약의 Unigram·16,000·special token·fingerprint·artifact·한국어 평가·호환성 범위를 연결함; release·tag는 생성하지 않음 |

@@ -1,7 +1,7 @@
 # DohaLM Base Qwen 로컬 추론 Provider
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-03
+- 마지막 검토일: 2026-08-04
 - 대상 모델: `Qwen/Qwen2.5-1.5B-Instruct`
 - 고정 revision: `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`
 - 선행 문서: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Frontend MVP](./dohalm-frontend-mvp.md)
@@ -14,6 +14,9 @@ prompt·response 원문과 token ID는 API·로그에 기록하지 않는다.
 
 DohaLM Adapter, Dataset, Tokenization, QLoRA 학습, checkpoint와 model merge는 이 구현의 범위 밖이다. Base Qwen은
 DohaLM 학습 결과가 아니라 서비스 경로 검증용 upstream Instruct 모델이다.
+
+이 Provider는 Runtime/Application 1차 목표의 Base 경로다. Foundation Model Track의 Candidate A/B와 계보를 공유하지 않으며,
+Base Qwen 검증 완료는 General Instruct Adapter Loader 완료를 의미하지 않는다.
 
 ## 지원 환경과 선택 결과
 
@@ -120,5 +123,7 @@ base_qwen_provider:
 dohalm_adapter_loaded: false
 tokenization_started: false
 training_started: false
-deployment: not_started
+deployment: out_of_scope_current
 ```
+
+현재 프로젝트 범위에서 Docker, Kubernetes와 Cloud 배포는 `out_of_scope`다.

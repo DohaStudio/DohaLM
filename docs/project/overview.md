@@ -1,15 +1,15 @@
 # DohaLM 프로젝트 개요
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
 
 > 현재 구현·실행 상태는 [Current Project Status](./current-project-status.md)가 기준이다. 아래 초기 목표와 완료 조건은 역사적 범위를 보존하며, 장기 확장 제안은 [Foundation Model Strategy](./foundation-model-strategy.md)와 [Model Family Roadmap](./model-family-roadmap.md)를 따른다.
 
 ## 프로젝트 기준
 
-- [확정] 이 문서는 DohaLM의 최상위 기준 문서다.
+- [확정] 프로젝트의 현재 최상위 기준은 루트 [README](../../README.md)이며, 이 문서는 초기 목적과 완료 조건의 역사적 배경을 보존한다.
 - [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
-- [확정] 현재 저장소에는 DohaLM-Tiny, 데이터·tokenizer·Trainer pipeline과 Evaluation Framework가 구현돼 있고 Gate 1~7이 통과했다. 서버와 frontend는 scaffold 단계이며 SFT·Candidate B training은 미실행이다.
+- [확정] 현재 저장소에는 DohaLM-Tiny, 데이터·Tokenizer·Trainer와 Evaluation Framework가 구현돼 있고 Gate 1~7이 통과했다. Candidate B 학습·평가와 Base Qwen 기반 FastAPI·Next.js 로컬 Runtime도 구현·검증됐다. General Instruct Adapter Loader는 미구현이다.
 
 ## 프로젝트 배경
 
@@ -42,7 +42,7 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 | 데이터 처리 파이프라인 | [확정] | 원본 불변·계보·분할·누수·fingerprint 계약과 canonical pilot-v2 검증 완료 |
 | 사전학습 및 SFT 체크포인트 | [검증 필요] | 저장·복원 및 중단 후 재개가 검증됨 |
 | 평가 보고서 | [확정] | Candidate A/B Quick·Full, EOS 진단과 ADR-009 current/historical baseline 기록 완료 |
-| FastAPI 및 Next.js 데모 | [후순위] | 로컬 환경에서 요청부터 생성 응답까지 연결됨 |
+| FastAPI 및 Next.js 데모 | [확정] | Base Qwen 로컬 환경에서 일반 Chat·SSE·취소·재시도까지 연결·검증됨 |
 | K-AI Leaderboard 검토서 | [후순위] | 당시 규정, 형식, 라이선스 및 성능 요건을 대조함 |
 
 ## 기술적 의의
@@ -68,10 +68,10 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 5. [확정] `DohaLM-Tiny` 모델과 단위 테스트 구현
 6. [확정] 실제 corpus Tiny Overfit과 복원 테스트로 학습 파이프라인 검증
 7. [확정] Pilot·Candidate A 사전학습과 Quick·Full 평가 완료
-8. [검증 필요] 질문·답변 데이터 준비와 SFT
+8. [확정] Qwen 기반 질문·답변 데이터 처리와 QLoRA 학습·평가 이력 작성; Runtime Adapter 연결은 미완료
 9. [후순위] 측정 결과를 바탕으로 `DohaLM-Small` 상세 사양 확정 및 학습
-10. [후순위] FastAPI 추론 서버와 Next.js 채팅 화면 연결
-11. [후순위] 배포 및 K-AI Leaderboard 제출 가능성 검토
+10. [확정] Base Qwen FastAPI 추론 서버와 Next.js 채팅 화면 연결
+11. [제외] Docker, Kubernetes와 Cloud 배포; K-AI Leaderboard는 별도 장기 검토
 
 전체 문서 순서는 [문서 인덱스](../index.md)를 따른다.
 
@@ -84,6 +84,12 @@ DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프
 - [검증 필요] `RTX 3060 Ti 8GB` 단일 GPU에서 최소 `DohaLM-Tiny`의 학습, 체크포인트 복원, 평가 및 생성 흐름이 실행된다.
 - [검증 필요] `DohaLM-Small`은 실측 자원 범위 안에서 구현되거나, 진행 불가 사유와 측정 근거가 문서화되어 있다.
 - [검증 필요] SFT 전후 결과가 동일한 평가 절차로 비교된다.
-- [후순위] FastAPI와 Next.js를 통한 로컬 대화 흐름이 검증된다.
+- [확정] Base Qwen과 FastAPI·Next.js를 통한 로컬 대화 흐름이 검증됐다. Adapter 경로는 별도 완료 조건이다.
 - [후순위] K-AI Leaderboard 제출 가능 여부가 최신 요건을 기준으로 결론 내려진다.
 - [확정] 구현되지 않았거나 검증되지 않은 항목을 완료로 표시하지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-04 | README 기준 전환, Candidate B와 Base Qwen API·Frontend 구현 및 Adapter 미연결 상태 반영 |

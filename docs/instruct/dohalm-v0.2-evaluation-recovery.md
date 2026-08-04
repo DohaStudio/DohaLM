@@ -1,10 +1,11 @@
 # DohaLM v0.2 Terminal Checkpoint 및 Evaluation-Only Recovery 계약
 
-- 문서 상태: `implemented_pending_runtime_recovery`
+- 문서 상태: `review`
 - 최종 검토일: 2026-08-02
 - Training Run: `DOHALM-V0.2-QLORA-20260801-0001`
 - Recovery ID: `DOHALM-V0.2-EVALUATION-RECOVERY-20260802-0001`
 - Training execution source: `a4d3ab5e5adf1e4d41789c297bdb28f6ece9810f`
+- Recovery 실행 상태: `pending`
 
 ## 범위
 

@@ -1,72 +1,107 @@
-# DohaLM Model Family Roadmap
+# DohaLM Roadmap
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
+- 기준 문서: [README](../../README.md)
+- 현재 상태: [Current Project Status](./current-project-status.md)
 - 현재 실행 권한 영향: 없음
-- 관련 문서: [Foundation Strategy](./foundation-model-strategy.md), [Domain Strategy](./domain-model-strategy.md), [Model Lineage](./model-lineage.md)
 
-## 1. Family 구조
+## 1. Roadmap 원칙
+
+- Foundation Model 연구와 Runtime/Application 개발은 별도 트랙으로 관리합니다.
+- 앞 단계의 설계 완료는 다음 단계의 구현·학습·배포 승인이 아닙니다.
+- 현재 구현 상태는 이 문서가 아니라 [Current Project Status](./current-project-status.md)에서 판정합니다.
+- Docker, Kubernetes, Cloud와 운영 배포는 이 Roadmap에서 제외합니다.
+
+## 2. 트랙과 순서
 
 ```mermaid
-flowchart TD
-    Foundation[DohaLM Foundation]
-    Foundation --> Base[DohaLM Base]
-    Foundation --> Instruct[DohaLM Instruct]
-    Foundation --> Chat[DohaLM Chat]
-    Foundation --> Code[DohaLM Code]
-    Foundation --> SQL[DohaLM SQL]
-    Foundation --> Recruit[DohaLM Recruit]
-    Foundation --> Game[DohaLM Game]
-    Foundation --> Agent[DohaLM Agent]
-    Foundation -. long-term .-> Vision[DohaLM Vision / Multimodal]
+flowchart TB
+    subgraph F[Foundation Model Track]
+      Tiny[DohaLM-Tiny] --> Tok[Tokenizer]
+      Tok --> AB[Candidate A/B]
+      AB --> Eval[Evaluation Framework]
+    end
+
+    subgraph R1[Runtime 1차]
+      Qwen[Qwen Base] --> Adapter[General Instruct Adapter]
+      Adapter --> Loader[Adapter Loader]
+      Loader --> Runtime[Runtime + Prompt Engine]
+      Runtime --> API[Chat API + Streaming]
+    end
+
+    subgraph R2[Runtime 2차]
+      Memory[Memory] --> RAG[RAG]
+      RAG --> Tools[Tool Calling]
+      Tools --> Agent[Agent]
+    end
+
+    subgraph R3[Application 3차]
+      Music[DohaMusic] --> Lyrics[Lyrics Search]
+      Lyrics --> Style[Style Analysis]
+      Style --> Personal[Personal Music Adapter]
+    end
+
+    R1 --> R2 --> R3
 ```
 
-화살표는 가능한 기본 lineage를 보여 주며 단일 고정 구조가 아니다. 실제 parent는 각 모델 manifest와 승인 기록이 결정한다.
+두 첫 번째 트랙은 병행할 수 있지만 자동 lineage 관계는 없습니다. 특히 Candidate B weight를 Qwen Runtime의 Base로
+간주하거나 Qwen Adapter를 Foundation Instruct로 간주하지 않습니다.
 
-## 2. Family 계약
+## 3. Foundation Model Track
 
-| Family | Primary purpose | 기본 Parent | Training method 후보 | Data category | Main evaluation | Current status | Release scope | Notes |
-|---|---|---|---|---|---|---|---|---|
-| Base | 한국어 범용 next-token 기반 | 없음 또는 이전 Base | Base pretraining, 명시적 CPT | 승인된 범용 corpus | Full internal loss·PPL·Top-k·teacher-forced EOS·generation 진단·stability | `completed` | `not_approved` | Candidate B current baseline; Candidate A historical baseline |
-| Instruct | 지시 이해·형식 준수·task 수행 | Candidate B immutable Base | SFT, 별도 승인 preference | instruction·response | instruction following·format·응답 종료·safety | `design_completed` | `not_approved` | ADR-010; dataset/backend/training 미승인 |
-| Chat | 다중 턴 대화·맥락 유지 | 승인된 Instruct | dialogue SFT, 별도 preference | multi-turn dialogue | coherence·retention·응답 종료·service decoding 분리·safety | `not_started` | `not_approved` | Base 직접 파생 금지; 별도 ADR 필요 |
-| Code | 생성·설명·debug·test | Base 또는 Code CPT | code CPT, code SFT | source·docs·tests·fix pairs | compile·unit test·functional·security | `long_term_planned` | `not_approved` | 라이선스·secret·benchmark 오염 검토 |
-| SQL | SQL 생성·수정·교육 | Base 또는 domain CPT | SQL CPT/SFT | schema·query·explanation | parse·execution·result·dialect | `long_term_planned` | `not_approved` | dialect별 평가 분리 |
-| Recruit | JD·지원 문서·면접 보조 | Base/Instruct | domain CPT/SFT | JD·career writing | relevance·factuality·privacy·bias | `long_term_planned` | `not_approved` | 채용 의사결정 자동화와 구분 |
-| Game | NPC·quest·lore·world state | Base/Instruct | domain CPT/SFT | dialogue·quest·lore·rules | lore·state·quest·repetition | `long_term_planned` | `not_approved` | IP와 player PII 검토 |
-| Agent | tool calling·workflow·recovery | Instruct 우선 후보 | tool-calling SFT | schema·action traces | selection·arguments·permission·recovery | `long_term_planned` | `not_approved` | Chat과 별도 권한 경계 |
-| Vision / Multimodal | image-text 이해·OCR·VQA | 승인된 Base + vision 구성 | multimodal alignment | image-text pairs | VQA·OCR·grounding·safety | `long_term_planned` | `not_approved` | 현재 범위 밖 |
+| 단계 | 완료 조건 | 현재 상태 | 다음 결정 |
+|---|---|---|---|
+| DohaLM-Tiny | 승인 구조, forward/loss/generation, Trainer·resume·overfit | `implemented_verified` | 회귀 유지 |
+| Tokenizer | 운영 artifact, ID·fingerprint, 품질 검증 | `implemented_verified` | 변경 시 새 version/ADR |
+| Candidate A/B | 고정 budget·checkpoint·Full 평가·lineage | `implemented_verified` | Candidate B current baseline 유지 |
+| Evaluation Framework | Quick/Full/EOS/stability/privacy/lineage | `implemented_verified` | 후속 모델에도 동일 분리 원칙 적용 |
+| Foundation Instruct | Candidate B parent, data·SFT·평가 승인 | `design_complete` | 실행 승인 전 대기 |
+| Foundation Chat / Scale-up | 선행 Instruct·자원·새 ADR | `planned` | 현재 우선순위 아님 |
 
-- Code 언어 후보는 Python, Java, C++, Rust, JavaScript/TypeScript와 Shell이며 SQL은 별도 family로 관리한다.
-- SQL dialect 후보는 ANSI SQL, MySQL, PostgreSQL과 Oracle이며 학습·평가는 dialect별로 구분한다.
-- Recruit는 이력서·경력기술서·자기소개서·JD 분석·면접 준비·지원 workflow를 지원 후보로 삼되 자동 채용 의사결정은 별도 고위험 범위로 둔다.
-- Game은 NPC dialogue, quest, lore, world building, 운영 보조와 player interaction을 후보로 삼는다.
-- Agent는 일반 EOS뿐 아니라 tool call 종료·workflow completion·permission boundary를 구조적 종료 계약으로
-  다루며 단순 Chat과 권한·실행 안전성 계약을 분리한다.
+## 4. Runtime/Application 1차 목표
 
-종료 계약은 [EOS Success Policy](../evaluation/eos-success-policy.md)를 따른다. Base는 greedy 종료를 필수
-진단하되 단일 실패 조건으로 사용하지 않고, Instruct·Chat은 응답 완결성을 필수로 하며 수치 임계값은
-`proposed`다. Service decoding은 모델 평가와 분리한다.
+| 순서 | 구성 | 완료 조건 | 현재 상태 |
+|---:|---|---|---|
+| 1 | Qwen Base | 고정 revision local load, generate/stream/unload GPU smoke | `implemented_verified` |
+| 2 | General Instruct Adapter (QLoRA) | 선정된 Adapter가 Base 대비 평가와 runtime eligibility 통과 | `implemented_not_integrated` |
+| 3 | Runtime | Provider lifecycle, timeout, cancellation, memory 회수 | `implemented_verified` |
+| 4 | Adapter Loader | 명시적 경로·fingerprint·Base compatibility·fail-closed load/unload | `planned` |
+| 5 | Chat API | schema, health/readiness/models, 오류·보안 경계 | `implemented_verified` |
+| 6 | Streaming | SSE 순서, 취소, timeout, worker 정리 | `implemented_verified` |
+| 7 | Prompt Engine | versioned template, role/system policy, token budget, test | `design_complete` |
 
-## 3. Roadmap Track
+1차 완료 판정에는 Base Qwen 경로뿐 아니라 **승인된 Adapter를 통한 end-to-end Chat·Streaming 검증**이 필요합니다.
+현재 Web UI는 Base Qwen까지 검증됐지만 Adapter Loader가 없어 1차 전체는 완료가 아닙니다.
 
-- Track A — Current Base Development: Tiny, tokenizer, lineage, Gates, Pilot, Candidate A, Evaluation, Candidate B.
-- Track B — Foundation Scale: Tiny v1/v2, Small, Medium, Large. 각 단계는 별도 데이터·자원·ADR·승인 대상이다.
-- Track C — Model Family: Instruct, Chat, Code, SQL, Recruit, Game, Agent, Vision/Multimodal.
-- Track D — Release and Governance: model/dataset card, license, safety, lineage, evaluation, publication approval.
+## 5. 2차 목표
 
-현재 Candidate B는 Track A에만 속한다. 다른 Track은 자동으로 시작되지 않는다.
+1. **Memory**: 저장 범위, 사용자 격리, 삭제·보존과 prompt 주입 경계부터 설계
+2. **RAG**: source ingestion, chunk·index lineage, citation과 retrieval evaluation 구현
+3. **Tool Calling**: schema validation, 권한, timeout, 결과 provenance와 user confirmation 구현
+4. **Agent**: 위 구성 위에서 제한된 workflow와 recovery를 구현
 
-[확정] ADR-009에 따라 Candidate B는 Instruct·Chat·Code·SQL·Recruit·Game·EOS-aware SFT의
-`approved_experimental` Base parent 후보다. 이는 parent artifact 적격성만 승인하며 Track C의 data contract,
-수치 기준, 학습 실행 또는 publication을 시작하지 않는다.
+모두 `planned`입니다. Tool Calling 전략 문서가 존재해도 실행 Runtime이 구현된 것은 아닙니다.
 
-[확정] ADR-010으로 Instruct Track의 설계·Readiness 문서만 완료됐다. Chat은 승인된 Instruct를 parent로 하며
-아직 생성되지 않았다. Instruct의 `design_completed`는 dataset·backend·SFT·evaluation 실행 승인이 아니다.
+## 6. 3차 목표 — DohaMusic
+
+DohaMusic은 새 범용 Runtime을 만들지 않고 1차 General Instruct Runtime을 재사용합니다.
+
+| 순서 | 구성 | 선행 조건 | 현재 상태 |
+|---:|---|---|---|
+| 1 | DohaMusic shell | 1차 Runtime 안정화 | `planned` |
+| 2 | Lyrics Search | RAG, 가사 이용조건·인용 정책 | `planned` |
+| 3 | Style Analysis | 평가 taxonomy와 저작권·모방 안전 경계 | `planned` |
+| 4 | Personal Music Adapter | 사용자 데이터 동의·격리·삭제, Adapter Loader | `planned` |
+
+## 7. 장기 후보
+
+Code, SQL, Recruit, Game과 Vision/Multimodal은 삭제된 목표가 아니라 현재 1~3차 순서 밖의 장기 후보입니다.
+별도 요구·데이터·평가·ADR이 생기기 전에는 `planned`보다 높은 상태를 부여하지 않습니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-07-28 | ADR-010 Instruct design_completed와 Chat not_started·Instruct parent 경계 반영 |
-| 2026-07-28 | Base 중심 Model Family, 목적·parent·학습·데이터·평가·공개 경계 초안 작성 |
+| 2026-08-04 | 기존 Model Family 혼합 구조를 Foundation, Runtime 1·2차, DohaMusic 3차 순서로 재구성 |
+| 2026-07-28 | Base·Instruct·Chat·Domain 중심 장기 Family 초안 작성 |

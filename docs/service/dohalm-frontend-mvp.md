@@ -1,7 +1,7 @@
 # DohaLM Next.js Frontend MVP
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-08-03
+- 최종 검토일: 2026-08-04
 - Frontend 버전: `0.1.0`
 - Backend 계약: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md)
 
@@ -104,7 +104,9 @@ actual_model_provider: base_qwen_local_only_verified
 model_weight_loaded: true_in_explicit_smoke_only
 gpu_inference_started: true_in_explicit_smoke_only
 training_started: false
-deployment: not_started
+deployment: out_of_scope_current
 ```
 
-후속 작업은 별도 승인된 Base Qwen Provider 또는 DohaLM Adapter 연결과 실제 브라우저 상호작용 검증이다.
+Base Qwen 브라우저 경로는 검증 완료다. 다음 1차 작업은 배포 후보 General Instruct Adapter 선정 후 fail-closed
+Adapter Loader를 연결하고 같은 HTTP·SSE·취소·재시도 회귀를 실행하는 것이다. Memory·RAG·Tool Calling·Agent는
+그 이후 2차 목표이며 Docker, Kubernetes와 Cloud 배포는 현재 범위 밖이다.

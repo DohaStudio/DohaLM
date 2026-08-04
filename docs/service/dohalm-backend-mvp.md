@@ -1,14 +1,14 @@
 # DohaLM FastAPI 백엔드 MVP
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-08-03
+- 최종 검토일: 2026-08-04
 - 서비스 버전: `0.1.0`
 - 활성 기본 Provider: `mock`
 
 ## 범위와 구조
 
-이 MVP는 Frontend가 사용할 HTTP·SSE 계약과 Provider 교체 경계를 검증한다. 실제 model weight,
-Adapter, GPU 추론, Dataset, 학습·평가 파이프라인은 사용하지 않는다.
+이 MVP는 Runtime/Application 1차 목표의 HTTP·SSE 계약과 Provider 교체 경계를 검증한다. 기본 `mock` 경로와
+명시적 local-only Base Qwen GPU 경로는 구현·검증됐다. DohaLM Adapter, Dataset과 학습·평가 실행은 사용하지 않는다.
 
 ```text
 FastAPI application
@@ -113,4 +113,9 @@ model_weight_loaded: true_in_explicit_smoke_only
 gpu_inference_started: true_in_explicit_smoke_only
 training_started: false
 dataset_modified: false
+memory: planned
+rag: planned
+tool_calling: planned
+agent: planned
+deployment: out_of_scope
 ```

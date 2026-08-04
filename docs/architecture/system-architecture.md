@@ -5,13 +5,13 @@
 | 항목 | 값 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-08-04 |
 | 선행 문서 | [프로젝트 개요](../project/overview.md), [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [ADR-001](../decisions/ADR-001-initial-model-scope.md) |
 | 후속 문서 | [모델 아키텍처](./model-architecture.md), [토크나이저 설계](../training/tokenizer-design.md), [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [저장소 구조](./repository-structure.md), [산출물·설정 정책](../governance/artifact-and-configuration-policy.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] 이 문서는 구현 전 시스템 경계와 책임을 정의한다.
-- [확정] 현재 저장소의 소스, 설정, 스크립트, 서버 및 프론트엔드는 스캐폴드이며 기능이 구현되지 않았다.
+- [확정] 이 문서는 초기 시스템 경계와 책임을 보존한다. 현재 구현 상태는 [Current Project Status](../project/current-project-status.md)가 기준이다.
+- [확정] Foundation 구성요소와 Base Qwen 기반 서버·프론트엔드는 구현됐다. General Instruct Adapter Loader와 2차 Runtime은 미구현이다.
 
 ## 1. 시스템 목적
 
@@ -33,8 +33,8 @@ DohaLM 시스템은 라이선스가 확인된 한국어 원문을 입력으로 �
 
 - [확정] 1차 대상은 `DohaLM-Tiny`이며 예상 파라미터는 16,889,856개다.
 - [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
-- [후순위] FastAPI와 Next.js는 핵심 학습·평가·추론 검증 이후 연결한다.
-- [확정] FastAPI와 Next.js는 현재 구현 완료 상태가 아니다.
+- [확정] FastAPI와 Next.js의 Base Qwen 로컬 Chat·SSE 흐름은 구현·검증됐다.
+- [검증 필요] 배포 후보 Adapter의 Loader·Prompt Engine·end-to-end 경로는 아직 구현되지 않았다.
 
 ### 1.1 시스템이 따르는 DohaLM-Tiny 기준
 
@@ -74,8 +74,8 @@ flowchart LR
     PRECKPT --> EVAL[평가]
     SFTCKPT --> EVAL
     SFTCKPT --> INFER[추론 모듈]
-    INFER -.->|후순위| API[FastAPI]
-    API -.->|후순위| UI[Next.js 채팅 UI]
+    INFER -->|Base Qwen 구현| API[FastAPI]
+    API -->|HTTP / SSE 구현| UI[Next.js 채팅 UI]
     PRETRAIN --> META[실험 메타데이터]
     SFT --> META
     EVAL --> META
@@ -83,7 +83,7 @@ flowchart LR
 
 ## 3. 구성요소 정의
 
-| 구성요소 | 역할 | 입력 | 출력 | 담당 모듈 또는 계획 경로 | 선행 조건 | 현재 상태 | Git 추적 여부 |
+| 구성요소 | 역할 | 입력 | 출력 | 담당 모듈 또는 계획 경로 | 선행 조건 | 상태 메모(초기 snapshot 포함) | Git 추적 여부 |
 |---|---|---|---|---|---|---|---|
 | 원본 데이터 저장 영역 | 취득한 원문을 변경 없이 보존 | 허가된 외부 데이터 | 원본 파일과 출처 기록 | `data/raw/` | 라이선스·취득 조건 확인 | [검증 필요] 데이터 없음 | 데이터 제외, `.gitkeep`만 추적 |
 | 데이터 검증 영역 | 라이선스, 형식, 개인정보, 품질 검사 | 원본 데이터와 메타데이터 | 승인·제외 결과 | [데이터 전략](../data/data-strategy.md), `src/data/` | 데이터 등록 | [검증 필요] 미구현 | 코드·정책만 추적 |
@@ -95,8 +95,8 @@ flowchart LR
 | SFT 영역 | 질문·답변 대화 형식 미세조정 | 사전학습 checkpoint, SFT dataset | SFT checkpoint와 log | `src/training/sft.py`, `data/sft/` | 사전학습 checkpoint, SFT 정책 | [검증 필요] 스캐폴드 | 코드 추적, 데이터·checkpoint 제외 |
 | 평가 영역 | loss, perplexity, 생성 및 한국어 평가 | checkpoint, tokenizer, 평가 dataset | 지표, 생성 sample, 보고서 | `src/evaluation/` | 평가 기준과 고정 dataset | [검증 필요] 스캐폴드 | 코드·소형 보고서 추적 가능 |
 | 추론 영역 | prompt를 자기회귀 token 생성으로 변환 | checkpoint, tokenizer, prompt | token 및 decode된 응답 | `src/inference/` | 검증된 checkpoint | [검증 필요] 스캐폴드 | 코드 추적 |
-| API 영역 | 추론을 HTTP 계약으로 노출 | 요청 schema, 추론 service | 응답 또는 오류 | `server/` | 추론 인터페이스 확정 | [후순위] 스캐폴드 | 코드 추적 |
-| 프론트엔드 영역 | 사용자 채팅 입력과 응답 표시 | API 계약 | 채팅 UI 상태 | `frontend/` | API specification | [후순위] README만 존재 | 소스 추적, build 산출물 제외 |
+| API 영역 | 추론을 HTTP 계약으로 노출 | 요청 schema, 추론 service | 응답 또는 오류 | `server/` | 추론 인터페이스 확정 | [확정] Base Qwen Chat·SSE 구현·검증 | 코드 추적 |
+| 프론트엔드 영역 | 사용자 채팅 입력과 응답 표시 | API 계약 | 채팅 UI 상태 | `frontend/` | API specification | [확정] Base Qwen HTTP·SSE UI 구현·검증 | 소스 추적, build 산출물 제외 |
 | 실험 메타데이터 영역 | 실행 조건과 결과의 계보 기록 | config, code/data/tokenizer ID, metric | 실험 record와 config snapshot | 계획 경로 `experiments/` | 실험 ID·형식 결정 | [검증 필요] 경로 없음 | 소형 metadata만 추적 후보 |
 | 체크포인트·산출물 영역 | 재개·평가·배포용 결과 보존 | model/optimizer state, tokenizer, 평가 결과 | versioned artifact | `checkpoints/`, 계획 경로 `artifacts/` | 저장·보존 정책 | [검증 필요] `.gitkeep`만 존재 | 대형 binary 제외 |
 
@@ -187,11 +187,11 @@ flowchart LR
 
 ### 5.6 추론 요청 흐름
 
-1. [후순위] Next.js가 사용자 message와 대화 context를 FastAPI에 전송한다.
-2. [후순위] API가 schema, 길이 및 허용값을 검증한다.
+1. [확정] Next.js가 사용자 message와 대화 context를 FastAPI에 전송한다.
+2. [확정] API가 schema, 길이 및 허용값을 검증한다.
 3. [확정] 추론 모듈이 chat template과 tokenizer로 prompt를 `[B,T]`로 변환한다.
 4. [확정] 모델이 자기회귀 방식으로 token을 생성하고 `<|end|>` 또는 `<eos>`에서 종료한다.
-5. [후순위] API가 응답 schema로 반환하고 UI가 assistant message를 표시한다.
+5. [확정] API가 일반 응답 또는 SSE event로 반환하고 UI가 assistant message를 표시한다.
 
 ### 5.7 실험 기록 흐름
 
@@ -256,7 +256,7 @@ sequenceDiagram
     UI-->>User: assistant 메시지 표시
 ```
 
-- [후순위] 위 sequence는 목표 인터페이스이며 API와 UI가 구현됐다는 의미가 아니다.
+- [확정] 위 sequence의 Base Qwen API·UI 경로는 구현됐다. DohaLM Adapter 경로와 운영 배포는 포함하지 않는다.
 
 ## 9. 미결정 사항
 
@@ -271,4 +271,5 @@ sequenceDiagram
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Base Qwen FastAPI·Next.js 구현과 Adapter 미구현 경계 반영; 초기 component 상태를 snapshot으로 명시 |
 | 2026-07-23 | [확정] 전체 시스템 경계, 구성요소, 데이터 흐름 및 구현 전 인터페이스 초안 작성 |

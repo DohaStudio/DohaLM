@@ -1,9 +1,9 @@
 # DohaLM v0.1 QLoRA 학습 실행 계약
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-30
-- Backend 상태: `implemented_awaiting_gpu_smoke`
-- Training 상태: `explicit_run_approval_required`
+- 마지막 검토일: 2026-08-04
+- Backend 상태: `implemented_verified`
+- Training 상태: `completed_external_artifact_not_runtime_integrated`
 
 ## 목적과 계보
 
@@ -127,13 +127,15 @@ training output은 Git에 포함하지 않는다.
 
 ```yaml
 backend: implemented
-allocation_smoke: not_started
-backward_diagnostic: not_started
-training_smoke: not_started
-full_training: not_started
+allocation_smoke: completed
+backward_diagnostic: completed
+training_smoke: completed
+full_training: completed
 windows_run_0001: failed_terminal
-wsl_run_0002: not_started
-adapter: not_created
+wsl_run_0002: completed
+adapter: created_external_not_runtime_integrated
+adapter_loader: not_implemented
+deployment_ready: false
 base_model_merge: false
 ```
 
@@ -141,6 +143,7 @@ base_model_merge: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | 후속 독립 평가 문서에 기록된 완료 Adapter와 Runtime 미연결 상태 동기화 |
 | 2026-07-30 | QLoRA smoke·full training·adapter reload·inference 계약과 backend 추가 |
 | 2026-07-31 | WSL2 전용 Run identity·128-batch stability·300초 micro-batch heartbeat 계약 추가 |
 | 2026-07-31 | Stability durable artifact·300초 publish watchdog 계약과 prerequisite 0003 ID 확정 |

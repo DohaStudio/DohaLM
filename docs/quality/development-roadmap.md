@@ -5,12 +5,12 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-27 |
+| 마지막 검토일 | 2026-08-04 |
 | 선행 문서 | [범위와 목표](../project/scope-and-goals.md), [개발 규칙](../governance/development-rules.md), [시스템 아키텍처](../architecture/system-architecture.md), [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [테스트 전략](./test-strategy.md), [위험 등록부](../governance/risk-register.md), [버전 계획](../project/version-plan.md), [Codex 작업 절차](../governance/codex-workflow.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] Phase 0 저장소·환경 기반은 구현·검증을 완료했으며 모델·학습·평가·서비스 구현은 완료되지 않았다.
+- [확정] Gate 1~7과 Foundation Tiny·Candidate A/B·Evaluation은 완료됐다. Base Qwen 서비스는 기존 Phase 순서와 별도 승인 작업으로 구현됐으며 Adapter Runtime은 미완료다.
 - [확정] Phase 번호는 선행 관계를 나타내며 일정·기간을 뜻하지 않는다.
 - [확정] Gate를 통과하지 못하면 후속 Phase를 완료 상태로 처리하지 않는다.
 
@@ -27,8 +27,8 @@
 | 6. 초소형 검증 | 장시간 학습 전 end-to-end 검증 | Phase 5 | 단일 batch·극소량 overfit, loss 감소, round-trip, resume, sample, CUDA peak VRAM | overfit 실험 기록·checkpoint·sample | overfit, resume 연속성, 생성, peak allocated/reserved | Gate 6 통과·experiment ready | Gate 7 통과 | Phase 4·5 | [확정] 실제 Training 64문서·운영 tokenizer의 1,000-step packed overfit, exact continuation, resume와 자원 검증을 사용자 승인해 Gate 7 `passed` |
 | 7. Tiny 소규모 사전학습 | 승인 데이터로 Tiny pilot 수행 | Phase 6, 승인 데이터 | 고정 validation, 중간 평가, 실패 복구, 자원 기록, 최종 checkpoint | pilot/final checkpoint·평가·실험 기록 | validation loss/perplexity, resume, 생성, 처리량, peak VRAM | Gate 7 통과·Gate 8 승인 | 계획 종료·평가·복원 성공 | Phase 6 또는 데이터 Phase 1 | [검증 완료] canonical Pilot과 Candidate A 10M 단일 실행 완료; 추가 학습 미승인 |
 | 8. SFT | 대화 형식과 응답 품질 검증 | Phase 7, 승인 SFT 데이터 | chat template, assistant loss mask, SFT 전후 평가, 생성 품질 비교 | SFT checkpoint·전후 보고서 | role/ID, mask alignment, overfit/smoke, 전후 동일 평가, 누수 검사 | Gate 8·9 통과 | SFT 기준과 복원·평가 통과 | Phase 7 또는 SFT 데이터 준비 | [검증 필요] 미구현 |
-| 9. 추론과 서비스 | 검증 model을 로컬 UI까지 연결 | Phase 7 또는 8 | 추론 모듈, 로딩, 생성 옵션, FastAPI, streaming, Next.js | 로컬 추론·API·UI 후보 | model load, generation, API schema, streaming 오류, UI 연동 | Gate 10 통과 | 로컬 end-to-end와 오류 처리 통과 | 추론→API→UI 하위 단계 | [후순위] 미구현 |
-| 10. 배포와 외부 평가 | 재현·공개·외부 비교 가능성 검토 | Phase 7~9, 라이선스·평가 승인 | 로컬 재현, Docker, 모델 카드, Benchmark, Leaderboard 검토 | 재현 bundle·모델 카드·검토 보고 | clean setup smoke, artifact hash, 라이선스·누수·Benchmark 계약 | Gate 11 승인 | 승인된 범위의 재현·보고 완료 | 관련 구현·데이터·평가 Phase | [후순위] 미구현 |
+| 9. 추론과 서비스 | 검증 model을 로컬 UI까지 연결 | 별도 Runtime 승인 | Qwen load, 생성 옵션, FastAPI, streaming, Next.js | 로컬 추론·API·UI | model load, generation, API schema, streaming 오류, UI 연동 | Runtime 범위 승인 | 로컬 end-to-end와 오류 처리 통과 | 추론→API→UI 하위 단계 | [부분 완료] Base Qwen 경로 검증; Adapter Loader 미구현 |
+| 10. 배포와 외부 평가 | 재현·공개·외부 비교 가능성 검토 | 라이선스·평가 승인 | 모델 카드, Benchmark, Leaderboard 검토 | 재현 bundle·모델 카드·검토 보고 | clean setup smoke, artifact hash, 라이선스·누수·Benchmark 계약 | 별도 승인 | 승인된 범위의 재현·보고 완료 | 관련 구현·데이터·평가 Phase | [제외] Docker·Kubernetes·Cloud 배포; 외부 평가는 장기 검토 |
 
 - [확정] Phase 3 모델 구성요소는 Phase 2와 일부 병행 가능하지만 모델 통합은 tokenizer 계약 없이 통과할 수 없다.
 - [확정] [핵심 개발 기능명세서](../architecture/core-development-feature-specification.md)는 Phase 1~6 구현의 입력·출력·오류·설정·산출물·테스트·Done 계약과 Gate 2~7 검증 항목의 공통 참조다.
@@ -52,7 +52,7 @@
 | Gate 7: 오버피팅 검증 | [사전학습 계획](../training/pretraining-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [실험 관리](../training/experiment-management.md), [실험 템플릿](../training/experiment-template.md) | end-to-end tiny training | 단일 batch·극소량 overfit, generation, VRAM | 실험 기록·checkpoint·samples | loss 감소·복원·생성과 peak VRAM 기록 | loss 미감소·회귀·OOM 미해결 | 사용자 검토 | `passed` |
 | Gate 8: Tiny 사전학습 진입 | [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md), [Readiness](../training/full-pretraining-readiness.md), 데이터·평가·위험 문서 | Phase 0~6 구현과 Full 전용 fail-closed backend | Gate 2~7·Pilot 증거, identity·Candidate A 정책·backend·Disk 검증, final approval 차단 | approved data, resolved config, single-use approval, ready experiment | 모든 선행 Gate passed·중단 조건·저장공간·Full 전용 사용자 승인 | 실행 미승인·identity 불일치·복구 불가 | 사용자 명시 승인 | `review` — Candidate A 10M 실행·runtime/checkpoint 검증 완료, Gate 상태 변경은 별도 승인 필요 |
 | Gate 9: SFT 진입 | [SFT 계획](../training/sft-plan.md), [평가 계획](../evaluation/evaluation-plan.md), [데이터 분할 및 누수 정책](../data/data-split-and-leakage-policy.md), [생성 평가](../evaluation/generation-evaluation.md) | SFT dataset/template/mask | role·mask·누수·SFT smoke·전 기준선 | approved SFT data·parent checkpoint·baseline | parent 검증, 동일 평가 조건, 데이터 승인 | template/mask 오류·평가 누수 | 사용자 명시 승인 | `planned` |
-| Gate 10: 서비스 개발 진입 | 추론·API·frontend 계획 문서 [예정] | 검증 inference module | load·generation·latency 기준선 | 서비스 대상 checkpoint·계약 | Tiny 추론·평가 안정, API/UI 범위 승인 | 학습/추론 오류 미해결·명세 누락 | 사용자 명시 승인 | `planned` |
+| Gate 10: 서비스 개발 진입 | [FastAPI](../service/dohalm-backend-mvp.md)·[Base Qwen](../service/dohalm-base-qwen-provider.md)·[Frontend](../service/dohalm-frontend-mvp.md) | 고정 Qwen local snapshot | load·generation·latency 기준선 | Base Qwen 로컬 서비스 계약 | API/UI 범위 승인과 local smoke | Adapter·Prompt Engine 미완료 | 사용자 명시 승인 | Base Qwen 경로 `implemented_verified`; Adapter 경로 `planned` |
 | Gate 11: 배포 및 외부 평가 진입 | 배포·Benchmark·Leaderboard·라이선스 문서 | packaging·재현 실행 후보 | clean setup, artifact, license/leakage checks | 모델 카드·hash·공식 조건 snapshot | 공개 가능성·재현·평가 계약 승인 | 라이선스 불명확·누수·재현 실패 | 사용자 명시 승인·필요 시 법률 검토 | `planned` |
 
 ## 4. Gate 1 승인 기록
@@ -150,6 +150,7 @@ DohaLM Gate 2 데이터 최소 파이프라인 승인을 확정한다. Phase 1�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | [확정] Base Qwen 서비스 부분 완료와 Adapter Loader 미구현, Docker·Kubernetes·Cloud 배포 제외 경계 반영 |
 | 2026-07-28 | ADR-010 Instruct Project 설계·Readiness 완료와 실행 차단 상태 반영 |
 | 2026-07-28 | ADR-009 Candidate B current Base baseline과 experimental parent 결정 반영 |
 | 2026-07-28 | ADR-008·Base/Instruct/Chat EOS 계약 승인과 Candidate B historical 비소급 경계 반영 |

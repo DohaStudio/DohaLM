@@ -3,7 +3,7 @@
 ## 문서 상태
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
 - [확정] 이 문서는 프로젝트 범위와 목표를 정의하며 구현 완료를 의미하지 않는다.
 - [확정] Tiny 세부 구조는 [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), 토크나이저 방식은 [ADR-003](../decisions/ADR-003-tokenizer-method.md)을 따른다.
 
@@ -31,8 +31,8 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [확정] 체크포인트 저장, 복원 및 학습 재개
 - [확정] loss, perplexity 및 고정 프롬프트 생성 평가
 - [확정] 질문·답변 형식의 소규모 SFT 파이프라인 검증
-- [후순위] FastAPI와 Next.js의 최소 대화 흐름
-- [제외] MVP 단계의 Leaderboard 제출 또는 상용 배포
+- [확정] Base Qwen 기반 FastAPI와 Next.js 최소 대화·SSE 흐름
+- [제외] MVP 단계의 Leaderboard 제출, Docker·Kubernetes·Cloud 또는 상용 배포
 
 ## 1차 모델 목표: DohaLM-Tiny
 
@@ -59,7 +59,7 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 | 목적 | 전체 학습 파이프라인 검증 | [확정] |
 
 - [확정] 설계상 예상 파라미터 수는 `16,889,856`이며 목표 약 15M~25M 범위 안에 있다.
-- [검증 필요] 구현 후 실제 파라미터 수가 `16,889,856`과 일치하는지 자동 테스트로 확인한다.
+- [확정] 구현 모델의 실제 고유 파라미터 수가 `16,889,856`과 일치함을 자동 테스트로 확인했다.
 - [검증 필요] Dropout 확률과 파라미터 초기화 방식은 아직 결정되지 않았다.
 - [검증 필요] FP16은 안정성을 포함해 실제 학습에서 검증하며, 손실 스케일링과 수치 안정성 정책은 학습 계획에서 정한다.
 
@@ -116,7 +116,8 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [확정] Decoder Transformer Block, Language Modeling Head, Cross-Entropy Loss 연결
 - [확정] 학습·평가 루프, 체크포인트 저장·복원, 자기회귀 생성
 - [확정] 사전학습 및 질문·답변 SFT
-- [후순위] FastAPI 추론 API, Next.js 채팅 화면 및 Docker 구성
+- [확정] Base Qwen FastAPI 추론 API와 Next.js 채팅 화면
+- [검증 필요] General Instruct Adapter Loader와 독립 Prompt Engine
 
 ## 제외 기능
 
@@ -126,6 +127,7 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 - [제외] Hugging Face 완성형 GPT 모델 클래스를 핵심 모델로 사용
 - [제외] RLHF, DPO 및 멀티모달 학습은 현재 범위에 포함하지 않음
 - [제외] 상용 서비스 수준의 가용성, 보안, 자동 확장 및 SLA 보장
+- [제외] Docker, Kubernetes, Cloud와 운영 배포
 
 ## 성공 기준
 
@@ -158,4 +160,5 @@ MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Base Qwen API·Frontend 구현, Adapter Loader 미구현과 배포 제외 범위 반영 |
 | 2026-07-23 | [확정] ADR-002와 ADR-003에 맞춰 Tiny 설계 사양을 동기화하고 미결정 사항 및 예정 평가 문서 표기를 정리함 |

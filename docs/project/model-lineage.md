@@ -1,7 +1,7 @@
 # DohaLM Model Lineage
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
 - 관련 문서: [Foundation Strategy](./foundation-model-strategy.md), [Artifact Policy](../governance/artifact-and-configuration-policy.md)
 
 ## 1. 기본 원칙
@@ -83,9 +83,26 @@ flowchart LR
 - [확정] Base·Instruct·Chat·Agent의 종료 의미는 [EOS Success Policy](../evaluation/eos-success-policy.md)와
   [Model Family Roadmap](./model-family-roadmap.md)에 따라 분리한다.
 
+## 5. Runtime Adapter lineage
+
+Qwen 기반 General Instruct Adapter는 위 Foundation lineage와 별도다.
+
+```text
+Qwen/Qwen2.5-1.5B-Instruct fixed revision
+  → Runtime General Instruct QLoRA Adapter
+  → fail-closed Adapter Loader
+  → Chat API / Streaming
+```
+
+- Qwen Base와 Adapter는 Candidate A/B의 parent 또는 child가 아니다.
+- v0.1/v0.2 학습·평가 이력이 있어도 현재 Adapter Loader와 deployment eligibility는 미완료다.
+- Runtime Adapter를 `DohaLM Instruct Tiny v1`로 재명명하지 않는다.
+- 자세한 상태는 [Instruct Strategy](../instruct/instruct-strategy.md)와 [Current Project Status](./current-project-status.md)를 따른다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Qwen 기반 Runtime Adapter를 Foundation lineage와 분리 |
 | 2026-07-28 | ADR-010 Instruct·Chat 설계 lineage와 미생성 상태 반영 |
 | 2026-07-28 | Base immutable 원칙, 필수 lineage metadata와 현재 Candidate 관계 초안 작성 |

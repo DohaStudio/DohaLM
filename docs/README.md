@@ -1,150 +1,80 @@
 # DohaLM 문서 안내서
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
-- 기준 인덱스: [문서 인덱스](./index.md)
+- 마지막 검토일: 2026-08-04
+- 기준 문서: [저장소 README](../README.md)
+- 전체 목록: [문서 인덱스](./index.md)
 
-## 1. 안내 목적과 독자
+## 1. 문서 역할과 읽기 순서
 
-이 문서는 현재 DohaLM 기준 문서의 위치, 상태와 권장 읽기 순서를 안내한다.
+프로젝트의 범위·우선순위는 루트 README를 기준으로 합니다. 중복된 상태 설명 대신 다음 순서로 읽습니다.
 
-| 독자 | 우선 확인할 내용 |
-|---|---|
-| 처음 저장소를 보는 사람 | 프로젝트 목적, 범위, 시스템 흐름과 개발 순서 |
-| 프로젝트 설계를 검토하는 사람 | 확정·미결정 사항, ADR, 품질 Gate와 위험 |
-| 모델을 구현할 개발자 | Tiny 승인 사양, GPU 제약, 모델·테스트 완료 조건 |
-| 데이터 파이프라인 담당자 | 데이터 승인, 라이선스, 계보, 전처리·분할·누수 정책 |
-| 학습·평가 담당자 | 사전학습·SFT, 평가, 실험 관리와 재현성 정책 |
-| Codex 작업을 요청하는 사용자 | 개발 규칙, Ready·Done, Codex 표준 절차와 Git 제한 |
+```text
+README
+  → Foundation Model Strategy
+  → Current Project Status
+  → Roadmap
+  → Service 문서
+```
 
-## 2. 권장 읽기 순서
+1. [README](../README.md): 두 트랙, 1·2·3차 목표와 제외 범위
+2. [Foundation Model Strategy](./project/foundation-model-strategy.md): Foundation 연구와 Runtime/Application의 계보 경계
+3. [Current Project Status](./project/current-project-status.md): 실제 코드·테스트·실측 기준 상태
+4. [Roadmap](./project/model-family-roadmap.md): 남은 작업과 진입 순서
+5. [FastAPI Runtime](./service/dohalm-backend-mvp.md), [Base Qwen Provider](./service/dohalm-base-qwen-provider.md), [Frontend](./service/dohalm-frontend-mvp.md): 현재 서비스 실행 계약
 
-### 2.1 처음 보는 사람
+[Domain Model Strategy](./project/domain-model-strategy.md)는 DohaMusic과 장기 Domain 후보를,
+[Instruct Strategy](./instruct/instruct-strategy.md)는 Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime Adapter를 구분합니다.
 
-[프로젝트 개요](./project/overview.md) → [현재 프로젝트 상태](./project/current-project-status.md) → [범위와 목표](./project/scope-and-goals.md) → [Foundation Model Strategy](./project/foundation-model-strategy.md) → [Model Family Roadmap](./project/model-family-roadmap.md) → [DohaLM Instruct](./instruct/README.md) → [시스템 아키텍처](./architecture/system-architecture.md) → [개발 로드맵](./quality/development-roadmap.md)
+## 2. 트랙별 진입점
 
-장기 제품·연구 계보를 검토할 때는 [Model Lineage](./project/model-lineage.md)와 [Domain Model Strategy](./project/domain-model-strategy.md)를 함께 읽는다. 이 다섯 문서는 `review` 단계의 장기 제안이며 기존 승인 ADR이나 현재 실행 권한을 대체하지 않는다.
-
-### 2.2 핵심 구현과 모델 개발
-
-[모델 아키텍처](./architecture/model-architecture.md) → [ADR-002](./decisions/ADR-002-tiny-model-architecture.md) → [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md) → [GPU 메모리 전략](./training/gpu-memory-strategy.md) → [테스트 체크리스트](./quality/testing-checklist.md)
-
-### 2.3 데이터 작업
-
-[데이터 전략](./data/data-strategy.md) → [데이터셋 후보 등록부](./data/dataset-candidate-registry.md) → [구조 분석 요약](./data/analysis/dataset-analysis-summary.md) → [안전 표본 추출](./data/analysis/safe-sampling.md) → [수동 경로 mapping](./data/analysis/manual-path-mapping.md) → [대용량 JSON 제한 검사](./data/analysis/large-json-inspection.md) → [데이터셋 라이선스 검토](./data/dataset-license-review.md) → [데이터셋 승인 로그](./data/dataset-approval-log.md) → [평가 제외 목록](./data/evaluation-exclusion-list.md) → [실제 데이터셋 레지스트리](./data/dataset-registry.md) → [Phase 1 데이터 계약](./data/phase1-data-contract.md)·처리 → [Corpus Adapter 계약](./data/corpus-adapter-contract.md) → [Phase 2 토크나이저 계약](./training/phase2-tokenizer-contract.md)
-
-### 2.4 Phase 2 토크나이저 구현
-
-[Phase 1 데이터 계약](./data/phase1-data-contract.md) → [Phase 2 토크나이저 상세 계약](./training/phase2-tokenizer-contract.md) → [토크나이저 설계](./training/tokenizer-design.md) → Phase 2 구현·테스트
-
-### 2.5 학습과 평가
-
-[Trainer Foundation](./training/trainer-foundation.md) → [Tiny 실규모 검증](./training/tiny-training-validation.md) → [Sampler와 재개](./training/sampler-state-and-resume.md) → [Tiny 학습 테스트](./quality/tiny-training-testing.md) → [Gate 4·5·6 승인 기록](./quality/gate4-6-evidence-review.md) → [Pilot 준비 검증](./training/pilot-pretraining-readiness.md) → [학생용 Pilot Pretraining](./training/pilot-pretraining.md) → [100-step Pilot 결과](./training/pilot-pretraining-100-v2-result.md) → [Full Pretraining 실행 계획](./training/full-pretraining-execution-plan.md) → [Candidate A 결과](./training/full-pretraining-candidate-a-result.md) → [Evaluation Framework](./evaluation/README.md) → [Candidate B 설계](./training/candidate-b-design.md) → [Candidate B Backend](./training/candidate-b-backend.md) → [Candidate B 실패 Run](./training/candidate-b-failed-run-20260728-0001.md) → [Checkpoint 정책](./training/candidate-b-checkpoint-policy.md) → [Candidate B 최종 Readiness](./training/candidate-b-final-readiness.md) → [Candidate B Run 0002 결과](./training/candidate-b-execution-result.md) → [Candidate B Full 결과](./evaluation/candidate-b-final-full-result.md) → [Candidate A/B Full 비교](./evaluation/candidate-a-b-full-comparison.md) → [실험 관리](./training/experiment-management.md)
-
-Evaluation Framework와 Candidate A/B Full·EOS 진단은 완료됐다. ADR-009에 따라 Candidate B는 current Base
-baseline, Candidate A는 historical baseline이다. ADR-010으로 DohaLM Instruct 전략·schema·template·evaluation·
-safety·readiness 설계를 완료했지만 dataset·backend·SFT·publication은 승인되지 않았다.
-
-### 2.6 Codex 작업
-
-[개발 규칙](./governance/development-rules.md) → [Definition of Ready](./governance/definition-of-ready.md) → [Definition of Done](./governance/definition-of-done.md) → [Codex 작업 절차](./governance/codex-workflow.md)
-
-작업 시에는 문서 외에도 루트 [AGENTS.md](../AGENTS.md)와 작업 경로에 가장 가까운 하위 `AGENTS.md`를 먼저 확인한다.
-
-## 3. 문서 상태
-
-| 상태 | 의미 |
-|---|---|
-| `planned` | 파일이 없거나 목차·작성 계획만 존재함 |
-| `draft` | 초안은 있으나 핵심 미결정 사항이 남아 있음 |
-| `review` | 필수 내용이 작성되어 검토를 기다리거나 검토 중임 |
-| `approved` | 프로젝트 기준 또는 결정으로 승인됨 |
-| `implemented` | 승인 내용이 코드·설정·테스트에 반영되고 검증됨 |
-| `deprecated` | 후속 문서나 결정으로 대체됨 |
-
-- [확정] `approved`는 설계·정책 승인이며 구현 완료를 의미하지 않는다.
-- [확정] 문서 상태와 본문의 `[확정]`, `[가정]`, `[검증 필요]`, `[후순위]`, `[제외]` 태그는 서로 다른 축이다.
-- [확정] 상태의 단일 기준과 전체 선후 관계는 [문서 인덱스](./index.md)를 따른다.
-
-## 4. 범주별 안내
-
-이 문서는 범주별 진입점만 제공한다. 모든 기준 문서의 상태·선행·후속·필수 여부·미결정 사항은 [문서 인덱스](./index.md)를 단일 기준으로 사용한다.
-
-| 범주 | 설명 | 우선 진입 문서 |
+| 트랙 | 현재 범위 | 우선 문서 |
 |---|---|---|
-| 프로젝트 | 목적, 범위와 버전 방향 | [프로젝트 개요](./project/overview.md), [범위와 목표](./project/scope-and-goals.md) |
-| 거버넌스 | 개발 규칙, Ready·Done과 Codex 절차 | [개발 규칙](./governance/development-rules.md), [Definition of Ready](./governance/definition-of-ready.md), [Codex 작업 절차](./governance/codex-workflow.md) |
-| 아키텍처 | 시스템·모델·저장소 구조와 핵심 기능 계약 | [시스템 아키텍처](./architecture/system-architecture.md), [모델 아키텍처](./architecture/model-architecture.md), [핵심 개발 기능명세서](./architecture/core-development-feature-specification.md), [저장소 구조](./architecture/repository-structure.md) |
-| 데이터 | 후보, 구조·안전 표본 분석, 라이선스·목적별 승인, Phase 1·adapter 계약과 품질 | [데이터 전략](./data/data-strategy.md), [데이터셋 후보 등록부](./data/dataset-candidate-registry.md), [구조 분석](./data/analysis/README.md), [안전 표본 추출](./data/analysis/safe-sampling.md), [수동 경로 mapping](./data/analysis/manual-path-mapping.md), [라이선스 검토](./data/dataset-license-review.md), [승인 로그](./data/dataset-approval-log.md), [Phase 1 데이터 계약](./data/phase1-data-contract.md), [Corpus Adapter 계약](./data/corpus-adapter-contract.md) |
-| 학습 | 토크나이저, Base 사전학습, Instruct 설계와 실험 관리 | [Trainer Foundation](./training/trainer-foundation.md), [사전학습 계획](./training/pretraining-plan.md), [DohaLM Instruct](./instruct/README.md), [실험 관리](./training/experiment-management.md) |
-| 평가 | 재현 가능한 checkpoint 비교, 내부 평가, 생성 안정성 | [Evaluation Framework](./evaluation/README.md), [평가 계획](./evaluation/evaluation-plan.md), [Benchmark 정책](./evaluation/benchmark-policy.md), [생성 평가](./evaluation/generation-evaluation.md) |
-| 품질 | 로드맵, 테스트와 재현성 | [개발 로드맵](./quality/development-roadmap.md), [테스트 전략](./quality/test-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md) |
-| 결정 기록 | 승인된 결정과 재검토 조건 | [ADR 인덱스](./decisions/README.md) |
+| Foundation Model | DohaLM-Tiny, Tokenizer, Candidate A/B, Evaluation Framework | [모델 아키텍처](./architecture/model-architecture.md), [Evaluation](./evaluation/README.md), [Model Lineage](./project/model-lineage.md) |
+| Runtime 1차 | Qwen Base, General Instruct Adapter, Runtime, Loader, Chat API, Streaming, Prompt Engine | [Instruct 안내](./instruct/README.md), [FastAPI](./service/dohalm-backend-mvp.md), [Base Qwen](./service/dohalm-base-qwen-provider.md) |
+| Runtime 2차 | Memory, RAG, Tool Calling, Agent | [Roadmap](./project/model-family-roadmap.md), [Tool Calling 전략](./instruct/tool-calling-strategy.md) |
+| Application 3차 | DohaMusic, Lyrics Search, Style Analysis, Personal Music Adapter | [Domain Strategy](./project/domain-model-strategy.md) |
 
-## 5. ADR 안내
+## 3. 상태 표기
 
-- ADR은 모델, 데이터, 평가, 품질 Gate처럼 장기간 영향을 주는 결정의 배경·대안·결과를 기록한다.
-- 관련 구현을 시작하거나 승인 사양을 변경할 때 적용되는 ADR을 먼저 읽는다.
-- 일반 문서와 승인 ADR이 충돌하면 현재 상태가 `approved`인 최신 ADR을 우선하고 충돌을 보고한다.
-- 전체 목록과 상태는 [ADR 인덱스](./decisions/README.md)를 따른다.
-- 모델 구조·파라미터·Vocabulary·Context·Normalization·위치 표현·weight tying, 데이터 거버넌스, 평가 방식, checkpoint schema, 공개 API, 저장소 핵심 구조와 승인 정책 변경은 새 ADR 후보이다.
-- 오탈자, 링크 수정과 의미를 바꾸지 않는 설명 보완에는 ADR이 필요하지 않다.
+문서 생명주기와 구현 상태를 혼합하지 않습니다.
 
-| ADR | 결정 | 상태 |
-|---|---|---|
-| [ADR-001](./decisions/ADR-001-initial-model-scope.md) | Tiny 우선 모델 범위 | `approved` |
-| [ADR-002](./decisions/ADR-002-tiny-model-architecture.md) | DohaLM-Tiny 아키텍처 | `approved` |
-| [ADR-003](./decisions/ADR-003-tokenizer-method.md) | SentencePiece Unigram 방식 | `approved` |
-| [ADR-004](./decisions/ADR-004-data-governance.md) | 데이터 거버넌스 | `approved` |
-| [ADR-005](./decisions/ADR-005-evaluation-and-experiment-policy.md) | 평가·실험 관리 정책 | `approved` |
-| [ADR-006](./decisions/ADR-006-development-quality-gates.md) | 개발 단계와 품질 Gate | `approved` |
-| [ADR-007](./decisions/ADR-007-evaluation-baseline-and-candidate-comparison.md) | Evaluation baseline과 Candidate 비교 정책 | `approved` |
-| [ADR-008](./decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md) | 모델 단계별 EOS 평가 정책 | `approved` |
-| [ADR-009](./decisions/ADR-009-candidate-b-official-reassessment.md) | Candidate B current Base baseline | `approved` |
-| [ADR-010](./decisions/ADR-010-dohalm-instruct-strategy.md) | DohaLM Instruct 전략·Readiness | `approved` |
-| [FastAPI 백엔드 MVP](./service/dohalm-backend-mvp.md) | MockProvider 기반 HTTP·SSE API와 Provider 교체 계약 | `review` |
-| [Next.js Frontend MVP](./service/dohalm-frontend-mvp.md) | MockProvider HTTP·SSE 채팅 UI와 브라우저 상태 계약 | `review` |
+| 문서 상태 | 의미 |
+|---|---|
+| `planned` | 파일이 없거나 작성 계획만 존재 |
+| `draft` | 초안이며 핵심 미결정 사항 존재 |
+| `review` | 필수 내용 작성 후 검토 중 |
+| `approved` | 정책·결정 승인; 구현 완료 아님 |
+| `implemented` | 승인 내용이 코드·설정·테스트에 반영·검증됨 |
+| `deprecated` | 후속 문서나 결정으로 대체 |
 
-## 6. 현재 상태
+본문 구현 상태는 README의 `implemented_verified`, `implemented_not_integrated`, `design_complete`, `planned`,
+`out_of_scope`를 사용합니다. 문서가 `review`여도 본문 기능은 구현 완료일 수 있고, ADR이 `approved`여도 실행은 미완료일 수 있습니다.
 
-- [확정] Gate 1을 통과했고 Phase 0 환경·설정·경로·로깅·CLI 기반은 구현·검증 완료됐다.
-- [확정] Gate 2를 통과했고 Phase 1 DATA-001~016 최소 데이터 파이프라인은 구현·검증 완료됐다.
-- [확정] Base 개발·Candidate A/B·Evaluation은 완료됐다. Candidate B historical 계약 미통과는 보존하며
-  ADR-009 current Base baseline이다. Instruct는 ADR-010 `design_completed`, AIHUB-71748 Run 0006
-  metadata-only Preflight `passed`, execution은 `not_approved`다.
-- [확정] AI Hub 데이터셋 5개의 로컬 제한 package 구조를 읽기 전용으로 확인했지만 공식 다운로드 계보는 미검증이다. 등록부의 `registered`, `pending_terms_review`, `not_requested`와 목적별 `pending` 상태는 자동 변경하지 않았다.
-- [확정] AIHUB-71748 안전 dry-run은 1,610개 absolute entry를 모두 거부해 추출 0건이며 수동 검토가 필요하다.
-- [확정] 명시적 수동 mapping 기능과 합성 검증을 구현했고 사용자가 승인한 로컬 mapping으로 실제 dry-run을 수행했다. 이는 목적별 데이터 승인이 아니다.
-- [확정] 이후 승인된 mapping dry-run에서 rule별 매칭 573/0·선택 1·추출 0을 확인했고 대용량 JSON 5개 제한 streaming·prefix 1,610개 hash 집계를 수행했다. 데이터 목적별 승인은 그대로 pending이다.
-- [확정] `DohaLM-Tiny` 설계는 ADR-002에서 승인됐고 Phase 3·4 코드와 합성 테스트에 반영됐다. Gate 4·5 승인과 실제 학습 검증은 별도다.
-- [검증 필요] `DohaLM-Small`의 Layer, Hidden Size, Head, FFN, 정밀도와 배치는 확정되지 않았다.
-- [확정] Gate 0은 `approved`, Gate 1·2·3·4·5·6·7은 `passed`다. 운영 tokenizer와 Candidate B current
-  Base baseline은 고정됐다. Instruct dataset·backend·SFT·Preference와 후속 모델 학습은 승인되지 않았다.
-- [구현] FastAPI 백엔드 MVP는 MockProvider만 사용하며 실제 model·Adapter는 별도 승인 전까지 연결하지 않는다.
-- [구현] Next.js Frontend MVP는 메모리 상태와 plain text 렌더링만 사용하며 FastAPI MockProvider와 연동한다.
-- [후순위] 실제 model Provider, 인증, 저장, 배포와 외부 평가는 별도 단계에서 진행한다.
+## 4. 현재 핵심 경계
 
-## 7. 변경 이력
+- Foundation Model Track의 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다.
+- ADR-010은 Candidate B 기반 Foundation Instruct 설계 승인이지 Qwen Adapter 실행 승인이 아닙니다.
+- Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐지만 Adapter Loader는 placeholder입니다.
+- Memory, RAG, Tool Calling, Agent와 DohaMusic은 계획 상태입니다.
+- Docker, Kubernetes, Cloud와 운영 배포는 현재 범위 밖입니다.
+- 실제 데이터, checkpoint, Adapter와 로컬 경로는 Git과 문서에 포함하지 않습니다.
+
+## 5. 거버넌스와 품질
+
+- [ADR 인덱스](./decisions/README.md)
+- [개발 규칙](./governance/development-rules.md)
+- [Definition of Ready](./governance/definition-of-ready.md)
+- [Definition of Done](./governance/definition-of-done.md)
+- [테스트 전략](./quality/test-strategy.md)
+- [테스트 체크리스트](./quality/testing-checklist.md)
+
+작업 전에는 루트 [AGENTS.md](../AGENTS.md)와 작업 경로의 하위 `AGENTS.md`를 함께 확인합니다. 승인 ADR과 일반 문서가
+충돌하면 승인된 최신 ADR을 우선하고, 현재 방향은 계보를 분리해 충돌 없이 기록합니다.
+
+## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-07-28 | ADR-010 DohaLM Instruct 설계 문서·Readiness와 실행 미승인 상태 연결 |
-| 2026-07-28 | Candidate B Full·EOS ranking·Candidate A/B 비교와 계약 미통과 상태 연결 |
-| 2026-07-28 | Candidate B Run 0002 학습·Quick 완료와 Full Evaluation 계약 수정 단계 연결 |
-| 2026-07-28 | Candidate B 첫 실행 실패와 numeric validator·quarantine 보완, 재실행 미승인 경계 연결 |
-| 2026-07-28 | Candidate B backend·CPU validation·output probe 완료와 실행 승인 대기 상태 연결 |
-| 2026-07-27 | [확정] AIHUB-71748 동일 64문서 Tiny Overfit 최종 승인과 Gate 7 `passed`를 반영하되 Pilot·전체 Pretraining 차단을 유지함 |
-| 2026-07-24 | [확정] Gate 4·5·6 사용자 승인 기록과 Pilot readiness 차단 문서를 학습 흐름에 연결하고 Gate 3·7 및 데이터 승인을 유지함 |
-| 2026-07-24 | [확정] 실제 Tiny 규모 합성 학습·sampler resume·VRAM/처리량 검증 문서를 연결하고 Gate 6·7 `planned`를 유지함 |
-| 2026-07-24 | [확정] Phase 5 합성 Trainer Foundation·checkpoint/resume·테스트 문서를 학습 흐름에 연결하고 실제 사전학습과 구분함 |
-| 2026-07-24 | [확정] Corpus Adapter 공통 계약과 synthetic AIHUB-71748 구현 문서를 데이터 안내 경로에 연결함 |
-| 2026-07-24 | [확정] 수동 mapping 관측성, 대용량 JSON 5개 제한 검사와 RaG prefix hash·Unicode 비교 결과를 반영함 |
-| 2026-07-24 | [확정] 일반 sampler와 분리된 수동 mapping 계약·AIHUB-71748 pending 후보 문서를 데이터 읽기 흐름에 연결함 |
-| 2026-07-23 | [확정] ZIP 안전 표본 추출 정책과 AIHUB-71748 dry-run 결과 진입점을 추가함 |
-| 2026-07-23 | [확정] AI Hub 후보 5종의 읽기 전용 구조 분석 진입점과 승인 상태 비변경 원칙을 반영함 |
-| 2026-07-23 | [확정] 데이터 작업 읽기 순서에 Phase 1 데이터 계약과 후속 정책·구현 흐름을 연결함 |
-| 2026-07-23 | [확정] 데이터 전략→후보→라이선스→승인 로그→실제 registry→Phase 1→Phase 2 corpus 읽기 흐름을 반영함 |
-| 2026-07-23 | [확정] Phase 1 데이터 계약→Phase 2 토크나이저 계약→상위 설계→구현 읽기 흐름과 Gate 2 상태를 반영함 |
-| 2026-07-23 | [확정] 개발자 읽기 순서에 핵심 개발 기능명세서를 추가하고 Phase 0·Gate 1 실제 상태를 동기화함 |
-| 2026-07-23 | [확정] 범주별 진입점과 문서 생명주기 인덱스의 역할을 분리함 |
-| 2026-07-23 | [확정] 독자별 읽기 순서, 문서 지도, ADR 안내와 실제 저장소 상태를 반영한 문서 안내서 작성 |
+| 2026-08-04 | README → Strategy → Current Status → Roadmap → Service 읽기 흐름과 트랙별 진입점으로 재구성 |
+| 2026-07-28 | Model Family·Instruct 문서 진입점 추가 |

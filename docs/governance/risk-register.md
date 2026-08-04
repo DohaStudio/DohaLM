@@ -5,14 +5,14 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-24 |
+| 마지막 검토일 | 2026-08-04 |
 | 선행 문서 | [개발 로드맵](../quality/development-roadmap.md), [GPU 메모리 전략](../training/gpu-memory-strategy.md), [실험 관리](../training/experiment-management.md), [데이터 라이선스 정책](../data/data-license-policy.md), [재현성 정책](../quality/reproducibility-policy.md) |
 | 후속 문서 | Gate 승인·실험·version 검토 |
 | 구현 전 필수 여부 | 예 |
 
 - [확정] 가능성·영향·우선순위는 `low`, `medium`, `high`, `critical`, `unknown`의 정성 등급을 사용한다.
 - [확정] 실제 근거 없이 발생 확률을 숫자로 작성하지 않는다.
-- [확정] Phase 0 기반과 Phase 1 최소 데이터 파이프라인은 구현·검증됐다. 실제 외부 데이터·토크나이저·모델·학습은 미구현이므로 관련 위험은 `monitoring`, `mitigating` 또는 `open`으로 유지한다.
+- [확정] Gate 1~7, Candidate A/B와 Base Qwen 로컬 Runtime은 구현·검증됐다. Adapter Loader와 2차 Runtime, 운영 배포는 미구현이므로 관련 위험은 계속 관리한다.
 
 ## 2. 위험 상태
 
@@ -37,7 +37,7 @@
 | R-013 | 문서·코드 불일치 | `unknown` | `high` | `high` | parameter·shape·상태 차이 | 문서 우선·같은 변경에서 갱신·regression | Gate 중단·기준 확인·ADR/코드 수정 | governance/all | `monitoring` |
 | R-014 | 실험 재현 실패 | `unknown` | `high` | `high` | 같은 config에서 큰 차이·환경 누락 | Git/data/tokenizer/seed/environment 연결 | divergence 분석·새 attempt·invalid 판정 | experiment | `mitigating` (Phase 1 결정론과 합성 Trainer config/dataset fingerprint·seed·resume 검증, 운영 실험 미검증) |
 | R-015 | 프로젝트 범위 과다 | `medium` | `high` | `high` | Tiny 전 서비스·Small·외부 기능 병행 | Phase·Gate·MVP·제외 범위 | 후순위로 복귀·작업 분할 | project | `monitoring` |
-| R-016 | FastAPI·Next.js 조기 개발 | `medium` | `medium` | `medium` | Tiny 학습·추론 미검증 상태 UI 작업 | Gate 10과 후순위 명시 | 서비스 중단·추론/평가 Phase 복귀 | service/project | `monitoring` |
+| R-016 | FastAPI·Next.js 조기 개발 | `low` | `medium` | `low` | Foundation 검증 전 UI 우선 구현 | 트랙·완료 조건 분리 | Runtime 중단·Foundation/추론 검증 복귀 | service/project | `closed` (Gate 1~7 이후 Base Qwen 로컬 경로 구현; Adapter는 별도 미완료) |
 | R-017 | Small 모델 조기 확정 | `medium` | `high` | `high` | Tiny 실측 전 Layer·batch 확정 | ADR-001·Tiny Gate | 사양 철회·Tiny 실측 후 후속 ADR | model/project | `monitoring` |
 | R-018 | Benchmark 과적합 | `unknown` | `high` | `high` | 반복 prompt 조정·test 점수 기반 학습 | validation/test 분리·사용 기록 | 결과 한계 공개·새 holdout 검토 | evaluation | `open` |
 | R-019 | 대용량 파일 Git commit | `low` | `high` | `high` | status에 data/checkpoint/log | ignore·pre-commit 후보·diff 검토 | commit 중단·안전한 제거·노출 영향 확인 | repository/artifact | `monitoring` (Gate 1 추적 산출물 위반 0건) |
@@ -96,6 +96,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-04 | Base Qwen 로컬 Runtime 구현과 Adapter·2차 Runtime 미구현을 반영하고 조기 서비스 개발 위험 R-016 종료 |
 | 2026-07-24 | [확정] Gate 4·5·6 사용자 승인 후에도 Gate 3·7과 데이터·Pilot 승인이 분리되도록 R-060을 갱신함 |
 | 2026-07-24 | [확정] Gate evidence eligibility와 실제 상태·Pilot 승인을 혼동하는 위험 R-060 및 fail-closed readiness 대응을 등록함 |
 | 2026-07-24 | [확정] 실제 Tiny 합성 CUDA batch·VRAM·loss와 명시적 sampler bitwise resume 근거로 R-001·008·011·026을 갱신함 |

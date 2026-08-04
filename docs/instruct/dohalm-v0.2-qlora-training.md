@@ -1,8 +1,11 @@
 # DohaLM v0.2 Weighted QLoRA 실행 계약
 
+- 문서 상태: `review`
+- 마지막 검토일: 2026-08-04
+
 ## 상태
 
-`implemented_pending_runtime_validation`
+`training_completed_postprocessing_failed_recovery_pending`
 
 이 문서는 v0.2 tokenized dataset과 Sidecar sampling weight를 사용하는 단일 RTX 3060 Ti/WSL2 QLoRA 실행 계약을 정의한다. 구현과 synthetic 검증은 완료 대상으로 삼지만, 실제 smoke와 2-epoch 학습 완료 여부는 runtime artifact로만 판정한다.
 
@@ -70,8 +73,11 @@ terminal step은 1,298이며 허용 checkpoint는 `250/500/750/1000/1250/1298`�
 ```yaml
 implementation: implemented
 synthetic_tests: required
-runtime_smokes: pending
-full_training: conditional_pending_smokes
+runtime_smokes: completed
+full_training: completed_2_epochs_1298_steps
+postprocessing: failed_checkpoint_schedule_validation
+evaluation_recovery: pending
+runtime_integration: not_started
 automatic_retry: false
 automatic_resume: false
 source_modified: false

@@ -1,74 +1,87 @@
 # DohaLM Domain Model Strategy
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-04
+- 기준 문서: [README](../../README.md)
+- 선행 문서: [Foundation Strategy](./foundation-model-strategy.md), [Roadmap](./model-family-roadmap.md)
 - 현재 실행 권한 영향: 없음
-- 관련 문서: [Model Family Roadmap](./model-family-roadmap.md), [Model Lineage](./model-lineage.md), [Data Governance ADR](../decisions/ADR-004-data-governance.md)
 
-## 1. 공통 원칙
+## 1. 현재 Domain 우선순위
 
-- [제안] Domain 모델은 승인된 Base 또는 명시적인 derivative를 parent로 사용한다.
-- [제안] 데이터 적격성, 라이선스·PII·누수, domain evaluation, Base regression과 release 조건을 family별로 검증한다.
-- [확정] 아래 내용은 장기 설계이며 현재 데이터 사용, SFT, preference training이나 publication 승인이 아니다.
+현재 Domain/Application 우선순위는 3차 목표인 **DohaMusic**입니다. 기존 Code, SQL, Recruit, Game과
+Vision/Multimodal 제안은 삭제하지 않지만 현행 Roadmap 밖의 장기 후보로 보존합니다.
 
-## 2. Domain별 데이터와 위험
+Domain 모델은 Foundation Model Track을 자동으로 확장하지 않습니다. 현재 Application Domain은 Qwen 기반 General
+Instruct Runtime을 재사용하는 Runtime/Application Track에 속합니다. Candidate B 기반 Foundation derivative가 필요한 경우에는
+별도 데이터·학습·평가 승인과 lineage가 필요합니다.
 
-| Domain | 목적 | 데이터 범주 | 학습 후보 | 핵심 위험 | Domain 평가 | Base regression | 상태 |
-|---|---|---|---|---|---|---|---|
-| Code | 생성·설명·debug·test | source, comments, docs, tests, fixes | CPT + SFT | license, secret, vulnerable code, benchmark contamination | syntax·compile·unit test·functional·security | 일반 언어·한국어·EOS | `long_term_planned` |
-| SQL | query 생성·수정·교육 | NL-SQL, schema-query, explanation, fixes | CPT/SFT | PII DB dump, schema leakage, dialect 혼합, 위험 query | parse·execution·result·dialect | 일반 언어·format·safety | `long_term_planned` |
-| Recruit | JD·지원 문서·면접 보조 | JD, 문서 구조, career writing | domain SFT | PII, bias, fabricated career, confidential company docs | relevance·factuality·privacy·bias | 일반 언어·hallucination | `long_term_planned` |
-| Game | NPC·quest·lore·상태 상호작용 | dialogue, quest, lore, rules, state traces | CPT/SFT | IP, consistency, harmful content, player PII | lore·state·quest·repetition·safety | language·EOS·stability | `long_term_planned` |
-| Chat | 대화·질의응답·맥락 유지 | multi-turn, instruction, refusal | SFT, 별도 preference | PII, harmful content, bias, long-context failure | coherence·retention·relevance·safety | Base Full + generation | `long_term_planned` |
-| Agent | tool calling·workflow·recovery | tool schema, JSON, action traces | tool-calling SFT | privilege abuse, injection, secret exposure, unsafe action | selection·arguments·permission·recovery | Base·Chat·format regression | `long_term_planned` |
+## 2. DohaMusic
 
-추가 데이터 경계는 다음과 같다.
+```text
+General Instruct Runtime
+  → DohaMusic
+      ├── Lyrics Search
+      ├── Style Analysis
+      └── Personal Music Adapter
+```
 
-- Code: 언어별 source·주석·문서·테스트·오류 수정·설명 pair의 라이선스와 secret을 검사하고 benchmark contamination을 분리한다.
-- SQL: 자연어-SQL, schema-query, 설명, 오류-수정 pair와 SQLD 개념을 dialect별로 관리하며 실제 개인정보 DB dump는 사용하지 않는다.
-- Recruit: 이력서 구조·경력 기술·면접 질문·지원서 예시·직무 분석을 후보로 삼고 실제 사용자 데이터, 민감정보, 고용 편향과 기업 문서 저작권을 별도 승인한다.
-- Game: 분기 대화·quest·lore·character·world·rule·state interaction을 다루고 IP, 유해 콘텐츠와 player PII를 검사한다.
-- Chat: 일반 질의응답·multi-turn·요약·안전한 거절·style control을 다루고 역할 혼동·긴 문맥·일관성과
-  응답 종료를 평가한다. Service decoding은 모델 EOS 평가와 분리한다.
-- Agent: tool schema·selection·JSON·observation-action trace·failure recovery·permission handling을 다루고
-  injection·허위 tool result·secret·자동 실행 권한을 차단한다. 종료는 EOS뿐 아니라 tool call·workflow·권한
-  경계의 structured termination으로 평가한다.
+| 구성 | 목적 | 필수 선행 조건 | 핵심 위험 | 현재 상태 |
+|---|---|---|---|---|
+| DohaMusic | 음악 질의·탐색 Application | 1차 Runtime과 Prompt Engine | 모델 한계 오표현, 출처 불명확 | `planned` |
+| Lyrics Search | 가사 기반 검색·근거 제시 | RAG, 합법적 source, citation 정책 | 저작권, 과도한 가사 노출, 검색 누수 | `planned` |
+| Style Analysis | 음악·가사 특성 설명 | 평가 taxonomy, 근거·불확실성 표기 | 살아 있는 아티스트 모방, 주관 평가 과신 | `planned` |
+| Personal Music Adapter | 개인 선호 적응 | Adapter Loader, 동의·삭제·격리 정책 | 개인정보, preference leakage, adapter 혼선 | `planned` |
 
-[확정] Candidate B는 ADR-009에 따라 Code·SQL·Recruit·Game CPT 및 Instruct·Chat의
-`approved_experimental` Base parent 후보다. 이 적격성은 domain corpus·평가 set·학습·publication 승인이
-아니며 각 family의 Ready와 별도 사용자 승인을 요구한다.
+### 데이터 경계
 
-## 3. Release 조건
+- Lyrics source의 수집·저장·색인·표시 권한을 각각 확인합니다.
+- 검색 근거가 있어도 허용 범위를 넘는 가사 원문을 반환하지 않습니다.
+- 개인 청취·선호 데이터는 명시적 동의, 사용자별 격리, 삭제와 export 정책 없이는 사용하지 않습니다.
+- Foundation pretraining corpus, General Instruct SFT data와 Personal Adapter data를 별도 lineage로 관리합니다.
 
-각 Domain은 최소한 다음이 필요하다.
+### 평가 경계
 
-1. 승인된 parent와 완전한 lineage
-2. 목적별 dataset·license·PII 승인
-3. benchmark contamination과 evaluation leakage 검사
-4. Domain 평가와 동일 parent 대비 Base regression
-5. 실패·한계·안전 정보를 포함한 model card
-6. checkpoint, model, dataset 각각의 publication 승인
+- Lyrics Search: retrieval recall/precision, citation 정확성, source freshness, 저작권 응답 제한
+- Style Analysis: taxonomy 일관성, 근거성, 불확실성, 아티스트 모방 안전성
+- Personal Adapter: 선호 적합성, 일반 응답 회귀, 사용자 간 누수, 삭제 후 재현 불가 확인
 
-## 4. 평가 분리
+Domain 점수는 Base/Runtime 회귀와 안전 검증을 대체하지 않습니다.
 
-- Base 평가는 Full internal loss, perplexity, Top-k, token category, position, EOS, generation stability, precision, privacy와 lineage를 사용한다.
-- Domain 평가는 task 성공률과 안전성을 추가하되 Base 평가를 대체하지 않는다.
-- 임의 종합 점수로 핵심 지표의 실패를 숨기지 않는다.
+## 3. 2차 Runtime과의 의존성
 
-## 5. Family별 평가 계약 후보
+- Lyrics Search는 RAG가 선행됩니다.
+- 외부 음악 서비스 호출이 필요하면 Tool Calling의 schema·권한·confirmation 계약이 선행됩니다.
+- 개인화 Memory는 보존 기간, 삭제와 사용자 격리를 먼저 해결해야 합니다.
+- Agent는 DohaMusic의 필수 조건이 아니며 제한된 workflow가 실제로 필요한 경우에만 도입합니다.
 
-| Family | Domain 지표 | 공통 회귀·안전 지표 |
+## 4. 장기 후보 보존
+
+| 후보 | 기존 목적 | 현재 처리 |
 |---|---|---|
-| Instruct | instruction following, format compliance, task completion, multi-step 수행 | refusal, hallucination, Base Full |
-| Chat | multi-turn coherence, context retention, relevance, consistency | safety, Base Full, generation stability |
-| Code | syntax, compilation, unit test, functional correctness, explanation | security, license contamination, Base Full |
-| SQL | parse, execution, result, dialect, explanation | dangerous query detection, schema leakage, Base Full |
-| Recruit | JD relevance, factual consistency, structure | fabricated experience, privacy, bias, Base Full |
-| Game | lore, dialogue, state, quest, repetition | safety, IP review, Base Full |
-| Agent | tool selection, arguments, workflow, recovery | permission, injection resistance, secret exposure, Base Full |
+| Code | 생성·설명·debug·test | 장기 후보; 현재 실행 순서 밖 |
+| SQL | query 생성·수정·교육 | 장기 후보; 실제 DB·PII 계약 필요 |
+| Recruit | JD·지원 문서·면접 보조 | 장기 후보; privacy·bias 고위험 |
+| Game | NPC·quest·lore·state | 장기 후보; IP·일관성 계약 필요 |
+| Vision/Multimodal | image-text 이해 | 현재 범위 밖 |
+
+이 표는 구현 계획이나 학습 승인이 아닙니다. 후보가 활성화될 때 목적, parent, data, evaluation, safety와 publication을
+별도 문서와 필요한 ADR로 결정합니다.
+
+## 5. 공통 Release 조건
+
+Domain/Application 공개에는 최소한 다음이 필요합니다.
+
+1. 승인된 Runtime 및 parent Adapter lineage
+2. 목적별 데이터 이용조건·PII·누수 검토
+3. Domain 평가와 공통 Runtime 회귀
+4. 실패·한계·안전 경계 문서화
+5. 모델·Adapter·Dataset·Application 각각의 publication 또는 운영 승인
+
+Docker, Kubernetes, Cloud 배포는 이 문서의 범위 밖입니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-07-28 | Code·SQL·Recruit·Game·Chat·Agent 데이터·위험·평가·release 전략 초안 작성 |
+| 2026-08-04 | DohaMusic을 3차 우선 Domain으로 지정하고 Lyrics Search·Style Analysis·Personal Music Adapter 경계 작성 |
+| 2026-07-28 | Code·SQL·Recruit·Game·Chat·Agent 장기 Domain 초안 작성 |
