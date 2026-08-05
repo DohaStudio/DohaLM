@@ -36,9 +36,17 @@ parent 결정을 다루는 후속 ADR이 필요합니다.
 ```text
 base_training_readiness_review: completed
 candidate_c_contract_design: completed
+candidate_b_eos_diagnostic_contract: design_completed
+candidate_b_eos_diagnostic_execution_allowed: false
+candidate_b_checkpoint_mutation_allowed: false
+candidate_c_primary_hypothesis: not_selected
 candidate_c_readiness: blocked
 candidate_c_execution_allowed: false
 candidate_c_training_started: false
+gate_c1: review
+gate_c4: blocked
+gpu_diagnostic: not_started
+full_diagnostic: not_started
 ```
 
 ## 3. 통합 상태
@@ -55,6 +63,7 @@ candidate_c_training_started: false
 | Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
 | Base Training Readiness review | `completed` | A/B evidence·EOS 현상·Dataset/Tokenizer/Config 조사와 readiness 판정 완료 |
 | Candidate C contract design | `completed` | C-1~C-8·EOS 가설·freeze·Evaluation·Selection 계약 작성 완료 |
+| Candidate B EOS diagnostic contract | `design_completed` | [read-only 실행 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)과 [주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md) 설계; 실행·GPU·checkpoint load 없음 |
 | Candidate C execution readiness | `blocked` | ADR-011·주가설·C-2/C-3 freeze·C-4 resolved config·평가 승인 미완료 |
 | Candidate C execution | `not_started` | `execution_allowed: false`, 학습 시작 false |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
@@ -65,8 +74,9 @@ Candidate B의 historical 평가 계약 판정 `evaluated_contract_not_passed`�
 `approved_as_base_baseline`이며 derivative parent 적격성은 `approved_experimental`입니다. 이는 후속 학습 또는 공개 승인이 아닙니다.
 Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-greedy 생성의 EOS 종료율은 0%, maximum-length
 종료율은 100%였습니다. 이 한계는 Base 진단 결과로 보존하며 숨기거나 Runtime readiness로 해석하지 않습니다.
-EOS 현상과 기존 A/B 진단 검토는 `completed`지만 단일 root cause는 `not_confirmed`입니다. H1~H7 중 어느 가설도
-아직 승인되지 않았으며 이 미확정성이 Candidate C execution readiness를 차단합니다.
+EOS 현상과 기존 A/B 진단 검토는 `completed`지만 단일 root cause는 `not_confirmed`입니다. 신규 Candidate B read-only
+진단 **계약 설계**만 완료됐고 실행은 허용되지 않았습니다. H1~H7 중 어느 가설도 아직 승인되지 않았으며 이 미확정성이
+Candidate C execution readiness를 차단합니다.
 
 ### Phase 2 — Runtime 서비스 트랙
 
@@ -179,7 +189,8 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 ## 8. 다음 권장 작업
 
 1. [ADR-011 draft](../decisions/ADR-011-candidate-c-experimental-successor.md)와 Candidate C 역할·승인 분리 검토
-2. Candidate B read-only EOS 진단 계획 승인 후 H1~H7 중 단일 주가설 선택
+2. [Candidate B read-only EOS 진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 R1~R7 구현·합성 검증과
+   Identity/Config Freeze를 별도 수행하고, 사용자 승인 뒤 GPU smoke·Full 진단 및 H1~H7 단일 주가설 검토
 3. Dataset A안·v2 Unigram 권장안을 검토하고 immutable manifest·source commit으로 C-2/C-3 freeze
 4. 단일 intervention·Evaluation 판정 규칙·resolved config를 승인해 C-4 완료
 5. 별도 승인 뒤 exact config의 C-5 GPU Smoke 수행; 이 전에는 Candidate C 학습 금지
@@ -189,6 +200,7 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate B read-only EOS 진단 계약·주가설 선택 정책 설계 완료와 실행 false·checkpoint mutation false·GPU/Full 미시작 상태 반영 |
 | 2026-08-05 | A/B 근거 조사와 Candidate C 실행 흐름, readiness review·contract design·execution readiness 상태, EOS 진단 완료/root cause 미확정을 분리 |
 | 2026-08-05 | Candidate C 계약 설계 완료와 ADR-011·EOS 진단·Dataset/Tokenizer/Config freeze 후속 순서 반영 |
 | 2026-08-05 | Base Training Readiness `blocked`, Candidate C `not_started`와 C-1~C-5 선행 조건·다음 Task 반영 |

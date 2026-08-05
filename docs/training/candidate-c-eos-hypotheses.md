@@ -5,7 +5,12 @@
 - 계약 설계: `completed`
 - 가설 승인: `not_approved`
 - 진단 실행: `not_started`
+- Candidate B 진단 계약: `design_completed`
+- Candidate B 진단 실행 허용: `false`
+- 주가설: `not_selected`
 - 대상 artifact: Candidate B Final checkpoint, read-only
+- 실행 계약: [Candidate B Final Read-only EOS 진단](../evaluation/candidate-b-eos-diagnostic-contract.md)
+- 선택 정책: [Candidate C EOS 주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md)
 
 ## 1. 목적과 확정 사실
 
@@ -37,6 +42,10 @@ teacher-forced EOS가 개선됐고 EOS target·loss 포함과 packing boundary�
 
 모든 입력은 Candidate B Final checksum `sha256:f3edc978db9d88e9de8e2e423a28291e9f35e2e163f0413c0e27e95facc55395`와
 승인된 Tokenizer·prompt/config identity를 사용합니다. 원문과 전체 token ID는 저장하지 않습니다.
+아래 항목의 실행 identity·D1~D8 schema·exact artifact·Gate·Approval·Runtime Request는
+[진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)을, 지지·반증과 단일 선택 상태는
+[주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md)을 단일 기준으로 사용합니다. 두 문서의 설계 완료는
+checkpoint load·GPU 진단·주가설 승인을 뜻하지 않습니다.
 
 | 진단 | 입력 | 산출물 | 통과·판정 기준 | Candidate C config 영향 |
 |---|---|---|---|---|
@@ -66,4 +75,5 @@ teacher-forced EOS가 개선됐고 EOS target·loss 포함과 packing boundary�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate B read-only 진단 실행 계약과 H1~H7 단일 주가설 선택 정책 연결; 실행 false·주가설 미선택 유지 |
 | 2026-08-05 | H1~H7 반증 가능 가설과 Candidate B read-only EOS 진단 입력·산출물·판정·Candidate C 영향 계약 작성 |

@@ -1,0 +1,996 @@
+"""Strict, synthetic-safe artifact system for Candidate B EOS diagnostics.
+
+This module implements EOS-DIAG-R1 only.  It never imports torch, opens a
+checkpoint or tokenizer, or performs generation.  Analytical artifacts remain
+schema-only until the D1-D8 backend is implemented by EOS-DIAG-R4.
+"""
+
+from __future__ import annotations
+
+import errno
+import json
+import math
+import os
+import re
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any, Mapping, Sequence
+
+from src.data.checksums import canonical_json_bytes, file_checksum, sha256_bytes
+
+
+EOS_DIAGNOSTIC_SCHEMA_VERSION = 1
+EOS_DIAGNOSTIC_WRITER_NAME = "dohalm-eos-diagnostic-artifact-writer"
+EOS_DIAGNOSTIC_WRITER_VERSION = "1"
+MAX_ARTIFACT_BYTES = 64 * 1024 * 1024
+
+ARTIFACT_FILENAMES: Mapping[str, str] = MappingProxyType(
+    {
+        "diagnostic_run_manifest": "diagnostic-plan.json",
+        "checkpoint_identity": "checkpoint-identity.json",
+        "tokenizer_identity": "tokenizer-identity.json",
+        "prompt_set_identity": "prompt-set-manifest.json",
+        "generation_matrix": "generation-matrix.json",
+        "eos_rank_trajectory": "eos-rank-trajectory.jsonl",
+        "eos_probability_summary": "eos-probability-summary.json",
+        "teacher_autoregressive_gap": "teacher-autoregressive-gap.json",
+        "loop_analysis": "loop-analysis.json",
+        "boundary_analysis": "boundary-analysis.json",
+        "prompt_category_position_analysis": "prompt-category-position-analysis.json",
+        "length_matrix": "length-matrix.json",
+        "decoding_ablation": "decoding-ablation.json",
+        "budget_proxy_analysis": "budget-proxy-analysis.json",
+        "hypothesis_assessment": "hypothesis-assessment.json",
+        "output_manifest": "diagnostic-summary.json",
+        "artifact_inventory": "checksum-inventory.json",
+        "completion_evidence": "completion-evidence.json",
+    }
+)
+EXACT_ARTIFACT_FILENAMES = tuple(ARTIFACT_FILENAMES.values())
+
+_CONTENT_TYPES = tuple(
+    artifact_type
+    for artifact_type in ARTIFACT_FILENAMES
+    if artifact_type not in {"artifact_inventory", "completion_evidence"}
+)
+_PRE_COMPLETION_TYPES = tuple(
+    artifact_type
+    for artifact_type in ARTIFACT_FILENAMES
+    if artifact_type != "completion_evidence"
+)
+_ANALYSIS_TYPES = frozenset(
+    {
+        "eos_rank_trajectory",
+        "eos_probability_summary",
+        "teacher_autoregressive_gap",
+        "loop_analysis",
+        "boundary_analysis",
+        "prompt_category_position_analysis",
+        "length_matrix",
+        "decoding_ablation",
+        "budget_proxy_analysis",
+        "hypothesis_assessment",
+    }
+)
+
+_TOP_LEVEL_FIELDS = frozenset(
+    {
+        "schema_version",
+        "artifact_type",
+        "diagnostic_run_id",
+        "checkpoint_identity_fingerprint",
+        "tokenizer_identity_fingerprint",
+        "prompt_set_fingerprint",
+        "generation_matrix_fingerprint",
+        "source_commit",
+        "created_at",
+        "record_count",
+        "payload",
+        "artifact_fingerprint",
+        "checksum",
+    }
+)
+_FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
+_UTC_Z = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
+_RUN_ID = re.compile(r"DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-(\d{8})-(\d{4})\Z")
+_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,191}\Z")
+_LOGICAL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}\Z")
+
+
+class EOSDiagnosticArtifactError(RuntimeError):
+    """Fail-closed error exposing only a stable, non-sensitive code."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _raise(code: str = "EOS_DIAGNOSTIC_ARTIFACT_INVALID") -> None:
+    raise EOSDiagnosticArtifactError(code)
+
+
+def _freeze(value: Any) -> Any:
+    if type(value) is dict:
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if type(value) is list:
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _thaw(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    return value
+
+
+@dataclass(frozen=True)
+class DiagnosticArtifact:
+    schema_version: int
+    artifact_type: str
+    diagnostic_run_id: str
+    checkpoint_identity_fingerprint: str
+    tokenizer_identity_fingerprint: str
+    prompt_set_fingerprint: str
+    generation_matrix_fingerprint: str
+    source_commit: str
+    created_at: str
+    record_count: int
+    payload: Mapping[str, Any]
+    artifact_fingerprint: str
+    checksum: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "payload", _freeze(_thaw(self.payload)))
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "artifact_type": self.artifact_type,
+            "diagnostic_run_id": self.diagnostic_run_id,
+            "checkpoint_identity_fingerprint": self.checkpoint_identity_fingerprint,
+            "tokenizer_identity_fingerprint": self.tokenizer_identity_fingerprint,
+            "prompt_set_fingerprint": self.prompt_set_fingerprint,
+            "generation_matrix_fingerprint": self.generation_matrix_fingerprint,
+            "source_commit": self.source_commit,
+            "created_at": self.created_at,
+            "record_count": self.record_count,
+            "payload": _thaw(self.payload),
+            "artifact_fingerprint": self.artifact_fingerprint,
+            "checksum": self.checksum,
+        }
+
+
+@dataclass(frozen=True)
+class ArtifactWriteResult:
+    artifact_type: str
+    filename: str
+    artifact_fingerprint: str
+    artifact_checksum: str
+    file_checksum: str
+    bytes_written: int
+
+
+@dataclass(frozen=True)
+class DiagnosticBundleResult:
+    diagnostic_run_id: str
+    status: str
+    completion_scope: str
+    artifact_count: int
+    completion_checksum: str
+
+
+def canonical_diagnostic_json_bytes(value: Any) -> bytes:
+    """Return canonical UTF-8 JSON with one trailing LF and no non-finite values."""
+    try:
+        return canonical_json_bytes(_thaw(value))
+    except (TypeError, ValueError, RecursionError):
+        _raise()
+
+
+def diagnostic_fingerprint(value: Any) -> str:
+    return sha256_bytes(canonical_diagnostic_json_bytes(value))
+
+
+def _strict_object(value: object, fields: Sequence[str]) -> dict[str, Any]:
+    if type(value) is not dict or set(value) != set(fields):
+        _raise()
+    return value
+
+
+def _strict_subset(
+    value: object, *, allowed: frozenset[str], required: frozenset[str] = frozenset()
+) -> dict[str, Any]:
+    if type(value) is not dict or not required.issubset(value) or not set(value).issubset(allowed):
+        _raise()
+    return value
+
+
+def _string(value: object, *, logical: bool = False, identifier: bool = False) -> str:
+    if type(value) is not str or not value or value != value.strip():
+        _raise()
+    if "\x00" in value or "\n" in value or "\r" in value:
+        _raise()
+    pattern = _LOGICAL_ID if logical else _IDENTIFIER if identifier else None
+    if pattern is not None and pattern.fullmatch(value) is None:
+        _raise()
+    if logical and (value.startswith("/") or "\\" in value or ".." in value.split("/")):
+        _raise()
+    return value
+
+
+def _optional_string(value: object, *, identifier: bool = False) -> str | None:
+    if value is None:
+        return None
+    return _string(value, identifier=identifier)
+
+
+def _integer(value: object, *, positive: bool = False) -> int:
+    if type(value) is not int or value < (1 if positive else 0):
+        _raise()
+    return value
+
+
+def _number(value: object) -> int | float:
+    if type(value) not in {int, float} or not math.isfinite(float(value)):
+        _raise()
+    return value
+
+
+def _boolean(value: object) -> bool:
+    if type(value) is not bool:
+        _raise()
+    return value
+
+
+def _fingerprint(value: object) -> str:
+    candidate = _string(value)
+    if _FINGERPRINT.fullmatch(candidate) is None:
+        _raise()
+    return candidate
+
+
+def _git_sha(value: object) -> str:
+    candidate = _string(value)
+    if _GIT_SHA.fullmatch(candidate) is None:
+        _raise()
+    return candidate
+
+
+def _timestamp(value: object) -> str:
+    candidate = _string(value)
+    if _UTC_Z.fullmatch(candidate) is None:
+        _raise()
+    try:
+        datetime.fromisoformat(candidate[:-1] + "+00:00")
+    except ValueError:
+        _raise()
+    return candidate
+
+
+def _run_id(value: object) -> str:
+    candidate = _string(value)
+    match = _RUN_ID.fullmatch(candidate)
+    if match is None:
+        _raise()
+    try:
+        datetime.strptime(match.group(1), "%Y%m%d")
+    except ValueError:
+        _raise()
+    return candidate
+
+
+def _string_list(value: object, *, exact: tuple[str, ...] | None = None) -> list[str]:
+    if type(value) is not list:
+        _raise()
+    result = [_string(item) for item in value]
+    if len(result) != len(set(result)):
+        _raise()
+    if exact is not None and tuple(result) != exact:
+        _raise()
+    return result
+
+
+def _distribution(value: object) -> dict[str, int]:
+    if type(value) is not dict or not value:
+        _raise()
+    result: dict[str, int] = {}
+    for key, count in value.items():
+        result[_string(key, identifier=True)] = _integer(count)
+    return result
+
+
+def _validate_json_tree(value: object) -> None:
+    if value is None or type(value) in {str, bool, int}:
+        return
+    if type(value) is float:
+        _number(value)
+        return
+    if type(value) is list:
+        for item in value:
+            _validate_json_tree(item)
+        return
+    if type(value) is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                _raise()
+            _validate_json_tree(item)
+        return
+    _raise()
+
+
+def _validate_payload(artifact_type: str, value: object, record_count: int) -> dict[str, Any]:
+    if artifact_type == "diagnostic_run_manifest":
+        payload = _strict_object(
+            value,
+            (
+                "purpose",
+                "execution_mode",
+                "permissions",
+                "exact_artifact_set",
+                "predecessor_diagnostic_run_id",
+            ),
+        )
+        _string(payload["purpose"])
+        if payload["execution_mode"] not in {"synthetic_schema_rehearsal", "diagnostic_execution"}:
+            _raise()
+        permissions = _strict_object(
+            payload["permissions"],
+            (
+                "checkpoint_load",
+                "tokenizer_load",
+                "gpu",
+                "generation",
+                "checkpoint_write",
+                "training",
+            ),
+        )
+        for permission in permissions.values():
+            _boolean(permission)
+        if permissions["checkpoint_write"] or permissions["training"]:
+            _raise()
+        _string_list(payload["exact_artifact_set"], exact=EXACT_ARTIFACT_FILENAMES)
+        predecessor = payload["predecessor_diagnostic_run_id"]
+        if predecessor is not None:
+            _run_id(predecessor)
+        if record_count != 1:
+            _raise()
+    elif artifact_type == "checkpoint_identity":
+        payload = _strict_object(
+            value,
+            (
+                "checkpoint_id",
+                "checkpoint_checksum",
+                "checkpoint_manifest_fingerprint",
+                "model_config_fingerprint",
+                "training_run_id",
+                "training_source_commit",
+                "full_evaluation_id",
+                "read_only",
+            ),
+        )
+        _string(payload["checkpoint_id"], identifier=True)
+        _fingerprint(payload["checkpoint_checksum"])
+        _fingerprint(payload["checkpoint_manifest_fingerprint"])
+        _fingerprint(payload["model_config_fingerprint"])
+        _string(payload["training_run_id"], identifier=True)
+        _git_sha(payload["training_source_commit"])
+        _string(payload["full_evaluation_id"], identifier=True)
+        if payload["read_only"] is not True or record_count != 1:
+            _raise()
+    elif artifact_type == "tokenizer_identity":
+        payload = _strict_object(
+            value,
+            (
+                "tokenizer_id",
+                "bundle_checksum",
+                "model_checksum",
+                "vocab_checksum",
+                "tokenizer_fingerprint",
+                "vocab_size",
+                "special_token_ids",
+                "loaded",
+            ),
+        )
+        _string(payload["tokenizer_id"], identifier=True)
+        for field in ("bundle_checksum", "model_checksum", "vocab_checksum", "tokenizer_fingerprint"):
+            _fingerprint(payload[field])
+        _integer(payload["vocab_size"], positive=True)
+        special = _strict_object(payload["special_token_ids"], ("pad", "unk", "bos", "eos"))
+        for token_id in special.values():
+            _integer(token_id)
+        if len(set(special.values())) != len(special) or payload["loaded"] is not False or record_count != 1:
+            _raise()
+    elif artifact_type == "prompt_set_identity":
+        payload = _strict_object(
+            value,
+            (
+                "prompt_set_id",
+                "version",
+                "checksum",
+                "prompt_count",
+                "category_distribution",
+                "length_distribution",
+                "normalization_policy",
+                "pii_status",
+                "leakage_status",
+                "source_evidence",
+                "prompt_text_stored",
+            ),
+        )
+        _string(payload["prompt_set_id"], identifier=True)
+        _string(payload["version"], identifier=True)
+        _fingerprint(payload["checksum"])
+        count = _integer(payload["prompt_count"], positive=True)
+        categories = _distribution(payload["category_distribution"])
+        lengths = _distribution(payload["length_distribution"])
+        if sum(categories.values()) != count or sum(lengths.values()) != count:
+            _raise()
+        _string(payload["normalization_policy"], identifier=True)
+        _string(payload["pii_status"], identifier=True)
+        _string(payload["leakage_status"], identifier=True)
+        _fingerprint(payload["source_evidence"])
+        if payload["prompt_text_stored"] is not False or record_count != count:
+            _raise()
+    elif artifact_type == "generation_matrix":
+        payload = _strict_object(
+            value,
+            (
+                "matrix_id",
+                "device",
+                "dtype",
+                "seed",
+                "prompt_repetitions",
+                "lengths",
+                "profiles",
+                "stop_policy",
+                "privacy",
+            ),
+        )
+        _string(payload["matrix_id"], identifier=True)
+        _string(payload["device"], identifier=True)
+        _string(payload["dtype"], identifier=True)
+        _integer(payload["seed"])
+        _integer(payload["prompt_repetitions"], positive=True)
+        if type(payload["lengths"]) is not list or not payload["lengths"]:
+            _raise()
+        lengths = [_integer(item, positive=True) for item in payload["lengths"]]
+        if len(lengths) != len(set(lengths)):
+            _raise()
+        if type(payload["profiles"]) is not list or not payload["profiles"]:
+            _raise()
+        names: list[str] = []
+        allowed_parameters = frozenset(
+            {
+                "do_sample",
+                "temperature",
+                "top_p",
+                "top_k",
+                "repetition_penalty",
+                "no_repeat_ngram",
+                "forced_eos",
+                "logit_bias",
+                "heuristic_stop",
+            }
+        )
+        for profile_value in payload["profiles"]:
+            profile = _strict_object(profile_value, ("name", "mode", "parameters"))
+            names.append(_string(profile["name"], identifier=True))
+            if profile["mode"] not in {"pure_greedy", "diagnostic_only_sampling", "diagnostic_only_assisted"}:
+                _raise()
+            parameters = _strict_subset(
+                profile["parameters"], allowed=allowed_parameters, required=frozenset({"do_sample"})
+            )
+            for key, parameter in parameters.items():
+                if key in {"do_sample", "forced_eos", "logit_bias", "heuristic_stop"}:
+                    _boolean(parameter)
+                elif parameter is not None:
+                    _number(parameter)
+        if len(names) != len(set(names)):
+            _raise()
+        _strict_object(payload["stop_policy"], ("eos", "maximum_new_tokens", "external_heuristic"))
+        for item in payload["stop_policy"].values():
+            _boolean(item)
+        privacy = _strict_object(payload["privacy"], ("raw_text_storage", "raw_token_sequence_storage"))
+        if privacy["raw_text_storage"] is not False or privacy["raw_token_sequence_storage"] is not False:
+            _raise()
+        if record_count != len(payload["profiles"]):
+            _raise()
+    elif artifact_type in _ANALYSIS_TYPES:
+        payload = _strict_object(
+            value,
+            ("analysis_status", "record_schema_version", "records", "summary", "limitations"),
+        )
+        if payload["analysis_status"] != "schema_only":
+            _raise("EOS_DIAGNOSTIC_ANALYSIS_SCHEMA_NOT_IMPLEMENTED")
+        _integer(payload["record_schema_version"], positive=True)
+        if type(payload["records"]) is not list or type(payload["summary"]) is not dict:
+            _raise()
+        _string_list(payload["limitations"])
+        _validate_json_tree(payload["records"])
+        _validate_json_tree(payload["summary"])
+        if record_count != len(payload["records"]):
+            _raise()
+        if payload["records"] or payload["summary"]:
+            _raise()
+    elif artifact_type == "output_manifest":
+        payload = _strict_object(
+            value,
+            (
+                "status",
+                "output_root_logical_id",
+                "writer_name",
+                "writer_version",
+                "exact_artifact_set",
+                "optional_artifact_set",
+            ),
+        )
+        if payload["status"] not in {"writing", "validating", "completed", "failed"}:
+            _raise()
+        _string(payload["output_root_logical_id"], logical=True)
+        _string(payload["writer_name"], identifier=True)
+        _string(payload["writer_version"], identifier=True)
+        _string_list(payload["exact_artifact_set"], exact=EXACT_ARTIFACT_FILENAMES)
+        _string_list(payload["optional_artifact_set"])
+        if record_count != len(EXACT_ARTIFACT_FILENAMES):
+            _raise()
+    elif artifact_type == "artifact_inventory":
+        payload = _strict_object(value, ("inventory_scope", "artifacts"))
+        if payload["inventory_scope"] != "content_artifacts_excluding_inventory_and_completion":
+            _raise()
+        if type(payload["artifacts"]) is not list or len(payload["artifacts"]) != len(_CONTENT_TYPES):
+            _raise()
+        expected_names = [ARTIFACT_FILENAMES[item] for item in _CONTENT_TYPES]
+        actual_names: list[str] = []
+        for expected_type, entry_value in zip(_CONTENT_TYPES, payload["artifacts"], strict=True):
+            entry = _strict_object(
+                entry_value,
+                (
+                    "artifact_type",
+                    "filename",
+                    "artifact_fingerprint",
+                    "artifact_checksum",
+                    "file_checksum",
+                    "bytes",
+                    "record_count",
+                ),
+            )
+            if _string(entry["artifact_type"], identifier=True) != expected_type:
+                _raise()
+            actual_names.append(_string(entry["filename"]))
+            _fingerprint(entry["artifact_fingerprint"])
+            _fingerprint(entry["artifact_checksum"])
+            _fingerprint(entry["file_checksum"])
+            _integer(entry["bytes"], positive=True)
+            _integer(entry["record_count"])
+        if actual_names != expected_names or record_count != len(payload["artifacts"]):
+            _raise()
+    elif artifact_type == "completion_evidence":
+        payload = _strict_object(
+            value,
+            (
+                "status",
+                "completion_scope",
+                "expected_artifacts",
+                "validated_artifacts",
+                "inventory_checksum",
+                "validation_completed_at",
+            ),
+        )
+        if payload["status"] != "completed":
+            _raise()
+        if payload["completion_scope"] not in {"synthetic_schema_rehearsal", "diagnostic_execution"}:
+            _raise()
+        _string_list(payload["expected_artifacts"], exact=EXACT_ARTIFACT_FILENAMES)
+        _string_list(
+            payload["validated_artifacts"],
+            exact=tuple(ARTIFACT_FILENAMES[item] for item in _PRE_COMPLETION_TYPES),
+        )
+        _fingerprint(payload["inventory_checksum"])
+        _timestamp(payload["validation_completed_at"])
+        if record_count != len(_PRE_COMPLETION_TYPES):
+            _raise()
+    else:
+        _raise()
+    return payload
+
+
+def _artifact_fingerprint(value: Mapping[str, Any]) -> str:
+    semantic = dict(value)
+    semantic.pop("created_at", None)
+    semantic.pop("artifact_fingerprint", None)
+    semantic.pop("checksum", None)
+    return diagnostic_fingerprint(semantic)
+
+
+def _artifact_checksum(value: Mapping[str, Any]) -> str:
+    checksummed = dict(value)
+    checksummed["checksum"] = ""
+    return diagnostic_fingerprint(checksummed)
+
+
+def _validate_artifact_value(value: object) -> DiagnosticArtifact:
+    root = _strict_object(value, tuple(_TOP_LEVEL_FIELDS))
+    if root["schema_version"] != EOS_DIAGNOSTIC_SCHEMA_VERSION:
+        _raise()
+    artifact_type = _string(root["artifact_type"], identifier=True)
+    if artifact_type not in ARTIFACT_FILENAMES:
+        _raise()
+    run_id = _run_id(root["diagnostic_run_id"])
+    checkpoint = _fingerprint(root["checkpoint_identity_fingerprint"])
+    tokenizer = _fingerprint(root["tokenizer_identity_fingerprint"])
+    prompt_set = _fingerprint(root["prompt_set_fingerprint"])
+    matrix = _fingerprint(root["generation_matrix_fingerprint"])
+    source_commit = _git_sha(root["source_commit"])
+    created_at = _timestamp(root["created_at"])
+    record_count = _integer(root["record_count"])
+    payload = _validate_payload(artifact_type, root["payload"], record_count)
+    artifact_fingerprint = _fingerprint(root["artifact_fingerprint"])
+    checksum = _fingerprint(root["checksum"])
+    if artifact_fingerprint != _artifact_fingerprint(root) or checksum != _artifact_checksum(root):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
+    return DiagnosticArtifact(
+        schema_version=EOS_DIAGNOSTIC_SCHEMA_VERSION,
+        artifact_type=artifact_type,
+        diagnostic_run_id=run_id,
+        checkpoint_identity_fingerprint=checkpoint,
+        tokenizer_identity_fingerprint=tokenizer,
+        prompt_set_fingerprint=prompt_set,
+        generation_matrix_fingerprint=matrix,
+        source_commit=source_commit,
+        created_at=created_at,
+        record_count=record_count,
+        payload=payload,
+        artifact_fingerprint=artifact_fingerprint,
+        checksum=checksum,
+    )
+
+
+def new_diagnostic_artifact(
+    *,
+    artifact_type: str,
+    diagnostic_run_id: str,
+    checkpoint_identity_fingerprint: str,
+    tokenizer_identity_fingerprint: str,
+    prompt_set_fingerprint: str,
+    generation_matrix_fingerprint: str,
+    source_commit: str,
+    created_at: str,
+    record_count: int,
+    payload: Mapping[str, Any],
+) -> DiagnosticArtifact:
+    """Create and strictly validate one immutable artifact value."""
+    value: dict[str, Any] = {
+        "schema_version": EOS_DIAGNOSTIC_SCHEMA_VERSION,
+        "artifact_type": artifact_type,
+        "diagnostic_run_id": diagnostic_run_id,
+        "checkpoint_identity_fingerprint": checkpoint_identity_fingerprint,
+        "tokenizer_identity_fingerprint": tokenizer_identity_fingerprint,
+        "prompt_set_fingerprint": prompt_set_fingerprint,
+        "generation_matrix_fingerprint": generation_matrix_fingerprint,
+        "source_commit": source_commit,
+        "created_at": created_at,
+        "record_count": record_count,
+        "payload": _thaw(payload),
+        "artifact_fingerprint": "",
+        "checksum": "",
+    }
+    value["artifact_fingerprint"] = _artifact_fingerprint(value)
+    value["checksum"] = _artifact_checksum(value)
+    return _validate_artifact_value(value)
+
+
+def serialize_diagnostic_artifact(artifact: DiagnosticArtifact) -> bytes:
+    if not isinstance(artifact, DiagnosticArtifact):
+        _raise()
+    validated = _validate_artifact_value(artifact.as_dict())
+    return canonical_diagnostic_json_bytes(validated.as_dict())
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            _raise("EOS_DIAGNOSTIC_DUPLICATE_KEY")
+        result[key] = value
+    return result
+
+
+def _reject_constant(_value: str) -> None:
+    _raise("EOS_DIAGNOSTIC_NONFINITE_NUMBER")
+
+
+def load_diagnostic_artifact(
+    path: Path, *, expected_artifact_type: str | None = None
+) -> DiagnosticArtifact:
+    """Load one canonical, non-symlink artifact with duplicate-key rejection."""
+    if not isinstance(path, Path):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+    try:
+        if path.is_symlink() or not path.is_file():
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+        size = path.stat().st_size
+        if size <= 0 or size > MAX_ARTIFACT_BYTES:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_SIZE_INVALID")
+        raw = path.read_bytes()
+        value = json.loads(
+            raw.decode("utf-8", errors="strict"),
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_constant,
+        )
+    except EOSDiagnosticArtifactError:
+        raise
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError):
+        _raise()
+    artifact = _validate_artifact_value(value)
+    if expected_artifact_type is not None and artifact.artifact_type != expected_artifact_type:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_TYPE_MISMATCH")
+    if path.name != ARTIFACT_FILENAMES[artifact.artifact_type]:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_FILENAME_MISMATCH")
+    if raw != serialize_diagnostic_artifact(artifact):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_NONCANONICAL")
+    return artifact
+
+
+def _sync_parent_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    try:
+        descriptor = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    except OSError:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_WRITE_INCOMPLETE")
+
+
+def _publish_no_replace(temporary: Path, destination: Path) -> None:
+    try:
+        os.link(temporary, destination)
+    except FileExistsError:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_ALREADY_EXISTS")
+    except OSError as exc:
+        if exc.errno in {errno.EEXIST, errno.ENOTEMPTY}:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_ALREADY_EXISTS")
+        if exc.errno in {errno.EXDEV, errno.ENOSYS, errno.ENOTSUP, errno.EOPNOTSUPP}:
+            _raise("EOS_DIAGNOSTIC_NO_REPLACE_UNSUPPORTED")
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_ATOMIC_WRITE_FAILED")
+
+
+def _validate_destination(destination: Path, artifact: DiagnosticArtifact) -> Path:
+    if not isinstance(destination, Path) or not isinstance(artifact, DiagnosticArtifact):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+    if destination.name != ARTIFACT_FILENAMES.get(artifact.artifact_type):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_FILENAME_MISMATCH")
+    parent = destination.parent
+    try:
+        if parent.is_symlink() or not parent.is_dir() or destination.is_symlink():
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+        resolved_parent = parent.resolve(strict=True)
+        if destination.resolve(strict=False).parent != resolved_parent:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+    except EOSDiagnosticArtifactError:
+        raise
+    except (OSError, RuntimeError, ValueError):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
+    return parent
+
+
+def write_diagnostic_artifact(
+    *, destination: Path, artifact: DiagnosticArtifact
+) -> ArtifactWriteResult:
+    """Atomically publish canonical JSON once, then reload and verify it."""
+    parent = _validate_destination(destination, artifact)
+    if destination.exists():
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_ALREADY_EXISTS")
+    temporary = destination.with_name(destination.name + ".tmp")
+    if temporary.exists() or temporary.is_symlink():
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_TEMPORARY_COLLISION")
+    payload = serialize_diagnostic_artifact(artifact)
+    temporary_owned = False
+    descriptor: int | None = None
+    try:
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            temporary_owned = True
+            with os.fdopen(descriptor, "wb") as handle:
+                descriptor = None
+                if handle.write(payload) != len(payload):
+                    _raise("EOS_DIAGNOSTIC_ARTIFACT_ATOMIC_WRITE_FAILED")
+                handle.flush()
+                os.fsync(handle.fileno())
+        except FileExistsError:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_TEMPORARY_COLLISION")
+        except EOSDiagnosticArtifactError:
+            raise
+        except OSError:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_ATOMIC_WRITE_FAILED")
+        _publish_no_replace(temporary, destination)
+        try:
+            temporary.unlink()
+            temporary_owned = False
+        except OSError:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_WRITE_INCOMPLETE")
+        _sync_parent_directory(parent)
+        loaded = load_diagnostic_artifact(
+            destination, expected_artifact_type=artifact.artifact_type
+        )
+        if loaded != artifact or destination.read_bytes() != payload:
+            _raise("EOS_DIAGNOSTIC_ARTIFACT_WRITE_INCOMPLETE")
+        return ArtifactWriteResult(
+            artifact_type=artifact.artifact_type,
+            filename=destination.name,
+            artifact_fingerprint=artifact.artifact_fingerprint,
+            artifact_checksum=artifact.checksum,
+            file_checksum=file_checksum(destination),
+            bytes_written=len(payload),
+        )
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if temporary_owned:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+
+
+def _load_artifact_types(directory: Path, artifact_types: Sequence[str]) -> dict[str, DiagnosticArtifact]:
+    try:
+        if directory.is_symlink() or not directory.is_dir():
+            _raise("EOS_DIAGNOSTIC_BUNDLE_PATH_INVALID")
+    except OSError:
+        _raise("EOS_DIAGNOSTIC_BUNDLE_PATH_INVALID")
+    return {
+        artifact_type: load_diagnostic_artifact(
+            directory / ARTIFACT_FILENAMES[artifact_type],
+            expected_artifact_type=artifact_type,
+        )
+        for artifact_type in artifact_types
+    }
+
+
+def _common_identity(artifacts: Mapping[str, DiagnosticArtifact]) -> dict[str, str]:
+    if not artifacts:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_SET_INCOMPLETE")
+    fields = (
+        "diagnostic_run_id",
+        "checkpoint_identity_fingerprint",
+        "tokenizer_identity_fingerprint",
+        "prompt_set_fingerprint",
+        "generation_matrix_fingerprint",
+        "source_commit",
+    )
+    first = next(iter(artifacts.values()))
+    common = {field: getattr(first, field) for field in fields}
+    if any(getattr(artifact, field) != value for artifact in artifacts.values() for field, value in common.items()):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
+    return common
+
+
+def new_artifact_inventory(directory: Path, *, created_at: str) -> DiagnosticArtifact:
+    """Build the inventory after all sixteen content artifacts exist."""
+    artifacts = _load_artifact_types(directory, _CONTENT_TYPES)
+    common = _common_identity(artifacts)
+    entries = []
+    for artifact_type in _CONTENT_TYPES:
+        artifact = artifacts[artifact_type]
+        path = directory / ARTIFACT_FILENAMES[artifact_type]
+        entries.append(
+            {
+                "artifact_type": artifact_type,
+                "filename": path.name,
+                "artifact_fingerprint": artifact.artifact_fingerprint,
+                "artifact_checksum": artifact.checksum,
+                "file_checksum": file_checksum(path),
+                "bytes": path.stat().st_size,
+                "record_count": artifact.record_count,
+            }
+        )
+    return new_diagnostic_artifact(
+        artifact_type="artifact_inventory",
+        created_at=created_at,
+        record_count=len(entries),
+        payload={
+            "inventory_scope": "content_artifacts_excluding_inventory_and_completion",
+            "artifacts": entries,
+        },
+        **common,
+    )
+
+
+def _validate_inventory(
+    directory: Path,
+    inventory: DiagnosticArtifact,
+    content: Mapping[str, DiagnosticArtifact],
+) -> None:
+    entries = inventory.payload["artifacts"]
+    for artifact_type, entry in zip(_CONTENT_TYPES, entries, strict=True):
+        artifact = content[artifact_type]
+        path = directory / ARTIFACT_FILENAMES[artifact_type]
+        expected = {
+            "artifact_type": artifact_type,
+            "filename": path.name,
+            "artifact_fingerprint": artifact.artifact_fingerprint,
+            "artifact_checksum": artifact.checksum,
+            "file_checksum": file_checksum(path),
+            "bytes": path.stat().st_size,
+            "record_count": artifact.record_count,
+        }
+        if _thaw(entry) != expected:
+            _raise("EOS_DIAGNOSTIC_INVENTORY_MISMATCH")
+
+
+def new_completion_evidence(
+    directory: Path, *, created_at: str, completion_scope: str
+) -> DiagnosticArtifact:
+    """Build completion evidence only after the other seventeen artifacts validate."""
+    artifacts = _load_artifact_types(directory, _PRE_COMPLETION_TYPES)
+    common = _common_identity(artifacts)
+    inventory = artifacts["artifact_inventory"]
+    _validate_inventory(directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES})
+    if completion_scope == "diagnostic_execution":
+        if any(artifacts[item].payload["analysis_status"] != "completed" for item in _ANALYSIS_TYPES):
+            _raise("EOS_DIAGNOSTIC_ANALYSIS_INCOMPLETE")
+        if artifacts["output_manifest"].payload["status"] not in {"validating", "completed"}:
+            _raise("EOS_DIAGNOSTIC_OUTPUT_MANIFEST_INCOMPLETE")
+    elif completion_scope == "synthetic_schema_rehearsal":
+        if any(artifacts[item].payload["analysis_status"] != "schema_only" for item in _ANALYSIS_TYPES):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+    else:
+        _raise()
+    return new_diagnostic_artifact(
+        artifact_type="completion_evidence",
+        created_at=created_at,
+        record_count=len(_PRE_COMPLETION_TYPES),
+        payload={
+            "status": "completed",
+            "completion_scope": completion_scope,
+            "expected_artifacts": list(EXACT_ARTIFACT_FILENAMES),
+            "validated_artifacts": [ARTIFACT_FILENAMES[item] for item in _PRE_COMPLETION_TYPES],
+            "inventory_checksum": inventory.checksum,
+            "validation_completed_at": created_at,
+        },
+        **common,
+    )
+
+
+def validate_completed_bundle(directory: Path) -> DiagnosticBundleResult:
+    """Require exactly eighteen valid artifacts and verified completion evidence."""
+    try:
+        entries = tuple(directory.iterdir())
+    except OSError:
+        _raise("EOS_DIAGNOSTIC_BUNDLE_PATH_INVALID")
+    if any(item.is_symlink() or not item.is_file() for item in entries):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_SET_INCOMPLETE")
+    names = tuple(sorted(item.name for item in entries))
+    if names != tuple(sorted(EXACT_ARTIFACT_FILENAMES)):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_SET_INCOMPLETE")
+    artifacts = _load_artifact_types(directory, tuple(ARTIFACT_FILENAMES))
+    common = _common_identity(artifacts)
+    inventory = artifacts["artifact_inventory"]
+    completion = artifacts["completion_evidence"]
+    _validate_inventory(directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES})
+    if completion.payload["inventory_checksum"] != inventory.checksum:
+        _raise("EOS_DIAGNOSTIC_COMPLETION_MISMATCH")
+    scope = completion.payload["completion_scope"]
+    if scope == "diagnostic_execution":
+        if any(artifacts[item].payload["analysis_status"] != "completed" for item in _ANALYSIS_TYPES):
+            _raise("EOS_DIAGNOSTIC_ANALYSIS_INCOMPLETE")
+    elif scope == "synthetic_schema_rehearsal":
+        if any(artifacts[item].payload["analysis_status"] != "schema_only" for item in _ANALYSIS_TYPES):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+    else:
+        _raise()
+    return DiagnosticBundleResult(
+        diagnostic_run_id=common["diagnostic_run_id"],
+        status="completed",
+        completion_scope=scope,
+        artifact_count=len(artifacts),
+        completion_checksum=completion.checksum,
+    )

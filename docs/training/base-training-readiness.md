@@ -11,6 +11,10 @@
 - Candidate C training started: `false`
 - 범위: Candidate C 실행 전 Foundation Base 본훈련 준비 상태 조사
 - Candidate C 계약 설계: `completed`
+- Candidate B EOS 진단 계약: `design_completed`
+- Candidate B EOS 진단 실행 허용: `false`
+- Candidate B checkpoint mutation 허용: `false`
+- Candidate C 주가설: `not_selected`
 
 ## 1. 목적과 범위
 
@@ -72,6 +76,7 @@ Run identity·환경 snapshot·single-use Approval은 C-4 이후 C-5/C-6 진입 
 | Candidate C Tokenizer Freeze | `reviewing` | 승인 bundle과 fingerprint 존재 | Candidate C manifest에 exact model·vocab·fingerprint 고정 |
 | Evaluation Framework | `completed` | Quick·Full·category·position·EOS·generation·stability·privacy·lineage 구현 | Candidate C용 판정 기준 승인 |
 | EOS 현상 진단 | `completed` | A/B teacher-forced와 pure/assisted generation 비교 완료 | root cause 확정 필요 |
+| Candidate B EOS 진단 계약 | `completed` | [read-only 진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 identity·D1~D8·artifact·Gate·Approval 설계 완료 | 구현·freeze·승인 후 실행; 현재 GPU·Full `not_started` |
 | EOS 단일 Root Cause | `blocked` | [H1~H7 가설 계약](./candidate-c-eos-hypotheses.md)은 작성됐지만 어느 가설도 확정되지 않음 | Candidate B read-only 진단과 주가설 승인 |
 | Candidate C 목적·ADR 정합성 | `reviewing` | [ADR-011](../decisions/ADR-011-candidate-c-experimental-successor.md) draft 작성 | 사용자 승인 전 ADR-009 효력 유지 |
 | Candidate C Training Config | `blocked` | A/B의 검증된 설정은 있으나 Candidate C 채택·budget 미확정 | resolved config와 fingerprint 동결 |
@@ -90,7 +95,9 @@ Run identity·환경 snapshot·single-use Approval은 C-4 이후 C-5/C-6 진입 
 ID 기반 상세 registry는 [Candidate C 설계](./candidate-c-design.md#8-blocker-registry)를 기준으로 합니다.
 
 1. `C-BLOCK-001` ADR conflict — ADR-011은 draft이며 사용자 승인 전 ADR-009의 `not_required`가 유효합니다.
-2. `C-BLOCK-002` EOS root cause — H1~H7은 가설이며 Candidate B read-only 진단과 주가설 승인이 필요합니다.
+2. `C-BLOCK-002` EOS root cause — H1~H7은 가설이며 Candidate B read-only 진단의
+   [EOS-DIAG-BLOCK-001~010](../evaluation/candidate-b-eos-diagnostic-contract.md#13-blocker-registry) 해소, 실행 완료와
+   [주가설 승인](../evaluation/candidate-c-hypothesis-selection-policy.md)이 필요합니다.
 3. `C-BLOCK-003` Dataset freeze — 선택지 A를 권장했지만 Candidate C immutable manifest·source commit이 없습니다.
 4. `C-BLOCK-004` Tokenizer freeze — v2 Unigram 유지가 권장되지만 Candidate C compatibility freeze가 없습니다.
 5. `C-BLOCK-005` Training config — budget·initialization·intervention·checkpoint schedule 등 미결정값이 남았습니다.
@@ -120,7 +127,7 @@ Candidate C 학습은 다음 조건을 모두 충족하기 전 시작할 수 없
 
 | Gate | 목적 | 통과 조건 | 현재 상태 |
 |---|---|---|---|
-| C-1 Training Readiness | 범위·ADR·EOS·평가·승인 경계 통합 | ADR-011·주가설 승인과 blocker resolution plan 확정; 실행 권한은 false 가능 | `review` |
+| C-1 Training Readiness | 범위·ADR·EOS·평가·승인 경계 통합 | ADR-011 검토, Candidate B read-only 진단 완료·주가설 승인과 blocker resolution plan 확정; Candidate C 실행 권한은 false 가능 | `review` |
 | C-2 Dataset Freeze | 학습·평가 데이터 계보 고정 | source/license/PII/split/tokenization/packing manifest와 checksum 승인 | `reviewing` |
 | C-3 Tokenizer Freeze | 모델 입력 identity 고정 | v2 Unigram model·vocab·fingerprint·special ID 일치 승인 | `reviewing` |
 | C-4 Training Config Freeze | 실행 의미 고정 | resolved config, budget, checkpoint, stop·resume 정책과 fingerprint 승인 | `blocked` |
@@ -235,14 +242,24 @@ single-use 승인 미완료로 `blocked`입니다.
 ```text
 base_training_readiness_review: completed
 candidate_c_contract_design: completed
+candidate_b_eos_diagnostic_contract: design_completed
+candidate_b_eos_diagnostic_execution_allowed: false
+candidate_b_checkpoint_mutation_allowed: false
+candidate_c_primary_hypothesis: not_selected
 candidate_c_readiness: blocked
 candidate_c_execution_allowed: false
 candidate_c_training_started: false
+gate_c1: review
+gate_c4: blocked
+gpu_diagnostic: not_started
+full_diagnostic: not_started
 ```
 
-다음 Task는 **Candidate B checkpoint read-only EOS 진단 계획의 승인과 실행**입니다. 결과로 단일 주가설·Dataset
-선택지·Training intervention을 선택한 뒤 immutable freeze manifest와 resolved config를 작성합니다. C-1~C-4가
-통과하기 전 C-5 GPU Smoke나 C-6 Training으로 넘어가지 않습니다.
+다음 Task는 [진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 **EOS-DIAG-R1 artifact schema·strict
+validator와 R2 identity·generation matrix freezer 구현**입니다. R1~R7 합성 검증과 EOS-DIAG-1~3 evidence가 먼저이며,
+그 뒤 별도 사용자 승인으로 R8 GPU smoke와 R9 Full 진단을 수행할 수 있습니다. 진단 결과 검토 전에는 주가설·Dataset
+선택지·Training intervention을 확정하지 않습니다. C-1~C-4가 통과하기 전 C-5 GPU Smoke나 C-6 Training으로 넘어가지
+않습니다.
 
 ## 11. 기준 문서와 구현
 
@@ -251,7 +268,10 @@ candidate_c_training_started: false
 - Candidate 근거: [Candidate A 결과](./full-pretraining-candidate-a-result.md), [Candidate B 설계](./candidate-b-design.md),
   [Candidate B 결과](./candidate-b-execution-result.md), [A/B Full 비교](../evaluation/candidate-a-b-full-comparison.md)
 - 평가·EOS: [Evaluation Framework](../evaluation/README.md), [EOS Success Policy](../evaluation/eos-success-policy.md),
-  [EOS 진단 결과](../evaluation/eos-generation-decoding-diagnostic-result.md), [ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)
+  [EOS 진단 결과](../evaluation/eos-generation-decoding-diagnostic-result.md),
+  [Candidate B read-only 진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md),
+  [주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md),
+  [ADR-008](../decisions/ADR-008-eos-generation-and-decoding-evaluation-policy.md)
 - 결정·Gate: [ADR-005](../decisions/ADR-005-evaluation-and-experiment-policy.md),
   [ADR-006](../decisions/ADR-006-development-quality-gates.md), [ADR-009](../decisions/ADR-009-candidate-b-official-reassessment.md)
 - 학습·artifact: [Checkpoint와 Resume](./checkpoint-and-resume.md), [Candidate B config](../../configs/candidate-b.example.yaml),
@@ -264,6 +284,7 @@ candidate_c_training_started: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate B EOS 진단 계약 설계 완료와 실행 false, 진단 blocker·주가설 선택 정책을 C-BLOCK-002/C-1에 연결 |
 | 2026-08-05 | 완료된 A/B 근거 조사와 향후 Candidate C 실행 분리, Gate 1~7/C-1~C-8 관계, EOS 진단 완료/root cause 미확정, Evaluation Framework 재사용 명시 |
 | 2026-08-05 | Candidate C 계약 설계 완료, ADR-011 draft·H1~H7·Dataset/Tokenizer/Config freeze·Evaluation 계약과 ID blocker 연결; Gate는 미통과 유지 |
 | 2026-08-05 | Candidate C 진입을 위한 Base Training 흐름·상태·blocker·C-1~C-8 Gate·config·EOS·평가 기준을 통합하고 실행 금지 경계를 기록 |

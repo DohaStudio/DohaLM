@@ -113,6 +113,8 @@
 | [training/base-training-readiness.md](./training/base-training-readiness.md) | 완료된 A/B 근거 조사와 향후 Candidate C 실행을 분리한 readiness 판정·C-1~C-8·EOS·평가 기준 | README, Foundation Strategy, Candidate A/B, ADR-005~009 | Candidate C Design·Dataset/Tokenizer/Config/Evaluation freeze | `review` | Candidate C 설계·실행 전 필수 | 2026-08-05 | review completed; Candidate C readiness blocked; 실행 false |
 | [training/candidate-c-design.md](./training/candidate-c-design.md) | Candidate C experimental successor 범위·Dataset/Tokenizer/Config freeze·C-1~C-4·blocker 계약 | Base Readiness, ADR-008·009·011 | 사용자 ADR·가설·freeze·resolved config 승인 | `review` | Candidate C C-1~C-4 검토 전 필수 | 2026-08-05 | 계약 설계 완료; 실행 false, C-4 blocked |
 | [training/candidate-c-eos-hypotheses.md](./training/candidate-c-eos-hypotheses.md) | H1~H7 반증 가능 EOS root-cause 가설과 Candidate B read-only 진단 계획 | ADR-008, EOS Success Policy, A/B 진단 | 별도 진단 승인·주가설 선택 | `review` | Candidate C intervention 선택 전 필수 | 2026-08-05 | 진단 not_started, 가설 not_approved |
+| [evaluation/candidate-b-eos-diagnostic-contract.md](./evaluation/candidate-b-eos-diagnostic-contract.md) | Candidate B Final read-only EOS 진단 identity·matrix·D1~D8·artifact·Gate·Approval·Request 계약 | Candidate B Final·A/B EOS 진단, ADR-008·009 | R1~R7 구현·freeze·별도 실행 승인 | `review` | Candidate B EOS 추가 진단 전 필수 | 2026-08-05 | design completed; execution false, GPU/Full not_started |
+| [evaluation/candidate-c-hypothesis-selection-policy.md](./evaluation/candidate-c-hypothesis-selection-policy.md) | H1~H7 지지·반증·불충분 mapping과 단일 주가설 선택 상태·decision artifact | Candidate B EOS 진단 계약·Candidate C EOS 가설 | 진단 완료·사용자 주가설 승인·C-4 | `review` | Candidate C intervention 선택 전 필수 | 2026-08-05 | primary hypothesis not_selected |
 | [training/candidate-c-evaluation-contract.md](./training/candidate-c-evaluation-contract.md) | Candidate B Full 기준 Candidate C 지표 역할·Fail Closed·Selection 상태 계약 | Evaluation Framework, ADR-008·009 | 회귀 폭·EOS 승격 판정 승인, C-7 Evaluation | `review` | C-4·C-7·C-8 전 필수 | 2026-08-05 | threshold·평가·승격 미승인 |
 | [quality/trainer-testing.md](./quality/trainer-testing.md) | Phase 5 Trainer·checkpoint/resume·CPU/CUDA FP16·합성 overfit 회귀 결과 기록 | [Trainer Foundation](./training/trainer-foundation.md), [체크포인트·재개](./training/checkpoint-and-resume.md), [테스트 전략](./quality/test-strategy.md) | Gate 6 승인 기록, Gate 7 사용자 검토, 실제 pretraining pilot | `review` | Gate 6 검토 전 필수 | 2026-07-24 | 실제 Tiny 운영 VRAM·처리량, 실제 데이터 overfit, Gate 7 승인 |
 | [training/tiny-training-validation.md](./training/tiny-training-validation.md) | 실제 Tiny config의 합성 CUDA FP16·batch·VRAM·처리량·resume·overfit 결과 기록 | [Trainer Foundation](./training/trainer-foundation.md), [GPU 메모리 전략](./training/gpu-memory-strategy.md) | [Sampler와 재개](./training/sampler-state-and-resume.md), [Tiny 학습 테스트](./quality/tiny-training-testing.md), Gate 6 승인 기록·Gate 7 검토 | `review` | Gate 6 검토 전 필수 | 2026-07-24 | 운영 scheduler·batch·LR, 실제 tokenizer/corpus, Gate 7 승인 |
@@ -299,6 +301,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate B Final read-only EOS 진단 계약과 Candidate C 주가설 선택 정책 등록; 실행 false·주가설 미선택 유지 |
 | 2026-08-05 | Base Readiness review 완료와 Candidate C execution readiness blocked 상태, 조사/실행 흐름 분리 반영 |
 | 2026-08-05 | Candidate C 설계·EOS 가설·Evaluation 계약과 draft ADR-011을 등록하고 C-1~C-4 선후 관계 동기화 |
 | 2026-08-05 | Base Training Readiness 통합 문서를 등록하고 Candidate C 실행 전 필수 문서로 지정 |

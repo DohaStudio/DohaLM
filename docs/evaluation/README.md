@@ -1,7 +1,7 @@
 # DohaLM 평가 프레임워크
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-07-28
+- 마지막 검토일: 2026-08-05
 - 태그: `evaluation`, `reproducibility`, `privacy`, `checkpoint`
 
 이 디렉터리는 동일한 내부 평가 데이터와 운영 tokenizer로 DohaLM-Tiny 산출물을 비교하는 계약을 설명한다. 평가 실행은 `model.eval()`과 `torch.inference_mode()`만 사용하며 optimizer, scheduler, backward 또는 parameter 갱신을 허용하지 않는다.
@@ -29,6 +29,8 @@
 - [Candidate A/B Full 비교](./candidate-a-b-full-comparison.md)
 - [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md) (`approved`)
 - [EOS Generation·Decoding 진단 결과](./eos-generation-decoding-diagnostic-result.md)
+- [Candidate B Final Read-only EOS 진단 계약](./candidate-b-eos-diagnostic-contract.md) (`design_completed`, 실행 false)
+- [Candidate C EOS 주가설 선택 정책](./candidate-c-hypothesis-selection-policy.md) (`design_completed`, 주가설 미선택)
 - [Candidate C Evaluation·Selection 계약](../training/candidate-c-evaluation-contract.md) (`review`, threshold 미승인)
 - [평가 manifest 예시](./evaluation-manifest.example.yaml)
 - [외부 benchmark 정책](./benchmark-policy.md)
@@ -52,6 +54,11 @@
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
 - EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `approved`, historical Candidate B 상태 변경 없음
+- Candidate B 신규 read-only EOS 진단: 계약·D1~D8·single-use control 설계 `completed`; R1 외 후속 구현·Approval·Request·GPU·Full 실행
+  `not_started`, execution false, checkpoint mutation false
+- EOS-DIAG-R1 artifact system: 18개 strict schema, canonical loader/validator, atomic no-replace writer, inventory와
+  completion evidence `implemented_synthetic_verified`; D1~D8 backend·실제 Run artifact는 미구현·미생성
+- Candidate C EOS 주가설 선택 정책: 설계 `completed`; primary hypothesis `not_selected`
 - Candidate B ADR-008 reassessment: `approved_as_base_baseline`; current Base baseline은 Candidate B,
   Candidate A는 historical baseline
 - Candidate B derivative parent eligibility: `approved_experimental`; 실제 파생 학습·publication 미승인
@@ -64,6 +71,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R1 strict artifact system과 synthetic 10-test 검증 연결; checkpoint·Tokenizer·GPU·generation 미실행 유지 |
+| 2026-08-05 | Candidate B Final read-only EOS 진단 계약과 Candidate C 단일 주가설 선택 정책 등록; 실행·Approval·GPU 미시작 유지 |
 | 2026-08-05 | Candidate C 지표 역할·Full 비교·Selection 상태 계약 연결; threshold·평가 실행·승격 미승인 유지 |
 | 2026-07-28 | ADR-009 Candidate B current baseline·experimental parent 결정과 historical 상태 분리 반영 |
 | 2026-07-28 | ADR-008과 Base·Instruct·Chat EOS Success Policy 승인, historical 비소급 경계 반영 |
