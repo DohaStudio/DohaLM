@@ -17,6 +17,7 @@ from types import MappingProxyType
 from typing import Any
 
 from .eos_diagnostic_artifacts import diagnostic_fingerprint
+from .eos_hypothesis_policy import aggregate_evidence_status
 
 TRACE_SCHEMA_VERSION = 4
 OBSERVATION_SCHEMA_VERSION = 4
@@ -1376,18 +1377,7 @@ def build_diagnostic_summary(
             for item in values
             if item.diagnostic_id == diagnostic_id
         ]
-        statuses[diagnostic_id] = (
-            "complete"
-            if all(item == "complete" for item in matching)
-            else (
-                "complete_with_limitations"
-                if all(
-                    item in {"complete", "complete_with_limitations"}
-                    for item in matching
-                )
-                else matching[0]
-            )
-        )
+        statuses[diagnostic_id] = aggregate_evidence_status(matching)
     complete = [key for key, value in statuses.items() if value == "complete"]
     limited = [
         key for key, value in statuses.items() if value == "complete_with_limitations"
@@ -1425,7 +1415,9 @@ def build_diagnostic_summary(
         "unresolved_questions": insufficient + incompatible,
         "hypothesis_selection_allowed": not insufficient
         and not incompatible
-        and not any(item.evidence_status == "blocked" for item in values),
+        and not any(
+            item.evidence_status in {"blocked", "schema_only"} for item in values
+        ),
         "actual_candidate_b_status_changed": False,
     }
     return _freeze({**summary, "summary_fingerprint": diagnostic_fingerprint(summary)})

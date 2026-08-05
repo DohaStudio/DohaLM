@@ -6,7 +6,10 @@
 - 주가설: `not_selected`
 - 선택 승인: `not_approved`
 - EOS-DIAG-R4 D1~D8 backend: `implemented_synthetic_verified`
+- EOS-DIAG-R5 Hypothesis Assessor: `implemented_synthetic_verified`
 - 실제 Candidate B 진단: `not_run`
+- 실제 Candidate B hypothesis assessment: `not_run`
+- Proposed Candidate C hypothesis: `none`
 - 선행 계약: [Candidate B Final Read-only EOS 진단](./candidate-b-eos-diagnostic-contract.md)
 - 가설 정의: [Candidate C EOS 가설](../training/candidate-c-eos-hypotheses.md)
 
@@ -72,13 +75,35 @@ EOS-DIAG-R4의 synthetic `diagnostic-summary.json`에 있는 `hypothesis_selecti
 검사하는 backend 신호입니다. H1~H7 supporting·contradictory mapping, confidence와 단일 가설 선택은 수행하지 않으며 R5 assessor와
 사용자 승인 전에는 이 정책의 `selected` 상태로 변환할 수 없습니다. Synthetic result는 실제 Candidate B evidence가 아닙니다.
 
+### 4.1 EOS-DIAG-R5 구현 경계
+
+[확정] R5는 D1~D8 semantic artifact fingerprint에 결속된 metric-only Evidence Signal을 strict 검증하고 H1~H7별
+supporting·contradictory·insufficient evidence, coverage, confidence와 intervention category를 계산합니다. Signal의 방향과 강도는
+기존 계약에 없는 수치 threshold로 추론하지 않고 caller가 명시하며, assessor는 허용 diagnostic mapping과 fingerprint를
+검증합니다. Contradictory signal은 결과에서 제거하거나 supporting으로 덮어쓰지 않습니다.
+
+[확정] R5 selection은 ranking이 아니라 synthetic proposed eligibility입니다. H3/H4와 H2/H7의 인과 분리가 없으면
+`multiple_hypotheses_unresolved`, H6는 최대 `conditionally_selected`, H5는 `decoding_policy` review만 허용합니다. 모든 결과에서
+`training_intervention_allowed=false`, actual project decision 변경 false입니다.
+
+[확정] D1~D8 중 하나라도 incomplete·insufficient·incompatible·blocked·schema-only이면, 또는 contradiction review를 포함한 overall
+coverage가 `complete`가 아니면 proposed selection을 만들지 않고 `diagnostic_incomplete`로 닫습니다. `strong`이라는 caller 선언만으로
+`high` confidence를 만들지 않으며 현재 schema에는 승인 provenance가 없으므로 confidence 상한은 H6 `low`, 나머지 `medium`입니다.
+
+[제외] 실제 Candidate B result, 실제 주가설 승인, Candidate C config·GPU·training과 ADR 승인을 입력하거나 생성하지 않았습니다.
+`hypothesis-assessment.json`과 summary 연결은 synthetic rehearsal 전용이며 actual project 상태는 계속 미선택입니다.
+
 ## 5. 현재 상태
 
 ```text
 candidate_b_eos_diagnostic_execution_allowed: false
 eos_diag_r4_diagnostic_backend: implemented_synthetic_verified
+eos_diag_r5_hypothesis_assessor: implemented_synthetic_verified
 actual_candidate_b_diagnostics: not_run
+actual_candidate_b_hypothesis_assessment: not_run
+proposed_candidate_c_hypothesis: none
 candidate_c_primary_hypothesis: not_selected
+candidate_c_execution_allowed: false
 candidate_c_readiness: blocked
 gate_c1: review
 gate_c4: blocked
@@ -88,5 +113,7 @@ gate_c4: blocked
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | R5 독립 감사 보완으로 incomplete diagnostic selection 차단, deterministic aggregation, high confidence 제한과 R1 exact linkage 반영 |
+| 2026-08-05 | R5 synthetic Evidence Signal·H1~H7 assessor·coverage·proposed selection과 R1 payload 연결 구현; actual assessment·주가설 승인 미실행 유지 |
 | 2026-08-05 | R4 synthetic D1~D8 completeness 신호와 R5 실제 hypothesis assessment·사용자 선택 책임을 분리; 주가설 미선택 유지 |
 | 2026-08-05 | H1~H7 지지·반증·불충분 조건, 단일 주가설 상태와 decision artifact 계약 설계 |

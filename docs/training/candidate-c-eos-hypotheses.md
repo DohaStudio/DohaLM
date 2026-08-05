@@ -6,7 +6,9 @@
 - 가설 승인: `not_approved`
 - 진단 실행: `not_started`
 - EOS-DIAG-R4 synthetic backend: `implemented_synthetic_verified`
+- EOS-DIAG-R5 synthetic assessor: `implemented_synthetic_verified`
 - 실제 Candidate B D1~D8: `not_run`
+- 실제 Candidate B hypothesis assessment: `not_run`
 - Candidate B 진단 계약: `design_completed`
 - Candidate B 진단 실행 허용: `false`
 - 주가설: `not_selected`
@@ -70,6 +72,14 @@ checkpoint load·GPU 진단·주가설 승인을 뜻하지 않습니다.
 logit·probability·token ID는 Candidate B 관측값이 아니며 H1~H7의 지지·반증 근거로 사용할 수 없습니다. 실제 Candidate B
 diagnostic completion과 R5 hypothesis assessor 전까지 root cause와 주가설은 모두 미확정입니다.
 
+[확정] R5는 synthetic Evidence Signal로 H1~H7 support·contradiction·insufficient mapping과 proposed selection 분기를
+검증했습니다. 이는 실제 Candidate B evidence가 아니며 가설 승인도 아닙니다. Actual D1~D8과 hypothesis assessment가 실행되고
+사용자가 별도 결정하기 전까지 `proposed_candidate_c_hypothesis: none`, 주가설 `not_selected`를 유지합니다.
+
+[확정] R5 보완 후 incomplete D1~D8, detached artifact fingerprint, 의미가 맞지 않는 signal·assessment·selection은 모두
+fail closed이며 승인 provenance 없는 high confidence는 허용하지 않습니다. 이 보완도 synthetic 계약 검증일 뿐 실제 root cause
+evidence를 추가하지 않습니다.
+
 ## 4. 중단과 불변 조건
 
 - checkpoint·model·Tokenizer·Dataset artifact가 평가 전후 달라지면 진단은 `invalid`입니다.
@@ -81,6 +91,8 @@ diagnostic completion과 R5 hypothesis assessor 전까지 root cause와 주가�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | R5 독립 감사 보완의 incomplete·detached evidence 차단과 confidence 상한을 반영; actual evidence 상태 불변 |
+| 2026-08-05 | R5 synthetic H1~H7 assessor 구현과 actual hypothesis assessment not_run·proposed hypothesis none 경계 반영 |
 | 2026-08-05 | R4 synthetic D1~D8 backend 구현과 실제 Candidate B 진단·H1~H7 evidence 미실행 경계 반영 |
 | 2026-08-05 | Candidate B read-only 진단 실행 계약과 H1~H7 단일 주가설 선택 정책 연결; 실행 false·주가설 미선택 유지 |
 | 2026-08-05 | H1~H7 반증 가능 가설과 Candidate B read-only EOS 진단 입력·산출물·판정·Candidate C 영향 계약 작성 |

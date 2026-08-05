@@ -67,8 +67,10 @@ candidate_c_training_started: false
 | EOS-DIAG-R2 identity·matrix freezer | `implemented_synthetic_verified` | immutable explicit-input identity, generation matrix, R1 payload 연결 |
 | EOS-DIAG-R3 static preflight | `implemented_synthetic_verified` | strict request, Git/source·dependency, metadata-only input, output·disk·path·lock·process와 R1 plan 연결 |
 | EOS-DIAG-R4 D1~D8 backend | `implemented_synthetic_verified` | strict synthetic trace·observation, D1~D8 계산·집계, evidence status, R1 JSONL·completion rehearsal |
+| EOS-DIAG-R5 hypothesis assessor | `implemented_synthetic_verified` | strict metric-only signal, H1~H7 evidence, incomplete fail-closed, envelope·D1~D8 bundle·summary exact 결속과 negative regression |
 | 실제 Candidate B static preflight | `not_run` | 실제 logical identity·local path 미공급, 구현 변경으로 현재 worktree dirty; payload 접근 없음 |
 | 실제 Candidate B D1~D8 | `not_run` | checkpoint·Tokenizer·prompt payload·GPU·generation 접근 없음 |
+| 실제 Candidate B hypothesis assessment | `not_run` | actual D1~D8 artifact가 없으며 synthetic signal은 실제 선택 근거가 아님 |
 | 실제 Candidate B identity freeze | `incomplete` | checkpoint manifest fingerprint, prompt identity, source/backend/dependency evidence 미동결 |
 | EOS Diagnostic Gate 1·2 | `not_passed` | 실제 artifact·승인 입력의 gate evidence 없음 |
 
@@ -76,16 +78,19 @@ candidate_c_training_started: false
 eos_diag_r3_static_preflight: implemented_synthetic_verified
 eos_diag_r4_diagnostic_backend: implemented_synthetic_verified
 eos_diag_d1_d8: implemented_synthetic_verified
+eos_diag_r5_hypothesis_assessor: implemented_synthetic_verified
 actual_candidate_b_static_preflight: not_run
 actual_candidate_b_diagnostics: not_run
+actual_candidate_b_hypothesis_assessment: not_run
+proposed_candidate_c_hypothesis: none
 gate_eos_diag_1: not_passed
 gate_eos_diag_2: not_passed
 diagnostic_execution_allowed: false
 gpu_diagnostic: not_started
 ```
 
-R1/R2/R3/R4는 실제 checkpoint·Tokenizer·prompt payload read, model load, GPU, generation 또는 Candidate B EOS 계산 완료를
-의미하지 않습니다. R4의 completion은 synthetic diagnostic rehearsal 범위이며 실제 root cause나 주가설을 확정하지 않습니다.
+R1/R2/R3/R4/R5는 실제 checkpoint·Tokenizer·prompt payload read, model load, GPU, generation 또는 Candidate B EOS 계산 완료를
+의미하지 않습니다. R4/R5 completion은 synthetic diagnostic rehearsal 범위이며 실제 root cause나 주가설을 확정하지 않습니다.
 
 ## 4. Phase 2 — Reusable Model and Runtime
 
@@ -129,8 +134,8 @@ DohaMusic integration은 `planned, separate repository`입니다. DohaMusic의 U
 
 ## 8. 다음 권장 작업
 
-현재 우선순위에서 다음 구현 후보는 synthetic D1~D8 결과를 H1~H7 support/contradiction에 연결하는 `EOS-DIAG-R5`
-Hypothesis Assessor입니다. 실제 Candidate B
+현재 우선순위에서 다음 구현 후보는 R5 독립 재감사 통과 후 `EOS-DIAG-R6` single-use Approval·diagnostic Runtime Request
+control plane의 synthetic 검증입니다. 실제 Candidate B
 preflight나 checkpoint 접근 전에는 formal identity, clean immutable commit과 별도 승인 경계를 확인해야 합니다. Candidate C 학습, Qwen recovery,
 Python SDK 또는 DohaMusic 구현으로 자동 전환하지 않습니다.
 
@@ -138,6 +143,8 @@ Python SDK 또는 DohaMusic 구현으로 자동 전환하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R5 독립 감사 C-01~L-01 보완 완료; actual 상태 불변, R6는 독립 재감사 이후 진행 |
+| 2026-08-05 | EOS-DIAG-R5 synthetic hypothesis assessor·R1 payload 연결 반영; actual assessment not_run·proposed hypothesis none·주가설 미선택 유지 |
 | 2026-08-05 | EOS-DIAG-R4 synthetic D1~D8 backend·R1 JSONL/completion rehearsal 검증 반영; actual diagnostics not_run·주가설 미선택 유지 |
 | 2026-08-05 | EOS-DIAG-R3 Static Preflight synthetic 검증, actual preflight not_run과 Gate 1/2 미통과 상태 반영 |
 | 2026-08-05 | reusable provider 정의, 세 Phase 산출물 상태, 외부 Reference Application과 lineage 병행 관계 반영 |

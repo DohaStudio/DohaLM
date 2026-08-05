@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,22 @@ from src.evaluation.eos_diagnostic_artifacts import (
     serialize_diagnostic_artifact,
     validate_completed_bundle,
     write_diagnostic_artifact,
+)
+from src.evaluation.eos_diagnostic_backend import (
+    AnalysisResult,
+    build_diagnostic_summary,
+)
+from src.evaluation.eos_hypothesis_assessor import (
+    AssessorInput,
+    EvidenceSignal,
+    assess_hypotheses,
+    attach_hypothesis_assessment_to_summary,
+    build_r1_hypothesis_payload,
+)
+from src.evaluation.eos_hypothesis_policy import (
+    DIAGNOSTIC_ARTIFACT_TYPES,
+    HYPOTHESIS_DIAGNOSTICS,
+    HYPOTHESIS_IDS,
 )
 
 RUN_ID = "SYNTHETIC-DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20990101-0001"
@@ -52,6 +69,14 @@ def _common(**overrides: object) -> dict[str, object]:
         "created_at": STAMP,
     }
     value.update(overrides)
+    return value
+
+
+def _plain(value):
+    if isinstance(value, Mapping):
+        return {key: _plain(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_plain(item) for item in value]
     return value
 
 
@@ -443,6 +468,134 @@ def _r4_summary() -> dict[str, object]:
     return semantic
 
 
+def _r5_bundle_values() -> tuple[
+    tuple[AnalysisResult, ...], dict[str, object], dict[str, object]
+]:
+    results: list[AnalysisResult] = []
+    for diagnostic_id, artifact_types in DIAGNOSTIC_ARTIFACT_TYPES.items():
+        for artifact_type in artifact_types:
+            summary: dict[str, object] = {"synthetic_metric_count": 1}
+            if diagnostic_id == "D2":
+                summary["paired_observation_count"] = 1
+            elif diagnostic_id == "D4":
+                summary["packed_comparison_available"] = True
+            elif diagnostic_id == "D7":
+                summary["pure_greedy_summary"] = {"trace_count": 1}
+            semantic = {
+                "diagnostic_id": diagnostic_id,
+                "artifact_type": artifact_type,
+                "evidence_status": "complete",
+                "records": [],
+                "summary": summary,
+                "limitations": [],
+            }
+            results.append(
+                AnalysisResult(
+                    diagnostic_id=diagnostic_id,
+                    artifact_type=artifact_type,
+                    evidence_status="complete",
+                    records=(),
+                    summary=summary,
+                    limitations=(),
+                    result_fingerprint=diagnostic_fingerprint(semantic),
+                )
+            )
+    values = tuple(results)
+    signals = []
+    for hypothesis_id in HYPOTHESIS_IDS:
+        diagnostic_id = HYPOTHESIS_DIAGNOSTICS[hypothesis_id][0]
+        artifact_fingerprint = next(
+            item.result_fingerprint
+            for item in values
+            if item.diagnostic_id == diagnostic_id
+        )
+        semantic_signal: dict[str, object] = {
+            "signal_id": f"SYNTHETIC-{hypothesis_id}-neutral-review",
+            "hypothesis_id": hypothesis_id,
+            "direction": "neutral",
+            "diagnostic_id": diagnostic_id,
+            "artifact_fingerprint": artifact_fingerprint,
+            "metric_name": "synthetic_metric_delta",
+            "comparison_scope": "synthetic_fixture",
+            "observation": {"sample_count": 4},
+            "evidence_strength": "indeterminate",
+            "limitation_codes": [],
+            "approval_required": False,
+        }
+        semantic_signal["signal_fingerprint"] = diagnostic_fingerprint(semantic_signal)
+        signals.append(EvidenceSignal.from_mapping(semantic_signal))
+    base_summary = build_diagnostic_summary(RUN_ID, values)
+    assessor_input = AssessorInput.create(
+        diagnostic_run_id=RUN_ID,
+        policy_version="candidate-c-hypothesis-selection-v1",
+        candidate_b_identity_fingerprint=CHECKPOINT_IDENTITY,
+        generation_matrix_fingerprint=GENERATION_MATRIX,
+        results=values,
+        diagnostic_summary=base_summary,
+        signals=tuple(signals),
+    )
+    bundle = assess_hypotheses(assessor_input)
+    return (
+        values,
+        _plain(build_r1_hypothesis_payload(bundle)),
+        _plain(attach_hypothesis_assessment_to_summary(base_summary, bundle)),
+    )
+
+
+def _resign_hypothesis_payload(payload: dict[str, object]) -> None:
+    payload.pop("assessment_fingerprint", None)
+    payload["assessment_fingerprint"] = diagnostic_fingerprint(payload)
+
+
+def _new_r5_hypothesis_artifact(payload: dict[str, object], **overrides: object):
+    common = _common(**overrides)
+    return new_diagnostic_artifact(
+        artifact_type="hypothesis_assessment",
+        record_count=7,
+        payload=payload,
+        **common,
+    )
+
+
+def _write_r5_precompletion_bundle(
+    destination: Path,
+    results: tuple[AnalysisResult, ...],
+    hypothesis_payload: dict[str, object],
+    hypothesis_summary: dict[str, object],
+) -> None:
+    results_by_type = {item.artifact_type: item for item in results}
+    for artifact_type in ARTIFACT_FILENAMES:
+        if artifact_type in {"artifact_inventory", "completion_evidence"}:
+            continue
+        record_count, payload = _payload(artifact_type)
+        if artifact_type == "diagnostic_run_manifest":
+            payload["execution_mode"] = "synthetic_diagnostic_rehearsal"
+        elif artifact_type in results_by_type:
+            payload = results_by_type[artifact_type].artifact_payload()
+            record_count = len(payload["records"])
+        elif artifact_type == "hypothesis_assessment":
+            payload = hypothesis_payload
+            record_count = 7
+        elif artifact_type == "output_manifest":
+            payload["status"] = "validating"
+            payload["diagnostic_summary"] = hypothesis_summary
+        artifact = new_diagnostic_artifact(
+            artifact_type=artifact_type,
+            record_count=record_count,
+            payload=payload,
+            **_common(),
+        )
+        write_diagnostic_artifact(
+            destination=destination / ARTIFACT_FILENAMES[artifact_type],
+            artifact=artifact,
+        )
+    inventory = new_artifact_inventory(destination, created_at=STAMP)
+    write_diagnostic_artifact(
+        destination=destination / ARTIFACT_FILENAMES["artifact_inventory"],
+        artifact=inventory,
+    )
+
+
 def test_r4_jsonl_and_synthetic_diagnostic_completion_rehearsal(
     synthetic_workspace: Path,
 ) -> None:
@@ -532,4 +685,226 @@ def test_r4_payload_cannot_authorize_production_diagnostic_completion() -> None:
                 for key, value in _common().items()
                 if key != "diagnostic_run_id"
             },
+        )
+
+
+def test_r5_hypothesis_payload_and_summary_complete_synthetic_bundle(
+    synthetic_workspace: Path,
+) -> None:
+    results, hypothesis_payload, hypothesis_summary = _r5_bundle_values()
+    _write_r5_precompletion_bundle(
+        synthetic_workspace, results, hypothesis_payload, hypothesis_summary
+    )
+    completion = new_completion_evidence(
+        synthetic_workspace,
+        created_at=STAMP,
+        completion_scope="synthetic_diagnostic_rehearsal",
+    )
+    write_diagnostic_artifact(
+        destination=synthetic_workspace / ARTIFACT_FILENAMES["completion_evidence"],
+        artifact=completion,
+    )
+    assert validate_completed_bundle(synthetic_workspace).artifact_count == 18
+
+
+def test_r5_production_hypothesis_payload_is_not_authorized() -> None:
+    production_run_id = "DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20990101-0005"
+    _, payload, _ = _r5_bundle_values()
+    payload["diagnostic_run_id"] = production_run_id
+    payload.pop("assessment_fingerprint")
+    payload["assessment_fingerprint"] = diagnostic_fingerprint(payload)
+    with pytest.raises(
+        EOSDiagnosticArtifactError,
+        match="^EOS_HYPOTHESIS_PRODUCTION_NOT_AUTHORIZED$",
+    ):
+        new_diagnostic_artifact(
+            artifact_type="hypothesis_assessment",
+            diagnostic_run_id=production_run_id,
+            record_count=7,
+            payload=payload,
+            **{
+                key: value
+                for key, value in _common().items()
+                if key != "diagnostic_run_id"
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "envelope_override"),
+    [
+        (
+            "candidate_b_identity_fingerprint",
+            {"checkpoint_identity_fingerprint": "sha256:" + "f" * 64},
+        ),
+        (
+            "generation_matrix_fingerprint",
+            {"generation_matrix_fingerprint": "sha256:" + "f" * 64},
+        ),
+    ],
+)
+def test_r5_payload_identity_must_match_artifact_envelope(
+    field: str, envelope_override: dict[str, object]
+) -> None:
+    _, payload, _ = _r5_bundle_values()
+    assert payload[field] != next(iter(envelope_override.values()))
+    with pytest.raises(
+        EOSDiagnosticArtifactError,
+        match="^EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH$",
+    ):
+        _new_r5_hypothesis_artifact(payload, **envelope_override)
+
+
+@pytest.mark.parametrize("mutation", ["wrong_mapping", "forbidden_text", "duplicate"])
+def test_r5_loader_rejects_detached_or_unsafe_signals(mutation: str) -> None:
+    _, payload, _ = _r5_bundle_values()
+    signals = payload["evidence_signals"]
+    assert isinstance(signals, list)
+    signal = signals[0]
+    assert isinstance(signal, dict)
+    if mutation == "wrong_mapping":
+        signal["diagnostic_id"] = "D8"
+        signal["artifact_fingerprint"] = payload["diagnostic_artifact_fingerprints"][
+            "D8"
+        ][0]
+    elif mutation == "forbidden_text":
+        signal["observation"] = {"prompt": "must-not-be-serialized"}
+    else:
+        signals.append(dict(signal))
+        _resign_hypothesis_payload(payload)
+        with pytest.raises(EOSDiagnosticArtifactError):
+            _new_r5_hypothesis_artifact(payload)
+        return
+    signal.pop("signal_fingerprint")
+    signal["signal_fingerprint"] = diagnostic_fingerprint(signal)
+    _resign_hypothesis_payload(payload)
+    with pytest.raises(EOSDiagnosticArtifactError):
+        _new_r5_hypothesis_artifact(payload)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "wrong_direction_reference",
+        "missing_signal",
+        "duplicate_reference",
+        "wrong_intervention",
+        "impossible_status",
+        "unauthorized_high",
+        "selection_mismatch",
+    ],
+)
+def test_r5_loader_rejects_semantically_impossible_payloads(mutation: str) -> None:
+    _, payload, _ = _r5_bundle_values()
+    assessment = payload["hypothesis_assessments"][0]
+    if mutation == "wrong_direction_reference":
+        assessment["supporting_signals"] = [payload["evidence_signals"][0]["signal_id"]]
+    elif mutation == "missing_signal":
+        assessment["insufficient_signals"] = ["SYNTHETIC-MISSING-SIGNAL"]
+    elif mutation == "duplicate_reference":
+        signal_id = payload["evidence_signals"][0]["signal_id"]
+        assessment["insufficient_signals"] = [signal_id, signal_id]
+    elif mutation == "wrong_intervention":
+        assessment["intervention_category"] = "training_budget"
+    elif mutation == "impossible_status":
+        assessment["status"] = "supported"
+    elif mutation == "unauthorized_high":
+        assessment["confidence"] = "high"
+    else:
+        selection = payload["selection_result"]
+        selection["selection_status"] = "selected"
+        selection["proposed_hypothesis"] = "H1_EOS_LOGIT_CALIBRATION"
+        selection["conditions"] = []
+        selection.pop("selection_fingerprint")
+        selection["selection_fingerprint"] = diagnostic_fingerprint(selection)
+        _resign_hypothesis_payload(payload)
+        with pytest.raises(EOSDiagnosticArtifactError):
+            _new_r5_hypothesis_artifact(payload)
+        return
+    assessment.pop("assessment_fingerprint")
+    assessment["assessment_fingerprint"] = diagnostic_fingerprint(assessment)
+    _resign_hypothesis_payload(payload)
+    with pytest.raises(EOSDiagnosticArtifactError):
+        _new_r5_hypothesis_artifact(payload)
+
+
+def test_r5_loader_rejects_h6_high_confidence_and_omitted_contradiction() -> None:
+    _, payload, _ = _r5_bundle_values()
+    h6 = payload["hypothesis_assessments"][5]
+    h6["confidence"] = "high"
+    h6.pop("assessment_fingerprint")
+    h6["assessment_fingerprint"] = diagnostic_fingerprint(h6)
+    _resign_hypothesis_payload(payload)
+    with pytest.raises(EOSDiagnosticArtifactError):
+        _new_r5_hypothesis_artifact(payload)
+
+    _, payload, _ = _r5_bundle_values()
+    signal = payload["evidence_signals"][0]
+    signal["direction"] = "contradictory"
+    signal.pop("signal_fingerprint")
+    signal["signal_fingerprint"] = diagnostic_fingerprint(signal)
+    h1 = payload["hypothesis_assessments"][0]
+    h1["status"] = "contradicted"
+    h1["confidence"] = "medium"
+    h1["contradictory_signals"] = [signal["signal_id"]]
+    h1.pop("assessment_fingerprint")
+    h1["assessment_fingerprint"] = diagnostic_fingerprint(h1)
+    payload["contradictory_evidence_summary"] = {}
+    _resign_hypothesis_payload(payload)
+    with pytest.raises(EOSDiagnosticArtifactError):
+        _new_r5_hypothesis_artifact(payload)
+
+
+def test_r5_completion_rejects_detached_diagnostic_fingerprint(
+    synthetic_workspace: Path,
+) -> None:
+    results, payload, summary = _r5_bundle_values()
+    d1_values = payload["diagnostic_artifact_fingerprints"]["D1"]
+    referenced = {
+        signal["artifact_fingerprint"]
+        for signal in payload["evidence_signals"]
+        if signal["diagnostic_id"] == "D1"
+    }
+    detached_index = next(
+        index for index, value in enumerate(d1_values) if value not in referenced
+    )
+    d1_values[detached_index] = "sha256:" + "f" * 64
+    d1_values.sort()
+    _resign_hypothesis_payload(payload)
+    summary["assessment_fingerprint"] = payload["assessment_fingerprint"]
+    summary.pop("summary_fingerprint")
+    summary["summary_fingerprint"] = diagnostic_fingerprint(summary)
+    _write_r5_precompletion_bundle(synthetic_workspace, results, payload, summary)
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_HYPOTHESIS_ARTIFACT_MISMATCH$"
+    ):
+        new_completion_evidence(
+            synthetic_workspace,
+            created_at=STAMP,
+            completion_scope="synthetic_diagnostic_rehearsal",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("hypothesis_selection_result", "selected"),
+        ("primary_hypothesis", "H1_EOS_LOGIT_CALIBRATION"),
+        ("training_intervention_allowed", True),
+        ("assessment_fingerprint", "sha256:" + "f" * 64),
+    ],
+)
+def test_r5_completion_rejects_summary_semantic_drift(
+    synthetic_workspace: Path, field: str, value: object
+) -> None:
+    results, payload, summary = _r5_bundle_values()
+    summary[field] = value
+    summary.pop("summary_fingerprint")
+    summary["summary_fingerprint"] = diagnostic_fingerprint(summary)
+    with pytest.raises(EOSDiagnosticArtifactError):
+        _write_r5_precompletion_bundle(synthetic_workspace, results, payload, summary)
+        new_completion_evidence(
+            synthetic_workspace,
+            created_at=STAMP,
+            completion_scope="synthetic_diagnostic_rehearsal",
         )

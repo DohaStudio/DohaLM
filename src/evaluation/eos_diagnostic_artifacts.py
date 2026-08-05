@@ -21,6 +21,21 @@ from typing import Any
 
 from src.data.checksums import canonical_json_bytes, file_checksum, sha256_bytes
 
+from .eos_hypothesis_policy import (
+    ASSESSMENT_STATUSES,
+    CONFIDENCE_STATUSES,
+    COVERAGE_STATUSES,
+    DIAGNOSTIC_ARTIFACT_TYPES,
+    DIRECTIONS,
+    EVIDENCE_STRENGTHS,
+    FORBIDDEN_OBSERVATION_KEYS,
+    HYPOTHESIS_DIAGNOSTICS,
+    HYPOTHESIS_IDS,
+    INTERVENTION_CATEGORIES,
+    SELECTION_STATUSES,
+    aggregate_evidence_status,
+)
+
 EOS_DIAGNOSTIC_SCHEMA_VERSION = 1
 EOS_DIAGNOSTIC_WRITER_NAME = "dohalm-eos-diagnostic-artifact-writer"
 EOS_DIAGNOSTIC_WRITER_VERSION = "1"
@@ -340,6 +355,585 @@ def _validate_json_tree(value: object) -> None:
     _raise()
 
 
+def _validate_metric_tree(value: object) -> None:
+    if value is None or type(value) in {bool, int}:
+        return
+    if type(value) is float:
+        _number(value)
+        return
+    if type(value) is list:
+        for item in value:
+            _validate_metric_tree(item)
+        return
+    if type(value) is dict:
+        if set(value) & FORBIDDEN_OBSERVATION_KEYS:
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+        for key, item in value.items():
+            _string(key, identifier=True)
+            _validate_metric_tree(item)
+        return
+    _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+
+
+def _validate_hypothesis_signal(value: object) -> dict[str, Any]:
+    signal = _strict_object(
+        value,
+        (
+            "signal_id",
+            "hypothesis_id",
+            "direction",
+            "diagnostic_id",
+            "artifact_fingerprint",
+            "metric_name",
+            "comparison_scope",
+            "observation",
+            "evidence_strength",
+            "limitation_codes",
+            "approval_required",
+            "signal_fingerprint",
+        ),
+    )
+    _string(signal["signal_id"], identifier=True)
+    if signal["hypothesis_id"] not in HYPOTHESIS_IDS:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    if signal["diagnostic_id"] not in HYPOTHESIS_DIAGNOSTICS[signal["hypothesis_id"]]:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    if (
+        signal["direction"] not in DIRECTIONS
+        or signal["evidence_strength"] not in EVIDENCE_STRENGTHS
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _fingerprint(signal["artifact_fingerprint"])
+    _string(signal["metric_name"], identifier=True)
+    _string(signal["comparison_scope"], identifier=True)
+    _validate_metric_tree(signal["observation"])
+    _string_list(signal["limitation_codes"])
+    _boolean(signal["approval_required"])
+    semantic = dict(signal)
+    supplied = _fingerprint(semantic.pop("signal_fingerprint"))
+    if diagnostic_fingerprint(semantic) != supplied:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
+    return signal
+
+
+def _validate_hypothesis_assessment(value: object) -> dict[str, Any]:
+    assessment = _strict_object(
+        value,
+        (
+            "hypothesis_id",
+            "status",
+            "supporting_signals",
+            "contradictory_signals",
+            "insufficient_signals",
+            "evidence_coverage",
+            "confidence",
+            "unresolved_questions",
+            "intervention_category",
+            "allowed_next_actions",
+            "prohibited_next_actions",
+            "assessment_fingerprint",
+        ),
+    )
+    hypothesis_id = assessment["hypothesis_id"]
+    if hypothesis_id not in HYPOTHESIS_IDS:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    if (
+        assessment["status"] not in ASSESSMENT_STATUSES
+        or assessment["confidence"] not in CONFIDENCE_STATUSES
+        or assessment["confidence"] == "high"
+        or assessment["intervention_category"] != INTERVENTION_CATEGORIES[hypothesis_id]
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    for field in (
+        "supporting_signals",
+        "contradictory_signals",
+        "insufficient_signals",
+        "unresolved_questions",
+        "allowed_next_actions",
+        "prohibited_next_actions",
+    ):
+        _string_list(assessment[field])
+    coverage = _strict_object(
+        assessment["evidence_coverage"],
+        (
+            "coverage_status",
+            "required_diagnostics_available",
+            "diagnostic_statuses",
+            "compatible_inputs",
+            "paired_evidence_available",
+            "comparison_group_available",
+            "contradiction_review_coverage",
+        ),
+    )
+    if coverage["coverage_status"] not in COVERAGE_STATUSES:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _string_list(
+        coverage["required_diagnostics_available"],
+        exact=HYPOTHESIS_DIAGNOSTICS[hypothesis_id],
+    )
+    statuses = _strict_object(
+        coverage["diagnostic_statuses"], HYPOTHESIS_DIAGNOSTICS[hypothesis_id]
+    )
+    for status in statuses.values():
+        if status not in _EVIDENCE_STATUSES:
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _boolean(coverage["compatible_inputs"])
+    for field in ("paired_evidence_available", "comparison_group_available"):
+        if coverage[field] is not None:
+            _boolean(coverage[field])
+    if coverage["contradiction_review_coverage"] not in {"reviewed", "missing"}:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    semantic = dict(assessment)
+    supplied = _fingerprint(semantic.pop("assessment_fingerprint"))
+    if diagnostic_fingerprint(semantic) != supplied:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
+    return assessment
+
+
+def _validate_selection_result(value: object) -> dict[str, Any]:
+    selection = _strict_object(
+        value,
+        (
+            "selection_status",
+            "proposed_hypothesis",
+            "conditions",
+            "training_intervention_allowed",
+            "actual_project_decision_changed",
+            "selection_fingerprint",
+        ),
+    )
+    if selection["selection_status"] not in SELECTION_STATUSES:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    proposed = selection["proposed_hypothesis"]
+    if proposed is not None and proposed not in HYPOTHESIS_IDS:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    if selection["selection_status"] in {"selected", "conditionally_selected"}:
+        if proposed is None:
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    elif proposed is not None:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _string_list(selection["conditions"])
+    if (
+        selection["training_intervention_allowed"] is not False
+        or selection["actual_project_decision_changed"] is not False
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    semantic = dict(selection)
+    supplied = _fingerprint(semantic.pop("selection_fingerprint"))
+    if diagnostic_fingerprint(semantic) != supplied:
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
+    return selection
+
+
+def _expected_assessment_semantics(
+    assessment: Mapping[str, Any], signals: list[Mapping[str, Any]]
+) -> tuple[str, str, list[str]]:
+    hypothesis_id = assessment["hypothesis_id"]
+    coverage = assessment["evidence_coverage"]
+    supporting = [item for item in signals if item["direction"] == "supporting"]
+    contradictory = [item for item in signals if item["direction"] == "contradictory"]
+    insufficient = [item for item in signals if item["direction"] == "insufficient"]
+    neutral = [item for item in signals if item["direction"] == "neutral"]
+    reviewed = bool(contradictory or insufficient or neutral)
+    unresolved: list[str] = []
+    if coverage["coverage_status"] in {"incompatible", "insufficient", "partial"}:
+        status, confidence = "insufficient_evidence", "indeterminate"
+        unresolved.append("REQUIRED_DIAGNOSTIC_EVIDENCE_INCOMPLETE")
+    elif supporting and contradictory:
+        status, confidence = "mixed_evidence", "low"
+        unresolved.append("SUPPORT_AND_CONTRADICTION_BOTH_PRESENT")
+    elif supporting:
+        strengths = {item["evidence_strength"] for item in supporting}
+        approval = any(item["approval_required"] for item in supporting)
+        if (
+            not reviewed
+            or insufficient
+            or hypothesis_id == "H6_TRAINING_BUDGET"
+            or approval
+            or strengths <= {"weak", "indeterminate"}
+        ):
+            status = "conditionally_supported"
+            confidence = "low" if hypothesis_id == "H6_TRAINING_BUDGET" else "medium"
+            unresolved.append(
+                "CONTRADICTION_REVIEW_REQUIRED"
+                if not reviewed
+                else "APPROVAL_OR_ADDITIONAL_EVIDENCE_REQUIRED"
+            )
+        else:
+            status, confidence = "supported", "medium"
+    elif contradictory:
+        status, confidence = "contradicted", "medium"
+    elif neutral:
+        status, confidence = "not_applicable", "indeterminate"
+    else:
+        status, confidence = "insufficient_evidence", "indeterminate"
+        unresolved.append("NO_HYPOTHESIS_EVIDENCE_SIGNAL")
+    statuses = coverage["diagnostic_statuses"]
+    if (
+        hypothesis_id == "H2_AUTOREGRESSIVE_EXPOSURE_MISMATCH"
+        and statuses["D2"] == "insufficient_evidence"
+    ):
+        status, confidence = "insufficient_evidence", "indeterminate"
+        unresolved.append("EXACT_PAIRING_EVIDENCE_REQUIRED")
+    if (
+        hypothesis_id in {"H3_BOUNDARY_FREQUENCY", "H4_PACKING_OBJECTIVE"}
+        and coverage["comparison_group_available"] is not True
+    ):
+        status, confidence = "insufficient_evidence", "indeterminate"
+        unresolved.append("PACKED_NON_PACKED_COMPARISON_REQUIRED")
+    return status, confidence, sorted(set(unresolved))
+
+
+def _expected_selection(
+    overall_coverage: Mapping[str, Any], assessments: list[Mapping[str, Any]]
+) -> tuple[str, str | None, list[str]]:
+    conditions: list[str] = []
+    proposed: str | None = None
+    if overall_coverage["coverage_status"] != "complete":
+        status = "diagnostic_incomplete"
+        conditions.append("COMPLETE_COMPATIBLE_DIAGNOSTICS_REQUIRED")
+    else:
+        supported = [
+            item["hypothesis_id"]
+            for item in assessments
+            if item["status"] == "supported"
+        ]
+        conditional = [
+            item["hypothesis_id"]
+            for item in assessments
+            if item["status"] == "conditionally_supported"
+        ]
+        candidates = supported + conditional
+        if {"H3_BOUNDARY_FREQUENCY", "H4_PACKING_OBJECTIVE"}.issubset(candidates):
+            status = "multiple_hypotheses_unresolved"
+            conditions.append("BOUNDARY_FREQUENCY_AND_PACKING_CAUSALITY_UNRESOLVED")
+        elif {
+            "H2_AUTOREGRESSIVE_EXPOSURE_MISMATCH",
+            "H7_REPETITION_LOOP_COMPETITION",
+        }.issubset(candidates):
+            status = "multiple_hypotheses_unresolved"
+            conditions.append("EXPOSURE_AND_LOOP_CAUSAL_DIRECTION_UNRESOLVED")
+        elif len(candidates) > 1:
+            status = "multiple_hypotheses_unresolved"
+            conditions.append("MULTIPLE_SUPPORTED_HYPOTHESES_REQUIRE_CAUSAL_SEPARATION")
+        elif len(supported) == 1:
+            status, proposed = "selected", supported[0]
+        elif len(conditional) == 1:
+            status, proposed = "conditionally_selected", conditional[0]
+            item = next(
+                value for value in assessments if value["hypothesis_id"] == proposed
+            )
+            conditions.extend(item["unresolved_questions"])
+        else:
+            status = "no_hypothesis_selected"
+            conditions.append("NO_ELIGIBLE_SINGLE_HYPOTHESIS")
+    if proposed == "H5_DECODING_PARAMETER":
+        conditions.append("DECODING_POLICY_REVIEW_ONLY")
+    if proposed == "H6_TRAINING_BUDGET":
+        conditions.extend(
+            (
+                "CAUSAL_CONFIDENCE_HIGH_FORBIDDEN",
+                "SEPARATE_BUDGET_EXPERIMENT_APPROVAL_REQUIRED",
+            )
+        )
+    return status, proposed, sorted(set(conditions))
+
+
+def _validate_r5_hypothesis_payload(value: object, record_count: int) -> dict[str, Any]:
+    payload = _strict_object(
+        value,
+        (
+            "analysis_status",
+            "record_schema_version",
+            "policy_version",
+            "diagnostic_run_id",
+            "candidate_b_identity_fingerprint",
+            "generation_matrix_fingerprint",
+            "assessor_input_fingerprint",
+            "diagnostic_artifact_fingerprints",
+            "evidence_coverage",
+            "evidence_signals",
+            "hypothesis_assessments",
+            "selection_result",
+            "contradictory_evidence_summary",
+            "unresolved_questions",
+            "allowed_next_actions",
+            "prohibited_next_actions",
+            "actual_project_state",
+            "assessment_fingerprint",
+        ),
+    )
+    if (
+        payload["analysis_status"] != "complete"
+        or payload["record_schema_version"] != 5
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _string(payload["policy_version"], identifier=True)
+    _run_id(payload["diagnostic_run_id"])
+    for field in (
+        "candidate_b_identity_fingerprint",
+        "generation_matrix_fingerprint",
+        "assessor_input_fingerprint",
+    ):
+        _fingerprint(payload[field])
+    fingerprints = _strict_object(
+        payload["diagnostic_artifact_fingerprints"],
+        tuple(f"D{index}" for index in range(1, 9)),
+    )
+    for diagnostic_id, values in fingerprints.items():
+        expected_count = 2 if diagnostic_id == "D1" else 1
+        if (
+            type(values) is not list
+            or len(values) != expected_count
+            or values != sorted(set(values))
+        ):
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+        for item in values:
+            _fingerprint(item)
+    signals = payload["evidence_signals"]
+    if type(signals) is not list:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    validated_signals = [_validate_hypothesis_signal(item) for item in signals]
+    signal_ids = [item["signal_id"] for item in validated_signals]
+    signal_fingerprints = [item["signal_fingerprint"] for item in validated_signals]
+    if (
+        len(signal_ids) != len(set(signal_ids))
+        or len(signal_fingerprints) != len(set(signal_fingerprints))
+        or signal_ids != sorted(signal_ids)
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    for signal in validated_signals:
+        if signal["artifact_fingerprint"] not in fingerprints[signal["diagnostic_id"]]:
+            _raise("EOS_HYPOTHESIS_ARTIFACT_MISMATCH")
+    overall = _strict_object(
+        payload["evidence_coverage"],
+        (
+            "coverage_status",
+            "required_diagnostics_available",
+            "diagnostic_statuses",
+            "compatible_inputs",
+            "paired_evidence_available",
+            "comparison_group_available",
+            "contradiction_review_coverage",
+        ),
+    )
+    if overall["coverage_status"] not in COVERAGE_STATUSES:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _string_list(overall["required_diagnostics_available"])
+    overall_statuses = _strict_object(
+        overall["diagnostic_statuses"], tuple(DIAGNOSTIC_ARTIFACT_TYPES)
+    )
+    if any(status not in _EVIDENCE_STATUSES for status in overall_statuses.values()):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    _boolean(overall["compatible_inputs"])
+    _boolean(overall["paired_evidence_available"])
+    _boolean(overall["comparison_group_available"])
+    if overall["contradiction_review_coverage"] not in {"complete", "partial", "none"}:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    assessments = payload["hypothesis_assessments"]
+    if type(assessments) is not list or len(assessments) != len(HYPOTHESIS_IDS):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    validated_assessments = [
+        _validate_hypothesis_assessment(item) for item in assessments
+    ]
+    if tuple(item["hypothesis_id"] for item in validated_assessments) != HYPOTHESIS_IDS:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    signals_by_id = {item["signal_id"]: item for item in validated_signals}
+    for assessment in validated_assessments:
+        hypothesis_id = assessment["hypothesis_id"]
+        hypothesis_signals = [
+            item for item in validated_signals if item["hypothesis_id"] == hypothesis_id
+        ]
+        for field, direction in (
+            ("supporting_signals", "supporting"),
+            ("contradictory_signals", "contradictory"),
+            ("insufficient_signals", "insufficient"),
+        ):
+            expected = sorted(
+                item["signal_id"]
+                for item in hypothesis_signals
+                if item["direction"] == direction
+            )
+            if assessment[field] != expected or any(
+                signal_id not in signals_by_id for signal_id in assessment[field]
+            ):
+                _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+        expected_status, expected_confidence, expected_unresolved = (
+            _expected_assessment_semantics(assessment, hypothesis_signals)
+        )
+        if (
+            assessment["status"] != expected_status
+            or assessment["confidence"] != expected_confidence
+            or assessment["unresolved_questions"] != expected_unresolved
+        ):
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+        coverage = assessment["evidence_coverage"]
+        expected_statuses = {
+            diagnostic_id: overall_statuses[diagnostic_id]
+            for diagnostic_id in HYPOTHESIS_DIAGNOSTICS[hypothesis_id]
+        }
+        reviewed = any(
+            item["direction"] in {"contradictory", "insufficient", "neutral"}
+            for item in hypothesis_signals
+        )
+        incompatible = any(
+            status == "incompatible_input" for status in expected_statuses.values()
+        )
+        unavailable = any(
+            status in {"blocked", "schema_only"}
+            for status in expected_statuses.values()
+        )
+        insufficient = any(
+            status == "insufficient_evidence" for status in expected_statuses.values()
+        )
+        if incompatible:
+            expected_coverage_status = "incompatible"
+        elif unavailable:
+            expected_coverage_status = "insufficient"
+        elif insufficient:
+            expected_coverage_status = "partial"
+        elif reviewed and all(
+            status == "complete" for status in expected_statuses.values()
+        ):
+            expected_coverage_status = "complete"
+        else:
+            expected_coverage_status = "substantial"
+        if (
+            coverage["diagnostic_statuses"] != expected_statuses
+            or coverage["coverage_status"] != expected_coverage_status
+            or coverage["compatible_inputs"] is not (not incompatible)
+            or coverage["paired_evidence_available"]
+            is not (
+                overall_statuses["D2"] in {"complete", "complete_with_limitations"}
+                if "D2" in HYPOTHESIS_DIAGNOSTICS[hypothesis_id]
+                else None
+            )
+            or coverage["comparison_group_available"]
+            is not (
+                overall["comparison_group_available"]
+                if "D4" in HYPOTHESIS_DIAGNOSTICS[hypothesis_id]
+                else None
+            )
+            or coverage["contradiction_review_coverage"]
+            != ("reviewed" if reviewed else "missing")
+        ):
+            _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    incompatible_ids = [
+        key
+        for key, status in overall_statuses.items()
+        if status == "incompatible_input"
+    ]
+    unavailable_ids = [
+        key
+        for key, status in overall_statuses.items()
+        if status in {"blocked", "schema_only"}
+    ]
+    insufficient_ids = [
+        key
+        for key, status in overall_statuses.items()
+        if status == "insufficient_evidence"
+    ]
+    reviewed_count = sum(
+        any(
+            signal["hypothesis_id"] == hypothesis_id
+            and signal["direction"] in {"contradictory", "insufficient", "neutral"}
+            for signal in validated_signals
+        )
+        for hypothesis_id in HYPOTHESIS_IDS
+    )
+    expected_review = (
+        "complete"
+        if reviewed_count == len(HYPOTHESIS_IDS)
+        else ("partial" if reviewed_count else "none")
+    )
+    if incompatible_ids:
+        expected_overall_status = "incompatible"
+    elif unavailable_ids or insufficient_ids:
+        expected_overall_status = "insufficient"
+    elif (
+        not overall["paired_evidence_available"]
+        or not overall["comparison_group_available"]
+    ):
+        expected_overall_status = "partial"
+    elif expected_review == "complete" and all(
+        status == "complete" for status in overall_statuses.values()
+    ):
+        expected_overall_status = "complete"
+    else:
+        expected_overall_status = "substantial"
+    if (
+        overall["coverage_status"] != expected_overall_status
+        or overall["required_diagnostics_available"]
+        != [key for key in sorted(overall_statuses) if key not in unavailable_ids]
+        or overall["compatible_inputs"] is not (not incompatible_ids)
+        or overall["contradiction_review_coverage"] != expected_review
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    selection = _validate_selection_result(payload["selection_result"])
+    expected_status, expected_hypothesis, expected_conditions = _expected_selection(
+        overall, validated_assessments
+    )
+    if (
+        selection["selection_status"] != expected_status
+        or selection["proposed_hypothesis"] != expected_hypothesis
+        or selection["conditions"] != expected_conditions
+    ):
+        _raise("EOS_HYPOTHESIS_SELECTION_INVALID")
+    contradictions = payload["contradictory_evidence_summary"]
+    if type(contradictions) is not dict or not set(contradictions).issubset(
+        HYPOTHESIS_IDS
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    for values in contradictions.values():
+        _string_list(values)
+    expected_contradictions = {
+        item["hypothesis_id"]: item["contradictory_signals"]
+        for item in validated_assessments
+        if item["contradictory_signals"]
+    }
+    if contradictions != expected_contradictions:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    for field in (
+        "unresolved_questions",
+        "allowed_next_actions",
+        "prohibited_next_actions",
+    ):
+        _string_list(payload[field])
+    expected_unresolved = sorted(
+        {
+            question
+            for item in validated_assessments
+            for question in item["unresolved_questions"]
+        }
+        | set(selection["conditions"])
+    )
+    if (
+        payload["unresolved_questions"] != expected_unresolved
+        or payload["allowed_next_actions"]
+        != ["review_evidence_only", "review_proposed_selection"]
+        or payload["prohibited_next_actions"]
+        != ["approve_candidate_c_config", "candidate_c_gpu", "candidate_c_training"]
+    ):
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    state = _strict_object(
+        payload["actual_project_state"],
+        ("candidate_c_primary_hypothesis", "candidate_c_execution_allowed", "gate_c4"),
+    )
+    if state != {
+        "candidate_c_primary_hypothesis": "not_selected",
+        "candidate_c_execution_allowed": False,
+        "gate_c4": "blocked",
+    }:
+        _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+    semantic = dict(payload)
+    supplied = _fingerprint(semantic.pop("assessment_fingerprint"))
+    if diagnostic_fingerprint(semantic) != supplied or record_count != len(
+        HYPOTHESIS_IDS
+    ):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
+    return payload
+
+
 def _validate_payload(
     artifact_type: str, value: object, record_count: int
 ) -> dict[str, Any]:
@@ -631,6 +1225,19 @@ def _validate_payload(
             _raise()
         if record_count != len(payload["profiles"]):
             _raise()
+    elif (
+        artifact_type == "hypothesis_assessment"
+        and type(value) is dict
+        and set(value)
+        != {
+            "analysis_status",
+            "record_schema_version",
+            "records",
+            "summary",
+            "limitations",
+        }
+    ):
+        payload = _validate_r5_hypothesis_payload(value, record_count)
     elif artifact_type in _ANALYSIS_TYPES:
         payload = _strict_object(
             value,
@@ -680,9 +1287,8 @@ def _validate_payload(
         _string_list(payload["exact_artifact_set"], exact=EXACT_ARTIFACT_FILENAMES)
         _string_list(payload["optional_artifact_set"])
         if "diagnostic_summary" in payload:
-            summary = _strict_object(
-                payload["diagnostic_summary"],
-                (
+            base_summary_fields = frozenset(
+                {
                     "diagnostic_run_id",
                     "run_mode",
                     "completed_diagnostics",
@@ -697,8 +1303,27 @@ def _validate_payload(
                     "hypothesis_selection_allowed",
                     "actual_candidate_b_status_changed",
                     "summary_fingerprint",
-                ),
+                }
             )
+            r5_summary_fields = frozenset(
+                {
+                    "hypothesis_assessment_status",
+                    "hypothesis_selection_result",
+                    "primary_hypothesis",
+                    "training_intervention_allowed",
+                    "assessment_fingerprint",
+                }
+            )
+            summary = _strict_subset(
+                payload["diagnostic_summary"],
+                allowed=base_summary_fields | r5_summary_fields,
+                required=base_summary_fields,
+            )
+            if frozenset(summary) not in {
+                base_summary_fields,
+                base_summary_fields | r5_summary_fields,
+            }:
+                _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
             if summary["run_mode"] != "synthetic_only":
                 _raise("EOS_DIAG_ARTIFACT_PAYLOAD_INVALID")
             if (
@@ -714,6 +1339,22 @@ def _validate_payload(
                 "unresolved_questions",
             ):
                 _string_list(summary[field])
+            if r5_summary_fields.issubset(summary):
+                if (
+                    summary["hypothesis_assessment_status"] != "completed_synthetic"
+                    or summary["hypothesis_selection_result"]
+                    not in {
+                        "selected",
+                        "conditionally_selected",
+                        "no_hypothesis_selected",
+                        "multiple_hypotheses_unresolved",
+                        "diagnostic_incomplete",
+                    }
+                    or summary["primary_hypothesis"] is not None
+                    or summary["training_intervention_allowed"] is not False
+                ):
+                    _raise("EOS_HYPOTHESIS_PAYLOAD_INVALID")
+                _fingerprint(summary["assessment_fingerprint"])
             _validate_json_tree(summary)
             semantic_summary = dict(summary)
             supplied = _fingerprint(semantic_summary.pop("summary_fingerprint"))
@@ -824,6 +1465,15 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
     record_count = _integer(root["record_count"])
     payload = _validate_payload(artifact_type, root["payload"], record_count)
     if (
+        artifact_type == "hypothesis_assessment"
+        and payload["analysis_status"] != "schema_only"
+        and (
+            payload["candidate_b_identity_fingerprint"] != checkpoint
+            or payload["generation_matrix_fingerprint"] != matrix
+        )
+    ):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
+    if (
         artifact_type == "diagnostic_run_manifest"
         and "preflight" in payload
         and payload["preflight"]["diagnostic_run_id"] != run_id
@@ -836,11 +1486,23 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
     ):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
     if (
+        artifact_type == "hypothesis_assessment"
+        and payload["analysis_status"] != "schema_only"
+        and payload["diagnostic_run_id"] != run_id
+    ):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
+    if (
         artifact_type in _R4_ANALYSIS_TYPES
         and payload["analysis_status"] != "schema_only"
         and not run_id.startswith("SYNTHETIC-")
     ):
         _raise("EOS_DIAGNOSTIC_PRODUCTION_PAYLOAD_NOT_AUTHORIZED")
+    if (
+        artifact_type == "hypothesis_assessment"
+        and payload["analysis_status"] != "schema_only"
+        and not run_id.startswith("SYNTHETIC-")
+    ):
+        _raise("EOS_HYPOTHESIS_PRODUCTION_NOT_AUTHORIZED")
     if (
         artifact_type == "output_manifest"
         and "diagnostic_summary" in payload
@@ -874,6 +1536,76 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
         artifact_fingerprint=artifact_fingerprint,
         checksum=checksum,
     )
+
+
+def _validate_r5_bundle_links(
+    artifacts: Mapping[str, DiagnosticArtifact],
+) -> None:
+    hypothesis = artifacts["hypothesis_assessment"]
+    if hypothesis.payload["analysis_status"] != "complete":
+        return
+    actual_fingerprints: dict[str, list[str]] = {}
+    actual_statuses: dict[str, str] = {}
+    for diagnostic_id, artifact_types in DIAGNOSTIC_ARTIFACT_TYPES.items():
+        fingerprints: list[str] = []
+        statuses: list[str] = []
+        for artifact_type in artifact_types:
+            artifact_payload = artifacts[artifact_type].payload
+            summary = artifact_payload["summary"]
+            if "result_fingerprint" not in summary:
+                _raise("EOS_HYPOTHESIS_ARTIFACT_MISMATCH")
+            fingerprints.append(_fingerprint(summary["result_fingerprint"]))
+            statuses.append(artifact_payload["analysis_status"])
+        actual_fingerprints[diagnostic_id] = sorted(fingerprints)
+        actual_statuses[diagnostic_id] = aggregate_evidence_status(statuses)
+    if (
+        _thaw(hypothesis.payload["diagnostic_artifact_fingerprints"])
+        != actual_fingerprints
+    ):
+        _raise("EOS_HYPOTHESIS_ARTIFACT_MISMATCH")
+    if (
+        _thaw(hypothesis.payload["evidence_coverage"])["diagnostic_statuses"]
+        != actual_statuses
+    ):
+        _raise("EOS_HYPOTHESIS_ARTIFACT_MISMATCH")
+    summary_value = artifacts["output_manifest"].payload.get("diagnostic_summary")
+    summary = None if summary_value is None else _thaw(summary_value)
+    selection = hypothesis.payload["selection_result"]
+    if summary is None or (
+        summary.get("hypothesis_assessment_status") != "completed_synthetic"
+        or summary.get("hypothesis_selection_result") != selection["selection_status"]
+        or summary.get("primary_hypothesis") is not None
+        or summary.get("training_intervention_allowed")
+        != selection["training_intervention_allowed"]
+        or summary.get("assessment_fingerprint")
+        != hypothesis.payload["assessment_fingerprint"]
+    ):
+        _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+    expected_summary_groups = {
+        "completed_diagnostics": [
+            key for key, status in actual_statuses.items() if status == "complete"
+        ],
+        "limited_diagnostics": [
+            key
+            for key, status in actual_statuses.items()
+            if status == "complete_with_limitations"
+        ],
+        "insufficient_diagnostics": [
+            key
+            for key, status in actual_statuses.items()
+            if status == "insufficient_evidence"
+        ],
+        "incompatible_diagnostics": [
+            key
+            for key, status in actual_statuses.items()
+            if status == "incompatible_input"
+        ],
+    }
+    if any(
+        summary[field] != expected
+        for field, expected in expected_summary_groups.items()
+    ):
+        _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
 
 
 def new_diagnostic_artifact(
@@ -1244,17 +1976,28 @@ def new_completion_evidence(
         ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     elif completion_scope == "synthetic_diagnostic_rehearsal":
+        hypothesis = artifacts["hypothesis_assessment"]
+        summary = artifacts["output_manifest"].payload.get("diagnostic_summary")
+        _validate_r5_bundle_links(artifacts)
         if (
             not common["diagnostic_run_id"].startswith("SYNTHETIC-")
             or manifest_mode != "synthetic_diagnostic_rehearsal"
-            or artifacts["hypothesis_assessment"].payload["analysis_status"]
-            != "schema_only"
+            or hypothesis.payload["analysis_status"] not in {"schema_only", "complete"}
             or any(
                 artifacts[item].payload["analysis_status"] in {"schema_only", "blocked"}
                 for item in _R4_ANALYSIS_TYPES
             )
-            or "diagnostic_summary" not in artifacts["output_manifest"].payload
+            or summary is None
         ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if hypothesis.payload["analysis_status"] == "complete":
+            if (
+                "hypothesis_assessment_status" not in summary
+                or summary["assessment_fingerprint"]
+                != hypothesis.payload["assessment_fingerprint"]
+            ):
+                _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        elif "hypothesis_assessment_status" in summary:
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
         if artifacts["output_manifest"].payload["status"] not in {
             "validating",
@@ -1326,17 +2069,28 @@ def validate_completed_bundle(directory: Path) -> DiagnosticBundleResult:
         ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     elif scope == "synthetic_diagnostic_rehearsal":
+        hypothesis = artifacts["hypothesis_assessment"]
+        summary = artifacts["output_manifest"].payload.get("diagnostic_summary")
+        _validate_r5_bundle_links(artifacts)
         if (
             not common["diagnostic_run_id"].startswith("SYNTHETIC-")
             or manifest_mode != "synthetic_diagnostic_rehearsal"
-            or artifacts["hypothesis_assessment"].payload["analysis_status"]
-            != "schema_only"
+            or hypothesis.payload["analysis_status"] not in {"schema_only", "complete"}
             or any(
                 artifacts[item].payload["analysis_status"] in {"schema_only", "blocked"}
                 for item in _R4_ANALYSIS_TYPES
             )
-            or "diagnostic_summary" not in artifacts["output_manifest"].payload
+            or summary is None
         ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if hypothesis.payload["analysis_status"] == "complete":
+            if (
+                "hypothesis_assessment_status" not in summary
+                or summary["assessment_fingerprint"]
+                != hypothesis.payload["assessment_fingerprint"]
+            ):
+                _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        elif "hypothesis_assessment_status" in summary:
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     else:
         _raise()

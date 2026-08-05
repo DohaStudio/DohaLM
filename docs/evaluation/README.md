@@ -54,8 +54,8 @@
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
 - EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `approved`, historical Candidate B 상태 변경 없음
-- Candidate B 신규 read-only EOS 진단: 계약·D1~D8·single-use control 설계 `completed`; R1~R4 synthetic 구현 완료,
-  R5 이후·Approval·Request·GPU·Full 실행 `not_started`, execution false, checkpoint mutation false
+- Candidate B 신규 read-only EOS 진단: 계약·D1~D8·single-use control 설계 `completed`; R1~R5 synthetic 구현 완료,
+  R6 이후·Approval·Request·GPU·Full 실행 `not_started`, execution false, checkpoint mutation false
 - EOS-DIAG-R1 artifact system: 18개 strict schema, canonical loader/validator, atomic no-replace writer, inventory와
   completion evidence `implemented_synthetic_verified`; R4 record-oriented JSONL 연결 완료, 실제 Run artifact는 미생성
 - EOS-DIAG-R2 identity·matrix freezer: explicit-input immutable Checkpoint·Tokenizer·Prompt·Backend·Dependency identity,
@@ -67,6 +67,10 @@
 - EOS-DIAG-R4 synthetic diagnostic backend: immutable strict trace·step·teacher-forced·boundary·prompt·budget schema,
   D1~D8 계산·집계, insufficient/incompatible evidence, diagnostic summary와 R1 18-artifact completion rehearsal
   `implemented_synthetic_verified`; 실제 Candidate B D1~D8 `not_run`, primary hypothesis `not_selected`, GPU 미시작
+- EOS-DIAG-R5 hypothesis assessor: metric-only Evidence Signal과 D1~D8 fingerprint 결속, H1~H7
+  support·contradiction·insufficient, categorical coverage·confidence, proposed selection과 R1 hypothesis payload/summary 연결
+  `implemented_synthetic_verified`; 독립 감사 지적의 envelope/bundle exact 결속·incomplete fail-closed·semantic loader·결정론 보완과
+  negative regression 통과, actual assessment `not_run`, proposed hypothesis `none`, primary hypothesis `not_selected`
 - Candidate C EOS 주가설 선택 정책: 설계 `completed`; primary hypothesis `not_selected`
 - Candidate B ADR-008 reassessment: `approved_as_base_baseline`; current Base baseline은 Candidate B,
   Candidate A는 historical baseline
@@ -80,6 +84,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R5 독립 감사 C-01~L-01 보완과 artifact identity·semantic·fail-closed negative regression 반영 |
+| 2026-08-05 | EOS-DIAG-R5 synthetic Evidence Signal·H1~H7 assessor·selection validator와 R1 payload/completion 연결; actual assessment 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R4 strict synthetic trace·observation, D1~D8 집계, evidence status, R1 JSONL·completion rehearsal 구현; actual diagnostics·주가설 선택 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R3 metadata-only Static Preflight와 Gate 1·2/R1 plan synthetic 연결; actual preflight·payload·GPU 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R2 identity·generation matrix freezer와 Gate 1·2/R1 payload synthetic 검증 연결; 실제 checkpoint·Tokenizer·prompt·환경 조회와 GPU·generation 미실행 유지 |

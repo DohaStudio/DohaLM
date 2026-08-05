@@ -6,6 +6,8 @@
 - 실행 허용: `false`
 - GPU Smoke: `not_started`
 - Training: `not_started`
+- EOS-DIAG-R5 synthetic assessor: `implemented_synthetic_verified`
+- Proposed Candidate C hypothesis: `none`
 - 선행 문서: [Base Training Readiness](./base-training-readiness.md)
 - 후속 문서: [Model Family Roadmap](../project/model-family-roadmap.md)
 - 관련 ADR: [ADR-011 제안](../decisions/ADR-011-candidate-c-experimental-successor.md)
@@ -179,7 +181,7 @@ ADR 승인이나 실행 허용을 뜻하지 않습니다.
 | ID | Blocker | Severity | 상태 | 근거 | 해결 작업 | 승인 필요 | 차단 Gate |
 |---|---|---|---|---|---|---|---|
 | C-BLOCK-001 | ADR conflict | critical | `reviewing` | ADR-009 `not_required`와 새 로드맵 | ADR-011 사용자 검토·승인 | 예 | C-1 |
-| C-BLOCK-002 | EOS root cause | high | `reviewing` | 현상은 확정, 인과 미확인 | Candidate B read-only 진단 후 주가설 승인 | 예 | C-1, C-4 |
+| C-BLOCK-002 | EOS root cause | high | `reviewing` | R4/R5 schema·assessor는 synthetic 검증, actual 진단·assessment 미실행 | Candidate B read-only 진단과 assessor evidence 검토 후 주가설 승인 | 예 | C-1, C-4 |
 | C-BLOCK-003 | Dataset freeze | critical | `reviewing` | C 전용 immutable manifest 없음 | 선택지 결정·필드 완성·checksum 재검증 | 예 | C-2, C-4 |
 | C-BLOCK-004 | Tokenizer freeze | critical | `reviewing` | 승인 bundle 존재, C 결속·source commit 없음 | exact bundle compatibility freeze | 예 | C-3, C-4 |
 | C-BLOCK-005 | Training config | critical | `blocked` | budget·initialization·intervention 등 미정 | 미결정값 0인 resolved config 계약 | 예 | C-4 |
@@ -195,6 +197,9 @@ base_training_readiness_review: completed
 candidate_c_readiness: blocked
 candidate_c_execution_allowed: false
 candidate_c_training_started: false
+eos_diag_r5_hypothesis_assessor: implemented_synthetic_verified
+actual_candidate_b_hypothesis_assessment: not_run
+proposed_candidate_c_hypothesis: none
 gate_c1: review
 gate_c2: reviewing
 gate_c3: reviewing
@@ -203,12 +208,16 @@ gpu_smoke: not_started
 training: not_started
 ```
 
-다음 작업은 Candidate B checkpoint의 read-only EOS 진단 계약을 실행 가능한 별도 계획으로 검토하고, 그 결과로 단일
-가설·Dataset 선택지·Training intervention을 승인하는 것입니다. GPU Smoke와 Candidate C 학습은 포함하지 않습니다.
+다음 작업은 R5 보완에 대한 독립 재감사를 먼저 통과한 뒤 EOS-DIAG-R6에서 실제 진단 전에 필요한 single-use
+Approval·Runtime Request 계약을 synthetic-only로 구현하는 것입니다. 실제 Candidate B 진단 결과가 없는 R5 output으로
+가설·Dataset 선택지·Training intervention을 승인하지 않습니다.
+GPU Smoke와 Candidate C 학습은 포함하지 않습니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | R5 독립 감사 보완 완료와 R6 전 재감사 경계를 반영; Candidate C 상태·Gate C-4 불변 |
+| 2026-08-05 | R5 synthetic assessor 상태와 actual assessment not_run·proposed hypothesis none을 C-BLOCK-002와 현재 결론에 연결 |
 | 2026-08-05 | Base Readiness 선행·Roadmap 후속 연결, 기존 Gate 1~7과 C-1~C-8 비상속 관계, 5개 상위 상태 필드 반영 |
 | 2026-08-05 | Dataset·Tokenizer·Training Config freeze, Candidate C 변경 축, C-1~C-4 Gate와 ID 기반 blocker 계약 작성 |
