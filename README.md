@@ -18,10 +18,12 @@ Foundation Candidate B, Candidate C와 Foundation Instruct는 프로젝트의 �
 
 1. [Foundation Model Strategy](docs/project/foundation-model-strategy.md) — Foundation 핵심 목표와 Runtime 경계
 2. [Current Project Status](docs/project/current-project-status.md) — 코드·실측 기준 현재 상태
-3. [Model Family Roadmap](docs/project/model-family-roadmap.md) — Phase 1→2→3 공식 개발 순서
-4. [Runtime 문서](docs/service/dohalm-backend-mvp.md) — 실제 서비스용 로컬 Runtime과 UI 실행 계약
+3. [Base Training Readiness](docs/training/base-training-readiness.md) — Candidate A/B 근거 조사와 Candidate C 진입 판정
+4. [Candidate C Design](docs/training/candidate-c-design.md) — Candidate C C-1~C-8 계약과 실행 경계
+5. [Model Family Roadmap](docs/project/model-family-roadmap.md) — Phase 1→2→3 공식 개발 순서
+6. [Runtime 문서](docs/service/dohalm-backend-mvp.md) — 실제 서비스용 로컬 Runtime과 UI 실행 계약
    - [Adapter Runtime 설계](docs/service/dohalm-adapter-runtime.md) — General Instruct Adapter manifest·검증·lifecycle·구현 계획
-5. [Application 문서](docs/project/domain-model-strategy.md) — Runtime을 사용하는 DohaMusic과 음악 특화 기능
+7. [Application 문서](docs/project/domain-model-strategy.md) — Runtime을 사용하는 DohaMusic과 음악 특화 기능
 
 Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strategy.md), Instruct의 두 계보는
 [Instruct Strategy](docs/instruct/instruct-strategy.md), 전체 문서 목록은 [문서 안내서](docs/README.md)를 따릅니다.
@@ -53,7 +55,9 @@ Candidate C 계약 초안은 [Candidate C 설계](docs/training/candidate-c-desi
 | DohaLM-Tiny | `implemented_verified` | Decoder-only Transformer, Trainer, checkpoint/resume, 실제 corpus overfit 검증 |
 | Tokenizer | `implemented_verified` | 운영 `operating-16k-v2/unigram-16k`, vocab 16,000, Gate 3 통과 |
 | Candidate A/B | `implemented_verified` | Candidate B가 current Base baseline이자 Candidate C의 비교 기준, Candidate A는 historical baseline |
-| Base Training Readiness | `blocked` | Candidate C 계약 설계 완료; ADR·가설·freeze·평가 승인과 resolved config 미완료 |
+| Base Training Readiness review | `completed` | A/B evidence·EOS 현상·Dataset·Tokenizer·Config 조사와 Candidate C readiness 판정 완료 |
+| Candidate C contract design | `completed` | C-1~C-8, EOS 가설, freeze·Evaluation·Selection 계약 초안 작성 완료 |
+| Candidate C readiness | `blocked` | ADR·단일 root cause 가설·freeze·평가 승인과 resolved config 미완료 |
 | Candidate C | `not_started` | C-1~C-4 동결과 C-5 GPU Smoke·별도 single-use 승인 전 학습 금지 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | 현재 ADR-010은 Candidate B 파생 설계; 공식 차기 목표는 Candidate C 기반이며 후속 ADR·학습·publication 승인 필요 |
@@ -81,14 +85,22 @@ Runtime은 현재 **로컬 개발·검증용**입니다. 인증, 영구 저장�
 
 ### Phase 1 — DohaLM Foundation
 
-1. **DohaLM Base 본훈련 준비**: Base Training Readiness → Publish Recovery → Tokenization → Evaluation → EOS 분석
-2. **Candidate C**: EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
+1. **현재 근거 조사**: Candidate A/B Evidence → Candidate B EOS Diagnostic Review → Dataset·Tokenizer·Config Review → Candidate C Readiness Decision
+2. **향후 Candidate C 실행**: Dataset Freeze → Tokenizer Freeze → Training Config Freeze → GPU Smoke → Training → Evaluation → Candidate Selection
 3. **Foundation Instruct**: Candidate C 기반 SFT → Evaluation → Candidate Selection
 
 Candidate B는 완료된 current Base baseline이자 Candidate C의 필수 비교 기준으로 보존합니다. Candidate C 기반 Foundation
 Instruct로 parent를 바꾸려면 현재 승인된 ADR-010을 대체하거나 개정하는 후속 결정이 먼저 필요합니다.
 [Base Training Readiness](docs/training/base-training-readiness.md)의 C-1~C-4가 통과하기 전에는 GPU Smoke나 Candidate C
 학습으로 넘어가지 않습니다.
+
+```text
+base_training_readiness_review: completed
+candidate_c_contract_design: completed
+candidate_c_readiness: blocked
+candidate_c_execution_allowed: false
+candidate_c_training_started: false
+```
 
 ### Phase 2 — Runtime
 

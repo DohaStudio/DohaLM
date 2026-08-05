@@ -6,6 +6,8 @@
 - 실행 허용: `false`
 - GPU Smoke: `not_started`
 - Training: `not_started`
+- 선행 문서: [Base Training Readiness](./base-training-readiness.md)
+- 후속 문서: [Model Family Roadmap](../project/model-family-roadmap.md)
 - 관련 ADR: [ADR-011 제안](../decisions/ADR-011-candidate-c-experimental-successor.md)
 
 ## 1. 한 문장 목적과 범위
@@ -16,6 +18,8 @@
 
 이 문서는 Dataset·Tokenizer·Training Config freeze schema, 변경 축, Gate와 blocker를 정의합니다. 실제 immutable
 manifest, resolved config, Run ID, Approval을 만들지 않으며 코드·설정·데이터·artifact를 수정하지 않습니다.
+Candidate A/B evidence 조사와 readiness 판정은 선행 문서에서 완료됐으며, 이 문서는 그 근거를 향후 Candidate C 실행
+계약으로 변환합니다.
 
 ## 2. Candidate C와 Candidate B 관계
 
@@ -156,6 +160,10 @@ decoding diagnostic, regularization과 seed는 후보입니다. 실제 실행에
 
 ## 7. C-1~C-4 Gate
 
+기존 Gate 1~7은 모델·데이터 pipeline·Tokenizer·Trainer capability의 historical evidence이며 Candidate C Gate를
+자동 통과시키지 않습니다. Candidate C 전체 실행 단계는 C-1 Readiness, C-2 Dataset Freeze, C-3 Tokenizer Freeze,
+C-4 Training Config Freeze, C-5 GPU Smoke, C-6 Training, C-7 Evaluation, C-8 Candidate Selection입니다.
+
 | Gate | 상태 | 입력 | 산출물 | 통과 조건 | 실패 조건 | 승인 주체 | 다음 단계 |
 |---|---|---|---|---|---|---|---|
 | C-1 Training Readiness | `review` | ADR-011 draft, EOS 가설, blocker plan, Base Readiness | 승인된 목적·범위·금지·dependency record | ADR-011과 주가설 승인, blocker owner/action 정의; 실행 권한은 false 가능 | ADR 충돌 지속, 복수 변경 축 미분리, 금지 범위 포함 | 사용자 | C-2/C-3 freeze 검토 |
@@ -183,7 +191,10 @@ ADR 승인이나 실행 허용을 뜻하지 않습니다.
 
 ```text
 candidate_c_contract_design: completed
+base_training_readiness_review: completed
+candidate_c_readiness: blocked
 candidate_c_execution_allowed: false
+candidate_c_training_started: false
 gate_c1: review
 gate_c2: reviewing
 gate_c3: reviewing
@@ -199,4 +210,5 @@ training: not_started
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Base Readiness 선행·Roadmap 후속 연결, 기존 Gate 1~7과 C-1~C-8 비상속 관계, 5개 상위 상태 필드 반영 |
 | 2026-08-05 | Dataset·Tokenizer·Training Config freeze, Candidate C 변경 축, C-1~C-4 Gate와 ID 기반 blocker 계약 작성 |

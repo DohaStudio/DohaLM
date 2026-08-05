@@ -3,8 +3,12 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-05
 - 기준 브랜치: `develop`
-- 종합 판정: `blocked`
+- 선행 문서: [Current Project Status](../project/current-project-status.md)
+- 후속 문서: [Candidate C Design](./candidate-c-design.md)
+- Readiness review: `completed`
+- Candidate C readiness: `blocked`
 - 실행 권한: `false`
+- Candidate C training started: `false`
 - 범위: Candidate C 실행 전 Foundation Base 본훈련 준비 상태 조사
 - Candidate C 계약 설계: `completed`
 
@@ -23,27 +27,37 @@
 | `reviewing` | 기존 근거를 Candidate C 계약으로 채택할지 검토 중 |
 | `not_started` | Candidate C 전용 작업이나 실행이 시작되지 않음 |
 
-## 2. Base Training 전체 흐름
+## 2. 완료된 근거 조사와 향후 실행 흐름
+
+두 흐름은 상태와 목적이 다르므로 하나의 pipeline으로 합치지 않습니다.
+
+### 2.1 현재 근거 조사 — `completed`
 
 ```text
-Raw Dataset
-  → Source·License·PII·Schema Validation
-  → Dataset Selection·Split Freeze
-  → Tokenizer Artifact Freeze
-  → Tokenized Training/Evaluation Dataset Freeze
-  → Model·Training Config Freeze
-  → Immutable Run Identity·Environment Snapshot·Approval
-  → CPU Preflight·GPU Smoke
-  → Base Training
-  → Quick 진단·Full Evaluation·EOS 진단
-  → Candidate Evidence Package
-  → Candidate Selection
-  → Immutable Foundation Base
+Candidate A/B Evidence
+  → Candidate B EOS Diagnostic Review
+  → Dataset·Tokenizer·Config Review
+  → Candidate C Readiness Decision
 ```
 
-Quick는 개발 진단이며 Candidate 선택 근거를 대신하지 않습니다. Candidate 공식 판정에는 동일 identity의 Full
-Evaluation과 별도 선택 결정이 필요합니다. 학습 완료, 평가 완료, Candidate 선택, Foundation Base 승격과 publication은
-서로 다른 상태입니다.
+이 흐름은 기존 artifact를 읽고 Candidate C 진입 가능성을 판정하는 review입니다. Candidate A/B 학습과 Evaluation을
+재실행하거나 Candidate C artifact를 생성하지 않습니다. Review의 결론은 `candidate_c_readiness: blocked`입니다.
+
+### 2.2 향후 Candidate C 실행 — `blocked` / `not_started`
+
+```text
+Dataset Freeze
+  → Tokenizer Freeze
+  → Training Config Freeze
+  → GPU Smoke
+  → Training
+  → Evaluation
+  → Candidate Selection
+```
+
+Run identity·환경 snapshot·single-use Approval은 C-4 이후 C-5/C-6 진입 조건입니다. Quick는 개발 진단이며 Candidate
+선택 근거를 대신하지 않습니다. Candidate 공식 판정에는 동일 identity의 Full Evaluation과 별도 선택 결정이 필요합니다.
+학습 완료, 평가 완료, Candidate 선택, Foundation Base 승격과 publication은 서로 다른 상태입니다.
 
 ## 3. 현재 Readiness 상태
 
@@ -58,7 +72,7 @@ Evaluation과 별도 선택 결정이 필요합니다. 학습 완료, 평가 완
 | Candidate C Tokenizer Freeze | `reviewing` | 승인 bundle과 fingerprint 존재 | Candidate C manifest에 exact model·vocab·fingerprint 고정 |
 | Evaluation Framework | `completed` | Quick·Full·category·position·EOS·generation·stability·privacy·lineage 구현 | Candidate C용 판정 기준 승인 |
 | EOS 현상 진단 | `completed` | A/B teacher-forced와 pure/assisted generation 비교 완료 | root cause 확정 필요 |
-| EOS Root Cause | `reviewing` | [H1~H7 가설 계약](./candidate-c-eos-hypotheses.md) 작성, 진단 미실행 | Candidate B read-only 진단과 주가설 승인 |
+| EOS 단일 Root Cause | `blocked` | [H1~H7 가설 계약](./candidate-c-eos-hypotheses.md)은 작성됐지만 어느 가설도 확정되지 않음 | Candidate B read-only 진단과 주가설 승인 |
 | Candidate C 목적·ADR 정합성 | `reviewing` | [ADR-011](../decisions/ADR-011-candidate-c-experimental-successor.md) draft 작성 | 사용자 승인 전 ADR-009 효력 유지 |
 | Candidate C Training Config | `blocked` | A/B의 검증된 설정은 있으나 Candidate C 채택·budget 미확정 | resolved config와 fingerprint 동결 |
 | Candidate C Evaluation Gate | `reviewing` | [지표 분류·Selection 계약](./candidate-c-evaluation-contract.md) 작성 | 회귀 폭·EOS 승격 판정 승인 |
@@ -68,7 +82,8 @@ Evaluation과 별도 선택 결정이 필요합니다. 학습 완료, 평가 완
 | Candidate C 학습·평가·선택 | `not_started` | 실행되지 않음 | Gate C-1~C-5 통과 후 별도 순차 실행 |
 | Publication | `blocked` | checkpoint·tokenizer·log·sample 공개는 `not_approved` | 학습 승인과 분리된 publication 승인 필요 |
 
-현재 Base 기반 구현과 Candidate A/B 실험은 완료됐지만 Candidate C 실행 준비는 `blocked`입니다.
+현재 Base 기반 구현, Candidate A/B evidence 조사와 readiness review는 완료됐지만 Candidate C execution readiness는
+`blocked`입니다. 계약 설계 완료는 실행 준비 완료가 아닙니다.
 
 ## 4. 현재 Blocker
 
@@ -114,7 +129,22 @@ Candidate C 학습은 다음 조건을 모두 충족하기 전 시작할 수 없
 | C-7 Evaluation | Candidate C 공식 평가 | 동일 identity Full Evaluation, EOS·generation·stability·privacy·lineage 완료 | `not_started` |
 | C-8 Candidate Selection | Foundation Base 결정 | 승인 계약으로 B/C를 비교하고 별도 사용자 선택·승격 결정 기록 | `not_started` |
 
-기존 Gate 0~7의 통과 상태는 구현 기반 evidence로 유지되지만 Candidate C 전용 C-1~C-8을 자동 통과시키지 않습니다.
+### 6.1 기존 Gate 1~7과 Candidate C Gate 관계
+
+기존 Gate 1~7은 저장소 Foundation capability와 historical Tiny 검증입니다. Candidate C C-1~C-8은 특정 Candidate C
+identity·config·실행·평가·선택에 적용되는 후속 Gate이며 기존 통과 상태를 상속하지 않습니다.
+
+| 기존 Gate evidence | Candidate C에서 재사용하는 근거 | Candidate C 재확인 Gate |
+|---|---|---|
+| Gate 1 환경 | 단일 RTX 3060 Ti·개발 환경 기준 | C-4 환경 계약, C-5 exact GPU Smoke |
+| Gate 2 데이터 pipeline | validation·lineage·PII·split 기능 | C-2 exact Dataset Freeze |
+| Gate 3 운영 Tokenizer | v2 Unigram·16k·special ID 검증 | C-3 exact artifact Freeze |
+| Gate 4~5 모델 component·통합 | DohaLM-Tiny architecture·forward/loss | C-4 model config 고정, 변경 시 재검토 |
+| Gate 6 Trainer·checkpoint/resume | AMP·accumulation·atomic checkpoint 기반 | C-4 Run 정책, C-5 exact config Smoke |
+| Gate 7 실제 corpus overfit | training path의 제한 검증 evidence | C-1 참고 근거만 제공; C-6 학습 승인 아님 |
+
+C-1~C-4는 계약·identity freeze, C-5는 GPU Smoke, C-6은 Training, C-7은 Evaluation, C-8은 Candidate
+Selection입니다. 기존 Gate 1~7이나 C-1~C-5 통과는 C-6 실행 승인을 자동 부여하지 않습니다.
 
 ## 7. Training Config 점검
 
@@ -145,6 +175,9 @@ Candidate C resolved config 승인으로만 실행 설정이 됩니다.
 
 ## 8. EOS Root Cause 분석
 
+EOS **현상 확인과 기존 진단 검토는 `completed`**입니다. 아래 확정 사실은 현상을 기술할 뿐 하나의 원인을 확정하지
+않습니다. **단일 root cause는 `not_confirmed`**이며 H1~H7은 반증 가능한 후보입니다.
+
 ### 확정
 
 - Candidate A와 B는 pure greedy 16/32/64/128-token 진단에서 EOS 종료율 0%, maximum-length 종료율 100%였습니다.
@@ -174,6 +207,10 @@ Candidate C resolved config 승인으로만 실행 설정이 됩니다.
 
 새로운 수치 threshold를 만들지 않고 현재 승인 문서와 코드의 조건만 적용합니다.
 
+Candidate C는 기존 [Evaluation Framework](../evaluation/README.md)의 runner·Quick/Full profile·동일 evaluation Dataset·
+metric 산출·artifact 불변성·privacy·lineage 검사를 그대로 재사용합니다. [Candidate C Evaluation 계약](./candidate-c-evaluation-contract.md)은
+Framework를 복제하거나 변경하지 않고, Candidate B Final Full을 비교 기준으로 지표 역할과 Selection 판정만 추가합니다.
+
 - Candidate B Final Full을 current Base 비교 기준으로 사용하고 Candidate A는 historical reference로 유지합니다.
 - Candidate 공식 판단은 Full profile로 수행합니다. Quick는 동일 artifact의 회귀·대표성 진단이며 선택 결정을 할 수 없습니다.
 - B/C 비교는 동일 evaluation Dataset·split·Tokenizer·model architecture·context·packing·masking identity에서 수행합니다.
@@ -190,9 +227,18 @@ ADR-007의 Quick 대표성 오차 기준은 Quick가 Full을 얼마나 대표하
 
 ## 10. Readiness 결론과 다음 Task
 
-현재 Foundation Base 구현, Candidate A/B, 운영 Tokenizer와 Evaluation Framework는 재사용 가능한 완료 기반입니다. 그러나
+현재 Foundation Base 구현, Candidate A/B evidence review, 운영 Tokenizer와 Evaluation Framework는 재사용 가능한 완료
+기반이며 `base_training_readiness_review: completed`입니다. 그러나
 Candidate C는 ADR 충돌, EOS root cause, Dataset·Tokenizer·Training Config freeze, Evaluation Gate, 새 Run identity·GPU smoke와
 single-use 승인 미완료로 `blocked`입니다.
+
+```text
+base_training_readiness_review: completed
+candidate_c_contract_design: completed
+candidate_c_readiness: blocked
+candidate_c_execution_allowed: false
+candidate_c_training_started: false
+```
 
 다음 Task는 **Candidate B checkpoint read-only EOS 진단 계획의 승인과 실행**입니다. 결과로 단일 주가설·Dataset
 선택지·Training intervention을 선택한 뒤 immutable freeze manifest와 resolved config를 작성합니다. C-1~C-4가
@@ -218,5 +264,6 @@ single-use 승인 미완료로 `blocked`입니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | 완료된 A/B 근거 조사와 향후 Candidate C 실행 분리, Gate 1~7/C-1~C-8 관계, EOS 진단 완료/root cause 미확정, Evaluation Framework 재사용 명시 |
 | 2026-08-05 | Candidate C 계약 설계 완료, ADR-011 draft·H1~H7·Dataset/Tokenizer/Config freeze·Evaluation 계약과 ID blocker 연결; Gate는 미통과 유지 |
 | 2026-08-05 | Candidate C 진입을 위한 Base Training 흐름·상태·blocker·C-1~C-8 Gate·config·EOS·평가 기준을 통합하고 실행 금지 경계를 기록 |

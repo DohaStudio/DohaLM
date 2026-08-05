@@ -21,6 +21,22 @@ Candidate A는 historical reference로만 유지합니다.
 [확정] Candidate 공식 판정은 동일 artifact의 Quick reference를 거친 Full profile로 수행합니다. Dataset·split·Tokenizer·
 model architecture·context·packing·masking identity가 다르면 같은 비교군으로 자동 판정하지 않습니다.
 
+## 1.1 기존 Evaluation Framework 재사용
+
+Candidate C는 [DohaLM Evaluation Framework](../evaluation/README.md)를 새로 구현하거나 복제하지 않습니다.
+
+| Framework 구성 | Candidate C 재사용 방식 |
+|---|---|
+| Artifact registry·checkpoint validator | Candidate C identity·checksum·평가 전후 불변성 검사 |
+| Quick profile | 동일 Candidate C artifact의 개발 회귀와 Full reference 준비 |
+| Full profile | 공식 Candidate B/C 비교와 C-7 완료 근거 |
+| Metrics | loss/PPL, Top-k, category, position, teacher-forced EOS, generation, stability 그대로 산출 |
+| Privacy·lineage | 원문·전체 token ID 비저장, Dataset·split·Tokenizer·model fingerprint 검증 |
+| Reporting | Candidate B Final Full과 동일 identity 비교 package 생성 |
+
+이 계약이 추가하는 것은 metric 구현이 아니라 `must_not_regress`·`must_improve`·`diagnostic_only`·
+`approval_required` 역할과 C-8 Candidate Selection 상태입니다. Framework 코드·설정을 변경하지 않습니다.
+
 ## 2. 분류 의미
 
 | 분류 | 의미 |
@@ -112,4 +128,5 @@ Base의 단독 자동 실패 조건으로 만들지 않습니다. 다만 Candida
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | 기존 Evaluation Framework의 registry·Quick/Full·metrics·privacy·lineage 재사용과 Candidate C 계약의 추가 책임 분리 |
 | 2026-08-05 | Candidate B Final Full 기준 필수 지표를 must-not-regress·must-improve·diagnostic-only·approval-required로 분류하고 selection 상태 모델 작성 |

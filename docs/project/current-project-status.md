@@ -4,7 +4,9 @@
 - 기준 시점: 2026-08-05
 - 기준 브랜치: `develop`
 - 기준 문서: [README](../../README.md)
-- 관련 근거: [Foundation Strategy](./foundation-model-strategy.md), [Roadmap](./model-family-roadmap.md), [Evaluation Framework](../evaluation/README.md), [Service 문서](../service/dohalm-backend-mvp.md)
+- 관련 근거: [Foundation Strategy](./foundation-model-strategy.md), [Base Training Readiness](../training/base-training-readiness.md),
+  [Candidate C Design](../training/candidate-c-design.md), [Roadmap](./model-family-roadmap.md),
+  [Evaluation Framework](../evaluation/README.md), [Service 문서](../service/dohalm-backend-mvp.md)
 
 ## 1. 판정 기준
 
@@ -17,8 +19,8 @@
 현재 구현 상태와 별개로 공식 개발 순서는 다음과 같습니다.
 
 1. **Phase 1 — DohaLM Foundation**
-   - Base 본훈련 준비: Base Training Readiness → Publish Recovery → Tokenization → Evaluation → EOS 분석
-   - Candidate C: EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
+   - 현재 근거 조사: Candidate A/B Evidence → Candidate B EOS Diagnostic Review → Dataset·Tokenizer·Config Review → Candidate C Readiness Decision
+   - 향후 Candidate C 실행: Dataset Freeze → Tokenizer Freeze → Training Config Freeze → GPU Smoke → Training → Evaluation → Candidate Selection
    - Foundation Instruct: Candidate C 기반 SFT → Evaluation → Candidate Selection
 2. **Phase 2 — Runtime**
    - Qwen General Instruct v0.3 Recovery → Manifest → Runtime → Adapter
@@ -31,6 +33,14 @@
 [검증 필요] 현재 승인된 ADR-010은 Candidate B 기반 Foundation Instruct 설계입니다. Candidate C 기반 SFT를 실행하려면
 parent 결정을 다루는 후속 ADR이 필요합니다.
 
+```text
+base_training_readiness_review: completed
+candidate_c_contract_design: completed
+candidate_c_readiness: blocked
+candidate_c_execution_allowed: false
+candidate_c_training_started: false
+```
+
 ## 3. 통합 상태
 
 ### Foundation Model Track
@@ -38,13 +48,15 @@ parent 결정을 다루는 후속 ADR이 필요합니다.
 | 구성 | 상태 | 근거와 경계 |
 |---|---|---|
 | Gate 0 | `approved` | 프로젝트 범위 사용자 승인 |
-| Gate 1~7 | `passed` | 환경, 데이터, Tokenizer, 모델, Trainer, 실제 corpus overfit evidence |
+| Gate 1~7 | `passed` | 저장소 Foundation capability와 historical Tiny 검증; Candidate C C-Gate를 자동 통과시키지 않음 |
 | DohaLM-Tiny | `implemented_verified` | PyTorch 직접 구현, forward/loss/generation, 16,889,856 parameters |
 | 운영 Tokenizer | `implemented_verified` | `operating-16k-v2/unigram-16k`, vocab 16,000 |
 | Candidate A | `implemented_verified` | 10M token 학습 완료; historical Base baseline |
 | Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
-| Base Training Readiness | `blocked` | 계약 설계 `completed`; ADR-011·가설·freeze·평가 승인과 resolved config 미완료 |
-| Candidate C | `not_started` | C-1~C-5와 새 single-use 승인 전 학습 금지 |
+| Base Training Readiness review | `completed` | A/B evidence·EOS 현상·Dataset/Tokenizer/Config 조사와 readiness 판정 완료 |
+| Candidate C contract design | `completed` | C-1~C-8·EOS 가설·freeze·Evaluation·Selection 계약 작성 완료 |
+| Candidate C execution readiness | `blocked` | ADR-011·주가설·C-2/C-3 freeze·C-4 resolved config·평가 승인 미완료 |
+| Candidate C execution | `not_started` | `execution_allowed: false`, 학습 시작 false |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | ADR-010 Candidate B parent 설계 상태 유지; Candidate C 기반 공식 목표는 후속 ADR·artifact 필요 |
 | Foundation Chat·Small 이상 | `planned` | 구조·데이터·실행 승인 없음 |
@@ -53,6 +65,8 @@ Candidate B의 historical 평가 계약 판정 `evaluated_contract_not_passed`�
 `approved_as_base_baseline`이며 derivative parent 적격성은 `approved_experimental`입니다. 이는 후속 학습 또는 공개 승인이 아닙니다.
 Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-greedy 생성의 EOS 종료율은 0%, maximum-length
 종료율은 100%였습니다. 이 한계는 Base 진단 결과로 보존하며 숨기거나 Runtime readiness로 해석하지 않습니다.
+EOS 현상과 기존 A/B 진단 검토는 `completed`지만 단일 root cause는 `not_confirmed`입니다. H1~H7 중 어느 가설도
+아직 승인되지 않았으며 이 미확정성이 Candidate C execution readiness를 차단합니다.
 
 ### Phase 2 — Runtime 서비스 트랙
 
@@ -175,6 +189,7 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | A/B 근거 조사와 Candidate C 실행 흐름, readiness review·contract design·execution readiness 상태, EOS 진단 완료/root cause 미확정을 분리 |
 | 2026-08-05 | Candidate C 계약 설계 완료와 ADR-011·EOS 진단·Dataset/Tokenizer/Config freeze 후속 순서 반영 |
 | 2026-08-05 | Base Training Readiness `blocked`, Candidate C `not_started`와 C-1~C-5 선행 조건·다음 Task 반영 |
 | 2026-08-05 | 구현 상태를 유지하면서 Foundation 우선 공식 순서, Candidate C·Foundation Instruct 핵심 목표, Runtime 후속 서비스 트랙과 DohaMusic Application 위치를 반영 |

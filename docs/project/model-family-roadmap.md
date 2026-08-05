@@ -3,7 +3,8 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-05
 - 기준 문서: [README](../../README.md)
-- 선행 문서: [Foundation Strategy](./foundation-model-strategy.md), [Current Project Status](./current-project-status.md)
+- 선행 문서: [Foundation Strategy](./foundation-model-strategy.md), [Current Project Status](./current-project-status.md),
+  [Base Training Readiness](../training/base-training-readiness.md), [Candidate C Design](../training/candidate-c-design.md)
 - 현재 실행 권한 영향: 없음
 
 ## 1. Roadmap 원칙
@@ -20,16 +21,19 @@
 ```mermaid
 flowchart TB
     subgraph P1[Phase 1 — DohaLM Foundation]
-      Ready[Base Training Readiness] --> Recovery[Publish Recovery]
-      Recovery --> Tokenization[Tokenization]
-      Tokenization --> BaseEval[Evaluation]
-      BaseEval --> EOS[EOS 분석]
-      EOS --> Fix[Candidate C EOS 문제 해결]
-      Fix --> Retrain[Base 재학습]
-      Retrain --> CEval[Candidate C Evaluation]
-      CEval --> SFT[Candidate C 기반 SFT]
+      Evidence[Candidate A/B Evidence] --> EOSReview[Candidate B EOS Diagnostic Review]
+      EOSReview --> InputReview[Dataset·Tokenizer·Config Review]
+      InputReview --> ReadyDecision[Candidate C Readiness Decision]
+      ReadyDecision --> DatasetFreeze[Dataset Freeze]
+      DatasetFreeze --> TokenizerFreeze[Tokenizer Freeze]
+      TokenizerFreeze --> ConfigFreeze[Training Config Freeze]
+      ConfigFreeze --> GPUSmoke[GPU Smoke]
+      GPUSmoke --> Train[Training]
+      Train --> CEval[Evaluation]
+      CEval --> CSelect[Candidate Selection]
+      CSelect --> SFT[Candidate C 기반 SFT]
       SFT --> IEval[Foundation Instruct Evaluation]
-      IEval --> Select[Candidate Selection]
+      IEval --> ISelect[Foundation Instruct Candidate Selection]
     end
 
     subgraph P2[Phase 2 — Runtime]
@@ -53,13 +57,29 @@ Foundation Candidate B, Candidate C와 Foundation Instruct는 프로젝트의 �
 
 ### 3.1 DohaLM Base 본훈련 준비
 
+#### 현재 근거 조사
+
 | 순서 | 작업 | 완료 경계 | 현재 상태 |
 |---:|---|---|---|
-| 1 | [Base Training Readiness](../training/base-training-readiness.md) | identity·data·tokenizer·config·resource·approval 준비 | `blocked`; ADR·EOS·config·evaluation 동결 미완료 |
-| 2 | Publish Recovery | 실패 계보 보존, immutable recovery와 publish 계약 | 관련 계약·구현 상태는 Current Status 참조 |
-| 3 | Tokenization | 승인 artifact·fingerprint·lineage·no-replace publish | 후속 실제 실행 별도 승인 |
-| 4 | Evaluation | Quick·Full·position·stability·privacy·lineage 분리 | framework `implemented_verified` |
-| 5 | EOS 분석 | teacher-forced·pure generation·decoding-assisted 분리 | Candidate B 한계 기록 완료, Candidate C 입력 |
+| 1 | Candidate A/B Evidence | 학습·checkpoint·Full 결과·baseline lineage 검토 | `completed` |
+| 2 | Candidate B EOS Diagnostic Review | teacher-forced·pure·assisted·길이별 현상 분리 | `completed`; single root cause 미확정 |
+| 3 | Dataset·Tokenizer·Config Review | 기존 identity와 Candidate C 변경 후보 검토 | `completed` |
+| 4 | [Candidate C Readiness Decision](../training/base-training-readiness.md) | review 결론과 blocker 기록 | review `completed`; readiness `blocked` |
+
+#### 향후 Candidate C 실행
+
+| C-Gate | 작업 | 현재 상태 |
+|---|---|---|
+| C-2 | Dataset Freeze | `reviewing` |
+| C-3 | Tokenizer Freeze | `reviewing` |
+| C-4 | Training Config Freeze | `blocked` |
+| C-5 | GPU Smoke | `not_started` |
+| C-6 | Training | `not_started` |
+| C-7 | Evaluation | `not_started` |
+| C-8 | Candidate Selection | `not_started` |
+
+C-1 Training Readiness는 현재 `review`이며 ADR-011과 단일 EOS 주가설 승인이 남았습니다. 기존 Gate 1~7은 Foundation
+capability evidence이고 Candidate C 전용 C-1~C-8을 자동 통과시키거나 실행을 승인하지 않습니다.
 
 Candidate B는 `implemented_verified` current Base baseline이며 Candidate C의 비교 기준입니다. Candidate A는 historical
 baseline으로 보존합니다. 기존 상태나 artifact를 재명명하거나 덮어쓰지 않습니다.
@@ -74,6 +94,14 @@ Candidate C는 `not_started`이고 [계약 설계](../training/candidate-c-desig
 학습 budget, initialization, Dataset과 평가 threshold는 후속 ADR·진단·승인 전까지 확정하지 않습니다. Candidate B와
 동일한 평가 분리·lineage 원칙을 적용해야 합니다.
 Readiness Gate C-1~C-4와 별도 승인된 C-5 GPU Smoke가 선행돼야 하며, 그 전에는 학습으로 넘어가지 않습니다.
+
+```text
+base_training_readiness_review: completed
+candidate_c_contract_design: completed
+candidate_c_readiness: blocked
+candidate_c_execution_allowed: false
+candidate_c_training_started: false
+```
 
 ### 3.3 Foundation Instruct
 
@@ -121,6 +149,7 @@ Code, SQL, Recruit, Game과 Vision/Multimodal은 삭제된 목표가 아니라 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | A/B 근거 조사와 Candidate C 실행 roadmap 분리, Foundation Publish Recovery 제거, Gate 1~7/C-1~C-8 관계와 상태 matrix 반영 |
 | 2026-08-05 | Candidate C 계약 설계 완료와 실행 미허용, ADR·진단·freeze 승인 잔여 상태를 구분 |
 | 2026-08-05 | Base Training Readiness 문서와 C-1~C-5 선행 조건을 연결하고 Candidate C 상태를 `not_started`로 명확화 |
 | 2026-08-05 | Foundation을 최우선 Phase로 재구성하고 Base 준비 → Candidate C → Foundation Instruct, 후속 Runtime, DohaMusic Application 공식 순서를 반영 |
