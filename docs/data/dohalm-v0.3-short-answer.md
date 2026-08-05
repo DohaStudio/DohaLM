@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-02 |
+| 마지막 검토일 | 2026-08-05 |
 | Dataset ID | `DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001` |
 | 선행 Dataset | [v0.2 Sidecar·Sampling Dataset](./dohalm-v0.2-sidecar-sampling.md) |
 
@@ -106,16 +106,27 @@ Source와 output prefix의 split fingerprint를 각각 기록한다.
 ```yaml
 policy: implemented
 dry_run: passed
-v03_dataset: not_created
+v03_dataset: created_external_checksum_verified
+dataset_package_fingerprint: sha256:16204818cedbe079e5a8ad436e1d0e1f315995d0655cadad1ac3f391a559d752
+dataset_source_commit: 42f79d96fbacf9f96ec9cdf1e3730d780a7d8f3d
 tokenization_started: false
 training_started: false
 optimizer_steps: 0
 ```
 
+[확정] 2026-08-05 읽기 전용 재검증에서 Git 외부 package의 기존 `checksums.sha256` 8개 항목이 모두
+일치했다. Train은 original 10,374행과 accepted short 7,265행, Validation은 1,287행이다. 빈 response,
+schema mismatch, split 내부 exact record duplicate excess와 cross-split exact overlap은 모두 0이었다.
+
+[검증 필요] 위 결과는 SFT 이용조건, 생성된 short variant의 독립 PII·safety evidence와 외부 benchmark
+contamination clear를 대신하지 않는다. 학습 입력 적격성은
+[v0.3 학습 재개 Readiness](../instruct/dohalm-v0.3-training-readiness.md)의 V03-1 Gate를 따른다.
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Git 외부 Dataset package 생성·checksum 검증, 실제 행 수와 남은 license·PII·safety 조건 반영 |
 | 2026-08-02 | 공식 200건 Dry Run 통과 결과와 Full Generation 진입 가능 상태 반영 |
 | 2026-08-02 | v0.3 의미 보존형 short-answer 생성·품질·writer 계약 초안 작성 |
 | 2026-08-02 | Source raw checksum과 parsed original-prefix equality를 분리하고 production-shape JSONL 검증 계약을 추가 |

@@ -50,6 +50,10 @@ Qwen Base revision
 두 계보 모두 canonical 평가 hard blocker를 통과한 후보가 없음을 확인했습니다. Loader-backed Provider는 구현됐지만
 승인 manifest가 없으므로 generate/stream 요청을 `ADAPTER_NOT_AVAILABLE`로 차단합니다.
 
+v0.3는 [학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)에서 Dataset 생성·checksum 유효를 확인했지만,
+canonical tokenized artifact와 executable QLoRA config가 없습니다. 상태 `ready_for_recovery_design`은 새 identity 기반
+Tokenization 복구 계약을 설계할 수 있다는 뜻이며 republish·training 승인이나 Runtime 후보 적격성을 뜻하지 않습니다.
+
 ### 완료 조건
 
 General Instruct Adapter를 Runtime 완료로 표시하려면 다음이 모두 필요합니다.
@@ -81,6 +85,7 @@ QLoRA 학습 완료만으로 위 조건을 충족하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 Dataset·tokenization 실제 evidence와 `ready_for_recovery_design` 경계를 연결 |
 | 2026-08-05 | Provider mock 통합과 v0.1~v0.3 `no_eligible_candidate` 판정, GPU smoke 미실행 상태 반영 |
 | 2026-08-04 | fail-closed Adapter Runtime 설계 문서와 구현 미착수 상태 연결 |
 | 2026-08-04 | Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime General Instruct Adapter를 분리 |

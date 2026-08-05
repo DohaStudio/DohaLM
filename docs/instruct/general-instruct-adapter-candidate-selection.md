@@ -22,7 +22,7 @@ Base+Adapter GPU load와 Provider Chat·SSE smoke도 시작하지 않았다.
 |---|---|---|---|---|---|---|---|---|---|
 | Runtime v0.1 final Adapter | `DOHALM-V0.1-QLORA-20260731-0005` | AIHUB-71748 SFT Processing Run 0015, Tokenization 0001 | 3 epoch·1,947 step 완료 | Git 외부 보존, reload 검증 | 있음 | 있음, 73,911,112 bytes | 독립 평가 완료, decoding 평가 완료 | decoding hard blocker 통과 후보 0, `NO_CANDIDATE_PASSED_HARD_BLOCKERS` | Runtime 부적격, publication 미승인 |
 | Runtime v0.2 final Adapter·terminal checkpoint | `DOHALM-V0.2-QLORA-20260801-0001` | v0.2 Sidecar·Weighted Tokenization | 2 epoch·1,298 step 완료 | `.failed` 감사 artifact에 보존 | 있음 | 있음, 73,911,112 bytes | evaluation-only recovery 완료 | 원래 `CHECKPOINT_SCHEDULE_INVALID`; recovery 결과 eligible candidate 0 | Runtime 부적격, publication 미승인 |
-| Runtime v0.3 | 해당 없음 | Short-answer Dataset·Tokenization 후보 | 미시작 | 없음 | 없음 | 없음 | 없음 | Tokenization publish 관측성 손실, 재시도·QLoRA 미승인 | 후보 제외 |
+| Runtime v0.3 | 해당 없음 | Short-answer Dataset 생성·checksum 검증, Tokenization 복구 후보 | 미시작 | 없음 | 없음 | 없음 | 없음 | canonical tokenized artifact 없음, 재시도·QLoRA 미승인 | 후보 제외 |
 
 ### 2.1 Identity·metadata·dependency
 
@@ -75,7 +75,10 @@ Base+Adapter GPU load와 Provider Chat·SSE smoke도 시작하지 않았다.
 
 ### v0.3
 
-- Tokenization publish가 완료되지 않았고 QLoRA 학습·Adapter·평가가 없다.
+- [학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)에서 Dataset package 생성과 기존 checksum 8개 일치를
+  확인했지만 Tokenization final·staging·failed artifact는 모두 없었다.
+- Tokenization publish가 완료되지 않았고 QLoRA 학습·Adapter·평가가 없다. 상태는
+  `ready_for_recovery_design`이며 republish 또는 training ready가 아니다.
 - 판정: 필수 artifact 누락으로 제외.
 
 ## 5. Manifest·preflight·GPU 실행 상태
@@ -119,4 +122,5 @@ Task 3 Base snapshot 전체 계약을 충족한다고 판정할 수 없으며, �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 Dataset checksum 유효·tokenized artifact 부재·recovery-design 상태를 후보 제외 근거에 연결 |
 | 2026-08-05 | v0.1~v0.3 보존 artifact·평가·checksum·dependency를 대조하고 `no_eligible_candidate`로 fail-closed 판정 |

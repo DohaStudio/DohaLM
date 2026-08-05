@@ -1,7 +1,7 @@
 # DohaLM v0.3 Tokenization publish 실패 보존 계약
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-08-02
+- 최종 검토일: 2026-08-05
 - 학습 상태: `not_started`
 - 실행 권한: `false`
 
@@ -28,6 +28,20 @@ max sequence length, Sampler 정책은 변경하지 않는다.
 
 기존 실행의 내부 publish 예외는 기록이 없어 `UNRESOLVED`로 유지한다. 추정으로 세부 원인을
 확정하지 않는다.
+
+2026-08-05 읽기 전용 재검증에서는 Git 외부 tokenization parent만 존재하고 기존 Run ID의 final,
+명시적·hidden staging, `.failed`, identity와 emergency artifact는 확인되지 않았다. Dataset package checksum은
+유효하지만 tokenization checksum inventory·manifest·output fingerprint는 없다. 따라서 기존 메모리 내 결과나
+임시 파일을 복구하는 경로는 사용할 수 없다.
+
+원인 분류는 다음처럼 분리한다.
+
+- 외부 장애: `environment failure` — wrapper timeout과 관측성 손실
+- 내부 publish root cause: `unknown`
+- 복구 blocker: `incomplete evidence`
+
+Approval·Runtime request 발급·소비는 당시 v0.3 Tokenization entrypoint에 연결되지 않아 상태를 증명할 artifact가
+없다. config의 `tokenization_allowed: true`는 single-use 실행 승인 evidence를 대신하지 않는다.
 
 ## Worker와 supervisor
 
@@ -94,3 +108,12 @@ backward_calls: 0
 optimizer_steps: 0
 execution_allowed: false
 ```
+
+후속 코드 변경의 충분성, 재개 경로와 새 identity Gate는
+[v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)를 따른다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-05 | Dataset checksum은 유효하지만 tokenization final·staging·failed가 모두 없음을 재검증하고 원인을 environment/unknown/incomplete evidence로 분리 |

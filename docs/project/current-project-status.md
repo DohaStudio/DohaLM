@@ -69,7 +69,7 @@ DohaLM의 책임이 아니며 별도 음악 생성 모델의 범위입니다.
 | Foundation Instruct Tiny v1 | Candidate B Final | 설계 완료, 학습·artifact 미생성 | 없음 |
 | Runtime General Instruct v0.1 | Qwen2.5-1.5B-Instruct | 학습·평가 완료; decoding hard blocker 통과 후보 없음 | 부적격, manifest 없음 |
 | Runtime General Instruct v0.2 | 같은 Qwen Base | 2 epoch·1,298 step·recovery 완료; eligible candidate 0건 | 부적격, deployment ready 아님 |
-| Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | Dataset full 생성 전; Tokenization publish 실패 보존, 재시도 미승인 | 없음 |
+| Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | Dataset 생성·checksum 검증 완료; canonical tokenized artifact 없음, `ready_for_recovery_design` | 없음 |
 
 저장소에는 외부 학습 artifact 자체가 없으므로 Runtime은 경로·fingerprint·승인 검증 없이는 Adapter를 자동 탐색하지 않습니다.
 v0.1/v0.2의 학습 완료 기록도 `Adapter Loader 완료`나 `deployment_ready=true`로 승격하지 않습니다. Loader는 Adapter 학습에
@@ -110,15 +110,17 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 ## 7. 다음 권장 작업
 
-1. General Instruct Adapter 선정·평가 상태를 하나의 manifest로 고정
-2. Adapter Provider의 실제 승인 후보·GPU READY 검증
-3. Prompt Engine 최소 계약 확정
-4. 1차 Runtime end-to-end 검증 후 Memory 설계 시작
+1. [v0.3 학습 재개 Readiness](../instruct/dohalm-v0.3-training-readiness.md)의 license·PII/safety evidence와 새 Tokenization identity 계약 검토
+2. 별도 승인 뒤 canonical Tokenization·QLoRA preflight·평가를 순서대로 진행
+3. 적격 General Instruct Adapter가 생긴 뒤 manifest 고정과 실제 GPU READY 검증
+4. Prompt Engine 최소 계약 확정
+5. 1차 Runtime end-to-end 검증 후 Memory 설계 시작
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 Dataset 생성·checksum 유효, canonical tokenized artifact 부재와 recovery-design 상태 반영 |
 | 2026-08-05 | v0.1~v0.3 후보 조사에서 `no_eligible_candidate` 판정, manifest·GPU·Provider smoke 미실행 상태 반영 |
 | 2026-08-05 | Adapter Provider startup preflight·lazy load·Chat/SSE·shutdown mock 통합과 실제 artifact/GPU 미검증 상태 반영 |
 | 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 Adapter/GPU·Provider 연결 미검증 상태 반영 |

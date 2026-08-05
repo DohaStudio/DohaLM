@@ -1,13 +1,13 @@
 # DohaLM v0.3 Tokenization 및 QLoRA Readiness
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-02
+- 마지막 검토일: 2026-08-05
 - 학습 상태: `not_started`
 - 실행 권한: `false`
 
 ## 범위
 
-이 문서는 `DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001`의 원본·short 계보를 보존한
+이 문서는 생성·checksum 검증된 `DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001`의 원본·short 계보를 보존한
 assistant-only tokenization, 세 sampler의 모델 비사용 simulation, QLoRA 설정 초안을 정의한다.
 모델 weight 로드, backward, optimizer step, checkpoint, QLoRA 학습과 generation 평가는 범위 밖이다.
 
@@ -50,6 +50,8 @@ Validation 1,287행은 순차·비가중·short 미포함 정책을 유지한다
 ```yaml
 tokenization: failed_publish_observability_loss_identity_review_required
 tokenization_failure_contract: implemented_synthetic_validated
+canonical_tokenized_artifact: absent
+original_run_identity_reusable: false
 sampler_simulation: blocked_until_verified_tokenization
 qlora_training: not_approved
 training_started: false
@@ -59,3 +61,11 @@ execution_allowed: false
 
 Publish 실패 보존과 Run identity 재사용 정책은
 [v0.3 Tokenization publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md)을 따른다.
+새 identity 기반 복구 Gate와 QLoRA 준비 조건은
+[v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)를 따른다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-05 | 실제 Dataset checksum 유효·canonical tokenized artifact 부재·기존 Run identity 비재사용 상태 반영 |
