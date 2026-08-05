@@ -243,6 +243,12 @@ single-use 승인 미완료로 `blocked`입니다.
 base_training_readiness_review: completed
 candidate_c_contract_design: completed
 candidate_b_eos_diagnostic_contract: design_completed
+eos_diag_r1_artifact_system: implemented_synthetic_verified
+eos_diag_r2_identity_freezer: implemented_synthetic_verified
+eos_diag_r2_generation_matrix: implemented_synthetic_verified
+actual_candidate_b_identity_freeze: incomplete
+gate_eos_diag_1: not_passed
+gate_eos_diag_2: not_passed
 candidate_b_eos_diagnostic_execution_allowed: false
 candidate_b_checkpoint_mutation_allowed: false
 candidate_c_primary_hypothesis: not_selected
@@ -255,8 +261,10 @@ gpu_diagnostic: not_started
 full_diagnostic: not_started
 ```
 
-다음 Task는 [진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 **EOS-DIAG-R1 artifact schema·strict
-validator와 R2 identity·generation matrix freezer 구현**입니다. R1~R7 합성 검증과 EOS-DIAG-1~3 evidence가 먼저이며,
+다음 Task는 [진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 **EOS-DIAG-R3 static preflight와 실제
+identity evidence 공급 경계 구현**입니다. R1 artifact system과 R2 identity·generation matrix freezer의 합성 검증은 완료됐지만,
+실제 checkpoint manifest fingerprint·formal prompt identity·diagnostic source/backend/dependency identity가 없어 EOS-DIAG-1·2는 미통과입니다.
+R1~R7 합성 검증과 EOS-DIAG-1~3 evidence가 먼저이며,
 그 뒤 별도 사용자 승인으로 R8 GPU smoke와 R9 Full 진단을 수행할 수 있습니다. 진단 결과 검토 전에는 주가설·Dataset
 선택지·Training intervention을 확정하지 않습니다. C-1~C-4가 통과하기 전 C-5 GPU Smoke나 C-6 Training으로 넘어가지
 않습니다.
@@ -284,6 +292,7 @@ validator와 R2 identity·generation matrix freezer 구현**입니다. R1~R7 합
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R2 identity·matrix freezer synthetic 검증 완료와 실제 identity freeze incomplete·Gate 1/2 미통과 상태, 다음 R3 경계 반영 |
 | 2026-08-05 | Candidate B EOS 진단 계약 설계 완료와 실행 false, 진단 blocker·주가설 선택 정책을 C-BLOCK-002/C-1에 연결 |
 | 2026-08-05 | 완료된 A/B 근거 조사와 향후 Candidate C 실행 분리, Gate 1~7/C-1~C-8 관계, EOS 진단 완료/root cause 미확정, Evaluation Framework 재사용 명시 |
 | 2026-08-05 | Candidate C 계약 설계 완료, ADR-011 draft·H1~H7·Dataset/Tokenizer/Config freeze·Evaluation 계약과 ID blocker 연결; Gate는 미통과 유지 |

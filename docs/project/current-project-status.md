@@ -37,6 +37,12 @@ parent 결정을 다루는 후속 ADR이 필요합니다.
 base_training_readiness_review: completed
 candidate_c_contract_design: completed
 candidate_b_eos_diagnostic_contract: design_completed
+eos_diag_r1_artifact_system: implemented_synthetic_verified
+eos_diag_r2_identity_freezer: implemented_synthetic_verified
+eos_diag_r2_generation_matrix: implemented_synthetic_verified
+actual_candidate_b_identity_freeze: incomplete
+gate_eos_diag_1: not_passed
+gate_eos_diag_2: not_passed
 candidate_b_eos_diagnostic_execution_allowed: false
 candidate_b_checkpoint_mutation_allowed: false
 candidate_c_primary_hypothesis: not_selected
@@ -64,6 +70,9 @@ full_diagnostic: not_started
 | Base Training Readiness review | `completed` | A/B evidence·EOS 현상·Dataset/Tokenizer/Config 조사와 readiness 판정 완료 |
 | Candidate C contract design | `completed` | C-1~C-8·EOS 가설·freeze·Evaluation·Selection 계약 작성 완료 |
 | Candidate B EOS diagnostic contract | `design_completed` | [read-only 실행 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)과 [주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md) 설계; 실행·GPU·checkpoint load 없음 |
+| EOS-DIAG-R1 artifact system | `implemented_synthetic_verified` | exact 18-artifact strict schema·writer·completion evidence; 실제 artifact 없음 |
+| EOS-DIAG-R2 identity·matrix freezer | `implemented_synthetic_verified` | explicit-input immutable identity, 11 profile × 4 length matrix, Gate 1·2와 R1 payload synthetic 연결 |
+| 실제 Candidate B identity freeze | `incomplete` | checkpoint manifest fingerprint, formal prompt identity, source/backend/dependency evidence 미동결; Gate 1·2 `not_passed` |
 | Candidate C execution readiness | `blocked` | ADR-011·주가설·C-2/C-3 freeze·C-4 resolved config·평가 승인 미완료 |
 | Candidate C execution | `not_started` | `execution_allowed: false`, 학습 시작 false |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
@@ -200,6 +209,7 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R2 identity·matrix freezer synthetic 검증 완료와 실제 identity freeze incomplete·Gate 1/2 미통과·execution false 상태 반영 |
 | 2026-08-05 | Candidate B read-only EOS 진단 계약·주가설 선택 정책 설계 완료와 실행 false·checkpoint mutation false·GPU/Full 미시작 상태 반영 |
 | 2026-08-05 | A/B 근거 조사와 Candidate C 실행 흐름, readiness review·contract design·execution readiness 상태, EOS 진단 완료/root cause 미확정을 분리 |
 | 2026-08-05 | Candidate C 계약 설계 완료와 ADR-011·EOS 진단·Dataset/Tokenizer/Config freeze 후속 순서 반영 |

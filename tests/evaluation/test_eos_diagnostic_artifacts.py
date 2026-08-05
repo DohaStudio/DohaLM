@@ -21,8 +21,7 @@ from src.evaluation.eos_diagnostic_artifacts import (
     write_diagnostic_artifact,
 )
 
-
-RUN_ID = "DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20990101-0001"
+RUN_ID = "SYNTHETIC-DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20990101-0001"
 STAMP = "2099-01-01T00:00:00Z"
 SOURCE_COMMIT = "1" * 40
 CHECKPOINT_IDENTITY = "sha256:" + "2" * 64
@@ -195,20 +194,24 @@ def _write_completed_synthetic_bundle(directory: Path) -> None:
     _write_content_bundle(directory)
     inventory = new_artifact_inventory(directory, created_at=STAMP)
     write_diagnostic_artifact(
-        destination=directory / ARTIFACT_FILENAMES["artifact_inventory"], artifact=inventory
+        destination=directory / ARTIFACT_FILENAMES["artifact_inventory"],
+        artifact=inventory,
     )
     completion = new_completion_evidence(
         directory, created_at=STAMP, completion_scope="synthetic_schema_rehearsal"
     )
     write_diagnostic_artifact(
-        destination=directory / ARTIFACT_FILENAMES["completion_evidence"], artifact=completion
+        destination=directory / ARTIFACT_FILENAMES["completion_evidence"],
+        artifact=completion,
     )
 
 
 def test_canonical_serialization_and_fingerprint_are_deterministic() -> None:
     left = {"z": 1, "한글": {"b": False, "a": [3, 2, 1]}}
     right = {"한글": {"a": [3, 2, 1], "b": False}, "z": 1}
-    assert canonical_diagnostic_json_bytes(left) == canonical_diagnostic_json_bytes(right)
+    assert canonical_diagnostic_json_bytes(left) == canonical_diagnostic_json_bytes(
+        right
+    )
     assert canonical_diagnostic_json_bytes(left).endswith(b"\n")
     artifact = _artifact("checkpoint_identity")
     later = _artifact("checkpoint_identity", created_at="2099-01-01T00:00:01Z")
@@ -220,8 +223,14 @@ def test_canonical_serialization_and_fingerprint_are_deterministic() -> None:
     ("overrides", "error"),
     [
         ({"source_commit": "not-a-git-sha"}, "EOS_DIAGNOSTIC_ARTIFACT_INVALID"),
-        ({"created_at": "2099-01-01T00:00:00+00:00"}, "EOS_DIAGNOSTIC_ARTIFACT_INVALID"),
-        ({"diagnostic_run_id": "DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20991301-0001"}, "EOS_DIAGNOSTIC_ARTIFACT_INVALID"),
+        (
+            {"created_at": "2099-01-01T00:00:00+00:00"},
+            "EOS_DIAGNOSTIC_ARTIFACT_INVALID",
+        ),
+        (
+            {"diagnostic_run_id": "DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20991301-0001"},
+            "EOS_DIAGNOSTIC_ARTIFACT_INVALID",
+        ),
     ],
 )
 def test_git_sha_timestamp_and_run_id_are_strict(
@@ -244,15 +253,21 @@ def test_loader_rejects_unknown_duplicate_nonfinite_and_noncanonical_json(
 
     raw = serialize_diagnostic_artifact(artifact)
     path.write_bytes(b'{"schema_version":1,' + raw[1:])
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_DUPLICATE_KEY$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_DUPLICATE_KEY$"
+    ):
         load_diagnostic_artifact(path)
 
     path.write_bytes(raw.replace(b'"record_count":1', b'"record_count":NaN'))
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_NONFINITE_NUMBER$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_NONFINITE_NUMBER$"
+    ):
         load_diagnostic_artifact(path)
 
     path.write_text(json.dumps(artifact.as_dict(), indent=2), encoding="utf-8")
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_NONCANONICAL$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_NONCANONICAL$"
+    ):
         load_diagnostic_artifact(path)
 
 
@@ -290,7 +305,9 @@ def test_payload_unknown_field_and_checksum_tampering_are_rejected(
         load_diagnostic_artifact(path)
 
 
-def test_writer_is_canonical_reloadable_and_no_replace(synthetic_workspace: Path) -> None:
+def test_writer_is_canonical_reloadable_and_no_replace(
+    synthetic_workspace: Path,
+) -> None:
     artifact = _artifact("checkpoint_identity")
     path = synthetic_workspace / ARTIFACT_FILENAMES["checkpoint_identity"]
     result = write_diagnostic_artifact(destination=path, artifact=artifact)
@@ -298,7 +315,9 @@ def test_writer_is_canonical_reloadable_and_no_replace(synthetic_workspace: Path
     assert load_diagnostic_artifact(path) == artifact
     assert result.bytes_written == len(path.read_bytes())
     assert result.file_checksum.startswith("sha256:")
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_ALREADY_EXISTS$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_ALREADY_EXISTS$"
+    ):
         write_diagnostic_artifact(destination=path, artifact=artifact)
 
 
@@ -312,7 +331,8 @@ def test_writer_fsync_failure_leaves_no_final(
         lambda _descriptor: (_ for _ in ()).throw(OSError()),
     )
     with pytest.raises(
-        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_ATOMIC_WRITE_FAILED$"
+        EOSDiagnosticArtifactError,
+        match="^EOS_DIAGNOSTIC_ARTIFACT_ATOMIC_WRITE_FAILED$",
     ):
         write_diagnostic_artifact(destination=path, artifact=artifact)
     assert not path.exists()
@@ -323,23 +343,31 @@ def test_completion_requires_all_eighteen_artifacts(synthetic_workspace: Path) -
     _write_content_bundle(synthetic_workspace)
     with pytest.raises(EOSDiagnosticArtifactError):
         new_completion_evidence(
-            synthetic_workspace, created_at=STAMP, completion_scope="synthetic_schema_rehearsal"
+            synthetic_workspace,
+            created_at=STAMP,
+            completion_scope="synthetic_schema_rehearsal",
         )
     inventory = new_artifact_inventory(synthetic_workspace, created_at=STAMP)
     write_diagnostic_artifact(
-        destination=synthetic_workspace / ARTIFACT_FILENAMES["artifact_inventory"], artifact=inventory
+        destination=synthetic_workspace / ARTIFACT_FILENAMES["artifact_inventory"],
+        artifact=inventory,
     )
     completion = new_completion_evidence(
-        synthetic_workspace, created_at=STAMP, completion_scope="synthetic_schema_rehearsal"
+        synthetic_workspace,
+        created_at=STAMP,
+        completion_scope="synthetic_schema_rehearsal",
     )
     write_diagnostic_artifact(
-        destination=synthetic_workspace / ARTIFACT_FILENAMES["completion_evidence"], artifact=completion
+        destination=synthetic_workspace / ARTIFACT_FILENAMES["completion_evidence"],
+        artifact=completion,
     )
     result = validate_completed_bundle(synthetic_workspace)
     assert result.status == "completed"
     assert result.completion_scope == "synthetic_schema_rehearsal"
     assert result.artifact_count == 18
-    assert set(item.name for item in synthetic_workspace.iterdir()) == set(EXACT_ARTIFACT_FILENAMES)
+    assert {item.name for item in synthetic_workspace.iterdir()} == set(
+        EXACT_ARTIFACT_FILENAMES
+    )
 
 
 def test_completion_rejects_inventory_drift_extra_files_and_fake_execution(
@@ -353,7 +381,9 @@ def test_completion_rejects_inventory_drift_extra_files_and_fake_execution(
 
     other = synthetic_workspace / "extra.json"
     other.write_text("{}", encoding="utf-8")
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_SET_INCOMPLETE$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ARTIFACT_SET_INCOMPLETE$"
+    ):
         validate_completed_bundle(synthetic_workspace)
 
     clean = synthetic_workspace / "clean"
@@ -363,7 +393,9 @@ def test_completion_rejects_inventory_drift_extra_files_and_fake_execution(
     write_diagnostic_artifact(
         destination=clean / ARTIFACT_FILENAMES["artifact_inventory"], artifact=inventory
     )
-    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_ANALYSIS_INCOMPLETE$"):
+    with pytest.raises(
+        EOSDiagnosticArtifactError, match="^EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID$"
+    ):
         new_completion_evidence(
             clean, created_at=STAMP, completion_scope="diagnostic_execution"
         )

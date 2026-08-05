@@ -12,14 +12,14 @@ import json
 import math
 import os
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from src.data.checksums import canonical_json_bytes, file_checksum, sha256_bytes
-
 
 EOS_DIAGNOSTIC_SCHEMA_VERSION = 1
 EOS_DIAGNOSTIC_WRITER_NAME = "dohalm-eos-diagnostic-artifact-writer"
@@ -95,7 +95,9 @@ _TOP_LEVEL_FIELDS = frozenset(
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 _UTC_Z = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
-_RUN_ID = re.compile(r"DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-(\d{8})-(\d{4})\Z")
+_RUN_ID = re.compile(
+    r"(?:SYNTHETIC-)?DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-(\d{8})-(\d{4})\Z"
+)
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,191}\Z")
 _LOGICAL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}\Z")
 
@@ -205,7 +207,11 @@ def _strict_object(value: object, fields: Sequence[str]) -> dict[str, Any]:
 def _strict_subset(
     value: object, *, allowed: frozenset[str], required: frozenset[str] = frozenset()
 ) -> dict[str, Any]:
-    if type(value) is not dict or not required.issubset(value) or not set(value).issubset(allowed):
+    if (
+        type(value) is not dict
+        or not required.issubset(value)
+        or not set(value).issubset(allowed)
+    ):
         _raise()
     return value
 
@@ -278,7 +284,7 @@ def _run_id(value: object) -> str:
     if match is None:
         _raise()
     try:
-        datetime.strptime(match.group(1), "%Y%m%d")
+        date.fromisoformat(match.group(1))
     except ValueError:
         _raise()
     return candidate
@@ -323,7 +329,9 @@ def _validate_json_tree(value: object) -> None:
     _raise()
 
 
-def _validate_payload(artifact_type: str, value: object, record_count: int) -> dict[str, Any]:
+def _validate_payload(
+    artifact_type: str, value: object, record_count: int
+) -> dict[str, Any]:
     if artifact_type == "diagnostic_run_manifest":
         payload = _strict_object(
             value,
@@ -336,7 +344,10 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
             ),
         )
         _string(payload["purpose"])
-        if payload["execution_mode"] not in {"synthetic_schema_rehearsal", "diagnostic_execution"}:
+        if payload["execution_mode"] not in {
+            "synthetic_schema_rehearsal",
+            "diagnostic_execution",
+        }:
             _raise()
         permissions = _strict_object(
             payload["permissions"],
@@ -397,13 +408,24 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
             ),
         )
         _string(payload["tokenizer_id"], identifier=True)
-        for field in ("bundle_checksum", "model_checksum", "vocab_checksum", "tokenizer_fingerprint"):
+        for field in (
+            "bundle_checksum",
+            "model_checksum",
+            "vocab_checksum",
+            "tokenizer_fingerprint",
+        ):
             _fingerprint(payload[field])
         _integer(payload["vocab_size"], positive=True)
-        special = _strict_object(payload["special_token_ids"], ("pad", "unk", "bos", "eos"))
+        special = _strict_object(
+            payload["special_token_ids"], ("pad", "unk", "bos", "eos")
+        )
         for token_id in special.values():
             _integer(token_id)
-        if len(set(special.values())) != len(special) or payload["loaded"] is not False or record_count != 1:
+        if (
+            len(set(special.values())) != len(special)
+            or payload["loaded"] is not False
+            or record_count != 1
+        ):
             _raise()
     elif artifact_type == "prompt_set_identity":
         payload = _strict_object(
@@ -480,10 +502,16 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
         for profile_value in payload["profiles"]:
             profile = _strict_object(profile_value, ("name", "mode", "parameters"))
             names.append(_string(profile["name"], identifier=True))
-            if profile["mode"] not in {"pure_greedy", "diagnostic_only_sampling", "diagnostic_only_assisted"}:
+            if profile["mode"] not in {
+                "pure_greedy",
+                "diagnostic_only_sampling",
+                "diagnostic_only_assisted",
+            }:
                 _raise()
             parameters = _strict_subset(
-                profile["parameters"], allowed=allowed_parameters, required=frozenset({"do_sample"})
+                profile["parameters"],
+                allowed=allowed_parameters,
+                required=frozenset({"do_sample"}),
             )
             for key, parameter in parameters.items():
                 if key in {"do_sample", "forced_eos", "logit_bias", "heuristic_stop"}:
@@ -492,18 +520,31 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
                     _number(parameter)
         if len(names) != len(set(names)):
             _raise()
-        _strict_object(payload["stop_policy"], ("eos", "maximum_new_tokens", "external_heuristic"))
+        _strict_object(
+            payload["stop_policy"], ("eos", "maximum_new_tokens", "external_heuristic")
+        )
         for item in payload["stop_policy"].values():
             _boolean(item)
-        privacy = _strict_object(payload["privacy"], ("raw_text_storage", "raw_token_sequence_storage"))
-        if privacy["raw_text_storage"] is not False or privacy["raw_token_sequence_storage"] is not False:
+        privacy = _strict_object(
+            payload["privacy"], ("raw_text_storage", "raw_token_sequence_storage")
+        )
+        if (
+            privacy["raw_text_storage"] is not False
+            or privacy["raw_token_sequence_storage"] is not False
+        ):
             _raise()
         if record_count != len(payload["profiles"]):
             _raise()
     elif artifact_type in _ANALYSIS_TYPES:
         payload = _strict_object(
             value,
-            ("analysis_status", "record_schema_version", "records", "summary", "limitations"),
+            (
+                "analysis_status",
+                "record_schema_version",
+                "records",
+                "summary",
+                "limitations",
+            ),
         )
         if payload["analysis_status"] != "schema_only":
             _raise("EOS_DIAGNOSTIC_ANALYSIS_SCHEMA_NOT_IMPLEMENTED")
@@ -540,13 +581,20 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
             _raise()
     elif artifact_type == "artifact_inventory":
         payload = _strict_object(value, ("inventory_scope", "artifacts"))
-        if payload["inventory_scope"] != "content_artifacts_excluding_inventory_and_completion":
+        if (
+            payload["inventory_scope"]
+            != "content_artifacts_excluding_inventory_and_completion"
+        ):
             _raise()
-        if type(payload["artifacts"]) is not list or len(payload["artifacts"]) != len(_CONTENT_TYPES):
+        if type(payload["artifacts"]) is not list or len(payload["artifacts"]) != len(
+            _CONTENT_TYPES
+        ):
             _raise()
         expected_names = [ARTIFACT_FILENAMES[item] for item in _CONTENT_TYPES]
         actual_names: list[str] = []
-        for expected_type, entry_value in zip(_CONTENT_TYPES, payload["artifacts"], strict=True):
+        for expected_type, entry_value in zip(
+            _CONTENT_TYPES, payload["artifacts"], strict=True
+        ):
             entry = _strict_object(
                 entry_value,
                 (
@@ -583,7 +631,10 @@ def _validate_payload(artifact_type: str, value: object, record_count: int) -> d
         )
         if payload["status"] != "completed":
             _raise()
-        if payload["completion_scope"] not in {"synthetic_schema_rehearsal", "diagnostic_execution"}:
+        if payload["completion_scope"] not in {
+            "synthetic_schema_rehearsal",
+            "diagnostic_execution",
+        }:
             _raise()
         _string_list(payload["expected_artifacts"], exact=EXACT_ARTIFACT_FILENAMES)
         _string_list(
@@ -631,7 +682,9 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
     payload = _validate_payload(artifact_type, root["payload"], record_count)
     artifact_fingerprint = _fingerprint(root["artifact_fingerprint"])
     checksum = _fingerprint(root["checksum"])
-    if artifact_fingerprint != _artifact_fingerprint(root) or checksum != _artifact_checksum(root):
+    if artifact_fingerprint != _artifact_fingerprint(
+        root
+    ) or checksum != _artifact_checksum(root):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
     return DiagnosticArtifact(
         schema_version=EOS_DIAGNOSTIC_SCHEMA_VERSION,
@@ -724,10 +777,19 @@ def load_diagnostic_artifact(
         )
     except EOSDiagnosticArtifactError:
         raise
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError):
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RecursionError,
+        ValueError,
+    ):
         _raise()
     artifact = _validate_artifact_value(value)
-    if expected_artifact_type is not None and artifact.artifact_type != expected_artifact_type:
+    if (
+        expected_artifact_type is not None
+        and artifact.artifact_type != expected_artifact_type
+    ):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_TYPE_MISMATCH")
     if path.name != ARTIFACT_FILENAMES[artifact.artifact_type]:
         _raise("EOS_DIAGNOSTIC_ARTIFACT_FILENAME_MISMATCH")
@@ -763,7 +825,9 @@ def _publish_no_replace(temporary: Path, destination: Path) -> None:
 
 
 def _validate_destination(destination: Path, artifact: DiagnosticArtifact) -> Path:
-    if not isinstance(destination, Path) or not isinstance(artifact, DiagnosticArtifact):
+    if not isinstance(destination, Path) or not isinstance(
+        artifact, DiagnosticArtifact
+    ):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_PATH_INVALID")
     if destination.name != ARTIFACT_FILENAMES.get(artifact.artifact_type):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_FILENAME_MISMATCH")
@@ -840,7 +904,9 @@ def write_diagnostic_artifact(
                 pass
 
 
-def _load_artifact_types(directory: Path, artifact_types: Sequence[str]) -> dict[str, DiagnosticArtifact]:
+def _load_artifact_types(
+    directory: Path, artifact_types: Sequence[str]
+) -> dict[str, DiagnosticArtifact]:
     try:
         if directory.is_symlink() or not directory.is_dir():
             _raise("EOS_DIAGNOSTIC_BUNDLE_PATH_INVALID")
@@ -868,7 +934,11 @@ def _common_identity(artifacts: Mapping[str, DiagnosticArtifact]) -> dict[str, s
     )
     first = next(iter(artifacts.values()))
     common = {field: getattr(first, field) for field in fields}
-    if any(getattr(artifact, field) != value for artifact in artifacts.values() for field, value in common.items()):
+    if any(
+        getattr(artifact, field) != value
+        for artifact in artifacts.values()
+        for field, value in common.items()
+    ):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
     return common
 
@@ -932,15 +1002,37 @@ def new_completion_evidence(
     """Build completion evidence only after the other seventeen artifacts validate."""
     artifacts = _load_artifact_types(directory, _PRE_COMPLETION_TYPES)
     common = _common_identity(artifacts)
+    manifest_mode = artifacts["diagnostic_run_manifest"].payload["execution_mode"]
     inventory = artifacts["artifact_inventory"]
-    _validate_inventory(directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES})
+    _validate_inventory(
+        directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES}
+    )
     if completion_scope == "diagnostic_execution":
-        if any(artifacts[item].payload["analysis_status"] != "completed" for item in _ANALYSIS_TYPES):
+        if (
+            common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "diagnostic_execution"
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if any(
+            artifacts[item].payload["analysis_status"] != "completed"
+            for item in _ANALYSIS_TYPES
+        ):
             _raise("EOS_DIAGNOSTIC_ANALYSIS_INCOMPLETE")
-        if artifacts["output_manifest"].payload["status"] not in {"validating", "completed"}:
+        if artifacts["output_manifest"].payload["status"] not in {
+            "validating",
+            "completed",
+        }:
             _raise("EOS_DIAGNOSTIC_OUTPUT_MANIFEST_INCOMPLETE")
     elif completion_scope == "synthetic_schema_rehearsal":
-        if any(artifacts[item].payload["analysis_status"] != "schema_only" for item in _ANALYSIS_TYPES):
+        if (
+            not common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "synthetic_schema_rehearsal"
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if any(
+            artifacts[item].payload["analysis_status"] != "schema_only"
+            for item in _ANALYSIS_TYPES
+        ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     else:
         _raise()
@@ -952,7 +1044,9 @@ def new_completion_evidence(
             "status": "completed",
             "completion_scope": completion_scope,
             "expected_artifacts": list(EXACT_ARTIFACT_FILENAMES),
-            "validated_artifacts": [ARTIFACT_FILENAMES[item] for item in _PRE_COMPLETION_TYPES],
+            "validated_artifacts": [
+                ARTIFACT_FILENAMES[item] for item in _PRE_COMPLETION_TYPES
+            ],
             "inventory_checksum": inventory.checksum,
             "validation_completed_at": created_at,
         },
@@ -975,15 +1069,34 @@ def validate_completed_bundle(directory: Path) -> DiagnosticBundleResult:
     common = _common_identity(artifacts)
     inventory = artifacts["artifact_inventory"]
     completion = artifacts["completion_evidence"]
-    _validate_inventory(directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES})
+    _validate_inventory(
+        directory, inventory, {key: artifacts[key] for key in _CONTENT_TYPES}
+    )
     if completion.payload["inventory_checksum"] != inventory.checksum:
         _raise("EOS_DIAGNOSTIC_COMPLETION_MISMATCH")
     scope = completion.payload["completion_scope"]
+    manifest_mode = artifacts["diagnostic_run_manifest"].payload["execution_mode"]
     if scope == "diagnostic_execution":
-        if any(artifacts[item].payload["analysis_status"] != "completed" for item in _ANALYSIS_TYPES):
+        if (
+            common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "diagnostic_execution"
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if any(
+            artifacts[item].payload["analysis_status"] != "completed"
+            for item in _ANALYSIS_TYPES
+        ):
             _raise("EOS_DIAGNOSTIC_ANALYSIS_INCOMPLETE")
     elif scope == "synthetic_schema_rehearsal":
-        if any(artifacts[item].payload["analysis_status"] != "schema_only" for item in _ANALYSIS_TYPES):
+        if (
+            not common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "synthetic_schema_rehearsal"
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if any(
+            artifacts[item].payload["analysis_status"] != "schema_only"
+            for item in _ANALYSIS_TYPES
+        ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     else:
         _raise()

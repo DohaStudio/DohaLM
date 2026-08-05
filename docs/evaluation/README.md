@@ -58,6 +58,9 @@
   `not_started`, execution false, checkpoint mutation false
 - EOS-DIAG-R1 artifact system: 18개 strict schema, canonical loader/validator, atomic no-replace writer, inventory와
   completion evidence `implemented_synthetic_verified`; D1~D8 backend·실제 Run artifact는 미구현·미생성
+- EOS-DIAG-R2 identity·matrix freezer: explicit-input immutable Checkpoint·Tokenizer·Prompt·Backend·Dependency identity,
+  Candidate B evaluation lineage, 기존 decoder의 11 profile × 4 length canonical matrix, Gate EOS-DIAG-1·2 evidence와 R1 관리
+  payload 연결 `implemented_synthetic_verified`; 실제 identity freeze `incomplete`, Gate 1·2 `not_passed`, 실행 허용 false
 - Candidate C EOS 주가설 선택 정책: 설계 `completed`; primary hypothesis `not_selected`
 - Candidate B ADR-008 reassessment: `approved_as_base_baseline`; current Base baseline은 Candidate B,
   Candidate A는 historical baseline
@@ -71,6 +74,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R2 identity·generation matrix freezer와 Gate 1·2/R1 payload synthetic 검증 연결; 실제 checkpoint·Tokenizer·prompt·환경 조회와 GPU·generation 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R1 strict artifact system과 synthetic 10-test 검증 연결; checkpoint·Tokenizer·GPU·generation 미실행 유지 |
 | 2026-08-05 | Candidate B Final read-only EOS 진단 계약과 Candidate C 단일 주가설 선택 정책 등록; 실행·Approval·GPU 미시작 유지 |
 | 2026-08-05 | Candidate C 지표 역할·Full 비교·Selection 상태 계약 연결; threshold·평가 실행·승격 미승인 유지 |

@@ -7,6 +7,10 @@
 - 실행 허용: `false`
 - GPU 진단 / Full 진단: `not_started` / `not_started`
 - EOS-DIAG-R1: `implemented_synthetic_verified`
+- EOS-DIAG-R2 Identity Freezer: `implemented_synthetic_verified`
+- EOS-DIAG-R2 Generation Matrix: `implemented_synthetic_verified`
+- 실제 Candidate B identity freeze: `incomplete`
+- EOS-DIAG-1 / EOS-DIAG-2: `not_passed` / `not_passed`
 - 대상: Candidate B Final checkpoint, evaluation-only read-only 분석
 - 후속 정책: [Candidate C 주가설 선택 정책](./candidate-c-hypothesis-selection-policy.md)
 - 상위 근거: [Base Training Readiness](../training/base-training-readiness.md),
@@ -234,7 +238,7 @@ planned -> identity_frozen -> config_frozen -> preflight_passed
 | Task | 예상 변경 파일 | 검증 | GPU | checkpoint | 승인 | 완료 조건 |
 |---|---|---|---|---|---|---|
 | EOS-DIAG-R1 schema·strict validator | [artifact system](../../src/evaluation/eos_diagnostic_artifacts.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_artifacts.py) | unknown/duplicate/non-finite/schema/Git SHA/timestamp/checksum/fingerprint/exact set, canonical/no-replace/reload | 불필요 | 없음 | 불필요 | `implemented_synthetic_verified`; 10 tests passed |
-| EOS-DIAG-R2 matrix·identity freezer | `src/evaluation/eos_diagnostic_identity.py`, 전용 config schema, 관련 tests | canonicalization, ID/version·fingerprint drift, no placeholder | 불필요 | metadata fixture만 | freeze 승인 | Gate 1·2 evidence 생성 가능 |
+| EOS-DIAG-R2 matrix·identity freezer | [identity freezer](../../src/evaluation/eos_diagnostic_identity.py), [matrix freezer](../../src/evaluation/eos_generation_matrix.py), [identity tests](../../tests/evaluation/test_eos_diagnostic_identity.py), [matrix tests](../../tests/evaluation/test_eos_generation_matrix.py) | explicit-input canonicalization, immutable ID/version·fingerprint, lineage, exact profile/count, R1 payload 연결 | 불필요 | synthetic metadata fixture만 | 실제 freeze 승인 없음 | `implemented_synthetic_verified`; 실제 Gate 1·2 미통과 |
 | EOS-DIAG-R3 read-only loader preflight | `src/evaluation/eos_diagnostic_preflight.py`, checkpoint fixture tests | write permission 제거, before/after digest, no payload before consume | synthetic CPU | 합성 fixture만 | 불필요 | mutation·early load fail-closed |
 | EOS-DIAG-R4 D1~D8 backend | `src/evaluation/eos_diagnostic_backend.py`, metric unit tests | synthetic logits·prefix·boundary·loop fixtures | 단위 검증 불필요 | 없음 | 불필요 | D1~D8와 insufficient evidence 상태 |
 | EOS-DIAG-R5 aggregate·hypothesis assessor | `src/evaluation/eos_hypothesis_assessor.py`, assessor tests | support/contradiction/insufficient·no forced selection | 불필요 | 없음 | 정책 검토 | decision artifact strict 생성 |
@@ -257,11 +261,36 @@ canonical envelope record만 허용하며 실제 step record schema는 R4에서 
 가능합니다. `diagnostic_execution` completion은 D1~D8 artifact가 `schema_only`인 동안 fail-closed되므로 이번 구현으로 실제
 진단 완료를 만들 수 없습니다. Checkpoint·Tokenizer load, torch·CUDA, inference, generation과 EOS 계산은 수행하지 않았습니다.
 
+### 14.2 EOS-DIAG-R2 구현 경계
+
+[확정] R2는 caller가 명시적으로 전달한 값만 검증합니다. filesystem 자동 탐색, 실제 checkpoint·Tokenizer·prompt payload 읽기,
+환경 자동 조회와 네트워크 접근은 구현하지 않았습니다. Checkpoint·Tokenizer·Prompt Set·Backend·Dependency identity는 frozen
+dataclass와 canonical SHA-256 fingerprint로 표현하며 unknown field, 잘못된 checksum·Git SHA·version, lineage mismatch와 필수 값 누락을
+fail closed 처리합니다. Identity fingerprint에는 timestamp 필드가 없으므로 실행 시각에 따라 변하지 않습니다.
+
+[확정] Generation Matrix는 기존 decoder가 지원하는 11개 profile과 길이 `16/32/64/128`, prompt 15개, 반복 1회를 정확히
+동결합니다. 논리 evaluation cell은 `15 × 11 × 4 = 660`이고, 기존 구현이 최대 128-token trajectory를 한 번 생성한 뒤 길이별
+prefix를 재사용하므로 trajectory 호출 수는 `15 × 11 = 165`로 별도 기록합니다. 공식 모델 지표는 `greedy` 하나뿐이며 나머지
+10개 sampling·assisted profile은 `diagnostic_only`입니다. 외부 termination heuristic은 지원하지 않습니다.
+
+[확정] Synthetic complete fixture에서는 EOS-DIAG-1·2 validator의 `passed` 경로와 R1 관리 artifact 6개 payload 연결을
+검증할 수 있습니다. Synthetic Run ID는 `SYNTHETIC-` namespace를 강제하며 실제 diagnostic completion으로 전환할 수 없습니다.
+이 결과는 실제 Candidate B Gate 통과, Approval, Runtime Request 또는 실행 허용을 뜻하지 않습니다.
+
+[검증 필요] 실제 Candidate B는 independent checkpoint manifest fingerprint가 없고, prompt set ID/version·token-length
+distribution·normalization·formal leakage evidence가 미동결이며, diagnostic source commit·backend module fingerprint·dependency
+snapshot도 아직 공급되지 않았습니다. 따라서 실제 identity freeze는 `incomplete`, Gate EOS-DIAG-1·2는 `not_passed`입니다.
+
 ## 15. 현재 상태
 
 ```text
 candidate_b_eos_diagnostic_contract: design_completed
 eos_diag_r1_artifact_system: implemented_synthetic_verified
+eos_diag_r2_identity_freezer: implemented_synthetic_verified
+eos_diag_r2_generation_matrix: implemented_synthetic_verified
+actual_candidate_b_identity_freeze: incomplete
+gate_eos_diag_1: not_passed
+gate_eos_diag_2: not_passed
 candidate_b_eos_diagnostic_execution_allowed: false
 candidate_b_checkpoint_mutation_allowed: false
 candidate_c_primary_hypothesis: not_selected
@@ -276,5 +305,6 @@ full_diagnostic: not_started
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R2 explicit-input identity·lineage freezer, exact 11-profile/4-length matrix, Gate 1·2 evidence와 R1 management payload 연결을 synthetic-only로 구현; 실제 identity freeze·Gate는 미완료 유지 |
 | 2026-08-05 | EOS-DIAG-R1 18-artifact strict schema·canonical loader/validator·atomic no-replace writer·inventory·completion evidence 구현과 synthetic 10-test 검증 반영 |
 | 2026-08-05 | Candidate B Final read-only EOS 진단 identity·matrix·D1~D8·artifact·Gate·Approval·Request·상태 머신·blocker·구현 Task 설계 |
