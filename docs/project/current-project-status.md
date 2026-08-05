@@ -69,7 +69,7 @@ DohaLM의 책임이 아니며 별도 음악 생성 모델의 범위입니다.
 | Foundation Instruct Tiny v1 | Candidate B Final | 설계 완료, 학습·artifact 미생성 | 없음 |
 | Runtime General Instruct v0.1 | Qwen2.5-1.5B-Instruct | 학습·평가 완료; decoding hard blocker 통과 후보 없음 | 부적격, manifest 없음 |
 | Runtime General Instruct v0.2 | 같은 Qwen Base | 2 epoch·1,298 step·recovery 완료; eligible candidate 0건 | 부적격, deployment ready 아님 |
-| Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | `ready_for_recovery_design`; V03-R1 evidence schema·writer·finalizer synthetic 검증 완료, 실제 data evidence pending, fresh Tokenization 미승인 | 없음 |
+| Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | `ready_for_recovery_design`; V03-R1 evidence와 V03-R2 scanner·review·exclusion 계약 synthetic 검증 완료, 실제 data evidence pending, fresh Tokenization 미승인 | 없음 |
 
 저장소에는 외부 학습 artifact 자체가 없으므로 Runtime은 경로·fingerprint·승인 검증 없이는 Adapter를 자동 탐색하지 않습니다.
 v0.1/v0.2의 학습 완료 기록도 `Adapter Loader 완료`나 `deployment_ready=true`로 승격하지 않습니다. Loader는 Adapter 학습에
@@ -81,7 +81,14 @@ V03-R1 구현과 실제 evidence 상태는 다음처럼 분리합니다.
 v03_r1_evidence_schema: implemented_synthetic_validated
 v03_r1_atomic_writer: implemented_synthetic_validated
 v03_r1_bundle_finalizer: implemented_synthetic_validated
+v03_r2_scanner_contract: implemented_synthetic_validated
+v03_r2_review_contract: implemented_synthetic_validated
+v03_r2_exclusion_builder: implemented_synthetic_validated
 actual_v03_evidence_bundle: not_created
+actual_pii_scan: not_started
+actual_safety_scan: not_started
+actual_leakage_scan: not_started
+actual_review_evidence: not_created
 v03_data_evidence: pending
 execution_allowed: false
 ```
@@ -124,7 +131,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 ## 7. 다음 권장 작업
 
-1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R2 scanner/review 계약과 R3 identity·R4 Approval·R5 request validator 구현
+1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R3 identity·R4 Approval·R5 request validator 구현
 2. 별도 승인으로 실제 license evidence와 PII·Safety·Leakage evidence를 생성·확정한 뒤 V03-1 판정
 3. 별도 승인 뒤 새 identity 기반 canonical Tokenization·QLoRA preflight·평가를 순서대로 진행
 4. 적격 General Instruct Adapter가 생긴 뒤 manifest 고정과 실제 GPU READY 검증
@@ -135,6 +142,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R2 scanner·review·exclusion 및 R1 payload 변환 synthetic 검증 완료; actual scan `not_started`, review evidence `not_created`, execution 금지 유지 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, bundle finalizer synthetic 검증 완료; actual bundle `not_created`, data evidence `pending`, execution 금지 유지 |
 | 2026-08-05 | V03-1·V03-2 recovery contract 설계 완료, license evidence 부족·data evidence pending·fresh Tokenization 미승인 상태 반영 |
 | 2026-08-05 | v0.3 Dataset 생성·checksum 유효, canonical tokenized artifact 부재와 recovery-design 상태 반영 |

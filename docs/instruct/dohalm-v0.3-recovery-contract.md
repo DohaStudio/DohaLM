@@ -606,7 +606,7 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 | Task | 내용·예상 변경 파일 | 필수 테스트 | 실행 권한 | 현재 상태 | 후속 |
 |---|---|---|---|---|---|
 | `V03-R1` | Evidence envelope·strict loader·bundle schema·atomic writer·finalizer. `src/data/v03_evidence.py`, `src/data/v03_evidence_writer.py` | exact schema, canonical fingerprint, no-replace, strict reload, Gate contradiction, zero payload call | 실제 evidence 생성 전 승인 필요 | `implemented_synthetic_validated` | R2 |
-| `V03-R2` | PII·Safety·Leakage backend와 review/exclusion writer. 기존 inspector·duplicate 로직 최소 재사용 | synthetic detector/category, raw leak 0, deterministic rerun, unknown fail closed | 실제 v0.3 scan·review 전 승인 필요 | `designed_not_started` | V03-1 decision |
+| `V03-R2` | PII·Safety·Leakage backend와 review/exclusion writer. 기존 inspector·duplicate 로직 최소 재사용 | synthetic detector/category, raw leak 0, deterministic rerun, unknown fail closed | 실제 v0.3 scan·review 전 승인 필요 | `implemented_synthetic_validated` | V03-1 decision |
 | `V03-R3` | Run identity ledger·reservation·retirement. `src/training/v03_run_identity.py`와 test 후보 | concurrency single winner, all-surface collision, date/sequence, abandoned/retired, predecessor | 실제 ID 예약 전 승인 필요 | `designed_not_started` | R4 |
 | `V03-R4` | `TokenizationApproval v1`, issue/consume/expire/retire와 lifecycle lock | state matrix, drift retirement, one-shot, concurrent request/retire/consume, legacy reject | 실제 issue·consume 전 승인 필요 | `designed_not_started` | R5 |
 | `V03-R5` | `TokenizationExecutionRequest v1` writer·validator | exact match, nonce/TTL/replay, path/root, atomic no-replace, lifecycle race | 실제 request 생성 전 승인 필요 | `designed_not_started` | R6 |
@@ -666,7 +666,14 @@ license_decision: evidence_insufficient
 v03_r1_evidence_schema: implemented_synthetic_validated
 v03_r1_atomic_writer: implemented_synthetic_validated
 v03_r1_bundle_finalizer: implemented_synthetic_validated
+v03_r2_scanner_contract: implemented_synthetic_validated
+v03_r2_review_contract: implemented_synthetic_validated
+v03_r2_exclusion_builder: implemented_synthetic_validated
 actual_v03_evidence_bundle: not_created
+actual_pii_scan: not_started
+actual_safety_scan: not_started
+actual_leakage_scan: not_started
+actual_review_evidence: not_created
 v03_data_evidence: pending
 v03_fresh_tokenization: not_approved
 v03_training: not_started
@@ -681,5 +688,6 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R2 synthetic-only PII·Safety·Leakage scanner, opaque HMAC reference, review policy, exclusion builder, R1 payload 변환을 구현·검증; 실제 Dataset scan·review·evidence 생성은 수행하지 않음 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, 10-file bundle finalizer와 readiness Gate를 synthetic-only 검증으로 구현; 실제 evidence·승인·실행은 생성하지 않음 |
 | 2026-08-05 | V03-1 license·PII·Safety·Leakage evidence와 V03-2 새 identity·Approval·request·preflight·worker·publish 계약 설계 |
