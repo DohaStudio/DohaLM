@@ -52,6 +52,9 @@ tokenization: failed_publish_observability_loss_identity_review_required
 tokenization_failure_contract: implemented_synthetic_validated
 canonical_tokenized_artifact: absent
 original_run_identity_reusable: false
+recovery_contract: design_completed
+data_evidence: pending
+fresh_tokenization: not_approved
 sampler_simulation: blocked_until_verified_tokenization
 qlora_training: not_approved
 training_started: false
@@ -63,9 +66,12 @@ Publish 실패 보존과 Run identity 재사용 정책은
 [v0.3 Tokenization publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md)을 따른다.
 새 identity 기반 복구 Gate와 QLoRA 준비 조건은
 [v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)를 따른다.
+V03-1 Evidence Bundle과 새 Run ID·Approval·Runtime request·metadata-only preflight·publisher 상태 머신은
+[V03-1·V03-2 Recovery Contract](./dohalm-v0.3-recovery-contract.md)를 따른다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Recovery Contract 설계 완료, data evidence pending과 fresh Tokenization 미승인 상태 연결 |
 | 2026-08-05 | 실제 Dataset checksum 유효·canonical tokenized artifact 부재·기존 Run identity 비재사용 상태 반영 |

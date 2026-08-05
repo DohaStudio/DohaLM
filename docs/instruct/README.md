@@ -23,7 +23,7 @@
 | AIHUB-71748 SFT Processing | `completed_run_0015` | 조건부 선정 목적의 처리 이력; 재처리 포괄 승인 아님 |
 | Runtime v0.1 | `evaluated_not_eligible` | QLoRA Adapter 보존; decoding hard blocker 통과 후보 없음 |
 | Runtime v0.2 | `evaluated_not_eligible` | weighted 2-epoch 학습과 recovery 완료; eligible candidate 없음 |
-| Runtime v0.3 | `ready_for_recovery_design` | Dataset 생성·checksum 검증 완료; canonical tokenized artifact 없음, 새 identity·승인 기반 recovery 필요 |
+| Runtime v0.3 | `ready_for_recovery_design` | Recovery contract 설계 완료; V03-1 evidence pending, fresh Tokenization 미승인, canonical tokenized artifact 없음 |
 | Adapter Loader·Provider | `implemented_mock_validated` | [Runtime 설계](../service/dohalm-adapter-runtime.md) 구현; 적격 manifest가 없어 fail closed |
 | Tool Calling | `planned` | 전략 문서만 있고 실행 Runtime 없음 |
 
@@ -66,7 +66,8 @@ Run 0001~0014는 현재 계획이 아닌 감사·실패 계보입니다.
 9. [v0.3 Tokenization Readiness](./dohalm-v0.3-tokenization-readiness.md)
 10. [v0.3 Publish Failure](./dohalm-v0.3-tokenization-publish-failure.md)
 11. [v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)
-12. [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)
+12. [v0.3 V03-1·V03-2 Recovery Contract](./dohalm-v0.3-recovery-contract.md)
+13. [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)
 
 ## 4. 실행 경계
 
@@ -81,6 +82,7 @@ Run 0001~0014는 현재 계획이 아닌 감사·실패 계보입니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 V03-1·V03-2 Recovery Contract를 읽기 순서와 현재 상태에 연결 |
 | 2026-08-05 | v0.3 Dataset 생성·checksum 검증, tokenized artifact 부재와 `ready_for_recovery_design` Gate 연결 |
 | 2026-08-05 | v0.1~v0.3 후보 조사 결과 `no_eligible_candidate`와 GPU smoke 미실행 상태 연결 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계와 구현 계획 연결 |

@@ -7,7 +7,7 @@
 - v0.3 학습 상태: `not_started`
 - v0.3 학습 준비: `false`
 - 실행 권한: `false`
-- 관련 문서: [v0.3 Tokenization Readiness](./dohalm-v0.3-tokenization-readiness.md), [publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md), [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)
+- 관련 문서: [V03-1·V03-2 Recovery Contract](./dohalm-v0.3-recovery-contract.md), [v0.3 Tokenization Readiness](./dohalm-v0.3-tokenization-readiness.md), [publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md), [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)
 
 ## 1. 범위와 판정 원칙
 
@@ -277,6 +277,11 @@ Task에서 동결한다. 기존 기준을 완화하지 않는다.
 | V03-9 Candidate selection | V03-8 결과 | eligible set에서 명시적 선택 | selection record | eligible 1개 이상; 아니면 `no_eligible_candidate` | 사용자 | V03-10 |
 | V03-10 Runtime manifest eligibility | selected Adapter·Base·metadata | manifest/validator/Loader GPU smoke | immutable manifest·runtime evidence | Task 1~4 strict 검증·Chat/SSE/unload 통과 | 사용자 | Runtime READY 검토 |
 
+[확정] V03-1·V03-2의 schema·evidence·identity·Approval·request·preflight·worker·publish 실행 전 계약은
+[Recovery Contract](./dohalm-v0.3-recovery-contract.md)에 작성됐다. 계약 설계 완료는 V03-1 evidence 통과 또는
+V03-2 실행 승인이 아니다. 라이선스는 `evidence_insufficient`, data evidence는 `pending`, fresh Tokenization은
+`not_approved`다.
+
 ## 13. 실행 Task
 
 | Task | 목적 | 예상 변경 파일 | 기존·필요 테스트 |
@@ -303,6 +308,9 @@ v0.3_data_eligibility: data_ready_with_conditions
 v0.3_tokenization_publish: failed_or_pending_recovery
 v0.3_tokenized_artifact: absent
 v0.3_recovery_design: completed
+v0.3_recovery_contract: design_completed
+v0.3_data_evidence: pending
+v0.3_fresh_tokenization: not_approved
 v0.3_training: not_started
 v0.3_training_ready: false
 v0.3_adapter: absent
@@ -311,13 +319,15 @@ final_readiness: ready_for_recovery_design
 execution_allowed: false
 ```
 
-- 지금 가능한 작업: V03-1 evidence closure와 V03-2의 **실행 없는** recovery/Approval 계약 설계.
+- 지금 가능한 작업: Recovery Contract의 `V03-R1`, `V03-R3`, `V03-R4`, `V03-R5` schema·순수 validator 구현.
 - 아직 금지된 작업: 기존 ID 재사용, Tokenization·publish 재실행, GPU smoke, QLoRA, 평가, Adapter manifest 생성.
-- 사용자 승인 시점: 새 Tokenization identity 발급·실행, GPU smoke, small overfit, full training, 평가와 Runtime 승격 각각.
-- 예상 최소 경로: `V03-1 → 조건부 경로 B → V03-2~4 → 별도 승인 V03-5~10`.
+- 사용자 승인 시점: 실제 PII·Safety·Leakage scan/review, V03-1 판정, 새 identity 예약, Approval·request·preflight,
+  fresh Tokenization 실행, GPU smoke, small overfit, full training, 평가와 Runtime 승격 각각.
+- 예상 최소 경로: `V03-R1~R9 구현·synthetic 검증 → V03-1 evidence 승인·실행·판정 → 새 identity·Approval·request·preflight → 별도 승인 fresh Tokenization → V03-3~10`.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-1·V03-2 Recovery Contract 설계 완료와 license evidence 부족·data evidence pending·fresh Tokenization 미승인 경계 연결 |
 | 2026-08-05 | 실제 Dataset·checksum과 비어 있는 tokenization destination을 재검증하고 `ready_for_recovery_design`, 조건부 경로 B, V03-1~10 Gate 계획 작성 |

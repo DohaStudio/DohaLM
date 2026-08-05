@@ -81,6 +81,7 @@
 | [instruct/dohalm-v0.3-tokenization-readiness.md](./instruct/dohalm-v0.3-tokenization-readiness.md) | Short-Answer v0.3 Tokenization·sampling·QLoRA readiness | 생성·검증된 v0.3 Dataset | publish failure·학습 재개 readiness | `review` | v0.3 실행 전 필수 | 2026-08-05 | canonical tokenized artifact 없음; training 미승인 |
 | [instruct/dohalm-v0.3-tokenization-publish-failure.md](./instruct/dohalm-v0.3-tokenization-publish-failure.md) | Tokenization publish-stage failure 보존·identity 비재사용 계약 | v0.3 Tokenization readiness | 새 Run recovery 설계·승인 | `review` | 재시도 전 필수 | 2026-08-05 | 내부 원인 unknown, final·staging·failed 없음 |
 | [instruct/dohalm-v0.3-training-readiness.md](./instruct/dohalm-v0.3-training-readiness.md) | v0.3 Dataset·publish 실패·코드·설정·평가 blocker와 V03-1~10 재개 Gate | v0.3 Dataset·Tokenization failure·v0.1/v0.2 평가 | 새 identity recovery 설계와 별도 실행 승인 | `review` | v0.3 복구·학습 전 필수 | 2026-08-05 | `ready_for_recovery_design`; license·PII/safety·tokenization·backend 차단 |
+| [instruct/dohalm-v0.3-recovery-contract.md](./instruct/dohalm-v0.3-recovery-contract.md) | V03-1 license·PII·Safety·Leakage evidence와 V03-2 identity·Approval·request·preflight·publish 실행 전 계약 | v0.3 Training Readiness, ADR-004·010, 기존 Processing 거버넌스 | V03-R1~R9 구현·synthetic 검증과 별도 evidence 승인 | `review` | V03-1·V03-2 구현·실행 전 필수 | 2026-08-05 | design completed; license evidence insufficient, data evidence pending, fresh Tokenization not approved |
 | [instruct/instruction-evaluation.md](./instruct/instruction-evaluation.md) | Instruction·format·structured output·safety·EOS 평가 framework | ADR-005·008·010 | 평가 dataset·numeric 계약 | `review` | Instruct 평가 전 필수 | 2026-07-28 | threshold proposed |
 | [instruct/tool-calling-strategy.md](./instruct/tool-calling-strategy.md) | Tool schema·selection·argument·permission·failure recovery 경계 | ADR-010, Agent boundary | registry·validator·sandbox | `review` | tool 학습·실행 전 필수 | 2026-07-28 | 실행 not_approved |
 | [instruct/instruction-safety.md](./instruct/instruction-safety.md) | PII·injection·tool abuse·role·refusal·hallucination threat model | ADR-004·010 | safety dataset·red-team | `review` | Instruct 학습 전 필수 | 2026-07-28 | rubric·severe threshold 미승인 |
@@ -293,6 +294,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 V03-1·V03-2 Recovery Contract와 evidence pending·fresh Tokenization 미승인 상태 등록 |
 | 2026-08-05 | v0.3 Dataset·publish failure·설정·평가를 재구성하고 `ready_for_recovery_design`과 V03-1~10 Gate 문서 등록 |
 | 2026-08-05 | General Instruct Adapter 후보 inventory와 `no_eligible_candidate` 판정 문서 등록 |
 | 2026-08-05 | Adapter Provider startup preflight·lazy load·API 상태·shutdown의 mock 통합과 실제 artifact/GPU 미검증 상태 동기화 |

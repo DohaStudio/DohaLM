@@ -53,6 +53,9 @@ Qwen Base revision
 v0.3는 [학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)에서 Dataset 생성·checksum 유효를 확인했지만,
 canonical tokenized artifact와 executable QLoRA config가 없습니다. 상태 `ready_for_recovery_design`은 새 identity 기반
 Tokenization 복구 계약을 설계할 수 있다는 뜻이며 republish·training 승인이나 Runtime 후보 적격성을 뜻하지 않습니다.
+[V03-1·V03-2 Recovery Contract](./dohalm-v0.3-recovery-contract.md)는 evidence bundle, 새 Run ID, 단일 사용
+Approval·Runtime request, metadata-only preflight와 hardened publish 계약까지 설계했습니다. 라이선스 evidence와
+PII·Safety·Leakage 결과는 아직 `pending`이고 fresh Tokenization은 `not_approved`입니다.
 
 ### 완료 조건
 
@@ -85,6 +88,7 @@ QLoRA 학습 완료만으로 위 조건을 충족하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.3 V03-1·V03-2 실행 전 계약 설계 완료와 evidence·실행 미승인 경계 연결 |
 | 2026-08-05 | v0.3 Dataset·tokenization 실제 evidence와 `ready_for_recovery_design` 경계를 연결 |
 | 2026-08-05 | Provider mock 통합과 v0.1~v0.3 `no_eligible_candidate` 판정, GPU smoke 미실행 상태 반영 |
 | 2026-08-04 | fail-closed Adapter Runtime 설계 문서와 구현 미착수 상태 연결 |

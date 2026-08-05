@@ -111,9 +111,13 @@ execution_allowed: false
 
 후속 코드 변경의 충분성, 재개 경로와 새 identity Gate는
 [v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md)를 따른다.
+새 identity·Approval·Runtime request·worker lifecycle과 publish eligibility marker 계약은
+[V03-1·V03-2 Recovery Contract](./dohalm-v0.3-recovery-contract.md)를 따른다. 이 후속 설계는 기존 내부 실패 원인을
+해결했다고 소급 판정하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | 새 canonical execution의 Recovery Contract를 연결하고 기존 내부 원인 `unknown` 보존 |
 | 2026-08-05 | Dataset checksum은 유효하지만 tokenization final·staging·failed가 모두 없음을 재검증하고 원인을 environment/unknown/incomplete evidence로 분리 |
