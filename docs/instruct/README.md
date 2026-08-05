@@ -1,7 +1,7 @@
 # DohaLM Instruct 문서 안내
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
 - 기준 문서: [README](../../README.md)
 - 전략: [Instruct Strategy](./instruct-strategy.md)
 
@@ -10,7 +10,7 @@
 이 디렉터리는 서로 다른 두 계보의 기록을 보존합니다.
 
 - **Foundation Instruct**: ADR-010에 따른 Candidate B 기반 `DohaLM Instruct Tiny v1` 설계. 학습과 artifact는 미생성입니다.
-- **Runtime General Instruct Adapter**: Qwen Base 기반 QLoRA 데이터·학습·평가 이력. 코드와 외부 실행 기록은 있지만 현재 Runtime에는 연결되지 않았습니다.
+- **Runtime General Instruct Adapter**: Qwen Base 기반 QLoRA 데이터·학습·평가 이력과 Loader-backed Provider가 있지만 적격 후보가 없어 Runtime은 unavailable입니다.
 
 두 계보의 parent, 이름, 완료 상태와 실행 권한을 합치지 않습니다.
 
@@ -21,10 +21,10 @@
 | Foundation Instruct 설계 | `design_complete` | schema·prompt·evaluation·safety·readiness 설계 |
 | Foundation Instruct 실행 | `not_approved` | Candidate B 파생 model artifact 없음 |
 | AIHUB-71748 SFT Processing | `completed_run_0015` | 조건부 선정 목적의 처리 이력; 재처리 포괄 승인 아님 |
-| Runtime v0.1 | `implemented_not_integrated` | Qwen tokenization, QLoRA Adapter와 독립 평가 이력 |
-| Runtime v0.2 | `implemented_not_integrated` | weighted 2-epoch 학습 완료 기록; 평가 recovery·배포 판정 분리 |
+| Runtime v0.1 | `evaluated_not_eligible` | QLoRA Adapter 보존; decoding hard blocker 통과 후보 없음 |
+| Runtime v0.2 | `evaluated_not_eligible` | weighted 2-epoch 학습과 recovery 완료; eligible candidate 없음 |
 | Runtime v0.3 | `blocked` | Dataset full 생성 전, Tokenization publish 실패 보존; 재시도 미승인 |
-| Adapter Loader | `design_complete` | [Runtime 설계](../service/dohalm-adapter-runtime.md) 완료; 서비스 Provider는 fail-closed placeholder |
+| Adapter Loader·Provider | `implemented_mock_validated` | [Runtime 설계](../service/dohalm-adapter-runtime.md) 구현; 적격 manifest가 없어 fail closed |
 | Tool Calling | `planned` | 전략 문서만 있고 실행 Runtime 없음 |
 
 ## 3. 권장 읽기 순서
@@ -65,6 +65,7 @@ Run 0001~0014는 현재 계획이 아닌 감사·실패 계보입니다.
 8. [v0.2 Evaluation Recovery](./dohalm-v0.2-evaluation-recovery.md)
 9. [v0.3 Tokenization Readiness](./dohalm-v0.3-tokenization-readiness.md)
 10. [v0.3 Publish Failure](./dohalm-v0.3-tokenization-publish-failure.md)
+11. [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)
 
 ## 4. 실행 경계
 
@@ -79,6 +80,7 @@ Run 0001~0014는 현재 계획이 아닌 감사·실패 계보입니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.1~v0.3 후보 조사 결과 `no_eligible_candidate`와 GPU smoke 미실행 상태 연결 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계와 구현 계획 연결 |
 | 2026-08-04 | Foundation Instruct와 Qwen Runtime Adapter 계보 분리, 상세 Run 중복을 인덱스 링크로 축약 |
 | 2026-07-30 | AIHUB-71748 Processing 및 QLoRA 문서 진입점 확장 |

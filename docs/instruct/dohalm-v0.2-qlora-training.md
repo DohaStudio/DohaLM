@@ -5,7 +5,7 @@
 
 ## 상태
 
-`training_completed_postprocessing_failed_recovery_pending`
+`training_completed_postprocessing_recovered_no_eligible_candidate`
 
 이 문서는 v0.2 tokenized dataset과 Sidecar sampling weight를 사용하는 단일 RTX 3060 Ti/WSL2 QLoRA 실행 계약을 정의한다. 구현과 synthetic 검증은 완료 대상으로 삼지만, 실제 smoke와 2-epoch 학습 완료 여부는 runtime artifact로만 판정한다.
 
@@ -76,9 +76,19 @@ synthetic_tests: required
 runtime_smokes: completed
 full_training: completed_2_epochs_1298_steps
 postprocessing: failed_checkpoint_schedule_validation
-evaluation_recovery: pending
-runtime_integration: not_started
+evaluation_recovery: completed_no_eligible_candidate
+runtime_integration: blocked_no_eligible_candidate
 automatic_retry: false
 automatic_resume: false
 source_modified: false
 ```
+
+[확정] Recovery 결과는 [Evaluation-Only Recovery](./dohalm-v0.2-evaluation-recovery.md)와
+[Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)를 따른다. 학습 완료와 recovery 완료는
+Runtime eligibility가 아니며 `selected_candidate=null`, `deployment_ready=false`를 유지한다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-05 | evaluation-only recovery 완료와 eligible candidate 0건 상태 동기화 |

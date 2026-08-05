@@ -38,9 +38,9 @@ Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-g
 | 구성 | 상태 | 근거와 경계 |
 |---|---|---|
 | Qwen Base loader | `implemented_verified` | 고정 revision·local-only·lazy load, BF16 CUDA smoke |
-| General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 코드와 기록 존재; 현재 API가 Adapter를 load하지 않음 |
+| General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 완료 이력은 있으나 canonical 평가 적격 후보 없음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock, Base Qwen, fail-closed Adapter provider |
-| Adapter Loader | `implementation_in_progress` | [Manifest·Validator·PEFT Loader·Provider lifecycle](../service/dohalm-adapter-runtime.md)은 mock 검증 완료; 실제 승인 Adapter/GPU READY는 미검증이며 미설정 시 `ADAPTER_NOT_AVAILABLE` |
+| Adapter Loader | `implementation_in_progress` | Manifest·Validator·PEFT Loader·Provider lifecycle은 mock 검증 완료; [후보 선정](../instruct/general-instruct-adapter-candidate-selection.md)은 `no_eligible_candidate`, GPU 미실행 |
 | Chat API | `implemented_verified` | health/readiness/models, 일반 Chat, 오류·timeout 계약 |
 | Streaming | `implemented_verified` | SSE, cancellation, semaphore, worker join |
 | Prompt Engine | `design_complete` | Base Qwen 공식 chat template 적용만 구현; 독립 engine은 없음 |
@@ -67,8 +67,8 @@ DohaLM의 책임이 아니며 별도 음악 생성 모델의 범위입니다.
 | 계보 | Parent | 현재 상태 | Runtime 연결 |
 |---|---|---|---|
 | Foundation Instruct Tiny v1 | Candidate B Final | 설계 완료, 학습·artifact 미생성 | 없음 |
-| Runtime General Instruct v0.1 | Qwen2.5-1.5B-Instruct | 학습 완료 Adapter와 독립 평가 이력이 문서화됨 | 미연결 |
-| Runtime General Instruct v0.2 | 같은 Qwen Base | 2 epoch·1,298 step 완료 기록; terminal 평가 recovery 계약 존재 | 미연결, deployment ready 아님 |
+| Runtime General Instruct v0.1 | Qwen2.5-1.5B-Instruct | 학습·평가 완료; decoding hard blocker 통과 후보 없음 | 부적격, manifest 없음 |
+| Runtime General Instruct v0.2 | 같은 Qwen Base | 2 epoch·1,298 step·recovery 완료; eligible candidate 0건 | 부적격, deployment ready 아님 |
 | Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | Dataset full 생성 전; Tokenization publish 실패 보존, 재시도 미승인 | 없음 |
 
 저장소에는 외부 학습 artifact 자체가 없으므로 Runtime은 경로·fingerprint·승인 검증 없이는 Adapter를 자동 탐색하지 않습니다.
@@ -119,6 +119,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.1~v0.3 후보 조사에서 `no_eligible_candidate` 판정, manifest·GPU·Provider smoke 미실행 상태 반영 |
 | 2026-08-05 | Adapter Provider startup preflight·lazy load·Chat/SSE·shutdown mock 통합과 실제 artifact/GPU 미검증 상태 반영 |
 | 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 Adapter/GPU·Provider 연결 미검증 상태 반영 |
 | 2026-08-05 | Adapter Manifest·strict loader·정적 Artifact Validator synthetic 검증 완료와 PEFT Loader·Runtime 연결 미착수 상태 반영 |

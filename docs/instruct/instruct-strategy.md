@@ -1,7 +1,7 @@
 # DohaLM Instruct Strategy
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
 - 기준 문서: [README](../../README.md)
 - 관련 결정: [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
 
@@ -15,8 +15,8 @@ DohaLM에는 목적과 parent가 다른 두 Instruct 계보가 있습니다.
 | Parent | Candidate B Final | 고정 `Qwen/Qwen2.5-1.5B-Instruct` revision |
 | 형태 | 별도 DohaLM derivative 후보 | QLoRA PEFT Adapter |
 | 결정 근거 | ADR-010 | v0.1~v0.3 QLoRA·평가 실행 문서 |
-| 현재 상태 | `design_complete`, artifact 없음 | backend·실행 이력 존재, Runtime 미연결 |
-| Runtime 사용 | 없음 | Adapter Loader 구현·선정 전까지 없음 |
+| 현재 상태 | `design_complete`, artifact 없음 | Provider mock 통합 완료, 적격 Adapter 후보 없음 |
+| Runtime 사용 | 없음 | `no_eligible_candidate`; 승인 manifest가 없어 unavailable |
 
 Qwen Adapter를 `DohaLM Instruct Tiny v1`로 부르지 않고, Candidate B 기반 설계가 있다는 이유로 Qwen Runtime Adapter가
 완료됐다고 보지 않습니다.
@@ -46,9 +46,9 @@ Qwen Base revision
   → Chat API / Streaming
 ```
 
-현재 학습·평가 backend와 v0.1/v0.2 실행 이력은 있지만, 저장소 Runtime에는 배포 승인 Adapter가 없습니다.
-[Adapter Runtime 설계](../service/dohalm-adapter-runtime.md)는 완료됐지만
-`src/inference/providers/dohalm_adapter.py`는 아직 placeholder이며 generate/stream 요청을 `ADAPTER_NOT_AVAILABLE`로 차단합니다.
+현재 학습·평가 backend와 v0.1/v0.2 실행 이력은 있지만, [후보 선정 결과](./general-instruct-adapter-candidate-selection.md)는
+두 계보 모두 canonical 평가 hard blocker를 통과한 후보가 없음을 확인했습니다. Loader-backed Provider는 구현됐지만
+승인 manifest가 없으므로 generate/stream 요청을 `ADAPTER_NOT_AVAILABLE`로 차단합니다.
 
 ### 완료 조건
 
@@ -81,6 +81,7 @@ QLoRA 학습 완료만으로 위 조건을 충족하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Provider mock 통합과 v0.1~v0.3 `no_eligible_candidate` 판정, GPU smoke 미실행 상태 반영 |
 | 2026-08-04 | fail-closed Adapter Runtime 설계 문서와 구현 미착수 상태 연결 |
 | 2026-08-04 | Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime General Instruct Adapter를 분리 |
 | 2026-07-28 | Candidate B immutable parent 기반 Instruct 설계 작성 |

@@ -1,7 +1,7 @@
 # DohaLM v0.1 QLoRA 학습 실행 계약
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
 - Backend 상태: `implemented_verified`
 - Training 상태: `completed_external_artifact_not_runtime_integrated`
 
@@ -134,8 +134,9 @@ full_training: completed
 windows_run_0001: failed_terminal
 wsl_run_0002: completed
 adapter: created_external_not_runtime_integrated
-adapter_loader: not_implemented
+adapter_loader: implemented_mock_validated
 deployment_ready: false
+runtime_candidate: not_eligible
 base_model_merge: false
 ```
 
@@ -143,6 +144,7 @@ base_model_merge: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Loader 구현 상태와 decoding hard blocker 기반 Runtime 후보 부적격 판정 동기화 |
 | 2026-08-04 | 후속 독립 평가 문서에 기록된 완료 Adapter와 Runtime 미연결 상태 동기화 |
 | 2026-07-30 | QLoRA smoke·full training·adapter reload·inference 계약과 backend 추가 |
 | 2026-07-31 | WSL2 전용 Run identity·128-batch stability·300초 micro-batch heartbeat 계약 추가 |

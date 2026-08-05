@@ -50,18 +50,17 @@ FastAPI lifespan
 [확정] 공통 `ProviderStatus`는 기존 값을 유지한다. Adapter의 세부 내부 상태는 `runtime_metadata.runtime_status`와
 안전한 reason code로 구분하며 공통 enum에 `incompatible` 값을 추가하지 않는다.
 
-[확정] `requirements-inference.txt`와 `pyproject.toml`의 inference extra에는 현재 `peft`가 없다. 실제 학습
-artifact의 exact `peft_version` 근거가 저장소에 없으므로 Task 3은 optional import와 구조화된 dependency missing 오류를
-구현하고 dependency 파일 변경을 보류했다. Loader는 Manifest의 PEFT·Transformers·Torch 버전을 local suffix까지 exact match한다.
+[확정] 보존 학습 환경은 PEFT 0.18.1, Transformers 4.57.6, Torch 2.7.1+cu118와 Accelerate 1.12.0을 기록한다.
+Safetensors는 당시 environment에 없어 현재 보존 venv의 0.8.0을 학습 시점 version으로 고정할 수 없다.
+[후보 선정 결과](../instruct/general-instruct-adapter-candidate-selection.md)가 `no_eligible_candidate`이므로 dependency 파일을
+변경하지 않는다. Loader는 manifest의 runtime tuple을 exact match한다.
 
 ### 2.2 Instruct artifact와 계보
 
 - v0.1 training backend는 `final-adapter/`에 `adapter_model.safetensors`, `adapter_config.json`,
   `training-config.yaml`, `environment.json`, `tokenizer-reference.json`, `training-result.yaml`과 checksum을 기록한다.
-- v0.1 Tokenizer fingerprint는 문서화돼 있으나, 실제 배포 후보의 Adapter·평가 fingerprint와 파일 checksum은
-  외부 artifact에서 다시 검증해야 한다.
-- v0.2는 2 epoch·1,298 step 학습 완료 기록이 있으나 post-processing failure와 evaluation-only recovery가
-  `pending`이다. 현재 `deployment_ready=false`이며 자동 후보가 아니다.
+- v0.1 보존 artifact와 평가 checksum은 재검증됐지만 decoding hard blocker를 통과한 후보가 없다.
+- v0.2는 2 epoch·1,298 step 학습과 evaluation-only recovery가 완료됐지만 eligible candidate가 없다.
 - v0.3은 Tokenization publish 실패 상태이고 QLoRA 실행이 승인되지 않았다.
 - Qwen Runtime Adapter는 Candidate B 기반 Foundation Instruct와 별도 계보다.
 
@@ -201,6 +200,7 @@ provider_integration: implemented_mock_validated
 runtime_adapter_loading: unavailable_without_approved_artifact
 gpu_adapter_smoke: not_started
 browser_adapter_e2e: not_started
+candidate_selection: no_eligible_candidate
 ```
 
 [확정] `src/inference/adapter_manifest.py`는 frozen dataclass, duplicate-key 차단, 1 MiB manifest 상한,
@@ -411,9 +411,11 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 - no manifest는 `ADAPTER_NOT_AVAILABLE`, mismatch는 `ADAPTER_INCOMPATIBLE`, load failure는 `ADAPTER_LOAD_FAILED`
 - 실제 승인 Adapter load·GPU READY·Browser E2E는 `not_verified`
 
-### Task 5 — API Test
+### Task 5 — Candidate Selection·API Test
 
-- `/ready`, `/models`, `/chat`, `/chat/stream`의 unavailable/incompatible/lazy/ready 회귀
+- 상태: `blocked_no_eligible_candidate`
+- v0.1~v0.3 artifact·평가를 조사했지만 canonical hard blocker를 통과한 후보가 없어 manifest·GPU load를 금지
+- `/ready`, `/models`, `/chat`, `/chat/stream`의 unavailable 계약은 기존 mock 회귀로 유지
 - schema 하위 호환, safe error, path·hash·traceback 비노출, SSE terminal event 1개 검증
 - 완료 조건: 기존 mock/base-qwen test와 신규 Adapter CPU integration test 모두 통과
 
@@ -484,8 +486,8 @@ Base Provider와의 대규모 공통화는 회귀 위험 때문에 수행하지 
 
 | 위험 | 영향 | 대응 |
 |---|---|---|
-| 아직 배포 후보 Adapter가 없음 | valid manifest를 완성할 수 없음 | synthetic fixture로 Loader를 구현하고 실제 GPU/E2E는 후보 승인 뒤 실행 |
-| v0.2 evaluation recovery pending | 잘못된 후보 승격 | `deployment_ready=false`와 evaluation fingerprint/eligibility 불일치 시 차단 |
+| 평가 적격 Adapter가 없음 | valid manifest를 완성할 수 없음 | v0.1·v0.2 `selected_candidate=null`을 유지하고 GPU/E2E 차단 |
+| v0.2 recovery 결과 eligible candidate 0건 | 잘못된 후보 승격 | `deployment_ready=false`와 `NEEDS_MODEL_IMPROVEMENT` 유지 |
 | 학습·runtime dependency drift | load 성공 후 동작 차이 | exact version tuple, safetensors와 synthetic/generation post-load smoke |
 | Tokenizer 또는 Template drift | prompt/label 경계 불일치 | file inventory와 template 문자열을 별도 hash로 검증 |
 | partial load 후 READY 노출 | 잘못된 요청 처리·VRAM 누수 | 지역 객체 조립 후 atomic publish, 실패 cleanup, 자동 retry 금지 |
@@ -500,10 +502,10 @@ Base Provider와의 대규모 공통화는 회귀 위험 때문에 수행하지 
 2. Task 1 manifest와 Task 2 static validator의 synthetic 검증 결과를 유지한다.
 3. Task 3 Loader의 mock 검증 결과를 유지하고 실제 후보·dependency가 승인되기 전에는 실제 load를 실행하지 않는다.
 4. Task 4 Provider의 mock lifecycle·API 회귀를 유지한다.
-5. 승인 artifact가 정해지면 Task 5 실제 Adapter API 검증 후 Task 6의 최소 Frontend 상태 표시를 추가한다.
+5. 별도 승인 계보에서 hard blocker를 통과한 artifact가 생기면 Task 5 manifest·GPU·API 검증을 다시 시작한다.
 6. 마지막에만 사용자가 승인한 실제 Adapter로 Task 7 GPU·Browser E2E를 실행한다.
 
-[확정] 다음 구현 작업은 승인 후보를 전제로 한 **Task 5 — API Test**다. Task 1·2의 strict schema·static validator,
+[확정] Task 5 후보 gate는 `no_eligible_candidate`로 닫혔다. Task 1·2의 strict schema·static validator,
 Task 3 mock Loader와 Task 4 Provider 통합은 구현됐지만,
 실제 Adapter READY와 `implemented_verified` 판정은 immutable 후보·평가 eligibility와
 GPU/E2E 근거가 모두 있어야 한다.
@@ -512,6 +514,7 @@ GPU/E2E 근거가 모두 있어야 한다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | v0.1~v0.3 후보 inventory·checksum·평가를 대조하고 적격 후보 없음에 따라 manifest·GPU smoke 차단 |
 | 2026-08-05 | Task 4 Provider startup preflight·single-flight lazy load·Chat/SSE·shutdown과 API 상태 연결 mock 검증 반영 |
 | 2026-08-05 | Task 3 local-only PEFT Adapter Loader, Base·Tokenizer·Template·dependency·post-load 검증과 mock cleanup·unload 회귀 반영 |
 | 2026-08-05 | Task 2 정적 Adapter Artifact Validator, safetensors header parser, lineage·generation 검증과 synthetic 회귀 반영 |

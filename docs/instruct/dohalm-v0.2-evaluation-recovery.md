@@ -1,11 +1,11 @@
 # DohaLM v0.2 Terminal Checkpoint 및 Evaluation-Only Recovery 계약
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-08-02
+- 최종 검토일: 2026-08-05
 - Training Run: `DOHALM-V0.2-QLORA-20260801-0001`
 - Recovery ID: `DOHALM-V0.2-EVALUATION-RECOVERY-20260802-0001`
 - Training execution source: `a4d3ab5e5adf1e4d41789c297bdb28f6ece9810f`
-- Recovery 실행 상태: `pending`
+- Recovery 실행 상태: `completed_no_eligible_candidate`
 
 ## 범위
 
@@ -120,3 +120,26 @@ checkpoint_deletion: false
 dataset_changes: 0
 tokenization_changes: 0
 ```
+
+## 실행 결과
+
+[확정] Git 외부 canonical recovery artifact를 읽기 전용으로 재검증한 결과 training 2 epoch·1,298 step은 완료됐고,
+원래 `CHECKPOINT_SCHEDULE_INVALID` failure는 보존된 채 evaluation-only recovery가 완료됐다. 기존
+`checksums.sha256`의 7개 항목은 모두 일치했다.
+
+```yaml
+recovery_status: completed
+postprocessing_status: recovered
+eligible_candidates: []
+selected_candidate: null
+deployment_ready: false
+verdict: NEEDS_MODEL_IMPROVEMENT
+```
+
+이 결과는 [Adapter 후보 선정 결과](./general-instruct-adapter-candidate-selection.md)의 v0.2 제외 근거다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-05 | 보존된 canonical recovery checksum과 후보 판정을 재검증하고 `completed_no_eligible_candidate` 반영 |
