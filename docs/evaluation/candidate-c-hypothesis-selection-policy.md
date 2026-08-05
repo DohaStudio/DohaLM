@@ -5,6 +5,8 @@
 - 정책 설계: `design_completed`
 - 주가설: `not_selected`
 - 선택 승인: `not_approved`
+- EOS-DIAG-R4 D1~D8 backend: `implemented_synthetic_verified`
+- 실제 Candidate B 진단: `not_run`
 - 선행 계약: [Candidate B Final Read-only EOS 진단](./candidate-b-eos-diagnostic-contract.md)
 - 가설 정의: [Candidate C EOS 가설](../training/candidate-c-eos-hypotheses.md)
 
@@ -66,10 +68,16 @@ H3·H4는 같은 boundary artifact를 사용하지만 frequency와 objective 효
 자동 assessor는 후보 상태만 만들 수 있습니다. 사용자 승인 전 `candidate_c_primary_hypothesis`는 `not_selected`, 허용 다음 행동은
 `review_evidence_only`, 금지 행동은 Candidate C config freeze·GPU·training입니다.
 
+EOS-DIAG-R4의 synthetic `diagnostic-summary.json`에 있는 `hypothesis_selection_allowed`는 D1~D8의 complete/limited coverage만
+검사하는 backend 신호입니다. H1~H7 supporting·contradictory mapping, confidence와 단일 가설 선택은 수행하지 않으며 R5 assessor와
+사용자 승인 전에는 이 정책의 `selected` 상태로 변환할 수 없습니다. Synthetic result는 실제 Candidate B evidence가 아닙니다.
+
 ## 5. 현재 상태
 
 ```text
 candidate_b_eos_diagnostic_execution_allowed: false
+eos_diag_r4_diagnostic_backend: implemented_synthetic_verified
+actual_candidate_b_diagnostics: not_run
 candidate_c_primary_hypothesis: not_selected
 candidate_c_readiness: blocked
 gate_c1: review
@@ -80,4 +88,5 @@ gate_c4: blocked
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | R4 synthetic D1~D8 completeness 신호와 R5 실제 hypothesis assessment·사용자 선택 책임을 분리; 주가설 미선택 유지 |
 | 2026-08-05 | H1~H7 지지·반증·불충분 조건, 단일 주가설 상태와 decision artifact 계약 설계 |

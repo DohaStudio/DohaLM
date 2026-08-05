@@ -12,6 +12,7 @@ from src.evaluation.eos_diagnostic_artifacts import (
     EXACT_ARTIFACT_FILENAMES,
     EOSDiagnosticArtifactError,
     canonical_diagnostic_json_bytes,
+    diagnostic_fingerprint,
     load_diagnostic_artifact,
     new_artifact_inventory,
     new_completion_evidence,
@@ -398,4 +399,137 @@ def test_completion_rejects_inventory_drift_extra_files_and_fake_execution(
     ):
         new_completion_evidence(
             clean, created_at=STAMP, completion_scope="diagnostic_execution"
+        )
+
+
+def _r4_analysis_payload(artifact_type: str) -> dict[str, object]:
+    records = (
+        [
+            {
+                "opaque_prompt_id": "synthetic-prompt-01",
+                "step_index": 0,
+                "artifact_role": artifact_type,
+            }
+        ]
+        if artifact_type == "eos_rank_trajectory"
+        else []
+    )
+    return {
+        "analysis_status": "complete",
+        "record_schema_version": 4,
+        "records": records,
+        "summary": {"evidence_status": "complete"},
+        "limitations": [],
+    }
+
+
+def _r4_summary() -> dict[str, object]:
+    semantic: dict[str, object] = {
+        "diagnostic_run_id": RUN_ID,
+        "run_mode": "synthetic_only",
+        "completed_diagnostics": [f"D{index}" for index in range(1, 9)],
+        "limited_diagnostics": [],
+        "insufficient_diagnostics": [],
+        "incompatible_diagnostics": [],
+        "pure_greedy_summary": {},
+        "repetition_summary": {},
+        "eos_summary": {},
+        "evidence_coverage": {"complete_or_limited": 8, "required": 8},
+        "unresolved_questions": [],
+        "hypothesis_selection_allowed": True,
+        "actual_candidate_b_status_changed": False,
+    }
+    semantic["summary_fingerprint"] = diagnostic_fingerprint(semantic)
+    return semantic
+
+
+def test_r4_jsonl_and_synthetic_diagnostic_completion_rehearsal(
+    synthetic_workspace: Path,
+) -> None:
+    analysis_types = {
+        "eos_rank_trajectory",
+        "eos_probability_summary",
+        "teacher_autoregressive_gap",
+        "loop_analysis",
+        "boundary_analysis",
+        "prompt_category_position_analysis",
+        "length_matrix",
+        "decoding_ablation",
+        "budget_proxy_analysis",
+    }
+    for artifact_type in ARTIFACT_FILENAMES:
+        if artifact_type in {"artifact_inventory", "completion_evidence"}:
+            continue
+        record_count, payload = _payload(artifact_type)
+        if artifact_type == "diagnostic_run_manifest":
+            payload["execution_mode"] = "synthetic_diagnostic_rehearsal"
+        elif artifact_type in analysis_types:
+            payload = _r4_analysis_payload(artifact_type)
+            record_count = len(payload["records"])
+        elif artifact_type == "output_manifest":
+            payload["status"] = "validating"
+            payload["diagnostic_summary"] = _r4_summary()
+        artifact = new_diagnostic_artifact(
+            artifact_type=artifact_type,
+            record_count=record_count,
+            payload=payload,
+            **_common(),
+        )
+        write_diagnostic_artifact(
+            destination=synthetic_workspace / ARTIFACT_FILENAMES[artifact_type],
+            artifact=artifact,
+        )
+
+    trajectory_path = synthetic_workspace / ARTIFACT_FILENAMES["eos_rank_trajectory"]
+    assert len(trajectory_path.read_text(encoding="utf-8").splitlines()) == 2
+    assert load_diagnostic_artifact(trajectory_path).record_count == 1
+
+    inventory = new_artifact_inventory(synthetic_workspace, created_at=STAMP)
+    write_diagnostic_artifact(
+        destination=synthetic_workspace / ARTIFACT_FILENAMES["artifact_inventory"],
+        artifact=inventory,
+    )
+    completion = new_completion_evidence(
+        synthetic_workspace,
+        created_at=STAMP,
+        completion_scope="synthetic_diagnostic_rehearsal",
+    )
+    write_diagnostic_artifact(
+        destination=synthetic_workspace / ARTIFACT_FILENAMES["completion_evidence"],
+        artifact=completion,
+    )
+    result = validate_completed_bundle(synthetic_workspace)
+    assert result.completion_scope == "synthetic_diagnostic_rehearsal"
+    assert result.artifact_count == 18
+
+
+def test_r4_jsonl_rejects_partial_line(synthetic_workspace: Path) -> None:
+    payload = _r4_analysis_payload("eos_rank_trajectory")
+    artifact = new_diagnostic_artifact(
+        artifact_type="eos_rank_trajectory",
+        record_count=1,
+        payload=payload,
+        **_common(),
+    )
+    path = synthetic_workspace / ARTIFACT_FILENAMES["eos_rank_trajectory"]
+    path.write_bytes(serialize_diagnostic_artifact(artifact).removesuffix(b"\n"))
+    with pytest.raises(EOSDiagnosticArtifactError, match="^EOS_DIAG_JSONL_INVALID$"):
+        load_diagnostic_artifact(path)
+
+
+def test_r4_payload_cannot_authorize_production_diagnostic_completion() -> None:
+    with pytest.raises(
+        EOSDiagnosticArtifactError,
+        match="^EOS_DIAGNOSTIC_PRODUCTION_PAYLOAD_NOT_AUTHORIZED$",
+    ):
+        new_diagnostic_artifact(
+            artifact_type="eos_rank_trajectory",
+            diagnostic_run_id="DOHALM-CANDIDATE-B-EOS-DIAGNOSTIC-20990101-0004",
+            record_count=1,
+            payload=_r4_analysis_payload("eos_rank_trajectory"),
+            **{
+                key: value
+                for key, value in _common().items()
+                if key != "diagnostic_run_id"
+            },
         )

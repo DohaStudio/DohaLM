@@ -1,8 +1,8 @@
 """Strict, synthetic-safe artifact system for Candidate B EOS diagnostics.
 
-This module implements EOS-DIAG-R1 only.  It never imports torch, opens a
-checkpoint or tokenizer, or performs generation.  Analytical artifacts remain
-schema-only until the D1-D8 backend is implemented by EOS-DIAG-R4.
+This module implements the R1 envelope/writer and the R4 synthetic payload
+extension.  It never imports torch, opens a checkpoint or tokenizer, or
+performs generation.
 """
 
 from __future__ import annotations
@@ -72,6 +72,17 @@ _ANALYSIS_TYPES = frozenset(
         "decoding_ablation",
         "budget_proxy_analysis",
         "hypothesis_assessment",
+    }
+)
+_R4_ANALYSIS_TYPES = _ANALYSIS_TYPES - {"hypothesis_assessment"}
+_EVIDENCE_STATUSES = frozenset(
+    {
+        "complete",
+        "complete_with_limitations",
+        "insufficient_evidence",
+        "incompatible_input",
+        "blocked",
+        "schema_only",
     }
 )
 
@@ -350,6 +361,7 @@ def _validate_payload(
         _string(payload["purpose"])
         if payload["execution_mode"] not in {
             "synthetic_schema_rehearsal",
+            "synthetic_diagnostic_rehearsal",
             "diagnostic_execution",
         }:
             _raise()
@@ -630,8 +642,8 @@ def _validate_payload(
                 "limitations",
             ),
         )
-        if payload["analysis_status"] != "schema_only":
-            _raise("EOS_DIAGNOSTIC_ANALYSIS_SCHEMA_NOT_IMPLEMENTED")
+        if payload["analysis_status"] not in _EVIDENCE_STATUSES:
+            _raise("EOS_DIAG_ARTIFACT_PAYLOAD_INVALID")
         _integer(payload["record_schema_version"], positive=True)
         if type(payload["records"]) is not list or type(payload["summary"]) is not dict:
             _raise()
@@ -640,19 +652,25 @@ def _validate_payload(
         _validate_json_tree(payload["summary"])
         if record_count != len(payload["records"]):
             _raise()
-        if payload["records"] or payload["summary"]:
+        if payload["analysis_status"] == "schema_only" and (
+            payload["records"] or payload["summary"]
+        ):
             _raise()
     elif artifact_type == "output_manifest":
-        payload = _strict_object(
-            value,
-            (
+        fields = frozenset(
+            {
                 "status",
                 "output_root_logical_id",
                 "writer_name",
                 "writer_version",
                 "exact_artifact_set",
                 "optional_artifact_set",
-            ),
+            }
+        )
+        payload = _strict_subset(
+            value,
+            allowed=fields | {"diagnostic_summary"},
+            required=fields,
         )
         if payload["status"] not in {"writing", "validating", "completed", "failed"}:
             _raise()
@@ -661,6 +679,46 @@ def _validate_payload(
         _string(payload["writer_version"], identifier=True)
         _string_list(payload["exact_artifact_set"], exact=EXACT_ARTIFACT_FILENAMES)
         _string_list(payload["optional_artifact_set"])
+        if "diagnostic_summary" in payload:
+            summary = _strict_object(
+                payload["diagnostic_summary"],
+                (
+                    "diagnostic_run_id",
+                    "run_mode",
+                    "completed_diagnostics",
+                    "limited_diagnostics",
+                    "insufficient_diagnostics",
+                    "incompatible_diagnostics",
+                    "pure_greedy_summary",
+                    "repetition_summary",
+                    "eos_summary",
+                    "evidence_coverage",
+                    "unresolved_questions",
+                    "hypothesis_selection_allowed",
+                    "actual_candidate_b_status_changed",
+                    "summary_fingerprint",
+                ),
+            )
+            if summary["run_mode"] != "synthetic_only":
+                _raise("EOS_DIAG_ARTIFACT_PAYLOAD_INVALID")
+            if (
+                summary["actual_candidate_b_status_changed"] is not False
+                or type(summary["hypothesis_selection_allowed"]) is not bool
+            ):
+                _raise("EOS_DIAG_ARTIFACT_PAYLOAD_INVALID")
+            for field in (
+                "completed_diagnostics",
+                "limited_diagnostics",
+                "insufficient_diagnostics",
+                "incompatible_diagnostics",
+                "unresolved_questions",
+            ):
+                _string_list(summary[field])
+            _validate_json_tree(summary)
+            semantic_summary = dict(summary)
+            supplied = _fingerprint(semantic_summary.pop("summary_fingerprint"))
+            if diagnostic_fingerprint(semantic_summary) != supplied:
+                _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
         if record_count != len(EXACT_ARTIFACT_FILENAMES):
             _raise()
     elif artifact_type == "artifact_inventory":
@@ -717,6 +775,7 @@ def _validate_payload(
             _raise()
         if payload["completion_scope"] not in {
             "synthetic_schema_rehearsal",
+            "synthetic_diagnostic_rehearsal",
             "diagnostic_execution",
         }:
             _raise()
@@ -770,6 +829,30 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
         and payload["preflight"]["diagnostic_run_id"] != run_id
     ):
         _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
+    if (
+        artifact_type == "output_manifest"
+        and "diagnostic_summary" in payload
+        and payload["diagnostic_summary"]["diagnostic_run_id"] != run_id
+    ):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
+    if (
+        artifact_type in _R4_ANALYSIS_TYPES
+        and payload["analysis_status"] != "schema_only"
+        and not run_id.startswith("SYNTHETIC-")
+    ):
+        _raise("EOS_DIAGNOSTIC_PRODUCTION_PAYLOAD_NOT_AUTHORIZED")
+    if (
+        artifact_type == "output_manifest"
+        and "diagnostic_summary" in payload
+        and not run_id.startswith("SYNTHETIC-")
+    ):
+        _raise("EOS_DIAGNOSTIC_PRODUCTION_PAYLOAD_NOT_AUTHORIZED")
+    if (
+        artifact_type == "diagnostic_run_manifest"
+        and payload["execution_mode"] == "synthetic_diagnostic_rehearsal"
+        and not run_id.startswith("SYNTHETIC-")
+    ):
+        _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     artifact_fingerprint = _fingerprint(root["artifact_fingerprint"])
     checksum = _fingerprint(root["checksum"])
     if artifact_fingerprint != _artifact_fingerprint(
@@ -831,6 +914,14 @@ def serialize_diagnostic_artifact(artifact: DiagnosticArtifact) -> bytes:
     if not isinstance(artifact, DiagnosticArtifact):
         _raise()
     validated = _validate_artifact_value(artifact.as_dict())
+    if validated.artifact_type == "eos_rank_trajectory":
+        header = validated.as_dict()
+        records = header["payload"]["records"]
+        header["payload"]["records"] = []
+        return b"".join(
+            [canonical_diagnostic_json_bytes(header)]
+            + [canonical_diagnostic_json_bytes(record) for record in records]
+        )
     return canonical_diagnostic_json_bytes(validated.as_dict())
 
 
@@ -860,11 +951,39 @@ def load_diagnostic_artifact(
         if size <= 0 or size > MAX_ARTIFACT_BYTES:
             _raise("EOS_DIAGNOSTIC_ARTIFACT_SIZE_INVALID")
         raw = path.read_bytes()
-        value = json.loads(
-            raw.decode("utf-8", errors="strict"),
-            object_pairs_hook=_reject_duplicate_keys,
-            parse_constant=_reject_constant,
-        )
+        decoded = raw.decode("utf-8", errors="strict")
+        if path.name == ARTIFACT_FILENAMES["eos_rank_trajectory"]:
+            if not raw.endswith(b"\n"):
+                _raise("EOS_DIAG_JSONL_INVALID")
+            lines = decoded.splitlines()
+            if not lines:
+                _raise("EOS_DIAG_JSONL_INVALID")
+            values = [
+                json.loads(
+                    line,
+                    object_pairs_hook=_reject_duplicate_keys,
+                    parse_constant=_reject_constant,
+                )
+                for line in lines
+            ]
+            value = values[0]
+            if type(value) is not dict or type(value.get("payload")) is not dict:
+                _raise("EOS_DIAG_JSONL_INVALID")
+            if value.get("artifact_type") != "eos_rank_trajectory":
+                _raise("EOS_DIAG_JSONL_INVALID")
+            if value["payload"].get("records") != []:
+                _raise("EOS_DIAG_JSONL_INVALID")
+            if value.get("record_count") != len(values) - 1:
+                _raise("EOS_DIAG_JSONL_INVALID")
+            if any(type(record) is not dict for record in values[1:]):
+                _raise("EOS_DIAG_JSONL_INVALID")
+            value["payload"]["records"] = values[1:]
+        else:
+            value = json.loads(
+                decoded,
+                object_pairs_hook=_reject_duplicate_keys,
+                parse_constant=_reject_constant,
+            )
     except EOSDiagnosticArtifactError:
         raise
     except (
@@ -1124,6 +1243,24 @@ def new_completion_evidence(
             for item in _ANALYSIS_TYPES
         ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+    elif completion_scope == "synthetic_diagnostic_rehearsal":
+        if (
+            not common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "synthetic_diagnostic_rehearsal"
+            or artifacts["hypothesis_assessment"].payload["analysis_status"]
+            != "schema_only"
+            or any(
+                artifacts[item].payload["analysis_status"] in {"schema_only", "blocked"}
+                for item in _R4_ANALYSIS_TYPES
+            )
+            or "diagnostic_summary" not in artifacts["output_manifest"].payload
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+        if artifacts["output_manifest"].payload["status"] not in {
+            "validating",
+            "completed",
+        }:
+            _raise("EOS_DIAGNOSTIC_OUTPUT_MANIFEST_INCOMPLETE")
     else:
         _raise()
     return new_diagnostic_artifact(
@@ -1186,6 +1323,19 @@ def validate_completed_bundle(directory: Path) -> DiagnosticBundleResult:
         if any(
             artifacts[item].payload["analysis_status"] != "schema_only"
             for item in _ANALYSIS_TYPES
+        ):
+            _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
+    elif scope == "synthetic_diagnostic_rehearsal":
+        if (
+            not common["diagnostic_run_id"].startswith("SYNTHETIC-")
+            or manifest_mode != "synthetic_diagnostic_rehearsal"
+            or artifacts["hypothesis_assessment"].payload["analysis_status"]
+            != "schema_only"
+            or any(
+                artifacts[item].payload["analysis_status"] in {"schema_only", "blocked"}
+                for item in _R4_ANALYSIS_TYPES
+            )
+            or "diagnostic_summary" not in artifacts["output_manifest"].payload
         ):
             _raise("EOS_DIAGNOSTIC_SYNTHETIC_SCOPE_INVALID")
     else:

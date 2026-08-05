@@ -5,6 +5,8 @@
 - 계약 설계: `completed`
 - 가설 승인: `not_approved`
 - 진단 실행: `not_started`
+- EOS-DIAG-R4 synthetic backend: `implemented_synthetic_verified`
+- 실제 Candidate B D1~D8: `not_run`
 - Candidate B 진단 계약: `design_completed`
 - Candidate B 진단 실행 허용: `false`
 - 주가설: `not_selected`
@@ -64,6 +66,10 @@ checkpoint load·GPU 진단·주가설 승인을 뜻하지 않습니다.
 여기서 “통과”는 진단 산출물의 무결성·재현성·분리 보고가 충족됐다는 뜻입니다. 특정 가설이 참이거나 Candidate C가
 성공했다는 의미가 아닙니다. 가설 채택은 진단 결과를 검토한 별도 사용자 승인으로 결정합니다.
 
+[확정] R4가 구현한 synthetic D1~D8 계산과 R1 payload rehearsal은 위 진단의 schema·집계 가능성만 검증합니다. Synthetic
+logit·probability·token ID는 Candidate B 관측값이 아니며 H1~H7의 지지·반증 근거로 사용할 수 없습니다. 실제 Candidate B
+diagnostic completion과 R5 hypothesis assessor 전까지 root cause와 주가설은 모두 미확정입니다.
+
 ## 4. 중단과 불변 조건
 
 - checkpoint·model·Tokenizer·Dataset artifact가 평가 전후 달라지면 진단은 `invalid`입니다.
@@ -75,5 +81,6 @@ checkpoint load·GPU 진단·주가설 승인을 뜻하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | R4 synthetic D1~D8 backend 구현과 실제 Candidate B 진단·H1~H7 evidence 미실행 경계 반영 |
 | 2026-08-05 | Candidate B read-only 진단 실행 계약과 H1~H7 단일 주가설 선택 정책 연결; 실행 false·주가설 미선택 유지 |
 | 2026-08-05 | H1~H7 반증 가능 가설과 Candidate B read-only EOS 진단 입력·산출물·판정·Candidate C 영향 계약 작성 |

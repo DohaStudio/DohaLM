@@ -10,6 +10,9 @@
 - EOS-DIAG-R2 Identity Freezer: `implemented_synthetic_verified`
 - EOS-DIAG-R2 Generation Matrix: `implemented_synthetic_verified`
 - EOS-DIAG-R3 Static Preflight: `implemented_synthetic_verified`
+- EOS-DIAG-R4 Synthetic Diagnostic Backend: `implemented_synthetic_verified`
+- EOS-DIAG D1~D8: `implemented_synthetic_verified`
+- 실제 Candidate B D1~D8: `not_run`
 - 실제 Candidate B Static Preflight: `not_run`
 - 실제 Candidate B identity freeze: `incomplete`
 - EOS-DIAG-1 / EOS-DIAG-2: `not_passed` / `not_passed`
@@ -226,8 +229,8 @@ planned -> identity_frozen -> config_frozen -> preflight_passed
 | EOS-DIAG-BLOCK-002 tokenizer identity freeze | high | `reviewing` | ID·bundle/model/vocab checksum·fingerprint·special ID 확인 | 실행 source와 exact bundle 결속 검증 | 필요 | 1 |
 | EOS-DIAG-BLOCK-003 prompt set freeze | critical | `blocked` | fingerprint·15 category·PII flag 확인 | ID/version, token-length 분포, normalization·leakage evidence 동결 | 필요 | 1 |
 | EOS-DIAG-BLOCK-004 generation config freeze | critical | `blocked` | 기존 11 profile·4 길이 존재 | canonical schema/fingerprint와 device/dtype 결정 | 필요 | 2 |
-| EOS-DIAG-BLOCK-005 output schema·writer | critical | `completed_r1_synthetic` | 18 exact schema, strict loader/validator, canonical UTF-8, inventory, completion, atomic no-replace와 reload를 synthetic 검증 | R4 실측 record schema 연결 후 actual preflight 재검증 | 필요 | 3 |
-| EOS-DIAG-BLOCK-006 diagnostic backend readiness | critical | `blocked` | 기존 trajectory·aggregate 일부 존재 | D1~D8, 특히 paired D2·boundary D4와 assessor 합성 검증 | 필요 | 3 |
+| EOS-DIAG-BLOCK-005 output schema·writer | critical | `completed_r4_synthetic` | 18 exact schema, strict loader/validator, record-oriented JSONL, inventory, completion, atomic no-replace와 reload를 synthetic 검증 | actual preflight 뒤 실제 payload로 재검증 | 필요 | 3 |
+| EOS-DIAG-BLOCK-006 diagnostic backend readiness | critical | `completed_r4_synthetic` | strict synthetic trace·observation과 D1~D8 계산·집계·insufficient/incompatible 판정 검증 | R5 assessor와 actual execution은 별도 | 필요 | 3 |
 | EOS-DIAG-BLOCK-007 GPU resource preflight | high | `not_started` | 과거 RTX 3060 Ti 실행 이력만 존재 | 현재 exact environment·disk·VRAM preflight | 필요 | 4 |
 | EOS-DIAG-BLOCK-008 single-use Approval | critical | `not_started` | 전용 artifact 없음 | schema 검증 후 별도 사용자 발급 | 사용자 | 5 |
 | EOS-DIAG-BLOCK-009 Runtime Request | critical | `not_started` | 전용 request 없음 | Approval-bound one-shot request 발급·검증 | 사용자 | 5 |
@@ -239,25 +242,27 @@ planned -> identity_frozen -> config_frozen -> preflight_passed
 
 | Task | 예상 변경 파일 | 검증 | GPU | checkpoint | 승인 | 완료 조건 |
 |---|---|---|---|---|---|---|
-| EOS-DIAG-R1 schema·strict validator | [artifact system](../../src/evaluation/eos_diagnostic_artifacts.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_artifacts.py) | unknown/duplicate/non-finite/schema/Git SHA/timestamp/checksum/fingerprint/exact set, canonical/no-replace/reload | 불필요 | 없음 | 불필요 | `implemented_synthetic_verified`; 10 tests passed |
+| EOS-DIAG-R1 schema·strict validator | [artifact system](../../src/evaluation/eos_diagnostic_artifacts.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_artifacts.py) | unknown/duplicate/non-finite/schema/Git SHA/timestamp/checksum/fingerprint/exact set, canonical/no-replace/reload | 불필요 | 없음 | 불필요 | `implemented_synthetic_verified`; R1/R4 연결 회귀 통과 |
 | EOS-DIAG-R2 matrix·identity freezer | [identity freezer](../../src/evaluation/eos_diagnostic_identity.py), [matrix freezer](../../src/evaluation/eos_generation_matrix.py), [identity tests](../../tests/evaluation/test_eos_diagnostic_identity.py), [matrix tests](../../tests/evaluation/test_eos_generation_matrix.py) | explicit-input canonicalization, immutable ID/version·fingerprint, lineage, exact profile/count, R1 payload 연결 | 불필요 | synthetic metadata fixture만 | 실제 freeze 승인 없음 | `implemented_synthetic_verified`; 실제 Gate 1·2 미통과 |
 | EOS-DIAG-R3 metadata-only static preflight | [preflight](../../src/evaluation/eos_diagnostic_preflight.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_preflight.py) | strict request, clean Git, allowlist source hash, dependency snapshot, stat-only input, 신규 destination·disk·path·lock·process, Gate 1·2 mapping, R1 plan 연결 | 불필요 | payload read 없음 | 불필요 | `implemented_synthetic_verified`; actual preflight `not_run` |
-| EOS-DIAG-R4 D1~D8 backend | `src/evaluation/eos_diagnostic_backend.py`, metric unit tests | synthetic logits·prefix·boundary·loop fixtures | 단위 검증 불필요 | 없음 | 불필요 | D1~D8와 insufficient evidence 상태 |
+| EOS-DIAG-R4 D1~D8 backend | [synthetic backend](../../src/evaluation/eos_diagnostic_backend.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_backend.py) | synthetic logits·prefix·boundary·loop·A/B aggregate와 R1 JSONL/completion fixture | 불필요 | 없음 | 불필요 | `implemented_synthetic_verified`; 실제 Candidate B 진단 미실행 |
 | EOS-DIAG-R5 aggregate·hypothesis assessor | `src/evaluation/eos_hypothesis_assessor.py`, assessor tests | support/contradiction/insufficient·no forced selection | 불필요 | 없음 | 정책 검토 | decision artifact strict 생성 |
 | EOS-DIAG-R6 Approval·Request·Run ledger | `src/evaluation/eos_diagnostic_control.py`, CLI, lifecycle tests | TTL·nonce·anti-replay·consume·atomic no-replace·race | 불필요 | 없음 | schema 승인 | one-shot control plane 합성 검증 |
 | EOS-DIAG-R7 synthetic E2E rehearsal | synthetic fixture/config와 E2E tests | exact set, failure injection, zero secret/path/text, no mutation | 불필요 | 합성 fixture | rehearsal 승인 | completion evidence 포함 dry rehearsal |
 | EOS-DIAG-R8 GPU smoke | 외부 immutable smoke evidence만 | 1개 최소 prompt, 짧은 길이, load/unload, VRAM, 전후 checksum | 필요 | 실제 read-only | single-use 실행 승인 | smoke 통과 또는 terminal 실패 |
 | EOS-DIAG-R9 Full diagnostic | 외부 immutable 18-artifact bundle, 결과 문서 | D1~D8·exact set·checksum·completion validation | 필요 | 실제 read-only | 같은 bounded Run 승인 | completed 또는 terminal 실패; 상태 자동 승격 없음 |
 
-R1~R3은 아래 범위로 구현·합성 검증됐습니다. R4~R7은 별도 요청이며 R8/R9는 실제 Run ID, Approval과 Request가 생긴
+R1~R4는 아래 범위로 구현·합성 검증됐습니다. R5~R7은 별도 요청이며 R8/R9는 실제 Run ID, Approval과 Request가 생긴
 뒤에만 가능합니다.
 
 ### 14.1 EOS-DIAG-R1 구현 경계
 
 [확정] R1은 18개 filename exact set, 공통 envelope, 8개 관리 artifact payload, D1~D8 계열 schema-only envelope,
 canonical UTF-8 JSON, duplicate-key·NaN/Inf·unknown-field 차단, semantic fingerprint·artifact checksum, atomic hard-link
-no-replace writer, reload 검증, content inventory와 completion evidence를 구현했습니다. `.jsonl` trajectory는 R1에서 단일
-canonical envelope record만 허용하며 실제 step record schema는 R4에서 확장합니다.
+no-replace writer, reload 검증, content inventory와 completion evidence를 구현했습니다. R4는
+`eos-rank-trajectory.jsonl`을 첫 줄 strict envelope header, 이후 한 줄당 canonical step record로 확장했습니다. loader는
+header의 빈 record 목록을 뒤따르는 record로 복원한 뒤 전체 artifact fingerprint·checksum·record count를 재검증하고 partial line을
+차단합니다.
 
 [확정] `synthetic_schema_rehearsal` completion은 18개 artifact가 정확히 존재하고 inventory·identity·checksum이 일치할 때만
 가능합니다. `diagnostic_execution` completion은 D1~D8 artifact가 `schema_only`인 동안 fail-closed되므로 이번 구현으로 실제
@@ -311,6 +316,25 @@ environment path, payload와 traceback은 오류에 포함하지 않습니다.
 [검증 필요] 실제 Candidate B local path, formal identity evidence와 clean immutable 실행 commit을 입력하지 않았으므로 actual
 Static Preflight는 `not_run`입니다. Synthetic R3 구현 완료가 실제 Gate 1·2 또는 EOS-DIAG-3 통과를 뜻하지 않습니다.
 
+### 14.4 EOS-DIAG-R4 구현 경계
+
+[확정] R4는 schema version 4의 immutable synthetic generation trace, step, teacher-forced, boundary, prompt metadata,
+loop config와 Candidate A/B aggregate evidence를 strict 검증합니다. unknown field, bool-as-int, non-finite 수치, probability/rank,
+step 연속성, selected-token/competitor 중복, fingerprint와 금지된 원문·token 문자열·전체 sequence·절대경로 field를 fail closed
+처리합니다. 입력은 fake opaque ID·token ID·logit·probability만 사용합니다.
+
+[확정] D1 trajectory/probability, D2 exact position pairing gap, D3 explicit-config loop onset, D4 boundary/packed 비교,
+D5 length/category/position, D6 16/32/64/128 및 prefix-derived 종료 규칙, D7 pure-greedy와 diagnostic-only 분리, D8 동일
+identity A/B budget proxy를 계산합니다. 각 결과는 `complete`, `complete_with_limitations`, `insufficient_evidence`,
+`incompatible_input` 등을 명시하고 canonical result fingerprint를 가집니다. D8 두 점은 인과 결론을 허용하지 않습니다.
+
+[확정] `synthetic_diagnostic_rehearsal`은 R4 9개 분석 artifact와 diagnostic summary를 strict R1 envelope에 연결하고 18개 exact
+set inventory/completion을 검증합니다. `hypothesis-assessment.json`은 R5 책임이므로 계속 `schema_only`입니다. R4 summary의
+`hypothesis_selection_allowed`는 D1~D8 evidence completeness만 뜻하며 H1~H7 선택이나 Candidate C 승인이 아닙니다.
+
+[제외] 실제 checkpoint·Tokenizer·prompt payload load, torch·CUDA·GPU, forward·generation·EOS 계산, Approval·Runtime Request와
+actual publish를 수행하지 않았습니다. 따라서 actual Candidate B 진단과 EOS root cause는 여전히 미실행·미확정입니다.
+
 ## 15. 현재 상태
 
 ```text
@@ -319,7 +343,10 @@ eos_diag_r1_artifact_system: implemented_synthetic_verified
 eos_diag_r2_identity_freezer: implemented_synthetic_verified
 eos_diag_r2_generation_matrix: implemented_synthetic_verified
 eos_diag_r3_static_preflight: implemented_synthetic_verified
+eos_diag_r4_diagnostic_backend: implemented_synthetic_verified
+eos_diag_d1_d8: implemented_synthetic_verified
 actual_candidate_b_static_preflight: not_run
+actual_candidate_b_diagnostics: not_run
 actual_candidate_b_identity_freeze: incomplete
 gate_eos_diag_1: not_passed
 gate_eos_diag_2: not_passed
@@ -337,6 +364,7 @@ full_diagnostic: not_started
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R4 strict synthetic trace·observation, D1~D8 집계, evidence status, R1 record-oriented JSONL·18-artifact completion rehearsal 구현; actual 진단·GPU·주가설 선택 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R3 metadata-only Static Preflight, explicit backend/dependency identity, Git·input/output·disk/path/lock/process 검증과 Gate 1·2/R1 plan synthetic 연결; actual preflight 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R2 explicit-input identity·lineage freezer, exact 11-profile/4-length matrix, Gate 1·2 evidence와 R1 management payload 연결을 synthetic-only로 구현; 실제 identity freeze·Gate는 미완료 유지 |
 | 2026-08-05 | EOS-DIAG-R1 18-artifact strict schema·canonical loader/validator·atomic no-replace writer·inventory·completion evidence 구현과 synthetic 10-test 검증 반영 |
