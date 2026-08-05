@@ -64,6 +64,9 @@ class BaseQwenProvider:
     async def health(self) -> ProviderHealth:
         return ProviderHealth(self.provider_name, self.model_id, self._status)
 
+    async def startup(self) -> None:
+        return None
+
     async def _load_and_publish(self) -> None:
         started = time.perf_counter()
         try:

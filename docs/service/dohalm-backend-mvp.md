@@ -1,14 +1,14 @@
 # DohaLM FastAPI 백엔드 MVP
 
 - 문서 상태: `review`
-- 최종 검토일: 2026-08-04
+- 최종 검토일: 2026-08-05
 - 서비스 버전: `0.1.0`
 - 활성 기본 Provider: `mock`
 
 ## 범위와 구조
 
 이 MVP는 Runtime/Application 1차 목표의 HTTP·SSE 계약과 Provider 교체 경계를 검증한다. 기본 `mock` 경로와
-명시적 local-only Base Qwen GPU 경로는 구현·검증됐다. DohaLM Adapter, Dataset과 학습·평가 실행은 사용하지 않는다.
+명시적 local-only Base Qwen GPU 경로는 구현·검증됐다. Adapter Provider 통합은 mock 검증됐지만 실제 승인 Adapter/GPU는 사용하지 않는다.
 
 ```text
 FastAPI application
@@ -17,7 +17,7 @@ FastAPI application
 └── provider registry
     ├── MockProvider             ready
     ├── BaseQwenProvider         local-only lazy load
-    └── DohaLMAdapterProvider    not_available placeholder
+    └── DohaLMAdapterProvider    preflight + local-only lazy load
 ```
 
 Provider는 application lifespan에서 한 번 생성되고 shutdown 때 `close()`된다. 알 수 없는 Provider는
@@ -49,6 +49,7 @@ OpenAPI UI는 `http://127.0.0.1:8000/docs`, schema는 `/openapi.json`에서 확�
 | `DOHALM_LOG_LEVEL` | `INFO` |
 | `DOHALM_MODEL_CACHE_ROOT` | 설정 없음 |
 | `DOHALM_ADAPTER_ROOT` | 설정 없음 |
+| `DOHALM_ADAPTER_MANIFEST_PATH` | 설정 없음 |
 
 로컬 경로는 `.env`에서만 지정하며 API 응답이나 로그에 노출하지 않는다.
 
@@ -91,8 +92,9 @@ curl -N -X POST http://127.0.0.1:8000/api/v1/chat/stream \
 `DOHALM_INFERENCE_PROVIDER`는 `mock`, `base-qwen`, `dohalm-adapter`만 허용한다.
 `base-qwen`은 고정 local snapshot을 첫 요청에서 한 번만 lazy load한다. Load 전 readiness는 503이며 load 후 일반 Chat과
 SSE를 제공한다. 설정·실측·취소·메모리 정책은 [Base Qwen 로컬 Provider](./dohalm-base-qwen-provider.md)를 따른다.
-`dohalm-adapter`는 배포 승인 Adapter를 자동 탐색하지 않고 `ADAPTER_NOT_AVAILABLE`을 반환한다. 후속 manifest·validator·
-lifecycle과 구현 Task는 [General Instruct Adapter Runtime 설계](./dohalm-adapter-runtime.md)를 따른다.
+`dohalm-adapter`는 명시된 manifest·Adapter root·Base snapshot을 startup에서 preflight하고 첫 요청에서 한 번만 lazy load한다.
+설정이나 승인 artifact가 없으면 `ADAPTER_NOT_AVAILABLE`이며 자동 탐색·Base fallback은 하지 않는다. 세부 lifecycle은
+[General Instruct Adapter Runtime 설계](./dohalm-adapter-runtime.md)를 따른다.
 
 ## 보안 제한
 
@@ -109,7 +111,7 @@ lifecycle과 구현 Task는 [General Instruct Adapter Runtime 설계](./dohalm-a
 backend_mvp: implemented
 mock_provider: ready
 base_qwen_provider: implemented_local_only_lazy
-dohalm_adapter_provider: placeholder_not_available
+dohalm_adapter_provider: implemented_mock_validated_actual_artifact_not_verified
 model_weight_loaded: true_in_explicit_smoke_only
 gpu_inference_started: true_in_explicit_smoke_only
 training_started: false

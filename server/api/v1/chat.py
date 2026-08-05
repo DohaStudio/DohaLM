@@ -124,7 +124,7 @@ async def stream_chat(
         try:
             timeout_seconds = (
                 settings.generation_timeout_seconds
-                if service.provider.provider_name == "base-qwen"
+                if service.provider.provider_name in {"base-qwen", "dohalm-adapter"}
                 else settings.request_timeout_seconds
             )
             async with asyncio.timeout(timeout_seconds):

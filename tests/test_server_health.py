@@ -46,6 +46,15 @@ def test_readiness_is_503_for_unloaded_provider() -> None:
     assert response.json()["error"]["code"] == "PROVIDER_NOT_READY"
 
 
+def test_adapter_readiness_is_fail_closed_without_explicit_artifact() -> None:
+    with TestClient(
+        create_app(settings(inference_provider="dohalm-adapter"))
+    ) as client:
+        response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "ADAPTER_NOT_AVAILABLE"
+
+
 def test_unknown_provider_fails_during_startup() -> None:
     app = create_app(settings(inference_provider="unknown"))
     try:
@@ -124,3 +133,11 @@ def test_base_qwen_settings_defaults_and_environment(monkeypatch) -> None:
     configured = APISettings(_env_file=None)
     assert configured.base_model_quantization == "bf16"
     assert configured.generation_timeout_seconds == 30
+
+
+def test_adapter_manifest_setting_is_explicit(monkeypatch) -> None:
+    assert APISettings(_env_file=None).adapter_manifest_path is None
+    monkeypatch.setenv("DOHALM_ADAPTER_MANIFEST_PATH", "C:/adapter/manifest.json")
+    configured = APISettings(_env_file=None)
+    assert configured.adapter_manifest_path is not None
+    assert configured.adapter_manifest_path.as_posix() == "C:/adapter/manifest.json"

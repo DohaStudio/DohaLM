@@ -8,6 +8,7 @@ from src.inference.base import (
     InferenceMessage,
     InferenceProvider,
     ProviderHealth,
+    ProviderRuntimeMetadata,
     ProviderStatus,
     ProviderUnavailableError,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "InferenceMessage",
     "InferenceProvider",
     "ProviderHealth",
+    "ProviderRuntimeMetadata",
     "ProviderRegistry",
     "ProviderStatus",
     "ProviderUnavailableError",

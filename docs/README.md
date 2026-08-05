@@ -1,7 +1,7 @@
 # DohaLM 문서 안내서
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
 - 기준 문서: [저장소 README](../README.md)
 - 전체 목록: [문서 인덱스](./index.md)
 
@@ -55,7 +55,7 @@ README
 
 - Foundation Model Track의 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다.
 - ADR-010은 Candidate B 기반 Foundation Instruct 설계 승인이지 Qwen Adapter 실행 승인이 아닙니다.
-- Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐습니다. Adapter Loader는 설계 완료 상태지만 구현은 placeholder입니다.
+- Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐습니다. Adapter manifest·Validator·PEFT Loader·Provider 통합은 mock 검증됐고 실제 승인 Adapter/GPU는 미검증입니다.
 - Memory, RAG, Tool Calling, Agent와 DohaMusic은 계획 상태입니다.
 - Docker, Kubernetes, Cloud와 운영 배포는 현재 범위 밖입니다.
 - 실제 데이터, checkpoint, Adapter와 로컬 경로는 Git과 문서에 포함하지 않습니다.

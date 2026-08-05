@@ -19,6 +19,7 @@ from server.core.request_id import REQUEST_ID_HEADER, request_id
 from server.services.inference import InferenceService
 from src.inference import ProviderRegistry, create_provider_registry
 from src.inference.model_loader import BaseQwenConfig
+from src.inference.providers import DohaLMAdapterConfig
 
 RegistryFactory = Callable[[APISettings], ProviderRegistry]
 
@@ -38,6 +39,14 @@ def _default_registry(settings: APISettings) -> ProviderRegistry:
             generation_timeout_seconds=settings.generation_timeout_seconds,
             unload_on_shutdown=settings.model_unload_on_shutdown,
             minimum_free_vram_mib=settings.minimum_free_vram_mib,
+        ),
+        adapter_config=DohaLMAdapterConfig(
+            manifest_path=settings.adapter_manifest_path,
+            adapter_root=settings.adapter_root,
+            base_model_path=settings.base_model_snapshot,
+            max_concurrent_generations=settings.max_concurrent_generations,
+            load_timeout_seconds=settings.model_load_timeout_seconds,
+            generation_timeout_seconds=settings.generation_timeout_seconds,
         ),
     )
 
@@ -59,11 +68,11 @@ def create_app(
             registry.active,
             timeout_seconds=(
                 resolved.generation_timeout_seconds
-                if resolved.inference_provider == "base-qwen"
+                if resolved.inference_provider in {"base-qwen", "dohalm-adapter"}
                 else resolved.request_timeout_seconds
             ),
         )
-        await registry.active.health()
+        await registry.startup()
         try:
             yield
         finally:

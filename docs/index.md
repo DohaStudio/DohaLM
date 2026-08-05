@@ -1,7 +1,7 @@
 # DohaLM 문서 인덱스
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
 
 ## 1. 문서 상태 체계
 
@@ -28,7 +28,7 @@
 | 파일명 | 문서 목적 | 선행 문서 | 후속 문서 | 현재 상태 | 구현 전 필수 여부 | 마지막 검토일 | 핵심 미결정 사항 |
 |---|---|---|---|---|---|---|---|
 | [project/overview.md](./project/overview.md) | 초기 프로젝트 목적과 완료 조건의 역사적 배경 | README | [범위와 목표](./project/scope-and-goals.md), Strategy·Status·Roadmap | `review` | 예 | 2026-08-04 | Small·Adapter 완료 조건 |
-| [project/current-project-status.md](./project/current-project-status.md) | Foundation과 Runtime의 코드·테스트·실측 기준 통합 상태 | README, Gate evidence, Candidate A/B, QLoRA·Service 근거 | Roadmap·Service | `review` | 상태 확인 시 필수 | 2026-08-04 | Adapter Loader·Prompt Engine과 후속 2·3차 목표 |
+| [project/current-project-status.md](./project/current-project-status.md) | Foundation과 Runtime의 코드·테스트·실측 기준 통합 상태 | README, Gate evidence, Candidate A/B, QLoRA·Service 근거 | Roadmap·Service | `review` | 상태 확인 시 필수 | 2026-08-05 | 실제 Adapter/GPU·Prompt Engine과 후속 2·3차 목표 |
 | [project/foundation-model-strategy.md](./project/foundation-model-strategy.md) | Foundation 연구와 Qwen Runtime/Application 계보·완료 경계 | README, 승인 ADR | Current Status·Roadmap | `review` | 트랙 설계 전 필수 | 2026-08-04 | Foundation Instruct 실행과 scale-up 별도 결정 |
 | [project/model-family-roadmap.md](./project/model-family-roadmap.md) | Foundation, Runtime 1·2차와 DohaMusic 3차 실행 순서 | README, Foundation Strategy, Current Status | Service·Domain 구현 | `review` | 후속 개발 전 필수 | 2026-08-04 | Adapter Loader·Prompt Engine 완료 조건 |
 | [project/model-lineage.md](./project/model-lineage.md) | Foundation Candidate와 Qwen Runtime Adapter의 분리된 immutable 계보 | Foundation Model Strategy, ADR-005·007 | artifact manifest·Adapter Loader | `review` | 파생 모델 생성 전 필수 | 2026-08-04 | Runtime Adapter compatibility·eligibility |
@@ -205,10 +205,10 @@
 | [evaluation/candidate-a-final-full-result.md](./evaluation/candidate-a-final-full-result.md) | Candidate A Final 전체 지표와 historical Base baseline | Evaluation Framework, Candidate A Quick 결과 | Candidate B current baseline 회귀 비교 | `review` | baseline 비교 시 필수 | 2026-07-28 | fingerprint 불변; deprecated 아님 |
 | [evaluation/initial-pilot-candidate-a-quick-comparison.md](./evaluation/initial-pilot-candidate-a-quick-comparison.md) | Initial·Pilot·Candidate A Mid/Final 동일 Quick 비교와 변화 분석 | Evaluation Framework, 네 completed result manifest | Candidate A Full Evaluation 및 Candidate B 기준선 검토 | `review` | 후속 후보 결정 전 필수 | 2026-07-27 | 비교 상태 `comparable`, Gate 7 제외 |
 | `11-inference-design.md` | 자기회귀 생성과 모델 로딩 설계 | [모델 아키텍처](./architecture/model-architecture.md), [SFT 계획](./training/sft-plan.md), [평가 계획](./evaluation/evaluation-plan.md), [GPU 메모리 전략](./training/gpu-memory-strategy.md) | `12-api-specification.md`, `13-frontend-specification.md`, `19-deployment-plan.md` | `planned` | 추론 구현 전 필수 | — | sampling, KV cache, latency 정책 |
-| [service/dohalm-backend-mvp.md](./service/dohalm-backend-mvp.md) | Runtime 1차 FastAPI Chat·SSE·오류·lifecycle과 Provider 계약 | Roadmap, Provider interface | Adapter Loader·2차 Runtime | `review` | API 실행·검증 기준 | 2026-08-04 | Base Qwen 통과; Adapter placeholder |
+| [service/dohalm-backend-mvp.md](./service/dohalm-backend-mvp.md) | Runtime 1차 FastAPI Chat·SSE·오류·lifecycle과 Provider 계약 | Roadmap, Provider interface | Adapter E2E·2차 Runtime | `review` | API 실행·검증 기준 | 2026-08-05 | Base Qwen 통과; Adapter Provider mock 통합, 실제 artifact 미검증 |
 | [service/dohalm-frontend-mvp.md](./service/dohalm-frontend-mvp.md) | Next.js Chat UI·SSE·취소·재시도·접근성 계약 | FastAPI Runtime | Adapter E2E | `review` | Frontend 실행·검증 기준 | 2026-08-04 | Base Qwen Chrome E2E 통과; 저장·인증 없음 |
 | [service/dohalm-base-qwen-provider.md](./service/dohalm-base-qwen-provider.md) | 고정 local Qwen snapshot lazy load·generate·stream·취소·unload와 GPU 실측 | FastAPI, Frontend | General Instruct Adapter Loader | `review` | Base Qwen 실행 전 필수 | 2026-08-04 | BF16 선정; Foundation 계보 아님; Adapter 미연결 |
-| [service/dohalm-adapter-runtime.md](./service/dohalm-adapter-runtime.md) | General Instruct Adapter manifest·validator·local-only PEFT Loader와 fail-closed lifecycle | README, Instruct Strategy, Base Qwen Provider | Provider·API·Frontend·E2E | `review` | Adapter 구현 전 필수 | 2026-08-05 | Loader mock 검증 완료; 실제 후보·PEFT version·GPU·API schema 승인 필요 |
+| [service/dohalm-adapter-runtime.md](./service/dohalm-adapter-runtime.md) | General Instruct Adapter manifest·validator·local-only PEFT Loader와 fail-closed lifecycle | README, Instruct Strategy, Base Qwen Provider | 실제 Adapter API·Frontend·E2E | `review` | Adapter 구현 전 필수 | 2026-08-05 | Provider mock 통합 완료; 실제 후보·PEFT version·GPU 검증 필요 |
 | `14-database-design.md` | 영속화 필요성과 데이터 구조 결정 | [시스템 아키텍처](./architecture/system-architecture.md), `12-api-specification.md`, `13-frontend-specification.md` | `19-deployment-plan.md` | `planned` | 조건부 | — | DB 사용 여부, 보존·삭제 정책 |
 | [training/experiment-management.md](./training/experiment-management.md) | 실험 ID·metadata·상태·실패·산출물 계보 관리 | [개발 규칙](./governance/development-rules.md), [사전학습 계획](./training/pretraining-plan.md), [평가 계획](./evaluation/evaluation-plan.md), [산출물 및 설정 정책](./governance/artifact-and-configuration-policy.md), ADR-005 | [재현성 정책](./quality/reproducibility-policy.md), [실험 템플릿](./training/experiment-template.md), [개발 로드맵](./quality/development-roadmap.md), [테스트 체크리스트](./quality/testing-checklist.md), `20-leaderboard-strategy.md` | `review` | 본 학습 전 필수 | 2026-07-23 | ID 발급, schema, 보존 기간, artifact backend |
 | [training/gpu-memory-strategy.md](./training/gpu-memory-strategy.md) | 8GB VRAM 산식·측정·OOM 대응 정의 | [모델 아키텍처](./architecture/model-architecture.md), ADR-001, ADR-002 | [사전학습 계획](./training/pretraining-plan.md), [개발 로드맵](./quality/development-roadmap.md), [테스트 체크리스트](./quality/testing-checklist.md), `11-inference-design.md` | `draft` | 학습 구현 전 필수 | 2026-07-23 | micro-batch, accumulation, checkpointing, 실측값 |
@@ -291,6 +291,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Adapter Provider startup preflight·lazy load·API 상태·shutdown의 mock 통합과 실제 artifact/GPU 미검증 상태 동기화 |
 | 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 후보·Provider 미연결 상태 동기화 |
 | 2026-08-05 | 정적 Adapter Artifact Validator의 synthetic 검증 완료와 후속 PEFT Loader 미착수 상태 동기화 |
 | 2026-08-05 | Adapter Manifest·strict loader의 synthetic 검증 완료와 후속 Validator 미착수 상태 동기화 |

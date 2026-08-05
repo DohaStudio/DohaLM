@@ -40,14 +40,14 @@ Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-g
 | Qwen Base loader | `implemented_verified` | 고정 revision·local-only·lazy load, BF16 CUDA smoke |
 | General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 코드와 기록 존재; 현재 API가 Adapter를 load하지 않음 |
 | Runtime / Provider Registry | `implemented_verified` | Mock, Base Qwen, fail-closed Adapter provider |
-| Adapter Loader | `implementation_in_progress` | [Manifest·Artifact Validator](../service/dohalm-adapter-runtime.md)는 synthetic, local-only PEFT Loader는 mock 검증 완료; 실제 Adapter/GPU load와 Provider 연결은 미검증이며 Provider는 항상 `ADAPTER_NOT_AVAILABLE` |
+| Adapter Loader | `implementation_in_progress` | [Manifest·Validator·PEFT Loader·Provider lifecycle](../service/dohalm-adapter-runtime.md)은 mock 검증 완료; 실제 승인 Adapter/GPU READY는 미검증이며 미설정 시 `ADAPTER_NOT_AVAILABLE` |
 | Chat API | `implemented_verified` | health/readiness/models, 일반 Chat, 오류·timeout 계약 |
 | Streaming | `implemented_verified` | SSE, cancellation, semaphore, worker join |
 | Prompt Engine | `design_complete` | Base Qwen 공식 chat template 적용만 구현; 독립 engine은 없음 |
 | Next.js UI | `implemented_verified` | HTTP/SSE, 취소·재시도, Base Qwen Chrome E2E |
 
-현재 서비스는 기본 `mock` 또는 명시적 `base-qwen` Provider를 사용하는 로컬 MVP입니다. `dohalm-adapter`는 선택 가능한
-이름만 등록돼 있고 실제 Adapter를 읽지 않습니다.
+현재 서비스는 기본 `mock`, 명시적 `base-qwen` 또는 `dohalm-adapter` Provider를 사용하는 로컬 MVP입니다.
+Adapter Provider는 명시된 manifest를 preflight하고 첫 요청에서 lazy load하지만 저장소에는 승인 artifact가 없습니다.
 
 ### 2·3차 목표
 
@@ -88,6 +88,7 @@ v0.1/v0.2의 학습 완료 기록도 `Adapter Loader 완료`나 `deployment_read
 
 ```text
 Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
+                  └→ DohaLMAdapterProvider → manifest/validator/PEFT loader
                   ↘ SSE streaming / cancellation / retry
 ```
 
@@ -110,7 +111,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 ## 7. 다음 권장 작업
 
 1. General Instruct Adapter 선정·평가 상태를 하나의 manifest로 고정
-2. Adapter Loader의 실제 승인 후보·GPU 검증과 Provider 연결
+2. Adapter Provider의 실제 승인 후보·GPU READY 검증
 3. Prompt Engine 최소 계약 확정
 4. 1차 Runtime end-to-end 검증 후 Memory 설계 시작
 
@@ -118,6 +119,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Adapter Provider startup preflight·lazy load·Chat/SSE·shutdown mock 통합과 실제 artifact/GPU 미검증 상태 반영 |
 | 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 Adapter/GPU·Provider 연결 미검증 상태 반영 |
 | 2026-08-05 | Adapter Manifest·strict loader·정적 Artifact Validator synthetic 검증 완료와 PEFT Loader·Runtime 연결 미착수 상태 반영 |
 | 2026-08-04 | General Instruct Adapter Runtime 설계 완료와 Loader 구현 미착수 상태 반영 |

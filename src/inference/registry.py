@@ -8,6 +8,7 @@ from src.inference.base import InferenceProvider
 from src.inference.model_loader import BaseQwenConfig
 from src.inference.providers import (
     BaseQwenProvider,
+    DohaLMAdapterConfig,
     DohaLMAdapterProvider,
     MockProvider,
 )
@@ -30,6 +31,11 @@ class ProviderRegistry:
     def providers(self) -> tuple[InferenceProvider, ...]:
         return tuple(self._providers.values())
 
+    async def startup(self) -> None:
+        startup = getattr(self.active, "startup", None)
+        if startup is not None:
+            await startup()
+
     async def close(self) -> None:
         for provider in self.providers:
             await provider.close()
@@ -40,12 +46,13 @@ def create_provider_registry(
     *,
     chunk_delay_ms: int = 20,
     base_qwen_config: BaseQwenConfig | None = None,
+    adapter_config: DohaLMAdapterConfig | None = None,
 ) -> ProviderRegistry:
     return ProviderRegistry(
         (
             MockProvider(chunk_delay_ms=chunk_delay_ms),
             BaseQwenProvider(base_qwen_config),
-            DohaLMAdapterProvider(),
+            DohaLMAdapterProvider(adapter_config),
         ),
         active_provider=active_provider,
     )

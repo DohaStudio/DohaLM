@@ -19,10 +19,21 @@ class ProviderStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class ProviderRuntimeMetadata:
+    adapter_name: str
+    adapter_version: str
+    base_model: str
+    base_revision: str
+    runtime_status: str
+
+
+@dataclass(frozen=True)
 class ProviderHealth:
     name: str
     model_id: str
     status: ProviderStatus
+    error_code: str | None = None
+    runtime_metadata: ProviderRuntimeMetadata | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +86,8 @@ class InferenceProvider(Protocol):
     def model_id(self) -> str: ...
 
     async def health(self) -> ProviderHealth: ...
+
+    async def startup(self) -> None: ...
 
     async def generate(self, request: GenerationRequest) -> GenerationResult: ...
 

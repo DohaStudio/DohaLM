@@ -16,12 +16,27 @@ async def health() -> HealthResponse:
 
 
 @router.get("/ready", response_model=ReadinessResponse)
-async def ready(registry: ProviderRegistry = Depends(get_registry)) -> ReadinessResponse:
+async def ready(
+    registry: ProviderRegistry = Depends(get_registry),
+) -> ReadinessResponse:
     provider = await registry.active.health()
     if provider.status is not ProviderStatus.READY:
+        adapter_messages = {
+            "ADAPTER_NOT_AVAILABLE": "No approved local adapter is configured.",
+            "ADAPTER_INCOMPATIBLE": "The configured adapter is incompatible.",
+            "ADAPTER_LOAD_FAILED": "The configured adapter could not be loaded.",
+        }
+        code = (
+            provider.error_code
+            if provider.error_code in adapter_messages
+            else "PROVIDER_NOT_READY"
+        )
+        message = adapter_messages.get(
+            code, "The active inference provider is not ready."
+        )
         raise APIError(
-            "PROVIDER_NOT_READY",
-            "The active inference provider is not ready.",
+            code,
+            message,
             status_code=503,
         )
     return ReadinessResponse(

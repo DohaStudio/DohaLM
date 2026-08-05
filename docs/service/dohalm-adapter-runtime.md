@@ -2,7 +2,7 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-05
-- 구현 상태: `peft_adapter_loader_implemented_mock_validated`
+- 구현 상태: `provider_integration_implemented_mock_validated`
 - 기준 문서: [README](../../README.md), [Current Project Status](../project/current-project-status.md), [Instruct Strategy](../instruct/instruct-strategy.md)
 - 선행 구현: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Base Qwen Provider](./dohalm-base-qwen-provider.md), [Frontend MVP](./dohalm-frontend-mvp.md)
 
@@ -13,8 +13,8 @@ Adapter Loader의 책임, manifest, 검증 순서, Provider lifecycle과 구현 
 Provider Registry, Base Qwen loader와 Next.js MVP를 최대한 재사용한다.
 
 [확정] Task 1은 immutable manifest model과 strict loader를 구현했고 Task 2는 manifest가 명시한 artifact의
-정적 내용과 계보를 synthetic test로 검증했다. Task 3 PEFT Loader는 mock 검증을 완료했지만 Provider 연결은 시작하지 않았으며,
-어떤 v0.1/v0.2 Adapter도 Runtime 후보로 승인하거나 `deployment_ready`로 승격하지 않는다.
+정적 내용과 계보를 synthetic test로 검증했다. Task 3 PEFT Loader와 Task 4 Provider 통합은 mock 검증을 완료했다.
+어떤 v0.1/v0.2 Adapter도 Runtime 후보로 승인하거나 `deployment_ready`로 승격하지 않으며 실제 Adapter/GPU는 검증하지 않았다.
 
 - [제외] Foundation Model Track과 Candidate B의 weight·Tokenizer·평가 계약 변경
 - [제외] Base weight와 Adapter merge, 자동 Adapter 탐색, 네트워크 다운로드와 자동 fallback
@@ -30,7 +30,7 @@ FastAPI lifespan
   → ProviderRegistry
       ├── MockProvider
       ├── BaseQwenProvider
-      └── DohaLMAdapterProvider       placeholder
+      └── DohaLMAdapterProvider       preflight + lazy PEFT load
   → InferenceService
   → POST /api/v1/chat
   → POST /api/v1/chat/stream
@@ -38,17 +38,17 @@ FastAPI lifespan
 
 | 영역 | 현재 구현 | Adapter 연결 시 판단 |
 |---|---|---|
-| `ProviderRegistry` | 세 Provider를 application lifetime 단위로 고정 등록하고 unknown name을 startup에서 거부 | 기존 registry를 유지하되 Adapter 설정과 startup preflight를 주입해야 함 |
+| `ProviderRegistry` | 세 Provider를 application lifetime 단위로 고정 등록하고 unknown name을 startup에서 거부하며 active Provider startup을 호출 | Adapter 설정과 startup preflight 주입 구현 완료; fallback 없음 |
 | `BaseQwenProvider` | 고정 revision, local-only, lazy load, 상태 lock, 단일 load task, semaphore, 취소·timeout·unload 구현 | lifecycle·동시성·generation/stream 코드를 재사용할 기준 구현 |
-| `DohaLMAdapterProvider` | `not_available` health와 `ADAPTER_NOT_AVAILABLE`만 반환 | 실제 Loader를 소유하되 유효 Adapter가 없으면 현재 동작을 유지 |
+| `DohaLMAdapterProvider` | manifest·validator·Loader를 소유하고 static preflight, single-flight lazy load, semaphore, Chat·SSE·shutdown을 조정 | mock lifecycle 검증 완료; 승인 artifact·GPU READY는 미검증 |
 | Base loader | 고정 Qwen snapshot, special token, GPU·VRAM·offload를 fail closed로 검증 | Base load 로직을 공유하고 Adapter 적용 전후 identity를 추가 검증 |
 | generation | 공식 `apply_chat_template`, request generation mapping, worker 기반 streaming | 검증된 Tokenizer·Template·Generation Config를 사용하는 한 재사용 |
-| FastAPI lifespan | registry 생성, active Provider health 호출, shutdown `close()` | metadata-only Adapter startup preflight를 명시적으로 호출하도록 확장 필요 |
-| `/ready` | `READY`가 아니면 모두 `PROVIDER_NOT_READY` 503 | Adapter 원인을 `ADAPTER_NOT_AVAILABLE` 또는 `ADAPTER_INCOMPATIBLE`로 보존 필요 |
-| `/models` | model/provider/status/capabilities만 공개 | 안전한 Adapter version·Base revision·runtime status를 선택적으로 추가 가능 |
+| FastAPI lifespan | registry 생성, active Provider startup 호출, shutdown `close()` | constructor I/O 없이 Adapter metadata preflight 구현 완료 |
+| `/ready` | Adapter unavailable/incompatible/load failure의 안전한 code를 503에 보존 | 성공 response shape 유지 |
+| `/models` | 기존 필드와 optional `runtime_metadata` 공개 | Adapter name/version, Base identity, 내부 runtime status만 allowlist |
 
-[확정] 현재 `ProviderStatus`는 `ready`, `not_loaded`, `loading`, `unloading`, `not_available`, `unavailable`,
-`error`만 지원한다. Adapter compatibility를 공개 상태로 구분하려면 `incompatible` 상태와 안전한 reason code가 필요하다.
+[확정] 공통 `ProviderStatus`는 기존 값을 유지한다. Adapter의 세부 내부 상태는 `runtime_metadata.runtime_status`와
+안전한 reason code로 구분하며 공통 enum에 `incompatible` 값을 추가하지 않는다.
 
 [확정] `requirements-inference.txt`와 `pyproject.toml`의 inference extra에는 현재 `peft`가 없다. 실제 학습
 artifact의 exact `peft_version` 근거가 저장소에 없으므로 Task 3은 optional import와 구조화된 dependency missing 오류를
@@ -185,7 +185,7 @@ Task 2 Adapter Validator가 별도로 검증한다.
 | `created_at` | timezone이 있는 UTC RFC 3339, 현재 시각 기반의 자동 승인에는 사용하지 않음 |
 | `adapter_config`, `adapter_weights`, `metadata` | top-level artifact reference의 root-relative path와 checksum; 파일 검증은 Task 2 범위 |
 
-### 4.3 Task 1·2 구현 상태
+### 4.3 Task 1~4 구현 상태
 
 ```yaml
 adapter_manifest: implemented_synthetic_validated
@@ -197,9 +197,10 @@ adapter_artifact_validator: implemented_synthetic_validated
 base_snapshot_validator: implemented_mock_validated
 peft_adapter_loader: implemented_mock_validated
 actual_adapter_load: not_verified
-provider_integration: not_started
-runtime_adapter_loading: unavailable
+provider_integration: implemented_mock_validated
+runtime_adapter_loading: unavailable_without_approved_artifact
 gpu_adapter_smoke: not_started
+browser_adapter_e2e: not_started
 ```
 
 [확정] `src/inference/adapter_manifest.py`는 frozen dataclass, duplicate-key 차단, 1 MiB manifest 상한,
@@ -264,19 +265,19 @@ Task 3 범위가 아니다. 실제 snapshot·Adapter 후보의 checksum 연결, 
 | 조건 | Provider status | API/SSE error code | 동작 |
 |---|---|---|---|
 | Adapter root 또는 manifest 미설정·부재 | `not_available` | `ADAPTER_NOT_AVAILABLE` | 요청 거부, Base fallback 없음 |
-| manifest parse/schema/checksum 실패 | `incompatible` | `ADAPTER_INCOMPATIBLE` | 안전한 일반 메시지만 반환 |
-| Base model·revision 불일치 | `incompatible` | `ADAPTER_INCOMPATIBLE` | weight load 전 차단 |
-| Tokenizer·Chat Template 불일치 | `incompatible` | `ADAPTER_INCOMPATIBLE` | prompt 생성 전 차단 |
-| Adapter config·weight·metadata 불일치 | `incompatible` | `ADAPTER_INCOMPATIBLE` | PEFT attach 금지 |
-| Generation Config 불일치 | `incompatible` | `ADAPTER_INCOMPATIBLE` | request 실행 금지 |
+| manifest parse/schema/checksum 실패 | `unavailable` | `ADAPTER_INCOMPATIBLE` | 내부 상태 `incompatible`, 안전한 일반 메시지만 반환 |
+| Base model·revision 불일치 | `unavailable` | `ADAPTER_INCOMPATIBLE` | 내부 상태 `incompatible`, weight load 전 차단 |
+| Tokenizer·Chat Template 불일치 | `unavailable` | `ADAPTER_INCOMPATIBLE` | 내부 상태 `incompatible`, prompt 생성 전 차단 |
+| Adapter config·weight·metadata 불일치 | `unavailable` | `ADAPTER_INCOMPATIBLE` | 내부 상태 `incompatible`, PEFT attach 금지 |
+| Generation Config 불일치 | `unavailable` | `ADAPTER_INCOMPATIBLE` | 내부 상태 `incompatible`, request 실행 금지 |
 | preflight 통과, 아직 weight 미load | `not_loaded` | 기존 `PROVIDER_NOT_READY` 또는 첫 요청이 load 대기 | lazy-load 가능 |
 | load 진행 | `loading` | load 대기 또는 timeout | 단일 load task만 허용 |
 | 모든 post-load 검사 통과 | `ready` | 없음 | chat/stream 허용 |
-| shutdown 진행 | `unloading` | 기존 `MODEL_UNLOADING` | 신규 요청 거부 |
+| shutdown 진행 | `unloading` | `PROVIDER_UNAVAILABLE` | 신규 요청 거부 |
 
 [확정] 내부 로그에는 안정적인 세부 reason code와 manifest fingerprint만 기록할 수 있으나 절대경로, prompt/response,
-token ID, Adapter weight와 원문 metadata는 기록하지 않는다. 외부 응답은 `ADAPTER_NOT_AVAILABLE` 또는
-`ADAPTER_INCOMPATIBLE`로 제한해 로컬 파일 구조와 dependency 세부를 노출하지 않는다.
+token ID, Adapter weight와 원문 metadata는 기록하지 않는다. 외부 응답은 `ADAPTER_NOT_AVAILABLE`,
+`ADAPTER_INCOMPATIBLE`, `ADAPTER_LOAD_FAILED`로 제한해 로컬 파일 구조와 dependency 세부를 노출하지 않는다.
 
 ### 5.3 Adapter post-load 검사
 
@@ -314,12 +315,11 @@ shutdown
   → 진행 중 generation 종료 대기
   → Adapter/Base/Tokenizer 참조 해제
   → CUDA cache 회수
-  → not_loaded
+  → closed
 ```
 
-[제안] `InferenceProvider`에 `startup()` lifecycle을 추가하거나 Registry가 Adapter provider의 명시적 initializer를
-호출한다. 모든 Provider에 no-op 기본 구현을 제공하는 방식과 protocol 변경 방식은 구현 Task 4에서 결정하되,
-constructor에서 filesystem I/O를 수행하지 않는다.
+[확정] `InferenceProvider`에 `startup()` lifecycle을 추가하고 Registry가 active Provider에 호출한다. Mock과 Base Provider는
+no-op startup을 사용하며 constructor에서는 filesystem I/O를 수행하지 않는다.
 
 [확정] lazy load는 기존 Base Provider와 같은 single-flight lock/task, semaphore와 cooperative cancellation을 사용한다.
 첫 요청은 load 완료 후 같은 요청을 계속 처리할 수 있다. `/ready`는 metadata preflight만 통과한 `not_loaded`를 READY로
@@ -337,7 +337,7 @@ constructor에서 filesystem I/O를 수행하지 않는다.
 - 요청별 Provider·Adapter 선택 필드 추가 없음
 
 Adapter Provider가 active일 때 response의 기존 `model`은 안전한 runtime model ID, `provider`는
-`dohalm-adapter`를 사용한다. model ID 형식은 `<adapter_name>@<adapter_version>` 후보이며 구현 전 공개 API 계약 검토가 필요하다.
+`dohalm-adapter`를 사용한다. model ID는 static preflight 성공 후 `<adapter_name>@<adapter_version>` 형식을 사용한다.
 
 ### 7.2 필요한 additive 변경
 
@@ -405,10 +405,11 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 
 ### Task 4 — Provider Integration
 
-- `DohaLMAdapterProvider` placeholder를 Loader-backed Provider로 교체
-- Registry/settings/lifespan startup preflight, 상태와 error reason 연결
-- 기존 BaseQwenProvider generation/stream lifecycle을 공통화할지는 최소 중복 범위에서 결정
-- 완료 조건: no manifest는 기존 `ADAPTER_NOT_AVAILABLE`, mismatch는 `ADAPTER_INCOMPATIBLE`, valid preflight는 `not_loaded`
+- 상태: `implemented_mock_validated`
+- `DohaLMAdapterProvider`를 Loader-backed Provider로 교체하고 Registry/settings/lifespan startup preflight 연결
+- single-flight lazy load, atomic READY publish, failure retention, generation semaphore, Chat·SSE·shutdown 구현
+- no manifest는 `ADAPTER_NOT_AVAILABLE`, mismatch는 `ADAPTER_INCOMPATIBLE`, load failure는 `ADAPTER_LOAD_FAILED`
+- 실제 승인 Adapter load·GPU READY·Browser E2E는 `not_verified`
 
 ### Task 5 — API Test
 
@@ -431,7 +432,7 @@ Adapter upload와 filesystem picker는 추가하지 않는다.
 
 ## 10. 예상 변경 파일
 
-Task 1 파일은 구현됐고, 나머지는 후속 구현 계획이다.
+Task 1~4 파일은 구현됐고, Task 5~7은 후속 구현 계획이다.
 
 ### 새 파일 후보
 
@@ -476,8 +477,8 @@ frontend/tests/ui.test.tsx
 frontend/e2e/base-qwen-chat.spec.ts
 ```
 
-[확정] Task 3은 Provider를 변경하지 않고 기존 Base Qwen의 local-only·BF16 load 인자와 cleanup 원칙을 독립 Loader에서
-재사용했다. 공통 lifecycle 추출 여부와 실제 Adapter E2E spec 이름은 Task 4 이후 최소 중복 범위에서 결정한다.
+[확정] Task 4는 공통 Provider API와 generation·stream helper를 재사용하고 Adapter lifecycle은 Provider 내부에 유지했다.
+Base Provider와의 대규모 공통화는 회귀 위험 때문에 수행하지 않았다.
 
 ## 11. 위험 요소와 대응
 
@@ -498,12 +499,12 @@ frontend/e2e/base-qwen-chat.spec.ts
 1. 공개 API additive schema와 Adapter 후보 eligibility 승인 경계를 먼저 검토한다.
 2. Task 1 manifest와 Task 2 static validator의 synthetic 검증 결과를 유지한다.
 3. Task 3 Loader의 mock 검증 결과를 유지하고 실제 후보·dependency가 승인되기 전에는 실제 load를 실행하지 않는다.
-4. Task 4 Provider를 연결해 unavailable/incompatible/not_loaded 상태를 API 밖에서도 먼저 검증한다.
-5. Task 5 API 회귀를 통과한 뒤 Task 6의 최소 Frontend 상태 표시를 추가한다.
+4. Task 4 Provider의 mock lifecycle·API 회귀를 유지한다.
+5. 승인 artifact가 정해지면 Task 5 실제 Adapter API 검증 후 Task 6의 최소 Frontend 상태 표시를 추가한다.
 6. 마지막에만 사용자가 승인한 실제 Adapter로 Task 7 GPU·Browser E2E를 실행한다.
 
-[확정] 다음 구현 작업은 **Task 4 — Provider Integration**이다. Task 1·2의 strict schema·static validator와 Task 3
-mock Loader는 구현됐지만,
+[확정] 다음 구현 작업은 승인 후보를 전제로 한 **Task 5 — API Test**다. Task 1·2의 strict schema·static validator,
+Task 3 mock Loader와 Task 4 Provider 통합은 구현됐지만,
 실제 Adapter READY와 `implemented_verified` 판정은 immutable 후보·평가 eligibility와
 GPU/E2E 근거가 모두 있어야 한다.
 
@@ -511,6 +512,7 @@ GPU/E2E 근거가 모두 있어야 한다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Task 4 Provider startup preflight·single-flight lazy load·Chat/SSE·shutdown과 API 상태 연결 mock 검증 반영 |
 | 2026-08-05 | Task 3 local-only PEFT Adapter Loader, Base·Tokenizer·Template·dependency·post-load 검증과 mock cleanup·unload 회귀 반영 |
 | 2026-08-05 | Task 2 정적 Adapter Artifact Validator, safetensors header parser, lineage·generation 검증과 synthetic 회귀 반영 |
 | 2026-08-05 | Task 1 immutable Adapter Manifest·strict JSON loader·정적 schema/path 검증과 42개 synthetic test 반영 |

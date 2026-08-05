@@ -28,6 +28,7 @@ class APISettings(BaseSettings):
     log_level: str = "INFO"
     model_cache_root: Path | None = None
     adapter_root: Path | None = None
+    adapter_manifest_path: Path | None = None
     base_model_id: str = "Qwen/Qwen2.5-1.5B-Instruct"
     base_model_revision: str = "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
     base_model_snapshot: Path | None = None

@@ -25,6 +25,9 @@ class MockProvider:
     async def health(self) -> ProviderHealth:
         return ProviderHealth(self.provider_name, self.model_id, ProviderStatus.READY)
 
+    async def startup(self) -> None:
+        return None
+
     @staticmethod
     def _response(request: GenerationRequest) -> str:
         user_content = request.messages[-1].content
@@ -34,7 +37,9 @@ class MockProvider:
     async def generate(self, request: GenerationRequest) -> GenerationResult:
         return GenerationResult(content=self._response(request))
 
-    async def stream(self, request: GenerationRequest) -> AsyncIterator[GenerationChunk]:
+    async def stream(
+        self, request: GenerationRequest
+    ) -> AsyncIterator[GenerationChunk]:
         parts = re.findall(r"\S+\s*", self._response(request))
         for part in parts:
             if self._chunk_delay_seconds:
