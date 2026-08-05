@@ -306,12 +306,17 @@ artifact checksum의 정렬된 map을 bundle fingerprint로 계산하고 `readin
 형식은 `DOHALM-V0.3-TOKENIZATION-YYYYMMDD-NNNN`이다.
 
 - 날짜는 예약 순간의 `Asia/Seoul` 달력 날짜다. `created_at`은 별도로 UTC를 기록한다.
-- sequence는 canonical identity ledger에서 같은 날짜의 모든 `reserved/active/completed/failed/abandoned/retired`
-  항목 중 최대값+1이다. 날짜가 바뀌면 `0001`부터 시작하지만 전체 문자열 중복은 계속 검사한다.
+- sequence는 canonical identity ledger와 reservation에서 같은 날짜의 모든
+  `reserved/committed/completed/failed/abandoned/retired` canonical execution 중 최대값+1이다. 날짜가 바뀌면
+  `0001`부터 시작하지만 전체 문자열 중복은 계속 검사한다. `predecessor_failure_reference`는 sequence 계산에서 제외한다.
 - directory listing만으로 sequence를 결정하지 않는다. final·staging·failed·emergency·reservation·Approval·request·
   registry와 역사 ledger를 모두 검사한다.
-- reservation writer는 ledger lock 아래 candidate를 계산하고 `run-reservation.json`을 atomic no-replace로 게시한 뒤
-  registry에 append-only transition을 기록한다.
+- 구현은 호출자가 지정한 절대 ledger root만 사용하고 discovery와 symlink를 거부한다. 논리 구조는
+  `ledger.jsonl`, `reservations/<reservation-id>.json`, `committed/<run-id>.json`, `retired/<run-id>.json`이다.
+- reservation writer는 ledger lifecycle lock 아래 ledger·reservation을 다시 읽고 inventory fingerprint freshness와
+  전체 surface 충돌을 확인한다. reservation은 atomic no-replace로 게시하며 ledger는 기존 byte prefix를 보존한 전체
+  generation을 임시 파일에 fsync한 뒤 atomic replace하고 strict reload한다. append 실패 시 이번 호출이 만든 reservation만
+  정리하며, lock 경쟁에서는 한 호출만 성공한다.
 - lock 충돌·stale lock은 자동 삭제하지 않는다. 수동 조사와 새 시도만 허용한다.
 - 기존 `DOHALM-V0.3-TOKENIZATION-20260802-0001`은 영구 `retired_unresolved_publish`다.
 - retry·resume·replay는 언제나 새 identity를 요구한다. 새 Run은 `attempt`가 아니라 `canonical_execution`이며
@@ -319,26 +324,38 @@ artifact checksum의 정렬된 map을 bundle fingerprint로 계산하고 `readin
 - `abandoned`는 Approval 발급 전 예약 폐기, `retired`는 evidence 또는 Approval이 생긴 뒤 폐기를 뜻한다.
   어느 상태도 ID를 다시 사용 가능하게 만들지 않는다.
 
-`run-reservation.json`의 최소 schema는 다음과 같다.
+`V03Reservation` strict schema는 다음과 같다. 실제 파일은 canonical JSON으로 직렬화하며 unknown/missing field를 거부한다.
 
 ```yaml
 schema_version: 1
+reservation_id: null
 run_id: null
-run_kind: canonical_execution
-sequence_date_timezone: Asia/Seoul
-sequence_date: null
-sequence: null
-status: reserved
-predecessor_run_id: DOHALM-V0.3-TOKENIZATION-20260802-0001
-predecessor_status: retired_unresolved_publish
-predecessor_failure_code: WRAPPER_TIMEOUT_OBSERVABILITY_LOSS
-reserved_at: null
-reserved_by: null
+ledger_root_id: null
 source_commit: null
-ledger_previous_fingerprint: null
+dataset_id: null
+dataset_fingerprint: null
+predecessor_run_id: DOHALM-V0.3-TOKENIZATION-20260802-0001
+reserved_at: null
+expires_at: null
+owner_token_hash: null
+reservation_nonce: null
 reservation_fingerprint: null
-checksum: null
+reservation_checksum: null
+status: active
 ```
+
+ledger entry는 `reserved`, `committed`, `abandoned`, `retired`, `completed`, `failed` transition을 checksum이 있는
+canonical JSONL row로 추가한다. `abandoned`와 `retired` sequence는 영구 소비된다. exact committed artifact 재호출만
+idempotent하며 다른 payload는 거부한다. 완료 run retirement는 금지한다. predecessor는 자기 자신이 아니며 ledger의
+`failed`/`retired` run 또는 명시적 historical failure reference여야 하고 lineage cycle을 허용하지 않는다. 신규 run의
+kind와 purpose는 각각 `canonical_execution`, `canonical_recovery_execution`으로 고정하며 retry·resume·replay 의미를
+부여하지 않는다.
+
+외부 오류는 `V03_RUN_ID_INVALID`, `V03_RUN_ID_SEQUENCE_EXHAUSTED`, `V03_RUN_ID_CONFLICT`,
+`V03_LEDGER_NOT_FOUND`, `V03_LEDGER_INVALID`, `V03_LEDGER_INCONSISTENT`, `V03_RESERVATION_INVALID`,
+`V03_RESERVATION_ALREADY_EXISTS`, `V03_RESERVATION_EXPIRED`, `V03_RESERVATION_STATE_INVALID`,
+`V03_RESERVATION_CHECKSUM_MISMATCH`, `V03_PREDECESSOR_INVALID`, `V03_IDENTITY_INVENTORY_STALE`,
+`V03_IDENTITY_LOCK_FAILED` code만 노출한다.
 
 ## 9. Tokenization Approval 계약
 
@@ -607,7 +624,7 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 |---|---|---|---|---|---|
 | `V03-R1` | Evidence envelope·strict loader·bundle schema·atomic writer·finalizer. `src/data/v03_evidence.py`, `src/data/v03_evidence_writer.py` | exact schema, canonical fingerprint, no-replace, strict reload, Gate contradiction, zero payload call | 실제 evidence 생성 전 승인 필요 | `implemented_synthetic_validated` | R2 |
 | `V03-R2` | PII·Safety·Leakage backend와 review/exclusion writer. 기존 inspector·duplicate 로직 최소 재사용 | synthetic detector/category, raw leak 0, deterministic rerun, unknown fail closed | 실제 v0.3 scan·review 전 승인 필요 | `implemented_synthetic_validated` | V03-1 decision |
-| `V03-R3` | Run identity ledger·reservation·retirement. `src/training/v03_run_identity.py`와 test 후보 | concurrency single winner, all-surface collision, date/sequence, abandoned/retired, predecessor | 실제 ID 예약 전 승인 필요 | `designed_not_started` | R4 |
+| `V03-R3` | Run identity ledger·reservation·commit·abandon·retirement. `src/training/v03_run_identity.py`, `tests/test_v03_run_identity.py` | concurrency single winner, all-surface collision, date/sequence, write failure cleanup, corruption, symlink, abandoned/retired, predecessor | 실제 ID 예약 전 승인 필요 | `implemented_synthetic_validated` | R4 |
 | `V03-R4` | `TokenizationApproval v1`, issue/consume/expire/retire와 lifecycle lock | state matrix, drift retirement, one-shot, concurrent request/retire/consume, legacy reject | 실제 issue·consume 전 승인 필요 | `designed_not_started` | R5 |
 | `V03-R5` | `TokenizationExecutionRequest v1` writer·validator | exact match, nonce/TTL/replay, path/root, atomic no-replace, lifecycle race | 실제 request 생성 전 승인 필요 | `designed_not_started` | R6 |
 | `V03-R6` | metadata-only preflight와 별도 input-integrity Gate | payload/tokenizer call 0, checksum evidence, disk/path/dependency/process failure matrix | metadata preflight 실행 전 승인 필요 | `designed_not_started` | R7·R8 |
@@ -620,9 +637,9 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 
 ## 17. 구현과 실행 순서
 
-코드 구현은 `V03-R1`, `V03-R3`, `V03-R4`, `V03-R5`의 schema·순수 validator부터 시작할 수 있다. 실제 payload를
-읽지 않는 synthetic 구현 범위이며 사용자 실행 승인을 소비하지 않는다. 이후 `R2 → R6 → R7 → R8 → R9` 순서로
-검증한다.
+`V03-R1`과 `V03-R3`의 schema·순수 validator는 synthetic-only 구현·검증을 완료했다. 다음 코드 범위는
+`V03-R4`, `V03-R5`이며 실제 payload를 읽지 않고 사용자 실행 승인을 소비하지 않는다. 이후 `R6 → R7 → R8 → R9`
+순서로 검증한다.
 
 아직 실행하면 안 되는 작업:
 
@@ -669,6 +686,10 @@ v03_r1_bundle_finalizer: implemented_synthetic_validated
 v03_r2_scanner_contract: implemented_synthetic_validated
 v03_r2_review_contract: implemented_synthetic_validated
 v03_r2_exclusion_builder: implemented_synthetic_validated
+v03_r3_identity_schema: implemented_synthetic_validated
+v03_r3_ledger_validator: implemented_synthetic_validated
+v03_r3_reservation_writer: implemented_synthetic_validated
+actual_v03_run_reserved: false
 actual_v03_evidence_bundle: not_created
 actual_pii_scan: not_started
 actual_safety_scan: not_started
@@ -688,6 +709,7 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R3 strict Run Identity schema·ledger validator·atomic reservation/commit/abandon/retire를 synthetic-only로 구현·검증; 실제 ledger migration과 Run 예약은 수행하지 않고 execution 금지를 유지 |
 | 2026-08-05 | V03-R2 synthetic-only PII·Safety·Leakage scanner, opaque HMAC reference, review policy, exclusion builder, R1 payload 변환을 구현·검증; 실제 Dataset scan·review·evidence 생성은 수행하지 않음 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, 10-file bundle finalizer와 readiness Gate를 synthetic-only 검증으로 구현; 실제 evidence·승인·실행은 생성하지 않음 |
 | 2026-08-05 | V03-1 license·PII·Safety·Leakage evidence와 V03-2 새 identity·Approval·request·preflight·worker·publish 계약 설계 |

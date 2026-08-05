@@ -315,12 +315,17 @@ v03_r1_bundle_finalizer: implemented_synthetic_validated
 v03_r2_scanner_contract: implemented_synthetic_validated
 v03_r2_review_contract: implemented_synthetic_validated
 v03_r2_exclusion_builder: implemented_synthetic_validated
+v03_r3_identity_schema: implemented_synthetic_validated
+v03_r3_ledger_validator: implemented_synthetic_validated
+v03_r3_reservation_writer: implemented_synthetic_validated
+actual_v03_run_reserved: false
 actual_v03_evidence_bundle: not_created
 actual_pii_scan: not_started
 actual_safety_scan: not_started
 actual_leakage_scan: not_started
 actual_review_evidence: not_created
 v03_data_evidence: pending
+v03_fresh_tokenization: not_approved
 v0.3_fresh_tokenization: not_approved
 v0.3_training: not_started
 v0.3_training_ready: false
@@ -330,16 +335,17 @@ final_readiness: ready_for_recovery_design
 execution_allowed: false
 ```
 
-- 지금 가능한 작업: Recovery Contract의 `V03-R3`, `V03-R4`, `V03-R5` schema·순수 validator 구현. V03-R1과 V03-R2는 synthetic-only 구현·검증 완료 상태다.
+- 지금 가능한 작업: Recovery Contract의 `V03-R4`, `V03-R5` schema·순수 validator 구현. V03-R1~R3는 synthetic-only 구현·검증 완료 상태다.
 - 아직 금지된 작업: 기존 ID 재사용, Tokenization·publish 재실행, GPU smoke, QLoRA, 평가, Adapter manifest 생성.
 - 사용자 승인 시점: 실제 PII·Safety·Leakage scan/review, V03-1 판정, 새 identity 예약, Approval·request·preflight,
   fresh Tokenization 실행, GPU smoke, small overfit, full training, 평가와 Runtime 승격 각각.
-- 예상 최소 경로: `V03-R3~R9 구현·synthetic 검증 → 별도 승인 후 실제 V03-1 evidence 생성·판정 → 새 identity·Approval·request·preflight → 별도 승인 fresh Tokenization → V03-3~10`.
+- 예상 최소 경로: `V03-R4~R9 구현·synthetic 검증 → 별도 승인 후 실제 V03-1 evidence 생성·판정 → 새 identity·Approval·request·preflight → 별도 승인 fresh Tokenization → V03-3~10`.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R3 Run Identity ledger·reservation 계약을 synthetic-only로 구현·검증; 실제 Run 예약 `false`, fresh Tokenization `not_approved`, execution 금지 유지 |
 | 2026-08-05 | V03-R2 scanner·review·exclusion 계약을 synthetic-only로 구현·검증; 실제 scan과 review evidence는 생성하지 않고 execution 금지를 유지 |
 | 2026-08-05 | V03-R1 evidence schema·strict loader·atomic writer·bundle finalizer synthetic 검증 완료; 실제 bundle 미생성·data evidence pending·execution 금지 유지 |
 | 2026-08-05 | V03-1·V03-2 Recovery Contract 설계 완료와 license evidence 부족·data evidence pending·fresh Tokenization 미승인 경계 연결 |

@@ -84,12 +84,17 @@ v03_r1_bundle_finalizer: implemented_synthetic_validated
 v03_r2_scanner_contract: implemented_synthetic_validated
 v03_r2_review_contract: implemented_synthetic_validated
 v03_r2_exclusion_builder: implemented_synthetic_validated
+v03_r3_identity_schema: implemented_synthetic_validated
+v03_r3_ledger_validator: implemented_synthetic_validated
+v03_r3_reservation_writer: implemented_synthetic_validated
+actual_v03_run_reserved: false
 actual_v03_evidence_bundle: not_created
 actual_pii_scan: not_started
 actual_safety_scan: not_started
 actual_leakage_scan: not_started
 actual_review_evidence: not_created
 v03_data_evidence: pending
+v03_fresh_tokenization: not_approved
 execution_allowed: false
 ```
 
@@ -131,7 +136,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 ## 7. 다음 권장 작업
 
-1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R3 identity·R4 Approval·R5 request validator 구현
+1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R4 Approval·R5 request validator 구현
 2. 별도 승인으로 실제 license evidence와 PII·Safety·Leakage evidence를 생성·확정한 뒤 V03-1 판정
 3. 별도 승인 뒤 새 identity 기반 canonical Tokenization·QLoRA preflight·평가를 순서대로 진행
 4. 적격 General Instruct Adapter가 생긴 뒤 manifest 고정과 실제 GPU READY 검증
@@ -142,6 +147,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R3 Run Identity schema·ledger validator·reservation writer synthetic 검증 완료; 실제 ledger migration·Run 예약·Approval·Request·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R2 scanner·review·exclusion 및 R1 payload 변환 synthetic 검증 완료; actual scan `not_started`, review evidence `not_created`, execution 금지 유지 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, bundle finalizer synthetic 검증 완료; actual bundle `not_created`, data evidence `pending`, execution 금지 유지 |
 | 2026-08-05 | V03-1·V03-2 recovery contract 설계 완료, license evidence 부족·data evidence pending·fresh Tokenization 미승인 상태 반영 |
