@@ -29,6 +29,7 @@
 - [Candidate A/B Full 비교](./candidate-a-b-full-comparison.md)
 - [EOS Generation·Decoding 진단 정책](./eos-generation-decoding-policy.md) (`approved`)
 - [EOS Generation·Decoding 진단 결과](./eos-generation-decoding-diagnostic-result.md)
+- [Candidate C Evaluation·Selection 계약](../training/candidate-c-evaluation-contract.md) (`review`, threshold 미승인)
 - [평가 manifest 예시](./evaluation-manifest.example.yaml)
 - [외부 benchmark 정책](./benchmark-policy.md)
 
@@ -56,12 +57,14 @@
 - Candidate B derivative parent eligibility: `approved_experimental`; 실제 파생 학습·publication 미승인
 - Instruct·Chat EOS framework: `approved`; numeric thresholds·training: `proposed` / `not_approved`
 - Service decoding: `proposed`; implementation: `not_started`
+- Candidate C Evaluation 계약 설계: `completed`; metric threshold·실행·Base 승격: `not_approved` / `not_started` / `not_approved`
 - 배포: `not_applicable`
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate C 지표 역할·Full 비교·Selection 상태 계약 연결; threshold·평가 실행·승격 미승인 유지 |
 | 2026-07-28 | ADR-009 Candidate B current baseline·experimental parent 결정과 historical 상태 분리 반영 |
 | 2026-07-28 | ADR-008과 Base·Instruct·Chat EOS Success Policy 승인, historical 비소급 경계 반영 |
 | 2026-07-28 | Candidate A/B 동일 prompt 다중 길이 진단 완료와 assisted-only 종료 제안 연결 |

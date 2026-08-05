@@ -70,8 +70,9 @@ baseline으로 보존합니다. 기존 상태나 artifact를 재명명하거나 
 EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
 ```
 
-Candidate C는 `not_started`입니다. EOS 해결 방식, 학습 budget, initialization, Dataset과 평가 threshold는 후속 설계·ADR·승인
-전까지 확정하지 않습니다. Candidate B와 동일한 평가 분리·lineage 원칙을 적용해야 합니다.
+Candidate C는 `not_started`이고 [계약 설계](../training/candidate-c-design.md)는 `completed`입니다. EOS 해결 방식,
+학습 budget, initialization, Dataset과 평가 threshold는 후속 ADR·진단·승인 전까지 확정하지 않습니다. Candidate B와
+동일한 평가 분리·lineage 원칙을 적용해야 합니다.
 Readiness Gate C-1~C-4와 별도 승인된 C-5 GPU Smoke가 선행돼야 하며, 그 전에는 학습으로 넘어가지 않습니다.
 
 ### 3.3 Foundation Instruct
@@ -120,6 +121,7 @@ Code, SQL, Recruit, Game과 Vision/Multimodal은 삭제된 목표가 아니라 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate C 계약 설계 완료와 실행 미허용, ADR·진단·freeze 승인 잔여 상태를 구분 |
 | 2026-08-05 | Base Training Readiness 문서와 C-1~C-5 선행 조건을 연결하고 Candidate C 상태를 `not_started`로 명확화 |
 | 2026-08-05 | Foundation을 최우선 Phase로 재구성하고 Base 준비 → Candidate C → Foundation Instruct, 후속 Runtime, DohaMusic Application 공식 순서를 반영 |
 | 2026-08-04 | Adapter Loader manifest·validator·lifecycle 설계 완료와 구현 미착수 상태 반영 |

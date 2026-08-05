@@ -26,6 +26,9 @@ Foundation Candidate B, Candidate C와 Foundation Instruct는 프로젝트의 �
 Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strategy.md), Instruct의 두 계보는
 [Instruct Strategy](docs/instruct/instruct-strategy.md), 전체 문서 목록은 [문서 안내서](docs/README.md)를 따릅니다.
 현재 최우선 작업의 상세 진입 판단은 [Base Training Readiness](docs/training/base-training-readiness.md)를 기준으로 합니다.
+Candidate C 계약 초안은 [Candidate C 설계](docs/training/candidate-c-design.md),
+[EOS 가설](docs/training/candidate-c-eos-hypotheses.md),
+[Evaluation 계약](docs/training/candidate-c-evaluation-contract.md)과 [ADR-011 제안](docs/decisions/ADR-011-candidate-c-experimental-successor.md)에 있습니다.
 
 ## 현재 구현 상태
 
@@ -50,7 +53,7 @@ Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strate
 | DohaLM-Tiny | `implemented_verified` | Decoder-only Transformer, Trainer, checkpoint/resume, 실제 corpus overfit 검증 |
 | Tokenizer | `implemented_verified` | 운영 `operating-16k-v2/unigram-16k`, vocab 16,000, Gate 3 통과 |
 | Candidate A/B | `implemented_verified` | Candidate B가 current Base baseline이자 Candidate C의 비교 기준, Candidate A는 historical baseline |
-| Base Training Readiness | `blocked` | 기반 구현은 완료됐으나 ADR 정합성·EOS root cause·Candidate C config/evaluation 승인 미완료 |
+| Base Training Readiness | `blocked` | Candidate C 계약 설계 완료; ADR·가설·freeze·평가 승인과 resolved config 미완료 |
 | Candidate C | `not_started` | C-1~C-4 동결과 C-5 GPU Smoke·별도 single-use 승인 전 학습 금지 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | 현재 ADR-010은 Candidate B 파생 설계; 공식 차기 목표는 Candidate C 기반이며 후속 ADR·학습·publication 승인 필요 |

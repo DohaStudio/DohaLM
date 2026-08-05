@@ -43,7 +43,7 @@ parent 결정을 다루는 후속 ADR이 필요합니다.
 | 운영 Tokenizer | `implemented_verified` | `operating-16k-v2/unigram-16k`, vocab 16,000 |
 | Candidate A | `implemented_verified` | 10M token 학습 완료; historical Base baseline |
 | Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
-| Base Training Readiness | `blocked` | [통합 Readiness](../training/base-training-readiness.md): ADR 정합성·EOS root cause·config/evaluation freeze 미완료 |
+| Base Training Readiness | `blocked` | 계약 설계 `completed`; ADR-011·가설·freeze·평가 승인과 resolved config 미완료 |
 | Candidate C | `not_started` | C-1~C-5와 새 single-use 승인 전 학습 금지 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | ADR-010 Candidate B parent 설계 상태 유지; Candidate C 기반 공식 목표는 후속 ADR·artifact 필요 |
@@ -164,17 +164,18 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 
 ## 8. 다음 권장 작업
 
-1. ADR-009의 `candidate_c: not_required`와 새 공식 우선순위 충돌을 해소하는 Candidate C 후속 ADR 검토
-2. EOS root cause 가설·변경 범위와 Candidate C Evaluation Gate 승인
-3. Dataset·Tokenizer·Training Config를 Candidate C identity로 freeze해 C-1~C-4 완료
-4. 별도 승인 뒤 exact config의 C-5 GPU Smoke 수행; 이 전에는 Candidate C 학습 금지
-5. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
-6. Phase 1 완료 뒤 Runtime, Runtime 완료 뒤 DohaMusic 진행
+1. [ADR-011 draft](../decisions/ADR-011-candidate-c-experimental-successor.md)와 Candidate C 역할·승인 분리 검토
+2. Candidate B read-only EOS 진단 계획 승인 후 H1~H7 중 단일 주가설 선택
+3. Dataset A안·v2 Unigram 권장안을 검토하고 immutable manifest·source commit으로 C-2/C-3 freeze
+4. 단일 intervention·Evaluation 판정 규칙·resolved config를 승인해 C-4 완료
+5. 별도 승인 뒤 exact config의 C-5 GPU Smoke 수행; 이 전에는 Candidate C 학습 금지
+6. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Candidate C 계약 설계 완료와 ADR-011·EOS 진단·Dataset/Tokenizer/Config freeze 후속 순서 반영 |
 | 2026-08-05 | Base Training Readiness `blocked`, Candidate C `not_started`와 C-1~C-5 선행 조건·다음 Task 반영 |
 | 2026-08-05 | 구현 상태를 유지하면서 Foundation 우선 공식 순서, Candidate C·Foundation Instruct 핵심 목표, Runtime 후속 서비스 트랙과 DohaMusic Application 위치를 반영 |
 | 2026-08-05 | V03-R4 Tokenization Approval lifecycle과 V03-R5 Runtime Execution Request를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
