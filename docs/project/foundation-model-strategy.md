@@ -41,6 +41,9 @@ Base Training Readiness
   → EOS 분석
 ```
 
+현재 종합 판정은 `blocked`입니다. 상세 근거와 Candidate C 진입 Gate는
+[Base Training Readiness](../training/base-training-readiness.md)를 따릅니다.
+
 현재까지 확보한 기반은 다음 네 축입니다.
 
 1. `DohaLM-Tiny` 직접 구현과 Trainer·checkpoint/resume·generation 검증
@@ -60,7 +63,8 @@ Candidate C는 다음 Foundation 핵심 목표입니다.
 EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
 ```
 
-현재 상태는 `planned`입니다. 구조·데이터·학습·평가 수치와 실행 승인은 후속 설계 및 ADR 전까지 확정하지 않습니다.
+현재 상태는 `not_started`입니다. 구조·데이터·학습·평가 수치와 실행 승인은 후속 설계 및 ADR 전까지 확정하지 않습니다.
+특히 ADR-009의 historical `candidate_c: not_required` 결정과 새 공식 우선순위의 충돌을 해소하기 전에는 실행할 수 없습니다.
 
 ### 3.3 Foundation Instruct
 
@@ -119,6 +123,7 @@ Prompt 직렬화는 Qwen 공식 chat template로 구현됐지만 독립적인 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Base Training Readiness의 blocked 판정과 Candidate C 실행 전 ADR·EOS·config·evaluation 동결 경계를 연결 |
 | 2026-08-05 | Foundation을 최우선 Phase로 재배치하고 Base 본훈련 준비 → Candidate C → Foundation Instruct 순서, Runtime의 후속 서비스 트랙과 DohaMusic Application 경계를 명시 |
 | 2026-08-04 | Foundation 연구와 Qwen 기반 Runtime/Application을 별도 트랙으로 분리하고 1·2·3차 목표 경계 반영 |
 | 2026-07-28 | Foundation Model 장기 비전과 immutable Base 원칙 작성 |

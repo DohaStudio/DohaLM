@@ -43,7 +43,8 @@ parent 결정을 다루는 후속 ADR이 필요합니다.
 | 운영 Tokenizer | `implemented_verified` | `operating-16k-v2/unigram-16k`, vocab 16,000 |
 | Candidate A | `implemented_verified` | 10M token 학습 완료; historical Base baseline |
 | Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
-| Candidate C | `planned` | EOS 문제 해결·Base 재학습·독립 Evaluation이 다음 Foundation 핵심 목표 |
+| Base Training Readiness | `blocked` | [통합 Readiness](../training/base-training-readiness.md): ADR 정합성·EOS root cause·config/evaluation freeze 미완료 |
+| Candidate C | `not_started` | C-1~C-5와 새 single-use 승인 전 학습 금지 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | ADR-010 Candidate B parent 설계 상태 유지; Candidate C 기반 공식 목표는 후속 ADR·artifact 필요 |
 | Foundation Chat·Small 이상 | `planned` | 구조·데이터·실행 승인 없음 |
@@ -163,17 +164,18 @@ Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Fo
 
 ## 8. 다음 권장 작업
 
-1. Foundation Base Training Readiness와 Publish Recovery의 현재 blocker·산출물·승인 경계를 통합 확인
-2. Foundation Tokenization → Evaluation → EOS 분석 연결을 기준 문서에 고정
-3. Candidate B를 비교 기준으로 Candidate C의 EOS 해결·재학습·평가 계약 작성
-4. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
-5. Phase 1 완료 뒤 Runtime v0.3 Recovery → Manifest → Runtime → Adapter 진행
-6. Runtime 완료 뒤 DohaMusic → Music Adapter → Lyrics → Prompt 진행
+1. ADR-009의 `candidate_c: not_required`와 새 공식 우선순위 충돌을 해소하는 Candidate C 후속 ADR 검토
+2. EOS root cause 가설·변경 범위와 Candidate C Evaluation Gate 승인
+3. Dataset·Tokenizer·Training Config를 Candidate C identity로 freeze해 C-1~C-4 완료
+4. 별도 승인 뒤 exact config의 C-5 GPU Smoke 수행; 이 전에는 Candidate C 학습 금지
+5. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
+6. Phase 1 완료 뒤 Runtime, Runtime 완료 뒤 DohaMusic 진행
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | Base Training Readiness `blocked`, Candidate C `not_started`와 C-1~C-5 선행 조건·다음 Task 반영 |
 | 2026-08-05 | 구현 상태를 유지하면서 Foundation 우선 공식 순서, Candidate C·Foundation Instruct 핵심 목표, Runtime 후속 서비스 트랙과 DohaMusic Application 위치를 반영 |
 | 2026-08-05 | V03-R4 Tokenization Approval lifecycle과 V03-R5 Runtime Execution Request를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R3 Run Identity schema·ledger validator·reservation writer synthetic 검증 완료; 실제 ledger migration·Run 예약·Approval·Request·실행은 수행하지 않음 |

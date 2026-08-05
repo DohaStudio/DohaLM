@@ -25,6 +25,7 @@ Foundation Candidate B, Candidate C와 Foundation Instruct는 프로젝트의 �
 
 Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strategy.md), Instruct의 두 계보는
 [Instruct Strategy](docs/instruct/instruct-strategy.md), 전체 문서 목록은 [문서 안내서](docs/README.md)를 따릅니다.
+현재 최우선 작업의 상세 진입 판단은 [Base Training Readiness](docs/training/base-training-readiness.md)를 기준으로 합니다.
 
 ## 현재 구현 상태
 
@@ -35,6 +36,10 @@ Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strate
 | `implemented_verified` | 코드가 있고 관련 자동 테스트 또는 명시적 로컬 실측 근거가 있음 |
 | `implemented_not_integrated` | 코드·학습 산출 이력은 있으나 현재 Runtime 경로에 연결되지 않음 |
 | `design_complete` | 설계·계약은 있으나 실행 또는 통합 완료가 아님 |
+| `completed` | 해당 범위의 기존 artifact와 검증 근거가 완료됨 |
+| `reviewing` | 기존 근거를 다음 실행 계약에 채택할지 검토 중 |
+| `blocked` | 필수 결정·승인·근거가 없어 다음 단계로 진행 불가 |
+| `not_started` | 해당 후보 전용 작업이나 실행이 시작되지 않음 |
 | `planned` | 목표만 확정됐고 구현 완료 근거가 없음 |
 | `out_of_scope` | 현재 범위에서 제외 |
 
@@ -45,7 +50,8 @@ Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strate
 | DohaLM-Tiny | `implemented_verified` | Decoder-only Transformer, Trainer, checkpoint/resume, 실제 corpus overfit 검증 |
 | Tokenizer | `implemented_verified` | 운영 `operating-16k-v2/unigram-16k`, vocab 16,000, Gate 3 통과 |
 | Candidate A/B | `implemented_verified` | Candidate B가 current Base baseline이자 Candidate C의 비교 기준, Candidate A는 historical baseline |
-| Candidate C | `planned` | EOS 문제 해결·Base 재학습·Candidate C Evaluation이 다음 핵심 목표 |
+| Base Training Readiness | `blocked` | 기반 구현은 완료됐으나 ADR 정합성·EOS root cause·Candidate C config/evaluation 승인 미완료 |
+| Candidate C | `not_started` | C-1~C-4 동결과 C-5 GPU Smoke·별도 single-use 승인 전 학습 금지 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
 | Foundation Instruct | `design_complete` | 현재 ADR-010은 Candidate B 파생 설계; 공식 차기 목표는 Candidate C 기반이며 후속 ADR·학습·publication 승인 필요 |
 
@@ -78,6 +84,8 @@ Runtime은 현재 **로컬 개발·검증용**입니다. 인증, 영구 저장�
 
 Candidate B는 완료된 current Base baseline이자 Candidate C의 필수 비교 기준으로 보존합니다. Candidate C 기반 Foundation
 Instruct로 parent를 바꾸려면 현재 승인된 ADR-010을 대체하거나 개정하는 후속 결정이 먼저 필요합니다.
+[Base Training Readiness](docs/training/base-training-readiness.md)의 C-1~C-4가 통과하기 전에는 GPU Smoke나 Candidate C
+학습으로 넘어가지 않습니다.
 
 ### Phase 2 — Runtime
 
