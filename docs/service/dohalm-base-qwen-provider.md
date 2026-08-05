@@ -16,7 +16,7 @@ prompt·response 원문과 token ID는 API·로그에 기록하지 않는다.
 DohaLM Adapter, Dataset, Tokenization, QLoRA 학습, checkpoint와 model merge는 이 구현의 범위 밖이다. Base Qwen은
 DohaLM 학습 결과가 아니라 서비스 경로 검증용 upstream Instruct 모델이다.
 
-이 Provider는 Runtime/Application 1차 목표의 Base 경로다. Foundation Model Track의 Candidate A/B와 계보를 공유하지 않으며,
+이 Provider는 Phase 2 Reusable Model and Runtime의 Base 경로다. Phase 1 Foundation Model의 Candidate A/B와 계보를 공유하지 않으며,
 Base Qwen 검증 완료는 General Instruct Adapter Loader 완료를 의미하지 않는다.
 
 ## 지원 환경과 선택 결과

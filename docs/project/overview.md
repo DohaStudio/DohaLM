@@ -1,95 +1,64 @@
-# DohaLM 프로젝트 개요
+# DohaLM Project Definition
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
+- 마지막 검토일: 2026-08-05
+- 기준 문서: [저장소 README](../../README.md)
 
-> 현재 구현·실행 상태는 [Current Project Status](./current-project-status.md)가 기준이다. 아래 초기 목표와 완료 조건은 역사적 범위를 보존하며, 장기 확장 제안은 [Foundation Model Strategy](./foundation-model-strategy.md)와 [Model Family Roadmap](./model-family-roadmap.md)를 따른다.
+## 1. 정의
 
-## 프로젝트 기준
+DohaLM은 한국어 LLM 연구 결과를 재사용 가능한 모델·Runtime·통합 계약으로 제공하는 **LLM 모델 제공자**입니다.
+최종 사용자용 UI나 도메인 비즈니스 로직은 이 저장소의 제품 범위가 아닙니다.
 
-- [확정] 프로젝트의 현재 최상위 기준은 루트 [README](../../README.md)이며, 이 문서는 초기 목적과 완료 조건의 역사적 배경을 보존한다.
-- [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
-- [확정] 현재 저장소에는 DohaLM-Tiny, 데이터·Tokenizer·Trainer와 Evaluation Framework가 구현돼 있고 Gate 1~7이 통과했다. Candidate B 학습·평가와 Base Qwen 기반 FastAPI·Next.js 로컬 Runtime도 구현·검증됐다. General Instruct Adapter Loader는 미구현이다.
+```text
+project_definition: reusable_llm_model_provider
+```
 
-## 프로젝트 배경
+## 2. 공식 제공물
 
-DohaLM은 한국어 소형 언어모델의 전 과정을 학습하기 위한 프로젝트다. 완성된 GPT 모델을 가져와 미세조정하는 데 그치지 않고, 토크나이저 학습부터 Decoder-only Transformer 구현, 랜덤 초기화 사전학습, 질문·답변 데이터 기반 SFT, 평가와 서비스 연결까지 단계별로 구축한다.
+1. Foundation Model
+2. fine-tuned model, Adapter 또는 merged model
+3. inference runtime
+4. REST·Streaming API
+5. Python SDK
+6. Model Manifest와 versioning
+7. Integration Guide
 
-- [확정] 대규모 연구용 장비가 아닌 `RTX 3060 Ti 8GB` 단일 GPU에서 실행 가능한 범위를 기준으로 한다.
-- [확정] A100, H100, 멀티 GPU, 대규모 분산 학습, 7B 이상 모델의 처음부터 사전학습은 전제하지 않는다.
-- [검증 필요] 실제 처리량, 최대 배치 크기, 학습 시간 및 데이터 규모는 구현 후 측정해야 한다.
+각 산출물의 현재 상태는 [Current Project Status](./current-project-status.md), 범위와 완료 조건은
+[범위와 목표](./scope-and-goals.md)를 따릅니다.
 
-## 프로젝트 목적
+## 3. 저장소 책임 경계
 
-1. [확정] 한국어 토크나이저를 직접 학습한다.
-2. [확정] PyTorch로 Decoder-only Transformer의 핵심 구성요소를 직접 구현한다.
-3. [확정] 랜덤 초기화한 `DohaLM-Tiny`를 한국어 텍스트로 사전학습해 전체 파이프라인을 검증한다.
-4. [확정] 검증 결과를 바탕으로 `DohaLM-Small`을 설계하고 한국어 문장 생성 및 간단한 대화 기능을 구현한다.
-5. [확정] 질문·답변 데이터로 SFT를 수행한다.
-6. [확정] FastAPI 추론 서버와 Next.js 채팅 화면을 연결한다.
-7. [후순위] AI Hub K-AI Leaderboard의 당시 제출 요건을 조사하고 제출 가능성을 검토한다.
+| DohaLM 소유 | 외부 소비자 프로젝트 소유 |
+|---|---|
+| 모델 학습·평가·선정 | 최종 사용자 UI |
+| 모델·Adapter 로딩과 추론 | 도메인 비즈니스 로직 |
+| streaming과 prompt 처리 | 사용자 workflow와 프로젝트 데이터 |
+| manifest·versioning·호환성 | DohaLM API·SDK 통합 |
 
-세부 범위와 성공 기준은 [범위와 목표](./scope-and-goals.md)를 따른다.
+DohaMusic, DohaWriter와 DohaCode는 별도 저장소의 소비자입니다. 첫 Reference Application인 DohaMusic의 상세 경계는
+[Reference Applications](./domain-model-strategy.md)에 정의합니다.
 
-## 핵심 결과물
+## 4. Phase 관계
 
-| 결과물 | 상태 | 완료 판단 |
-|---|---|---|
-| 한국어 SentencePiece 토크나이저 | [확정] | 운영 `operating-16k-v2/unigram-16k` 승인과 fingerprint·round-trip 검증 완료 |
-| `DohaLM-Tiny` | [확정] | 실제 corpus Overfit, Pilot, Candidate A와 Quick·Full 평가 완료 |
-| `DohaLM-Small` | [후순위] | Tiny 결과를 반영한 설계와 학습·생성 결과가 존재함 |
-| PyTorch 기반 모델 구현 | [확정] | 직접 구현 범위가 코드와 테스트로 확인됨 |
-| 데이터 처리 파이프라인 | [확정] | 원본 불변·계보·분할·누수·fingerprint 계약과 canonical pilot-v2 검증 완료 |
-| 사전학습 및 SFT 체크포인트 | [검증 필요] | 저장·복원 및 중단 후 재개가 검증됨 |
-| 평가 보고서 | [확정] | Candidate A/B Quick·Full, EOS 진단과 ADR-009 current/historical baseline 기록 완료 |
-| FastAPI 및 Next.js 데모 | [확정] | Base Qwen 로컬 환경에서 일반 Chat·SSE·취소·재시도까지 연결·검증됨 |
-| K-AI Leaderboard 검토서 | [후순위] | 당시 규정, 형식, 라이선스 및 성능 요건을 대조함 |
+- Phase 1은 Dataset부터 Foundation Base까지 직접 구현 모델 연구를 수행합니다.
+- Phase 2는 Qwen 계보를 포함할 수 있는 재사용 모델 artifact와 Runtime을 만듭니다.
+- Phase 3는 Runtime을 REST·Streaming·SDK·Integration Guide와 versioned release로 배포합니다.
+- Phase 1과 Phase 2는 계보가 다른 병행 가능 트랙이며, 현재 우선순위만 Phase 1입니다.
+- Reference Application은 저장소 밖에서 Phase 3 인터페이스를 검증합니다.
 
-## 기술적 의의
+세부 흐름은 [Roadmap](./model-family-roadmap.md)을 따릅니다.
 
-- [확정] 토크나이저, 모델, 학습 루프 및 생성 루프 사이의 인터페이스를 직접 설계한다.
-- [확정] 제한된 VRAM에서 파라미터, 활성값, 옵티마이저 상태 및 컨텍스트 길이의 상충 관계를 실험으로 확인한다.
-- [확정] 데이터 출처부터 체크포인트와 평가 결과까지 재현 가능한 기록을 남긴다.
-- [가정] 소형 모델의 절대 성능보다 전체 시스템을 설명하고 검증할 수 있는 역량이 프로젝트의 우선 가치다.
+## 5. 비목표
 
-## 포트폴리오 관점의 가치
-
-- [확정] 데이터 준비, 토크나이저, 모델링, 학습, 평가, 추론 및 웹 연결을 하나의 저장소에서 보여준다.
-- [확정] 설계 결정과 실험 실패를 ADR 및 실험 기록으로 남겨 의사결정 과정을 설명한다.
-- [가정] 제한된 하드웨어에서의 현실적인 범위 설정과 측정 기반 최적화가 결과 모델의 크기 자체보다 중요한 차별점이 된다.
-- [제외] 상용 수준의 범용 챗봇 성능이나 대규모 모델과의 직접적인 성능 동등성은 포트폴리오 완료 조건이 아니다.
-
-## 전체 개발 흐름
-
-1. [확정] 기준 문서와 ADR 작성
-2. [확정] AIHUB-71748 학생·비상업 범위와 canonical pilot-v2 계보 검토
-3. [확정] 정제·중복 제거·분할 파이프라인 구축
-4. [확정] SentencePiece 운영 토크나이저 학습 및 검증
-5. [확정] `DohaLM-Tiny` 모델과 단위 테스트 구현
-6. [확정] 실제 corpus Tiny Overfit과 복원 테스트로 학습 파이프라인 검증
-7. [확정] Pilot·Candidate A 사전학습과 Quick·Full 평가 완료
-8. [확정] Qwen 기반 질문·답변 데이터 처리와 QLoRA 학습·평가 이력 작성; Runtime Adapter 연결은 미완료
-9. [후순위] 측정 결과를 바탕으로 `DohaLM-Small` 상세 사양 확정 및 학습
-10. [확정] Base Qwen FastAPI 추론 서버와 Next.js 채팅 화면 연결
-11. [제외] Docker, Kubernetes와 Cloud 배포; K-AI Leaderboard는 별도 장기 검토
-
-전체 문서 순서는 [문서 인덱스](../index.md)를 따른다.
-
-## 최종 완료 조건
-
-다음 조건을 모두 충족할 때 프로젝트를 완료로 판단한다.
-
-- [검증 필요] 허가된 한국어 데이터로 토크나이저 학습부터 SFT까지 재현 가능한 절차가 문서화되어 있다.
-- [검증 필요] 직접 구현 범위와 각 핵심 모듈의 테스트 결과가 확인된다.
-- [검증 필요] `RTX 3060 Ti 8GB` 단일 GPU에서 최소 `DohaLM-Tiny`의 학습, 체크포인트 복원, 평가 및 생성 흐름이 실행된다.
-- [검증 필요] `DohaLM-Small`은 실측 자원 범위 안에서 구현되거나, 진행 불가 사유와 측정 근거가 문서화되어 있다.
-- [검증 필요] SFT 전후 결과가 동일한 평가 절차로 비교된다.
-- [확정] Base Qwen과 FastAPI·Next.js를 통한 로컬 대화 흐름이 검증됐다. Adapter 경로는 별도 완료 조건이다.
-- [후순위] K-AI Leaderboard 제출 가능 여부가 최신 요건을 기준으로 결론 내려진다.
-- [확정] 구현되지 않았거나 검증되지 않은 항목을 완료로 표시하지 않는다.
+- ChatGPT 대체 또는 상용 수준 범용 챗봇 보장
+- 7B 이상 모델의 from-scratch pretraining
+- Cloud·Kubernetes 운영 배포
+- DohaMusic UI·음악 비즈니스 로직·오디오·MIDI 생성
+- 별도 승인 없는 model·checkpoint·dataset·Adapter 공개
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-08-04 | README 기준 전환, Candidate B와 Base Qwen API·Frontend 구현 및 Adapter 미연결 상태 반영 |
+| 2026-08-05 | 프로젝트를 reusable LLM model provider로 정의하고 산출물·소비자·Phase 경계 재정렬 |
+| 2026-08-04 | 초기 목적과 구현 상태 동기화 |

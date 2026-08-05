@@ -1,164 +1,79 @@
 # DohaLM 범위와 목표
 
-## 문서 상태
-
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-04
-- [확정] 이 문서는 프로젝트 범위와 목표를 정의하며 구현 완료를 의미하지 않는다.
-- [확정] Tiny 세부 구조는 [ADR-002](../decisions/ADR-002-tiny-model-architecture.md), 토크나이저 방식은 [ADR-003](../decisions/ADR-003-tokenizer-method.md)을 따른다.
+- 마지막 검토일: 2026-08-05
+- [확정] 이 문서는 프로젝트 범위와 목표를 정의하며 구현 완료를 의미하지 않습니다.
 
-## 기준
+## 1. 전체 목표
 
-- [확정] 프로젝트명은 `DohaLM`이다.
-- [확정] 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`다.
-- [확정] 모델명은 `DohaLM-Tiny`와 `DohaLM-Small`로 통일한다.
-- [확정] 현재 저장소에는 실행 가능한 DohaLM-Tiny·Trainer·평가 코드가 있고 Gate 1~7, Pilot, Candidate A 10M과 Evaluation Framework가 완료됐다.
+DohaLM의 목표는 직접 구현 Foundation 연구와 별도 reusable model 계보를 검증하고, 외부 프로젝트가 안정적으로 사용할 수 있는
+모델·Runtime·API·SDK·manifest·통합 문서를 제공하는 것입니다. 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`입니다.
 
-현재 사실 상태는 [Current Project Status](./current-project-status.md), 장기 Foundation·Model Family 확장 범위는 [Foundation Model Strategy](./foundation-model-strategy.md)와 [Model Family Roadmap](./model-family-roadmap.md)를 따른다. 장기 제안은 Tiny 승인 사양이나 아직 미확정인 Small 상세 구조를 확정하지 않는다.
+## 2. 포함 범위
 
-## 전체 목표
+### Phase 1 — Foundation Model Development
 
-[확정] 한국어 소형 언어모델을 랜덤 초기화부터 직접 사전학습하고, SFT·평가·추론·웹 데모까지 이어지는 재현 가능한 전체 파이프라인을 구축한다. 완성된 Hugging Face GPT 모델 클래스는 핵심 모델 구현에 사용하지 않는다.
+- 라이선스·계보가 기록된 Dataset과 Tokenizer
+- PyTorch Decoder-only Transformer 직접 구현
+- DohaLM-Tiny Base pretraining, Candidate A/B/C, EOS 진단
+- Base evaluation, candidate selection과 Foundation Base
+- 별도 parent 결정에 따른 Foundation Instruct 연구 계보
 
-## MVP 범위
+승인 Tiny 사양은 [모델 아키텍처](../architecture/model-architecture.md)와
+[ADR-002](../decisions/ADR-002-tiny-model-architecture.md)를 따릅니다. Candidate B가 current baseline이며 Candidate C는
+contract design만 완료된 experimental successor입니다.
 
-MVP는 `DohaLM-Tiny`로 전체 파이프라인의 기술적 연결을 검증하는 단계다.
+### Phase 2 — Reusable Model and Runtime
 
-- [확정] 라이선스를 기록한 한국어 텍스트 데이터 입력
-- [확정] [ADR-003](../decisions/ADR-003-tokenizer-method.md)에 따른 SentencePiece Unigram 기반 16,000 어휘 토크나이저 학습
-- [확정] Decoder-only Transformer 직접 구현
-- [확정] 짧은 데이터 과적합 테스트와 소규모 사전학습
-- [확정] 체크포인트 저장, 복원 및 학습 재개
-- [확정] loss, perplexity 및 고정 프롬프트 생성 평가
-- [확정] 질문·답변 형식의 소규모 SFT 파이프라인 검증
-- [확정] Base Qwen 기반 FastAPI와 Next.js 최소 대화·SSE 흐름
-- [제외] MVP 단계의 Leaderboard 제출, Docker·Kubernetes·Cloud 또는 상용 배포
+- Qwen Base 또는 Instruct 기반 Korean·General SFT
+- QLoRA Adapter 또는 merged model과 평가
+- versioned DohaLM Model artifact, manifest, validator와 loader
+- inference runtime과 provider lifecycle
 
-## 1차 모델 목표: DohaLM-Tiny
+이 Phase는 Phase 1 Candidate의 자동 파생물이 아닙니다. 상세 계약은
+[Reusable Model Strategy](./reusable-model-strategy.md)를 따릅니다.
 
-다음 값은 [모델 아키텍처](../architecture/model-architecture.md)와 [ADR-002](../decisions/ADR-002-tiny-model-architecture.md)에서 승인된 설계 사양이다.
+### Phase 3 — Distribution and Integration
 
-| 항목 | 기준 | 상태 |
-|---|---:|---|
-| 모델 구조 | Decoder-only Transformer | [확정] |
-| 목표 파라미터 | 약 15M~25M | [확정] |
-| Transformer Layer | 6 | [확정] |
-| Hidden Size | 384 | [확정] |
-| Attention Head | 6 | [확정] |
-| Head Dimension | 64 | [확정] 384 ÷ 6 계산 결과 |
-| Context Length | 256 | [확정] |
-| Vocabulary Size | 16,000 | [확정] |
-| FFN Size | 1,536 | [확정] |
-| Normalization | Pre-LayerNorm | [확정] |
-| Position Embedding | 학습형 absolute positional embedding | [확정] |
-| Linear bias | 사용 | [확정] |
-| LM Head bias | 미사용 | [확정] |
-| Token Embedding–LM Head | weight tying 사용 | [확정] |
-| Precision | FP16 mixed precision | [확정] |
-| 예상 파라미터 | 16,889,856 | [확정] 설계 산식 기준 |
-| 목적 | 전체 학습 파이프라인 검증 | [확정] |
+- runtime server와 REST·Streaming API
+- Python SDK
+- Integration Guide와 local versioned release
+- 모델·Runtime 호환성과 release identity
 
-- [확정] 설계상 예상 파라미터 수는 `16,889,856`이며 목표 약 15M~25M 범위 안에 있다.
-- [확정] 구현 모델의 실제 고유 파라미터 수가 `16,889,856`과 일치함을 자동 테스트로 확인했다.
-- [검증 필요] Dropout 확률과 파라미터 초기화 방식은 아직 결정되지 않았다.
-- [검증 필요] FP16은 안정성을 포함해 실제 학습에서 검증하며, 손실 스케일링과 수치 안정성 정책은 학습 계획에서 정한다.
+상세 범위는 [Distribution and Integration](./distribution-and-integration.md)을 따릅니다.
 
-## 2차 모델 목표: DohaLM-Small
+## 3. 성공 기준
 
-| 항목 | 기준 | 상태 |
-|---|---:|---|
-| 목표 파라미터 | 약 50M~80M | [확정] |
-| Context Length | 최대 512 | [확정] |
-| 목적 | 한국어 문장 생성과 간단한 대화 기능 | [확정] |
-| Layer/Hidden/Head/FFN | 미정 | [검증 필요] |
-| 실제 학습 정밀도 및 배치 | 미정 | [검증 필요] |
+- Foundation Candidate의 Dataset·Tokenizer·config·checkpoint·evaluation lineage가 재현 가능합니다.
+- 승인된 reusable model artifact가 manifest와 checksum으로 식별되고 fail-closed Runtime에서 로드됩니다.
+- REST·Streaming과 Python SDK가 동일한 versioned model contract를 소비합니다.
+- 별도 저장소의 Reference Application이 Integration Guide에 따라 DohaLM을 호출할 수 있습니다.
+- 구현되지 않았거나 승인되지 않은 항목을 완료로 표시하지 않습니다.
 
-- [확정] Tiny 파이프라인과 자원 사용량이 검증되기 전 Small의 상세 사양을 고정하지 않는다.
-- [가정] Small은 Tiny보다 생성 품질과 표현 용량을 높이는 역할을 맡는다.
-- [검증 필요] 8GB VRAM에서 가능한 컨텍스트 길이와 유효 배치 크기는 메모리 실측 후 정한다.
+정량 합격선은 기존 승인 평가 문서와 코드만 재사용하며 임의로 만들지 않습니다.
 
-## 구현 및 학습 전 미결정 사항
+## 4. 제외 범위
 
-### 모델과 학습
+- ChatGPT 대체 또는 상용 수준 성능·가용성·SLA 보장
+- A100·H100, 멀티 GPU와 7B 이상 from-scratch pretraining
+- Docker, Kubernetes, Cloud와 운영 배포
+- DohaMusic을 포함한 소비자 UI·도메인 비즈니스 로직
+- 오디오·보컬·MIDI 생성
+- 승인되지 않은 publication
 
-- [검증 필요] Dropout 확률
-- [검증 필요] 파라미터 초기화 방식
-- [검증 필요] 실제 micro-batch size
-- [검증 필요] Gradient Accumulation steps
-- [검증 필요] Gradient Checkpointing 기본 활성화 여부
-- [검증 필요] Learning Rate
-- [검증 필요] Warmup step 또는 비율
-- [검증 필요] Weight Decay
-- [검증 필요] Token Budget
-- [검증 필요] Checkpoint 저장 주기
+## 5. 현재 미결정 사항
 
-### 토크나이저와 자원
+- Candidate C 단일 EOS 가설과 single-use 실행 승인
+- Foundation Instruct parent에 관한 ADR-010 후속 결정
+- eligible General Instruct Adapter candidate
+- Python SDK 공개 표면과 versioned release 승인
+- DohaLM-Small 상세 구조
 
-- [검증 필요] SentencePiece character coverage
-- [검증 필요] SentencePiece normalization rule
-- [검증 필요] Byte fallback 사용 여부
-- [검증 필요] `DohaLM-Small` 상세 구조
-- [검증 필요] `RTX 3060 Ti 8GB`의 실제 VRAM 사용량
-
-## 장기 목표
-
-- [후순위] 데이터 품질과 모델 크기 변화에 따른 성능 추세를 실험으로 정리한다.
-- [후순위] 로컬 또는 단일 GPU 환경에서 재현 가능한 추론 데모를 제공한다.
-- [후순위] 프로젝트 시점의 AI Hub K-AI Leaderboard 규정과 모델을 대조해 제출 가능성을 판단한다.
-- [검증 필요] Leaderboard 제출 자체는 규정, 라이선스, 제출 형식 및 성능을 검토한 뒤 별도로 결정한다.
-
-## 포함 기능
-
-- [확정] 데이터 출처·라이선스 기록, 정제, 중복 제거 및 데이터셋 구성
-- [확정] 토크나이저 학습, 저장, 로딩, 인코딩 및 디코딩
-- [확정] Token/Positional Embedding, Causal Self-Attention, Multi-Head Attention
-- [확정] Feed-Forward Network, Layer Normalization, Residual Connection
-- [확정] Decoder Transformer Block, Language Modeling Head, Cross-Entropy Loss 연결
-- [확정] 학습·평가 루프, 체크포인트 저장·복원, 자기회귀 생성
-- [확정] 사전학습 및 질문·답변 SFT
-- [확정] Base Qwen FastAPI 추론 API와 Next.js 채팅 화면
-- [검증 필요] General Instruct Adapter Loader와 독립 Prompt Engine
-
-## 제외 기능
-
-- [제외] A100 또는 H100을 전제로 한 설계
-- [제외] 멀티 GPU 및 대규모 분산 학습
-- [제외] 7B 이상 모델의 처음부터 사전학습
-- [제외] Hugging Face 완성형 GPT 모델 클래스를 핵심 모델로 사용
-- [제외] RLHF, DPO 및 멀티모달 학습은 현재 범위에 포함하지 않음
-- [제외] 상용 서비스 수준의 가용성, 보안, 자동 확장 및 SLA 보장
-- [제외] Docker, Kubernetes, Cloud와 운영 배포
-
-## 성공 기준
-
-### 파이프라인 성공
-
-- [검증 필요] 고정된 설정과 데이터 버전으로 토크나이저 및 데이터셋을 다시 만들 수 있다.
-- [검증 필요] 작은 데이터에 의도적으로 과적합해 모델·손실·역전파 연결을 확인한다.
-- [검증 필요] 체크포인트 복원 후 학습 상태가 정상적으로 이어진다.
-- [검증 필요] Tiny 사전학습 손실과 perplexity가 동일 평가셋에서 추적되며 생성 샘플이 보존된다.
-- [검증 필요] SFT 전후를 동일 프롬프트와 평가 규칙으로 비교할 수 있다.
-
-### 자원 성공
-
-- [검증 필요] Tiny의 학습과 추론이 `RTX 3060 Ti 8GB`에서 CUDA OOM 없이 실행된다.
-- [검증 필요] 최대 메모리 사용량, 처리량 및 실행 시간을 실제 측정해 기록한다.
-- [가정] 메모리 부족 시 배치 크기, gradient accumulation, activation checkpointing 또는 컨텍스트 길이를 조정하되 모델 기준값 변경은 ADR로 남긴다.
-
-정량 합격선은 평가 설계와 초기 기준 측정 없이 임의로 정하지 않는다. [검증 필요] [평가 계획](../evaluation/evaluation-plan.md)에 따라 초기 기준 측정 후 확정한다.
-
-## 실패 또는 중단 기준
-
-- [확정] 데이터의 사용·재배포·학습 허용 여부를 확인할 수 없으면 해당 데이터 사용을 중단한다.
-- [확정] 손실 감소, 체크포인트 복원 또는 결정론적 검증이 재현되지 않으면 장시간 학습으로 진행하지 않는다.
-- [확정] Tiny가 메모리 최적화 후에도 `RTX 3060 Ti 8GB`에서 실행되지 않으면 원인과 실측값을 기록하고 사양 변경을 ADR로 재검토한다.
-- [확정] NaN/Inf, 반복적인 CUDA OOM 또는 데이터 손상이 해결되지 않으면 해당 실험을 중단하고 직전 검증 단계로 돌아간다.
-- [확정] Small이 하드웨어 제약 안에서 현실적인 처리량을 확보하지 못하면 Small 학습을 중단할 수 있으며, Tiny의 완료 여부와 분리해 기록한다.
-- [검증 필요] 시간·비용에 대한 구체적인 중단 임계치는 초기 벤치마크 후 정한다.
+현재 사실 상태는 [Current Project Status](./current-project-status.md)를 따릅니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-08-04 | Base Qwen API·Frontend 구현, Adapter Loader 미구현과 배포 제외 범위 반영 |
-| 2026-07-23 | [확정] ADR-002와 ADR-003에 맞춰 Tiny 설계 사양을 동기화하고 미결정 사항 및 예정 평가 문서 표기를 정리함 |
+| 2026-08-05 | reusable LLM model provider 목표와 세 Phase의 포함·제외·성공 기준으로 재구성 |
+| 2026-08-04 | 당시 구현 상태와 배포 제외 범위 반영 |

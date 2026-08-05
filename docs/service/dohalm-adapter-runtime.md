@@ -4,6 +4,7 @@
 - 마지막 검토일: 2026-08-05
 - 구현 상태: `provider_integration_implemented_mock_validated`
 - 기준 문서: [README](../../README.md), [Current Project Status](../project/current-project-status.md), [Instruct Strategy](../instruct/instruct-strategy.md)
+- Phase 기준: [Reusable Model Strategy](../project/reusable-model-strategy.md)
 - 선행 구현: [FastAPI 백엔드 MVP](./dohalm-backend-mvp.md), [Base Qwen Provider](./dohalm-base-qwen-provider.md), [Frontend MVP](./dohalm-frontend-mvp.md)
 
 ## 1. 목적과 범위
@@ -11,6 +12,9 @@
 [확정] 이 문서는 Qwen Base와 별도 General Instruct QLoRA Adapter를 현재 로컬 Runtime에 연결하기 위한
 Adapter Loader의 책임, manifest, 검증 순서, Provider lifecycle과 구현 Task를 정의한다. 기존 FastAPI Chat·SSE,
 Provider Registry, Base Qwen loader와 Next.js MVP를 최대한 재사용한다.
+
+[확정] 이 Adapter는 Phase 2 reusable model artifact이며 Phase 1 Candidate B/C의 파생물로 간주하지 않는다. Loader 코드가
+구현됐어도 승인 가능한 artifact가 없으면 실제 Runtime 상태는 `unavailable_without_approved_artifact`다.
 
 [확정] Task 1은 immutable manifest model과 strict loader를 구현했고 Task 2는 manifest가 명시한 artifact의
 정적 내용과 계보를 synthetic test로 검증했다. Task 3 PEFT Loader와 Task 4 Provider 통합은 mock 검증을 완료했다.

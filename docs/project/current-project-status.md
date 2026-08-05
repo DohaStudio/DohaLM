@@ -1,231 +1,124 @@
 # DohaLM Current Project Status
 
 - 문서 상태: `review`
-- 기준 시점: 2026-08-05
-- 기준 브랜치: `develop`
-- 기준 문서: [README](../../README.md)
-- 관련 근거: [Foundation Strategy](./foundation-model-strategy.md), [Base Training Readiness](../training/base-training-readiness.md),
-  [Candidate C Design](../training/candidate-c-design.md), [Roadmap](./model-family-roadmap.md),
-  [Evaluation Framework](../evaluation/README.md), [Service 문서](../service/dohalm-backend-mvp.md)
+- 마지막 검토일: 2026-08-05
+- 기준 시점: 현재 `develop` 구현·문서·검증 근거
+- 프로젝트 정의: [DohaLM Project Definition](./overview.md)
 
 ## 1. 판정 기준
 
-이 문서는 저장소 코드, 테스트, 추적 문서와 기록된 로컬 실측만 현재 상태로 인정합니다. 설계 문서 존재, backend 구현,
-학습 완료, 평가 완료, Runtime 통합과 배포 준비는 서로 다른 상태입니다. 세부 실험 수치는 각 결과 문서에 두고 여기서는
-통합 상태만 유지합니다.
+코드 존재, synthetic·mock 검증, 실제 artifact 검증, model approval과 publication approval을 서로 다른 상태로 기록합니다.
+현재 우선순위는 Phase 1이지만 이미 존재하는 Phase 2·3 구현 이력을 낮추거나 삭제하지 않습니다.
 
-## 2. 현재 개발 우선순위
+```text
+project_definition: reusable_llm_model_provider
+phase_1: foundation_model_development
+phase_2: reusable_model_and_runtime
+phase_3: distribution_and_integration
+dohamusic_role: external_reference_application
+cloud_deployment: out_of_scope
+```
 
-현재 구현 상태와 별개로 공식 개발 순서는 다음과 같습니다.
+## 2. 통합 산출물 상태
 
-1. **Phase 1 — DohaLM Foundation**
-   - 현재 근거 조사: Candidate A/B Evidence → Candidate B EOS Diagnostic Review → Dataset·Tokenizer·Config Review → Candidate C Readiness Decision
-   - 향후 Candidate C 실행: Dataset Freeze → Tokenizer Freeze → Training Config Freeze → GPU Smoke → Training → Evaluation → Candidate Selection
-   - Foundation Instruct: Candidate C 기반 SFT → Evaluation → Candidate Selection
-2. **Phase 2 — Runtime**
-   - Qwen General Instruct v0.3 Recovery → Manifest → Runtime → Adapter
-3. **Phase 3 — Application**
-   - DohaMusic → Music Adapter → Lyrics → Prompt
+| 산출물 | Phase | 현재 상태 |
+|---|---|---|
+| DohaLM-Tiny Foundation Base | Phase 1 | Candidate B current baseline |
+| Candidate C | Phase 1 | contract design, execution blocked |
+| Foundation Instruct | Phase 1 | planned, parent decision pending |
+| General Instruct Adapter | Phase 2 | no eligible candidate |
+| Adapter Runtime | Phase 2 | code implemented, actual artifact unavailable |
+| REST/Streaming API | Phase 3 | MVP implemented |
+| Python SDK | Phase 3 | not_started |
+| Versioned Model Release | Phase 3 | planned |
+| DohaMusic integration | Reference Application | planned, separate repository |
 
-[확정] Candidate B는 current Base baseline이자 Candidate C 비교 기준으로 유지합니다. Runtime은 삭제되지 않으며 Foundation
-완료 이후 진행할 실제 서비스용 병행 트랙입니다. DohaMusic은 Runtime을 사용하는 Application입니다.
+## 3. Phase 1 — Foundation Model Development
 
-[검증 필요] 현재 승인된 ADR-010은 Candidate B 기반 Foundation Instruct 설계입니다. Candidate C 기반 SFT를 실행하려면
-parent 결정을 다루는 후속 ADR이 필요합니다.
+| 구성 | 상태 | 근거와 제한 |
+|---|---|---|
+| Dataset·Tokenizer pipeline | `implemented_verified` | lineage·split·packing·운영 16k tokenizer 계약과 historical evidence 보존 |
+| DohaLM-Tiny·Trainer | `implemented_verified` | 직접 구현 decoder, checkpoint/resume, 실제 corpus overfit |
+| 기존 Gate 1~7 | `passed` | 저장소 Foundation capability와 historical Tiny 검증; Candidate C gate 자동 통과 아님 |
+| Candidate A | historical baseline | 기존 artifact·평가 판정 보존 |
+| Candidate B | current baseline | ADR-009 승인; pure greedy EOS·loop 제한도 함께 보존 |
+| Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
+| Base Training Readiness review | `completed` | A/B·EOS·Dataset·Tokenizer·Config 근거 검토 완료 |
+| Candidate C contract design | `completed` | C-1~C-8, EOS 가설, freeze·평가·selection 계약 작성 |
+| Candidate C readiness | `blocked` | ADR-011 draft, 단일 주가설·freeze·resolved config·실행 승인 미완료 |
+| Candidate C execution | `false / not_started` | GPU Smoke·Training 실행 없음 |
+| Foundation Instruct | `planned` | ADR-010은 Candidate B parent 승인; 차기 parent 결정 pending |
 
 ```text
 base_training_readiness_review: completed
 candidate_c_contract_design: completed
-candidate_b_eos_diagnostic_contract: design_completed
-eos_diag_r1_artifact_system: implemented_synthetic_verified
-eos_diag_r2_identity_freezer: implemented_synthetic_verified
-eos_diag_r2_generation_matrix: implemented_synthetic_verified
-actual_candidate_b_identity_freeze: incomplete
-gate_eos_diag_1: not_passed
-gate_eos_diag_2: not_passed
-candidate_b_eos_diagnostic_execution_allowed: false
-candidate_b_checkpoint_mutation_allowed: false
-candidate_c_primary_hypothesis: not_selected
 candidate_c_readiness: blocked
 candidate_c_execution_allowed: false
 candidate_c_training_started: false
-gate_c1: review
-gate_c4: blocked
-gpu_diagnostic: not_started
-full_diagnostic: not_started
 ```
 
-## 3. 통합 상태
+### EOS Diagnostic 상태
 
-### Foundation Model Track
-
-| 구성 | 상태 | 근거와 경계 |
+| 범위 | 상태 | 의미 |
 |---|---|---|
-| Gate 0 | `approved` | 프로젝트 범위 사용자 승인 |
-| Gate 1~7 | `passed` | 저장소 Foundation capability와 historical Tiny 검증; Candidate C C-Gate를 자동 통과시키지 않음 |
-| DohaLM-Tiny | `implemented_verified` | PyTorch 직접 구현, forward/loss/generation, 16,889,856 parameters |
-| 운영 Tokenizer | `implemented_verified` | `operating-16k-v2/unigram-16k`, vocab 16,000 |
-| Candidate A | `implemented_verified` | 10M token 학습 완료; historical Base baseline |
-| Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
-| Base Training Readiness review | `completed` | A/B evidence·EOS 현상·Dataset/Tokenizer/Config 조사와 readiness 판정 완료 |
-| Candidate C contract design | `completed` | C-1~C-8·EOS 가설·freeze·Evaluation·Selection 계약 작성 완료 |
-| Candidate B EOS diagnostic contract | `design_completed` | [read-only 실행 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)과 [주가설 선택 정책](../evaluation/candidate-c-hypothesis-selection-policy.md) 설계; 실행·GPU·checkpoint load 없음 |
-| EOS-DIAG-R1 artifact system | `implemented_synthetic_verified` | exact 18-artifact strict schema·writer·completion evidence; 실제 artifact 없음 |
-| EOS-DIAG-R2 identity·matrix freezer | `implemented_synthetic_verified` | explicit-input immutable identity, 11 profile × 4 length matrix, Gate 1·2와 R1 payload synthetic 연결 |
-| 실제 Candidate B identity freeze | `incomplete` | checkpoint manifest fingerprint, formal prompt identity, source/backend/dependency evidence 미동결; Gate 1·2 `not_passed` |
-| Candidate C execution readiness | `blocked` | ADR-011·주가설·C-2/C-3 freeze·C-4 resolved config·평가 승인 미완료 |
-| Candidate C execution | `not_started` | `execution_allowed: false`, 학습 시작 false |
-| Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
-| Foundation Instruct | `design_complete` | ADR-010 Candidate B parent 설계 상태 유지; Candidate C 기반 공식 목표는 후속 ADR·artifact 필요 |
-| Foundation Chat·Small 이상 | `planned` | 구조·데이터·실행 승인 없음 |
+| Candidate B EOS 현상·기존 진단 | `confirmed` | teacher-forced 지표 개선과 pure greedy EOS 0%·장기 loop 현상 확인 |
+| 단일 root cause | `unconfirmed` | 관측 현상을 하나의 원인으로 확정하지 않음 |
+| EOS-DIAG-R1 artifact system | `implemented_synthetic_verified` | strict 18-artifact schema·validator·writer·completion evidence |
+| EOS-DIAG-R2 identity·matrix freezer | `implemented_synthetic_verified` | immutable explicit-input identity, generation matrix, R1 payload 연결 |
+| 실제 Candidate B identity freeze | `incomplete` | checkpoint manifest fingerprint, prompt identity, source/backend/dependency evidence 미동결 |
+| EOS Diagnostic Gate 1·2 | `not_passed` | 실제 artifact·승인 입력의 gate evidence 없음 |
 
-Candidate B의 historical 평가 계약 판정 `evaluated_contract_not_passed`는 유지합니다. ADR-009의 현재 판정은
-`approved_as_base_baseline`이며 derivative parent 적격성은 `approved_experimental`입니다. 이는 후속 학습 또는 공개 승인이 아닙니다.
-Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-greedy 생성의 EOS 종료율은 0%, maximum-length
-종료율은 100%였습니다. 이 한계는 Base 진단 결과로 보존하며 숨기거나 Runtime readiness로 해석하지 않습니다.
-EOS 현상과 기존 A/B 진단 검토는 `completed`지만 단일 root cause는 `not_confirmed`입니다. 신규 Candidate B read-only
-진단 **계약 설계**만 완료됐고 실행은 허용되지 않았습니다. H1~H7 중 어느 가설도 아직 승인되지 않았으며 이 미확정성이
-Candidate C execution readiness를 차단합니다.
+R1/R2는 실제 checkpoint load, tokenizer load, GPU, generation 또는 EOS 계산 완료를 의미하지 않습니다.
 
-### Phase 2 — Runtime 서비스 트랙
+## 4. Phase 2 — Reusable Model and Runtime
 
-| 구성 | 상태 | 근거와 경계 |
+| 구성 | 상태 | 근거와 제한 |
 |---|---|---|
-| Qwen Base loader | `implemented_verified` | 고정 revision·local-only·lazy load, BF16 CUDA smoke |
-| General Instruct QLoRA backend | `implemented_not_integrated` | v0.1/v0.2 학습·평가 완료 이력은 있으나 canonical 평가 적격 후보 없음 |
-| Runtime / Provider Registry | `implemented_verified` | Mock, Base Qwen, fail-closed Adapter provider |
-| Adapter Loader | `implementation_in_progress` | Manifest·Validator·PEFT Loader·Provider lifecycle은 mock 검증 완료; [후보 선정](../instruct/general-instruct-adapter-candidate-selection.md)은 `no_eligible_candidate`, GPU 미실행 |
-| Chat API | `implemented_verified` | health/readiness/models, 일반 Chat, 오류·timeout 계약 |
-| Streaming | `implemented_verified` | SSE, cancellation, semaphore, worker join |
-| Prompt Engine | `design_complete` | Base Qwen 공식 chat template 적용만 구현; 독립 engine은 없음 |
-| Next.js UI | `implemented_verified` | HTTP/SSE, 취소·재시도, Base Qwen Chrome E2E |
+| Qwen Base provider | `implemented_verified` | 고정 local snapshot, lazy load, Base Qwen local E2E |
+| General Instruct QLoRA 이력 | `implemented_not_integrated` | v0.1/v0.2 학습·평가와 v0.3 recovery 기록 보존 |
+| General Instruct Adapter candidate | `no_eligible_candidate` | 이용조건·artifact·평가 evidence를 모두 충족한 후보 없음 |
+| Adapter Manifest·Validator | `implemented_verified` | strict·fail-closed identity 검증 |
+| PEFT Loader·Provider lifecycle | `implemented_mock_verified` | mock 통합 완료, 실제 승인 Adapter·GPU READY 미검증 |
+| Adapter Runtime | `unavailable_without_approved_artifact` | 코드 구현과 실제 artifact 사용 가능성을 분리 |
+| Prompt serialization | `implemented_partial` | Qwen chat template 사용; 독립 prompt policy engine은 미구현 |
 
-현재 서비스는 기본 `mock`, 명시적 `base-qwen` 또는 `dohalm-adapter` Provider를 사용하는 로컬 MVP입니다.
-Adapter Provider는 명시된 manifest를 preflight하고 첫 요청에서 lazy load하지만 저장소에는 승인 artifact가 없습니다.
-구현 사실은 유지하지만 현재 프로젝트 실행 우선순위는 Phase 1 Foundation입니다.
+Phase 2는 Phase 1 Candidate B/C의 자동 파생물이 아닙니다. Qwen lineage가 별도로 진행될 수 있으며 양쪽은 manifest,
+evaluation evidence와 versioning 계약을 공유합니다.
 
-### Phase 3 Application과 Runtime 확장
+## 5. Phase 3 — Distribution and Integration
 
-| 구분 | 구성 | 상태 |
+| 구성 | 상태 | 근거와 제한 |
 |---|---|---|
-| Runtime 확장 | Memory, RAG, Tool Calling, Agent | `planned` |
-| Application | DohaMusic → Music Adapter → Lyrics → Prompt | `planned` |
-| 제외 | Docker, Kubernetes, Cloud, 운영 배포 | `out_of_scope` |
+| FastAPI REST API | `MVP implemented` | chat, health, readiness, models |
+| SSE Streaming | `MVP implemented` | timeout, cancellation, worker cleanup |
+| Local validation UI | `implemented_verified` | Base Qwen browser E2E; 외부 Reference Application 아님 |
+| Python SDK | `not_started` | 공개 surface·versioning 미정 |
+| Integration Guide | `planned` | API·SDK·manifest 호환 계약 필요 |
+| Versioned Model Release | `planned` | eligible artifact·evaluation·release 승인 필요 |
+| Cloud deployment | `out_of_scope` | Docker·Kubernetes·Cloud 운영 제외 |
 
-DohaMusic의 곡 기획·가사·음악 생성 prompt는 General Instruct Runtime의 응용 후보입니다. 실제 오디오·보컬·MIDI 생성은
-DohaLM의 책임이 아니며 별도 음악 생성 모델의 범위입니다.
+## 6. Reference Applications
 
-## 4. QLoRA와 Instruct 현재 상태
+DohaMusic integration은 `planned, separate repository`입니다. DohaMusic의 UI·비즈니스 로직·음악 프로젝트·가사 편집·개인화는
+외부 저장소가 소유하고, DohaLM은 model loading·inference·streaming·prompt processing·Adapter·versioning을 제공합니다.
+이 저장소에는 DohaMusic 구현이 없습니다.
 
-두 Instruct 계보를 혼동하지 않습니다.
+## 7. 공개와 데이터 경계
 
-| 계보 | Parent | 현재 상태 | Runtime 연결 |
-|---|---|---|---|
-| Foundation Instruct Tiny v1 | Candidate B Final | 설계 완료, 학습·artifact 미생성 | 없음 |
-| Runtime General Instruct v0.1 | Qwen2.5-1.5B-Instruct | 학습·평가 완료; decoding hard blocker 통과 후보 없음 | 부적격, manifest 없음 |
-| Runtime General Instruct v0.2 | 같은 Qwen Base | 2 epoch·1,298 step·recovery 완료; eligible candidate 0건 | 부적격, deployment ready 아님 |
-| Runtime General Instruct v0.3 | 같은 Qwen Base 후보 | `ready_for_recovery_design`; V03-R1 evidence와 V03-R2 scanner·review·exclusion 계약 synthetic 검증 완료, 실제 data evidence pending, fresh Tokenization 미승인 | 없음 |
-
-저장소에는 외부 학습 artifact 자체가 없으므로 Runtime은 경로·fingerprint·승인 검증 없이는 Adapter를 자동 탐색하지 않습니다.
-v0.1/v0.2의 학습 완료 기록도 `Adapter Loader 완료`나 `deployment_ready=true`로 승격하지 않습니다. Loader는 Adapter 학습에
-사용한 동일 Qwen Base revision, Tokenizer와 Chat Template의 일치를 강제해야 합니다.
-
-V03-R1 구현과 실제 evidence 상태는 다음처럼 분리합니다.
-
-```yaml
-v03_r1_evidence_schema: implemented_synthetic_validated
-v03_r1_atomic_writer: implemented_synthetic_validated
-v03_r1_bundle_finalizer: implemented_synthetic_validated
-v03_r2_scanner_contract: implemented_synthetic_validated
-v03_r2_review_contract: implemented_synthetic_validated
-v03_r2_exclusion_builder: implemented_synthetic_validated
-v03_r3_identity_schema: implemented_synthetic_validated
-v03_r3_ledger_validator: implemented_synthetic_validated
-v03_r3_reservation_writer: implemented_synthetic_validated
-v03_r4_approval_schema: implemented_synthetic_validated
-v03_r4_approval_lifecycle: implemented_synthetic_validated
-v03_r5_request_schema: implemented_synthetic_validated
-v03_r5_request_writer: implemented_synthetic_validated
-actual_v03_run_reserved: false
-actual_v03_approval_issued: false
-actual_v03_request_created: false
-actual_v03_evidence_bundle: not_created
-actual_pii_scan: not_started
-actual_safety_scan: not_started
-actual_leakage_scan: not_started
-actual_review_evidence: not_created
-v03_data_evidence: pending
-v03_fresh_tokenization: not_approved
-execution_allowed: false
-```
-
-위 구현 상태는 synthetic fixture에 대한 schema·writer·finalizer 검증만 뜻합니다. 실제 license·PII·Safety·Leakage
-evidence, readiness 승인, Dataset payload scan, Run 예약, Tokenization 또는 GPU 실행을 뜻하지 않습니다.
-
-## 5. 데이터와 공개 경계
-
-- AIHUB-71748은 학생·비상업 연구 범위이며 상업 이용과 원본·파생 데이터 재배포는 미승인입니다.
-- Foundation Base와 Runtime SFT 데이터 계보는 분리합니다.
-- AIHUB-71748 SFT Processing Run 0015와 v0.1 Tokenization 완료 기록은 후속 학습·재처리의 포괄 승인으로 사용하지 않습니다.
-- 모델, checkpoint, Adapter, Tokenizer와 Dataset publication은 각각 별도 승인 대상입니다.
-
-## 6. 완료된 현재 기능과 남은 Runtime 작업
-
-현재 사용자 경로는 다음까지 동작합니다.
-
-```text
-Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
-                  └→ DohaLMAdapterProvider → manifest/validator/PEFT loader
-                  ↘ SSE streaming / cancellation / retry
-```
-
-Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Foundation보다 앞선 현재 우선순위가 아닙니다.
-
-1. 배포 후보 General Instruct Adapter를 명시적으로 선정하고 Adapter config·weight, Base·Tokenizer·Chat Template,
-   generation config와 평가 fingerprint를 하나의 manifest로 고정
-2. 승인 후보와 exact PEFT dependency를 고정하고 구현된 Loader로 실제 Base/Tokenizer/Adapter 조합과 GPU 검증
-3. Adapter를 통한 일반 Chat·SSE·취소·unload 회귀 및 GPU·브라우저 smoke
-4. Prompt Engine의 template/version/system policy 경계 구현
-
-## 7. 과거 계획과 보존 기록
-
-- Candidate A를 current baseline으로 보던 문서는 historical context이며 현재 기준은 Candidate B입니다.
-- Candidate B 첫 Run 0001 실패와 lexicographic checkpoint 정렬 버그는 실패 계보로만 보존합니다.
-- AIHUB-71748 Processing Run 0001~0014의 preflight·retirement 과정은 감사 이력이며 현재 실행 계획이 아닙니다.
-- v0.1 Windows QLoRA stall과 v0.2 terminal checkpoint failure는 원인·복구 계약을 위한 이력이며 자동 retry 근거가 아닙니다.
-- 기존 Model Family의 Code·SQL·Recruit·Game·Vision 계획은 현재 1~3차 실행 순서에서 제외된 장기 후보입니다.
+- AIHUB-71748은 학생·비상업 연구 범위이며 재배포·상업 이용은 승인되지 않았습니다.
+- model, checkpoint, tokenizer, dataset, Adapter publication은 각각 별도 승인 대상입니다.
+- 실제 로컬 경로, 비밀, 대용량 artifact를 Git이나 문서에 포함하지 않습니다.
+- 학습 완료, model selection, Runtime READY와 release 승인을 동일 상태로 취급하지 않습니다.
 
 ## 8. 다음 권장 작업
 
-1. [ADR-011 draft](../decisions/ADR-011-candidate-c-experimental-successor.md)와 Candidate C 역할·승인 분리 검토
-2. [Candidate B read-only EOS 진단 계약](../evaluation/candidate-b-eos-diagnostic-contract.md)의 R1~R7 구현·합성 검증과
-   Identity/Config Freeze를 별도 수행하고, 사용자 승인 뒤 GPU smoke·Full 진단 및 H1~H7 단일 주가설 검토
-3. Dataset A안·v2 Unigram 권장안을 검토하고 immutable manifest·source commit으로 C-2/C-3 freeze
-4. 단일 intervention·Evaluation 판정 규칙·resolved config를 승인해 C-4 완료
-5. 별도 승인 뒤 exact config의 C-5 GPU Smoke 수행; 이 전에는 Candidate C 학습 금지
-6. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
+현재 우선순위에서 다음 후보는 실제 Candidate B identity와 승인 입력을 대상으로 하는 `EOS-DIAG-R3`입니다. 시작 전
+R3 계약·허용 입력·실제 checkpoint read-only 접근 승인과 선행 Gate를 확인해야 합니다. Candidate C 학습, Qwen recovery,
+Python SDK 또는 DohaMusic 구현으로 자동 전환하지 않습니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-08-05 | EOS-DIAG-R2 identity·matrix freezer synthetic 검증 완료와 실제 identity freeze incomplete·Gate 1/2 미통과·execution false 상태 반영 |
-| 2026-08-05 | Candidate B read-only EOS 진단 계약·주가설 선택 정책 설계 완료와 실행 false·checkpoint mutation false·GPU/Full 미시작 상태 반영 |
-| 2026-08-05 | A/B 근거 조사와 Candidate C 실행 흐름, readiness review·contract design·execution readiness 상태, EOS 진단 완료/root cause 미확정을 분리 |
-| 2026-08-05 | Candidate C 계약 설계 완료와 ADR-011·EOS 진단·Dataset/Tokenizer/Config freeze 후속 순서 반영 |
-| 2026-08-05 | Base Training Readiness `blocked`, Candidate C `not_started`와 C-1~C-5 선행 조건·다음 Task 반영 |
-| 2026-08-05 | 구현 상태를 유지하면서 Foundation 우선 공식 순서, Candidate C·Foundation Instruct 핵심 목표, Runtime 후속 서비스 트랙과 DohaMusic Application 위치를 반영 |
-| 2026-08-05 | V03-R4 Tokenization Approval lifecycle과 V03-R5 Runtime Execution Request를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
-| 2026-08-05 | V03-R3 Run Identity schema·ledger validator·reservation writer synthetic 검증 완료; 실제 ledger migration·Run 예약·Approval·Request·실행은 수행하지 않음 |
-| 2026-08-05 | V03-R2 scanner·review·exclusion 및 R1 payload 변환 synthetic 검증 완료; actual scan `not_started`, review evidence `not_created`, execution 금지 유지 |
-| 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, bundle finalizer synthetic 검증 완료; actual bundle `not_created`, data evidence `pending`, execution 금지 유지 |
-| 2026-08-05 | V03-1·V03-2 recovery contract 설계 완료, license evidence 부족·data evidence pending·fresh Tokenization 미승인 상태 반영 |
-| 2026-08-05 | v0.3 Dataset 생성·checksum 유효, canonical tokenized artifact 부재와 recovery-design 상태 반영 |
-| 2026-08-05 | v0.1~v0.3 후보 조사에서 `no_eligible_candidate` 판정, manifest·GPU·Provider smoke 미실행 상태 반영 |
-| 2026-08-05 | Adapter Provider startup preflight·lazy load·Chat/SSE·shutdown mock 통합과 실제 artifact/GPU 미검증 상태 반영 |
-| 2026-08-05 | local-only PEFT Adapter Loader mock 검증 완료와 실제 Adapter/GPU·Provider 연결 미검증 상태 반영 |
-| 2026-08-05 | Adapter Manifest·strict loader·정적 Artifact Validator synthetic 검증 완료와 PEFT Loader·Runtime 연결 미착수 상태 반영 |
-| 2026-08-04 | General Instruct Adapter Runtime 설계 완료와 Loader 구현 미착수 상태 반영 |
-| 2026-08-04 | 원격 7383f84의 Candidate B 생성 한계, Qwen compatibility와 DohaMusic 오디오 범위를 통합 |
-| 2026-08-04 | Foundation과 Runtime 상태 분리, Base Qwen/API/Streaming 현행 구현 및 Adapter Loader 미구현 반영 |
-| 2026-07-29 | Gate 0~7과 Candidate A/B·Evaluation 통합 snapshot 작성 |
+| 2026-08-05 | reusable provider 정의, 세 Phase 산출물 상태, 외부 Reference Application과 lineage 병행 관계 반영 |
+| 2026-08-05 | EOS-DIAG-R1/R2 synthetic 상태와 실제 identity·Gate 미완료 상태 반영 |

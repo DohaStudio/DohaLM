@@ -9,9 +9,9 @@
 
 DohaLM에는 목적과 parent가 다른 두 Instruct 계보가 있습니다.
 
-| 구분 | Foundation Instruct | Runtime General Instruct Adapter |
+| 구분 | Foundation Instruct | Reusable General Instruct Adapter |
 |---|---|---|
-| 트랙 | Foundation Model 연구 | Runtime/Application |
+| 트랙 | Phase 1 Foundation Model 연구 | Phase 2 Reusable Model and Runtime |
 | Parent | 현재 승인 설계는 Candidate B Final; 공식 차기 목표는 Candidate C | 고정 `Qwen/Qwen2.5-1.5B-Instruct` revision |
 | 형태 | 별도 DohaLM derivative 후보 | QLoRA PEFT Adapter |
 | 결정 근거 | ADR-010 | v0.1~v0.3 QLoRA·평가 실행 문서 |
@@ -34,10 +34,10 @@ ADR-010을 대체하거나 개정하는 후속 ADR이 필요합니다.
 
 이 설계의 상세 schema·safety·readiness는 [Instruct 문서 안내](./README.md)에 보존합니다.
 
-## 3. Runtime General Instruct Adapter
+## 3. Reusable General Instruct Adapter
 
-Runtime General Instruct는 Foundation 완료 이후 진행할 Phase 2 실제 서비스용 병행 트랙입니다. Qwen Base 위의 General
-Instruct Adapter를 선택하고 실제 Loader로 연결하는 기존 구현·복구 상태는 유지합니다.
+General Instruct Adapter는 Phase 1의 완료나 Candidate B/C 계보를 parent 조건으로 삼지 않는 Phase 2 모델 artifact입니다.
+Qwen Base 위의 Adapter를 평가·versioning한 뒤 Runtime에 연결하는 기존 구현·복구 상태는 유지합니다.
 
 ```text
 Qwen Base revision
@@ -62,7 +62,7 @@ PII·Safety·Leakage 결과는 아직 `pending`이고 fresh Tokenization은 `not
 
 ### 완료 조건
 
-General Instruct Adapter를 Runtime 완료로 표시하려면 다음이 모두 필요합니다.
+General Instruct Adapter와 Runtime을 실제 사용 가능으로 표시하려면 다음이 모두 필요합니다.
 
 1. 단일 후보 Adapter와 Base revision·dataset·config·evaluation fingerprint 고정
 2. 명시적 deployment eligibility 판정
@@ -91,7 +91,7 @@ QLoRA 학습 완료만으로 위 조건을 충족하지 않습니다.
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-08-05 | Candidate C 기반 Foundation Instruct를 공식 차기 목표로 배치하고 ADR-010 parent 변경 전 후속 ADR 필요, Runtime의 Foundation 후속 서비스 트랙 위치를 명시 |
+| 2026-08-05 | Foundation Instruct와 Qwen 기반 reusable model 계보의 비직렬 관계와 별도 parent 조건 명시 |
 | 2026-08-05 | v0.3 V03-1·V03-2 실행 전 계약 설계 완료와 evidence·실행 미승인 경계 연결 |
 | 2026-08-05 | v0.3 Dataset·tokenization 실제 evidence와 `ready_for_recovery_design` 경계를 연결 |
 | 2026-08-05 | Provider mock 통합과 v0.1~v0.3 `no_eligible_candidate` 판정, GPU smoke 미실행 상태 반영 |
