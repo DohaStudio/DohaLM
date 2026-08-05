@@ -6,6 +6,8 @@
 - 계약 설계 상태: `design_completed`
 - V03-1 evidence 상태: `pending`
 - V03-2 fresh tokenization 상태: `not_approved`
+- V03-R1 schema·writer·finalizer 상태: `implemented_synthetic_validated`
+- 실제 V03 evidence bundle 상태: `not_created`
 - 실행 권한: `false`
 - 선행 문서: [v0.3 학습 재개 Readiness](./dohalm-v0.3-training-readiness.md), [v0.3 Tokenization Readiness](./dohalm-v0.3-tokenization-readiness.md), [publish 실패 보존 계약](./dohalm-v0.3-tokenization-publish-failure.md)
 - 관련 결정: [ADR-004](../decisions/ADR-004-data-governance.md), [ADR-010](../decisions/ADR-010-dohalm-instruct-strategy.md)
@@ -170,15 +172,17 @@ finding에는 `category`, `severity`, `policy_label`, `disposition`, `reviewer_r
 ```text
 effective_dataset_fingerprint = SHA256(
   canonical_dataset_package_fingerprint
-  + pii_exclusion_manifest_fingerprint
-  + safety_exclusion_manifest_fingerprint
   + evaluation_exclusion_manifest_fingerprint
-  + ordered_policy_versions
 )
 ```
 
 Tokenization은 canonical package fingerprint와 effective fingerprint를 모두 기록한다. exclusion manifest가 바뀌면
 새 evidence bundle·새 effective fingerprint·새 Tokenization Run이 필요하다.
+
+[확정] V03-R1 core bundle에는 PII·Safety 개별 exclusion manifest가 아직 없으므로 PII 또는 Safety
+`excluded_count > 0`인 evidence를 `ready`나 `ready_with_conditions`로 finalization하지 않는다. R1에서 effective
+fingerprint는 canonical package와 evaluation exclusion manifest만으로 계산한다. 실제 PII·Safety exclusion이 필요한
+경우 V03-R2에서 opaque reference 기반 manifest를 추가하고 schema version과 계산식을 함께 올린 뒤에만 실행한다.
 
 ## 6. 평가 누수 검증 계약
 
@@ -212,23 +216,22 @@ Canonical 논리 구조는 다음과 같다. 실제 root와 identity는 실행 �
 
 ```text
 v03-data-readiness-bundle/
-├── bundle-manifest.json
 ├── license-evidence.json
 ├── dataset-lineage.json
 ├── checksum-inventory.json
 ├── pii-scan-summary.json
-├── pii-findings.jsonl
-├── pii-exclusion-manifest.json
 ├── pii-review-evidence.json
 ├── safety-scan-summary.json
-├── safety-findings.jsonl
-├── safety-exclusion-manifest.json
 ├── safety-review-evidence.json
 ├── leakage-scan-summary.json
-├── leakage-findings.jsonl
 ├── evaluation-exclusion-manifest.json
 └── readiness-decision.json
 ```
+
+[확정] 위 10개 파일은 V03-R1 core bundle의 정확한 파일 집합이다. `pii-findings.jsonl`,
+`pii-exclusion-manifest.json`, `safety-findings.jsonl`, `safety-exclusion-manifest.json`,
+`leakage-findings.jsonl`과 별도 `bundle-manifest.json`은 V03-R2 이후 후보이며 현재 finalizer 입력이 아니다.
+R1 artifact에는 원문·부분 문자열·실제 record ID·절대 로컬 경로를 저장하지 않는다.
 
 ### 7.1 공통 envelope
 
@@ -238,18 +241,20 @@ v03-data-readiness-bundle/
 |---|---|
 | `schema_version` | artifact 종류별 정수 version; unknown major 차단 |
 | `artifact_type` | 고정 allowlist 값 |
-| `writer` | module ID와 writer version |
-| `input_fingerprints` | 정렬된 `sha256:` 목록과 의미 |
+| `artifact_id`, `run_id`, `dataset_id` | 비어 있지 않은 고정 identity |
+| `writer_name`, `writer_version` | module ID와 writer version |
+| `input_fingerprint` | 현재 artifact 입력의 `sha256:<64 lowercase hex>` |
 | `output_fingerprint` | checksum 필드를 제외한 canonical payload SHA-256 |
 | `created_at` | UTC timezone-aware 시각 |
 | `source_commit` | clean `origin/develop` reachable 40-char commit |
-| `evidence_run_id` | scan/review/bundle별 고유 identity |
-| `dataset_id` | v0.3 canonical Dataset ID |
-| `dataset_package_fingerprint` | 기존 package fingerprint |
-| `effective_dataset_fingerprint` | 모든 exclusion이 확정된 뒤 필수 |
-| `policy_versions` | license·PII·Safety·Leakage 정책 version |
-| `decision_owner` | 작성자가 아니라 판정·승인 책임 역할 |
-| `approved_by`, `approved_at` | 미승인 시 `null`; writer가 임의 채움 금지 |
+| `payload` | artifact 종류별 exact object; unknown field 차단 |
+| `approval_status`, `reviewer`, `decision` | 승인과 판정을 분리하며 review artifact는 reviewer 필수 |
+| `predecessor_artifact_id` | 선행 artifact가 없으면 `null`, 있으면 고정 identity |
+| `artifact_checksum` | 이 필드 자체를 빈 문자열로 두고 계산한 canonical artifact SHA-256 |
+
+[확정] canonical JSON은 UTF-8, key 정렬, `(',', ':')` separator, `ensure_ascii=false`,
+`allow_nan=false`, 후행 newline 없음이다. strict loader는 duplicate key, NaN·Infinity, unknown field,
+bool-as-int, 비표준 timestamp·Git SHA·fingerprint, 비정규 직렬화를 모두 차단한다.
 
 ### 7.2 Writer와 재실행 정책
 
@@ -263,11 +268,16 @@ v03-data-readiness-bundle/
 
 모든 writer는 same-directory exclusive temp, complete write, flush, file fsync, atomic no-replace publish, 지원되는
 플랫폼의 parent directory fsync, reload와 checksum 검증을 적용한다. overwrite·silent fallback·부분 성공은 금지한다.
-bundle은 정확한 expected file set과 `checksums.sha256`을 가진 뒤 sibling staging에서 final로 게시한다.
+V03-R1 writer는 이미 존재하는 명시적 bundle root의 직접 자식만 쓰며 destination·root symlink를 거부한다.
+finalizer는 자동 탐색이나 bundle 쓰기를 하지 않고 정확한 10-file set을 strict load한다. readiness 이전 9개
+artifact checksum의 정렬된 map을 bundle fingerprint로 계산하고 `readiness-decision.json`이 이를 참조한다.
+순환 fingerprint를 피하기 위해 readiness 자체는 bundle fingerprint 입력에서 제외하며, 별도 completion marker는
+만들지 않고 readiness artifact checksum을 완료 증거로 사용한다.
 
 ### 7.3 V03-1 최종 결정
 
-`readiness-decision.json`은 `passed`, `failed`, `review_required` 중 하나다. `passed`는 다음을 모두 요구한다.
+`readiness-decision.json`의 `overall_decision`은 `ready`, `ready_with_conditions`, `blocked`,
+`evidence_insufficient` 중 하나다. `ready`와 `ready_with_conditions`는 다음을 모두 요구한다.
 
 1. License가 최소 `license_ready_with_conditions`이며 조건이 local/noncommercial Tokenization·SFT를 명시적으로 허용
 2. Dataset lineage·기존 checksum과 package fingerprint 일치
@@ -275,6 +285,21 @@ bundle은 정확한 expected file set과 `checksums.sha256`을 가진 뒤 siblin
 4. Leakage disposition 완료와 benchmark source 고정
 5. exclusion 적용 후 effective Dataset fingerprint 확정
 6. 모든 artifact의 schema·source commit·writer·checksum·fingerprint와 승인 주체 일치
+
+`ready_with_conditions`는 blocking reason 없이 하나 이상의 conditional reason이 있고, license가 최소
+`ready_with_conditions`, 나머지 component가 모두 `passed`일 때만 허용한다. `blocked`와
+`evidence_insufficient`는 blocking reason이 필수이며 approved next action을 가질 수 없다. 승인·금지 action의
+충돌과 실제 evidence보다 강한 readiness 판정은 `V03_EVIDENCE_READINESS_CONTRADICTION`으로 차단한다.
+
+### 7.4 V03-R1 오류 계약
+
+외부로 전달할 수 있는 오류 문자열은 payload나 경로가 아닌 고정 code뿐이다. core loader·finalizer code는
+`V03_EVIDENCE_NOT_FOUND`, `V03_EVIDENCE_INVALID`, `V03_EVIDENCE_UNSUPPORTED_VERSION`,
+`V03_EVIDENCE_PATH_INVALID`, `V03_EVIDENCE_CHECKSUM_MISMATCH`, `V03_EVIDENCE_BUNDLE_INCOMPLETE`,
+`V03_EVIDENCE_BUNDLE_INCONSISTENT`, `V03_EVIDENCE_READINESS_CONTRADICTION`이다. writer는 여기에
+`V03_EVIDENCE_ALREADY_EXISTS`, `V03_EVIDENCE_TEMPORARY_COLLISION`,
+`V03_EVIDENCE_NO_REPLACE_UNSUPPORTED`, `V03_EVIDENCE_ATOMIC_WRITE_FAILED`,
+`V03_EVIDENCE_WRITE_INCOMPLETE`를 사용한다. 오류 message에는 전체 경로·원문·artifact payload를 넣지 않는다.
 
 ## 8. 새 Tokenization Run Identity
 
@@ -580,7 +605,7 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 
 | Task | 내용·예상 변경 파일 | 필수 테스트 | 실행 권한 | 현재 상태 | 후속 |
 |---|---|---|---|---|---|
-| `V03-R1` | Evidence envelope·bundle schema/writer. `src/data/v03_readiness/*`, `schemas/v03-data-readiness/*`, CLI·문서 후보 | exact schema, canonical fingerprint, no-replace, incomplete publish, zero payload call | 실제 evidence 생성 전 승인 필요 | `designed_not_started` | R2 |
+| `V03-R1` | Evidence envelope·strict loader·bundle schema·atomic writer·finalizer. `src/data/v03_evidence.py`, `src/data/v03_evidence_writer.py` | exact schema, canonical fingerprint, no-replace, strict reload, Gate contradiction, zero payload call | 실제 evidence 생성 전 승인 필요 | `implemented_synthetic_validated` | R2 |
 | `V03-R2` | PII·Safety·Leakage backend와 review/exclusion writer. 기존 inspector·duplicate 로직 최소 재사용 | synthetic detector/category, raw leak 0, deterministic rerun, unknown fail closed | 실제 v0.3 scan·review 전 승인 필요 | `designed_not_started` | V03-1 decision |
 | `V03-R3` | Run identity ledger·reservation·retirement. `src/training/v03_run_identity.py`와 test 후보 | concurrency single winner, all-surface collision, date/sequence, abandoned/retired, predecessor | 실제 ID 예약 전 승인 필요 | `designed_not_started` | R4 |
 | `V03-R4` | `TokenizationApproval v1`, issue/consume/expire/retire와 lifecycle lock | state matrix, drift retirement, one-shot, concurrent request/retire/consume, legacy reject | 실제 issue·consume 전 승인 필요 | `designed_not_started` | R5 |
@@ -638,6 +663,10 @@ R1 schema/writer
 ```yaml
 final_decision: recovery_contract_design_complete
 license_decision: evidence_insufficient
+v03_r1_evidence_schema: implemented_synthetic_validated
+v03_r1_atomic_writer: implemented_synthetic_validated
+v03_r1_bundle_finalizer: implemented_synthetic_validated
+actual_v03_evidence_bundle: not_created
 v03_data_evidence: pending
 v03_fresh_tokenization: not_approved
 v03_training: not_started
@@ -652,4 +681,5 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, 10-file bundle finalizer와 readiness Gate를 synthetic-only 검증으로 구현; 실제 evidence·승인·실행은 생성하지 않음 |
 | 2026-08-05 | V03-1 license·PII·Safety·Leakage evidence와 V03-2 새 identity·Approval·request·preflight·worker·publish 계약 설계 |

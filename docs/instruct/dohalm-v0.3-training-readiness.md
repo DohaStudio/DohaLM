@@ -309,7 +309,11 @@ v0.3_tokenization_publish: failed_or_pending_recovery
 v0.3_tokenized_artifact: absent
 v0.3_recovery_design: completed
 v0.3_recovery_contract: design_completed
-v0.3_data_evidence: pending
+v03_r1_evidence_schema: implemented_synthetic_validated
+v03_r1_atomic_writer: implemented_synthetic_validated
+v03_r1_bundle_finalizer: implemented_synthetic_validated
+actual_v03_evidence_bundle: not_created
+v03_data_evidence: pending
 v0.3_fresh_tokenization: not_approved
 v0.3_training: not_started
 v0.3_training_ready: false
@@ -319,15 +323,16 @@ final_readiness: ready_for_recovery_design
 execution_allowed: false
 ```
 
-- 지금 가능한 작업: Recovery Contract의 `V03-R1`, `V03-R3`, `V03-R4`, `V03-R5` schema·순수 validator 구현.
+- 지금 가능한 작업: Recovery Contract의 `V03-R2`, `V03-R3`, `V03-R4`, `V03-R5` schema·순수 validator 구현. V03-R1은 synthetic-only 구현·검증 완료 상태다.
 - 아직 금지된 작업: 기존 ID 재사용, Tokenization·publish 재실행, GPU smoke, QLoRA, 평가, Adapter manifest 생성.
 - 사용자 승인 시점: 실제 PII·Safety·Leakage scan/review, V03-1 판정, 새 identity 예약, Approval·request·preflight,
   fresh Tokenization 실행, GPU smoke, small overfit, full training, 평가와 Runtime 승격 각각.
-- 예상 최소 경로: `V03-R1~R9 구현·synthetic 검증 → V03-1 evidence 승인·실행·판정 → 새 identity·Approval·request·preflight → 별도 승인 fresh Tokenization → V03-3~10`.
+- 예상 최소 경로: `V03-R2~R9 구현·synthetic 검증 → 별도 승인 후 실제 V03-1 evidence 생성·판정 → 새 identity·Approval·request·preflight → 별도 승인 fresh Tokenization → V03-3~10`.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R1 evidence schema·strict loader·atomic writer·bundle finalizer synthetic 검증 완료; 실제 bundle 미생성·data evidence pending·execution 금지 유지 |
 | 2026-08-05 | V03-1·V03-2 Recovery Contract 설계 완료와 license evidence 부족·data evidence pending·fresh Tokenization 미승인 경계 연결 |
 | 2026-08-05 | 실제 Dataset·checksum과 비어 있는 tokenization destination을 재검증하고 `ready_for_recovery_design`, 조건부 경로 B, V03-1~10 Gate 계획 작성 |
