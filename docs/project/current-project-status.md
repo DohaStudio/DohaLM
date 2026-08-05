@@ -12,7 +12,26 @@
 학습 완료, 평가 완료, Runtime 통합과 배포 준비는 서로 다른 상태입니다. 세부 실험 수치는 각 결과 문서에 두고 여기서는
 통합 상태만 유지합니다.
 
-## 2. 통합 상태
+## 2. 현재 개발 우선순위
+
+현재 구현 상태와 별개로 공식 개발 순서는 다음과 같습니다.
+
+1. **Phase 1 — DohaLM Foundation**
+   - Base 본훈련 준비: Base Training Readiness → Publish Recovery → Tokenization → Evaluation → EOS 분석
+   - Candidate C: EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
+   - Foundation Instruct: Candidate C 기반 SFT → Evaluation → Candidate Selection
+2. **Phase 2 — Runtime**
+   - Qwen General Instruct v0.3 Recovery → Manifest → Runtime → Adapter
+3. **Phase 3 — Application**
+   - DohaMusic → Music Adapter → Lyrics → Prompt
+
+[확정] Candidate B는 current Base baseline이자 Candidate C 비교 기준으로 유지합니다. Runtime은 삭제되지 않으며 Foundation
+완료 이후 진행할 실제 서비스용 병행 트랙입니다. DohaMusic은 Runtime을 사용하는 Application입니다.
+
+[검증 필요] 현재 승인된 ADR-010은 Candidate B 기반 Foundation Instruct 설계입니다. Candidate C 기반 SFT를 실행하려면
+parent 결정을 다루는 후속 ADR이 필요합니다.
+
+## 3. 통합 상태
 
 ### Foundation Model Track
 
@@ -24,8 +43,9 @@
 | 운영 Tokenizer | `implemented_verified` | `operating-16k-v2/unigram-16k`, vocab 16,000 |
 | Candidate A | `implemented_verified` | 10M token 학습 완료; historical Base baseline |
 | Candidate B | `implemented_verified` | 25M token Run 0002·Full 평가 완료; current Base baseline |
+| Candidate C | `planned` | EOS 문제 해결·Base 재학습·독립 Evaluation이 다음 Foundation 핵심 목표 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
-| Foundation Instruct | `design_complete` | ADR-010; Candidate B parent 설계만 완료, artifact 없음 |
+| Foundation Instruct | `design_complete` | ADR-010 Candidate B parent 설계 상태 유지; Candidate C 기반 공식 목표는 후속 ADR·artifact 필요 |
 | Foundation Chat·Small 이상 | `planned` | 구조·데이터·실행 승인 없음 |
 
 Candidate B의 historical 평가 계약 판정 `evaluated_contract_not_passed`는 유지합니다. ADR-009의 현재 판정은
@@ -33,7 +53,7 @@ Candidate B의 historical 평가 계약 판정 `evaluated_contract_not_passed`�
 Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-greedy 생성의 EOS 종료율은 0%, maximum-length
 종료율은 100%였습니다. 이 한계는 Base 진단 결과로 보존하며 숨기거나 Runtime readiness로 해석하지 않습니다.
 
-### Runtime/Application Track — 1차 목표
+### Phase 2 — Runtime 서비스 트랙
 
 | 구성 | 상태 | 근거와 경계 |
 |---|---|---|
@@ -48,19 +68,20 @@ Candidate B의 teacher-forced 지표는 Candidate A보다 개선됐지만 pure-g
 
 현재 서비스는 기본 `mock`, 명시적 `base-qwen` 또는 `dohalm-adapter` Provider를 사용하는 로컬 MVP입니다.
 Adapter Provider는 명시된 manifest를 preflight하고 첫 요청에서 lazy load하지만 저장소에는 승인 artifact가 없습니다.
+구현 사실은 유지하지만 현재 프로젝트 실행 우선순위는 Phase 1 Foundation입니다.
 
-### 2·3차 목표
+### Phase 3 Application과 Runtime 확장
 
-| 단계 | 구성 | 상태 |
+| 구분 | 구성 | 상태 |
 |---|---|---|
-| 2차 | Memory, RAG, Tool Calling, Agent | `planned` |
-| 3차 | DohaMusic, Lyrics Search, Style Analysis, Personal Music Adapter | `planned` |
+| Runtime 확장 | Memory, RAG, Tool Calling, Agent | `planned` |
+| Application | DohaMusic → Music Adapter → Lyrics → Prompt | `planned` |
 | 제외 | Docker, Kubernetes, Cloud, 운영 배포 | `out_of_scope` |
 
 DohaMusic의 곡 기획·가사·음악 생성 prompt는 General Instruct Runtime의 응용 후보입니다. 실제 오디오·보컬·MIDI 생성은
 DohaLM의 책임이 아니며 별도 음악 생성 모델의 범위입니다.
 
-## 3. QLoRA와 Instruct 현재 상태
+## 4. QLoRA와 Instruct 현재 상태
 
 두 Instruct 계보를 혼동하지 않습니다.
 
@@ -107,14 +128,14 @@ execution_allowed: false
 위 구현 상태는 synthetic fixture에 대한 schema·writer·finalizer 검증만 뜻합니다. 실제 license·PII·Safety·Leakage
 evidence, readiness 승인, Dataset payload scan, Run 예약, Tokenization 또는 GPU 실행을 뜻하지 않습니다.
 
-## 4. 데이터와 공개 경계
+## 5. 데이터와 공개 경계
 
 - AIHUB-71748은 학생·비상업 연구 범위이며 상업 이용과 원본·파생 데이터 재배포는 미승인입니다.
 - Foundation Base와 Runtime SFT 데이터 계보는 분리합니다.
 - AIHUB-71748 SFT Processing Run 0015와 v0.1 Tokenization 완료 기록은 후속 학습·재처리의 포괄 승인으로 사용하지 않습니다.
 - 모델, checkpoint, Adapter, Tokenizer와 Dataset publication은 각각 별도 승인 대상입니다.
 
-## 5. 완료된 현재 기능과 남은 1차 작업
+## 6. 완료된 현재 기능과 남은 Runtime 작업
 
 현재 사용자 경로는 다음까지 동작합니다.
 
@@ -124,7 +145,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
                   ↘ SSE streaming / cancellation / retry
 ```
 
-1차 목표를 끝내려면 다음이 남습니다.
+Phase 2 Runtime을 끝내려면 다음이 남습니다. 이 목록은 Phase 1 Foundation보다 앞선 현재 우선순위가 아닙니다.
 
 1. 배포 후보 General Instruct Adapter를 명시적으로 선정하고 Adapter config·weight, Base·Tokenizer·Chat Template,
    generation config와 평가 fingerprint를 하나의 manifest로 고정
@@ -132,7 +153,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 3. Adapter를 통한 일반 Chat·SSE·취소·unload 회귀 및 GPU·브라우저 smoke
 4. Prompt Engine의 template/version/system policy 경계 구현
 
-## 6. 과거 계획과 보존 기록
+## 7. 과거 계획과 보존 기록
 
 - Candidate A를 current baseline으로 보던 문서는 historical context이며 현재 기준은 Candidate B입니다.
 - Candidate B 첫 Run 0001 실패와 lexicographic checkpoint 정렬 버그는 실패 계보로만 보존합니다.
@@ -140,19 +161,20 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 - v0.1 Windows QLoRA stall과 v0.2 terminal checkpoint failure는 원인·복구 계약을 위한 이력이며 자동 retry 근거가 아닙니다.
 - 기존 Model Family의 Code·SQL·Recruit·Game·Vision 계획은 현재 1~3차 실행 순서에서 제외된 장기 후보입니다.
 
-## 7. 다음 권장 작업
+## 8. 다음 권장 작업
 
-1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R6 metadata-only preflight 구현
-2. 별도 승인으로 실제 license evidence와 PII·Safety·Leakage evidence를 생성·확정한 뒤 V03-1 판정
-3. 별도 승인 뒤 새 identity 기반 canonical Tokenization·QLoRA preflight·평가를 순서대로 진행
-4. 적격 General Instruct Adapter가 생긴 뒤 manifest 고정과 실제 GPU READY 검증
-5. Prompt Engine 최소 계약 확정
-6. 1차 Runtime end-to-end 검증 후 Memory 설계 시작
+1. Foundation Base Training Readiness와 Publish Recovery의 현재 blocker·산출물·승인 경계를 통합 확인
+2. Foundation Tokenization → Evaluation → EOS 분석 연결을 기준 문서에 고정
+3. Candidate B를 비교 기준으로 Candidate C의 EOS 해결·재학습·평가 계약 작성
+4. Candidate C 평가 뒤 Foundation Instruct parent 변경을 위한 후속 ADR 검토
+5. Phase 1 완료 뒤 Runtime v0.3 Recovery → Manifest → Runtime → Adapter 진행
+6. Runtime 완료 뒤 DohaMusic → Music Adapter → Lyrics → Prompt 진행
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | 구현 상태를 유지하면서 Foundation 우선 공식 순서, Candidate C·Foundation Instruct 핵심 목표, Runtime 후속 서비스 트랙과 DohaMusic Application 위치를 반영 |
 | 2026-08-05 | V03-R4 Tokenization Approval lifecycle과 V03-R5 Runtime Execution Request를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R3 Run Identity schema·ledger validator·reservation writer synthetic 검증 완료; 실제 ledger migration·Run 예약·Approval·Request·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R2 scanner·review·exclusion 및 R1 payload 변환 synthetic 검증 완료; actual scan `not_started`, review evidence `not_created`, execution 금지 유지 |

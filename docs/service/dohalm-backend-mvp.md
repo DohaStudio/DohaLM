@@ -4,10 +4,13 @@
 - 최종 검토일: 2026-08-05
 - 서비스 버전: `0.1.0`
 - 활성 기본 Provider: `mock`
+- 선행 문서: [Roadmap](../project/model-family-roadmap.md)
+- 후속 문서: [Application](../project/domain-model-strategy.md)
 
 ## 범위와 구조
 
-이 MVP는 Runtime/Application 1차 목표의 HTTP·SSE 계약과 Provider 교체 경계를 검증한다. 기본 `mock` 경로와
+이 MVP는 Phase 2 실제 서비스용 Runtime의 HTTP·SSE 계약과 Provider 교체 경계를 검증한다. Phase 1 Foundation 완료
+이후 진행하는 병행 트랙이며, 현재 구현 상태는 유지한다. 기본 `mock` 경로와
 명시적 local-only Base Qwen GPU 경로는 구현·검증됐다. Adapter Provider 통합은 mock 검증됐지만 실제 승인 Adapter/GPU는 사용하지 않는다.
 
 ```text
@@ -122,3 +125,11 @@ tool_calling: planned
 agent: planned
 deployment: out_of_scope
 ```
+
+Phase 3 [DohaMusic Application](../project/domain-model-strategy.md)은 이 Runtime을 사용하며 Runtime 자체에 포함되지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-08-05 | Runtime을 Foundation 완료 이후의 Phase 2 실제 서비스용 병행 트랙으로 명시하고 Application 연결 추가 |

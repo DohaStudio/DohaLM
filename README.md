@@ -1,23 +1,27 @@
 # DohaLM
 
-DohaLM은 두 개의 독립된 트랙을 운영하는 한국어 LLM 연구·개발 프로젝트입니다.
+DohaLM은 **Foundation을 먼저 완성하고 Runtime과 Application으로 확장하는** 한국어 LLM 연구·개발 프로젝트입니다.
 
-- **Foundation Model Track**: `DohaLM-Tiny`, Tokenizer, Candidate A/B와 Evaluation Framework를 직접 구현·검증합니다.
-- **Runtime/Application Track**: 고정된 Qwen Base와 General Instruct Adapter를 이용해 로컬 Runtime, Chat API와 Application을 만듭니다.
+- **Phase 1 — DohaLM Foundation**: Base 본훈련 준비, Candidate C, Foundation Instruct를 핵심 목표로 진행합니다.
+- **Phase 2 — Runtime**: 고정된 Qwen Base와 General Instruct Adapter를 사용하는 실제 서비스용 트랙입니다.
+- **Phase 3 — Application**: Runtime을 사용하는 DohaMusic과 음악 특화 기능을 개발합니다.
 
-두 트랙은 코드와 평가 근거를 공유할 수 있지만 모델 계보와 완료 조건은 공유하지 않습니다. Qwen 기반 Runtime이 동작해도
-DohaLM Foundation Model이 서비스 준비를 마친 것은 아니며, Foundation 연구 결과가 있어도 Runtime Adapter가 연결된 것은 아닙니다.
+[확정] 현재 최우선 순위는 Foundation입니다. Runtime Track은 삭제하지 않으며, Foundation 완료 이후 독립 계보를 유지하며
+진행하는 병행 트랙으로 배치합니다. Qwen Runtime이 동작해도 DohaLM Foundation 완료를 뜻하지 않고, Foundation artifact가
+있어도 Runtime Adapter 통합 완료를 뜻하지 않습니다.
+Foundation Candidate B, Candidate C와 Foundation Instruct는 프로젝트의 핵심 모델 목표입니다.
 기준 하드웨어는 단일 `RTX 3060 Ti 8GB`입니다.
 
 ## 문서 읽기 순서
 
 이 README가 프로젝트 범위와 우선순위의 기준 문서입니다.
 
-1. [Foundation Model Strategy](docs/project/foundation-model-strategy.md) — 연구 트랙과 Runtime 트랙의 경계
+1. [Foundation Model Strategy](docs/project/foundation-model-strategy.md) — Foundation 핵심 목표와 Runtime 경계
 2. [Current Project Status](docs/project/current-project-status.md) — 코드·실측 기준 현재 상태
-3. [Model Family Roadmap](docs/project/model-family-roadmap.md) — 1·2·3차 목표와 진입 조건
-4. [Service 문서](docs/service/dohalm-backend-mvp.md) — 현재 로컬 Runtime과 UI 실행 계약
+3. [Model Family Roadmap](docs/project/model-family-roadmap.md) — Phase 1→2→3 공식 개발 순서
+4. [Runtime 문서](docs/service/dohalm-backend-mvp.md) — 실제 서비스용 로컬 Runtime과 UI 실행 계약
    - [Adapter Runtime 설계](docs/service/dohalm-adapter-runtime.md) — General Instruct Adapter manifest·검증·lifecycle·구현 계획
+5. [Application 문서](docs/project/domain-model-strategy.md) — Runtime을 사용하는 DohaMusic과 음악 특화 기능
 
 Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strategy.md), Instruct의 두 계보는
 [Instruct Strategy](docs/instruct/instruct-strategy.md), 전체 문서 목록은 [문서 안내서](docs/README.md)를 따릅니다.
@@ -34,20 +38,21 @@ Domain 확장 원칙은 [Domain Model Strategy](docs/project/domain-model-strate
 | `planned` | 목표만 확정됐고 구현 완료 근거가 없음 |
 | `out_of_scope` | 현재 범위에서 제외 |
 
-### Foundation Model Track
+### Phase 1 — DohaLM Foundation
 
 | 구성 | 현재 상태 | 비고 |
 |---|---|---|
 | DohaLM-Tiny | `implemented_verified` | Decoder-only Transformer, Trainer, checkpoint/resume, 실제 corpus overfit 검증 |
 | Tokenizer | `implemented_verified` | 운영 `operating-16k-v2/unigram-16k`, vocab 16,000, Gate 3 통과 |
-| Candidate A/B | `implemented_verified` | Candidate B가 current Base baseline, Candidate A는 historical baseline |
+| Candidate A/B | `implemented_verified` | Candidate B가 current Base baseline이자 Candidate C의 비교 기준, Candidate A는 historical baseline |
+| Candidate C | `planned` | EOS 문제 해결·Base 재학습·Candidate C Evaluation이 다음 핵심 목표 |
 | Evaluation Framework | `implemented_verified` | Quick·Full·EOS·position·category·stability·privacy·lineage |
-| Foundation Instruct | `design_complete` | ADR-010의 Candidate B 파생 설계; 학습·publication 미승인 |
+| Foundation Instruct | `design_complete` | 현재 ADR-010은 Candidate B 파생 설계; 공식 차기 목표는 Candidate C 기반이며 후속 ADR·학습·publication 승인 필요 |
 
 Gate 0은 `approved`, Gate 1~7은 `passed`입니다. 세부 수치와 실행 이력은
 [Current Project Status](docs/project/current-project-status.md)와 [Evaluation 문서](docs/evaluation/README.md)에만 둡니다.
 
-### Runtime/Application Track — 1차 목표
+### Phase 2 — Runtime
 
 | 구성 | 현재 상태 | 비고 |
 |---|---|---|
@@ -61,24 +66,31 @@ Gate 0은 `approved`, Gate 1~7은 `passed`입니다. 세부 수치와 실행 이
 | Web UI | `implemented_verified` | Next.js HTTP·SSE·취소·재시도, Base Qwen Chrome E2E |
 
 Runtime은 현재 **로컬 개발·검증용**입니다. 인증, 영구 저장과 운영 배포를 제공하지 않습니다.
+이 트랙은 실제 서비스 제공을 목적으로 하지만 Phase 1 Foundation보다 앞서지 않습니다.
 
-## 후속 목표
+## 공식 개발 순서
 
-### 2차 목표
+### Phase 1 — DohaLM Foundation
 
-Memory → RAG → Tool Calling → Agent 순서로 진행합니다. 네 항목 모두 현재 `planned`이며, 문서에 설계 아이디어가
-있다는 이유로 구현 완료로 간주하지 않습니다.
+1. **DohaLM Base 본훈련 준비**: Base Training Readiness → Publish Recovery → Tokenization → Evaluation → EOS 분석
+2. **Candidate C**: EOS 문제 해결 → Base 재학습 → Candidate C Evaluation
+3. **Foundation Instruct**: Candidate C 기반 SFT → Evaluation → Candidate Selection
 
-### 3차 목표 — DohaMusic
+Candidate B는 완료된 current Base baseline이자 Candidate C의 필수 비교 기준으로 보존합니다. Candidate C 기반 Foundation
+Instruct로 parent를 바꾸려면 현재 승인된 ADR-010을 대체하거나 개정하는 후속 결정이 먼저 필요합니다.
 
-DohaMusic은 1차 General Instruct Runtime을 재사용하는 별도 Application/Domain 트랙입니다.
+### Phase 2 — Runtime
 
-- General Instruct Runtime 재사용
-- Lyrics Search
-- Style Analysis
-- Personal Music Adapter
+Qwen General Instruct v0.3 Recovery → Manifest → Runtime → Adapter 순서입니다. Foundation 완료 이후 착수하는 실제
+서비스용 병행 트랙이며, 현재 구현과 복구 계약은 그대로 보존합니다.
 
-모두 `planned`입니다. 데이터 라이선스, 가사 저작권, 개인정보와 평가 계약을 확정하기 전에는 학습·수집·공개를 시작하지 않습니다.
+### Phase 3 — Application
+
+DohaMusic → Music Adapter → Lyrics → Prompt 순서입니다. DohaMusic은 Phase 2 Runtime을 사용하는 Application이며
+Foundation 또는 Runtime 자체로 분류하지 않습니다.
+
+Phase 3의 네 항목은 모두 `planned`입니다. 데이터 라이선스, 가사 저작권, 개인정보와 평가 계약을 확정하기 전에는
+학습·수집·공개를 시작하지 않습니다.
 
 ## 현재 범위 밖
 

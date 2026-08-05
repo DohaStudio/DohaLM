@@ -14,26 +14,29 @@ README
   → Foundation Model Strategy
   → Current Project Status
   → Roadmap
-  → Service 문서
+  → Runtime 문서
+  → Application 문서
 ```
 
-1. [README](../README.md): 두 트랙, 1·2·3차 목표와 제외 범위
-2. [Foundation Model Strategy](./project/foundation-model-strategy.md): Foundation 연구와 Runtime/Application의 계보 경계
+1. [README](../README.md): Foundation 우선 Phase 1→2→3과 프로젝트 범위
+2. [Foundation Model Strategy](./project/foundation-model-strategy.md): Base·Candidate B/C·Foundation Instruct 핵심 목표와 Runtime 경계
 3. [Current Project Status](./project/current-project-status.md): 실제 코드·테스트·실측 기준 상태
-4. [Roadmap](./project/model-family-roadmap.md): 남은 작업과 진입 순서
-5. [FastAPI Runtime](./service/dohalm-backend-mvp.md), [Base Qwen Provider](./service/dohalm-base-qwen-provider.md), [Adapter Runtime 설계](./service/dohalm-adapter-runtime.md), [Frontend](./service/dohalm-frontend-mvp.md): 현재 서비스 실행·후속 구현 계약
+4. [Roadmap](./project/model-family-roadmap.md): Foundation → Runtime → Application 공식 개발 순서
+5. [Runtime](./service/dohalm-backend-mvp.md), [Base Qwen Provider](./service/dohalm-base-qwen-provider.md), [Adapter Runtime 설계](./service/dohalm-adapter-runtime.md), [Frontend](./service/dohalm-frontend-mvp.md): 실제 서비스용 Runtime 실행·후속 구현 계약
+6. [Application](./project/domain-model-strategy.md): Runtime을 사용하는 DohaMusic → Music Adapter → Lyrics → Prompt
 
 [Domain Model Strategy](./project/domain-model-strategy.md)는 DohaMusic과 장기 Domain 후보를,
-[Instruct Strategy](./instruct/instruct-strategy.md)는 Candidate B 기반 Foundation Instruct와 Qwen 기반 Runtime Adapter를 구분합니다.
+[Instruct Strategy](./instruct/instruct-strategy.md)는 Candidate C 기반 Foundation Instruct 공식 목표, 현재 Candidate B 기반 승인 설계와
+Qwen 기반 Runtime Adapter를 구분합니다.
 
 ## 2. 트랙별 진입점
 
 | 트랙 | 현재 범위 | 우선 문서 |
 |---|---|---|
-| Foundation Model | DohaLM-Tiny, Tokenizer, Candidate A/B, Evaluation Framework | [모델 아키텍처](./architecture/model-architecture.md), [Evaluation](./evaluation/README.md), [Model Lineage](./project/model-lineage.md) |
-| Runtime 1차 | Qwen Base, General Instruct Adapter, Runtime, Loader, Chat API, Streaming, Prompt Engine | [Instruct 안내](./instruct/README.md), [FastAPI](./service/dohalm-backend-mvp.md), [Base Qwen](./service/dohalm-base-qwen-provider.md), [Adapter Runtime](./service/dohalm-adapter-runtime.md) |
-| Runtime 2차 | Memory, RAG, Tool Calling, Agent | [Roadmap](./project/model-family-roadmap.md), [Tool Calling 전략](./instruct/tool-calling-strategy.md) |
-| Application 3차 | DohaMusic, Lyrics Search, Style Analysis, Personal Music Adapter | [Domain Strategy](./project/domain-model-strategy.md) |
+| Phase 1 Foundation | Base 본훈련 준비, Candidate B/C, Foundation Instruct | [Foundation Strategy](./project/foundation-model-strategy.md), [Evaluation](./evaluation/README.md), [Model Lineage](./project/model-lineage.md) |
+| Phase 2 Runtime | Qwen v0.3 Recovery, Manifest, Runtime, Adapter | [Instruct 안내](./instruct/README.md), [FastAPI](./service/dohalm-backend-mvp.md), [Adapter Runtime](./service/dohalm-adapter-runtime.md) |
+| Runtime 확장 | Memory, RAG, Tool Calling, Agent | [Roadmap](./project/model-family-roadmap.md), [Tool Calling 전략](./instruct/tool-calling-strategy.md) |
+| Phase 3 Application | DohaMusic, Music Adapter, Lyrics, Prompt | [Domain Strategy](./project/domain-model-strategy.md) |
 
 ## 3. 상태 표기
 
@@ -53,10 +56,11 @@ README
 
 ## 4. 현재 핵심 경계
 
-- Foundation Model Track의 Candidate B가 current Base baseline이고 Candidate A는 historical baseline입니다.
-- ADR-010은 Candidate B 기반 Foundation Instruct 설계 승인이지 Qwen Adapter 실행 승인이 아닙니다.
+- Foundation의 Candidate B가 current Base baseline이고 Candidate C는 다음 핵심 목표이며 Candidate A는 historical baseline입니다.
+- 공식 목표는 Candidate C 기반 Foundation Instruct입니다. 현재 ADR-010의 Candidate B 기반 승인 설계는 후속 ADR 전까지 유지됩니다.
 - Runtime은 Base Qwen Chat·Streaming까지 로컬 검증됐습니다. Adapter manifest·Validator·PEFT Loader·Provider 통합은 mock 검증됐고 실제 승인 Adapter/GPU는 미검증입니다.
-- Memory, RAG, Tool Calling, Agent와 DohaMusic은 계획 상태입니다.
+- Runtime은 Foundation 완료 이후의 실제 서비스용 병행 트랙이고, DohaMusic은 Runtime을 사용하는 Application입니다.
+- Memory, RAG, Tool Calling, Agent와 DohaMusic·Music Adapter·Lyrics·Prompt는 계획 상태입니다.
 - Docker, Kubernetes, Cloud와 운영 배포는 현재 범위 밖입니다.
 - 실제 데이터, checkpoint, Adapter와 로컬 경로는 Git과 문서에 포함하지 않습니다.
 
@@ -76,6 +80,7 @@ README
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | README → Foundation Strategy → Current Status → Roadmap → Runtime → Application 읽기 순서와 Foundation 우선 Phase 구조 반영 |
 | 2026-08-04 | Runtime 1차 진입점에 General Instruct Adapter Runtime 설계 추가 |
 | 2026-08-04 | README → Strategy → Current Status → Roadmap → Service 읽기 흐름과 트랙별 진입점으로 재구성 |
 | 2026-07-28 | Model Family·Instruct 문서 진입점 추가 |
