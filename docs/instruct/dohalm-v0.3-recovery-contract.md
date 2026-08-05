@@ -376,42 +376,41 @@ kind와 purpose는 각각 `canonical_execution`, `canonical_recovery_execution`�
 ```yaml
 schema_version: 1
 approval_id: null
+approval_type: v03_fresh_tokenization
 run_id: null
+reservation_id: null
 dataset_id: DOHALM-V0.3-SHORT-ANSWER-DATASET-20260802-0001
-dataset_package_fingerprint: null
+canonical_dataset_fingerprint: null
 effective_dataset_fingerprint: null
-tokenizer:
-  model_id: Qwen/Qwen2.5-1.5B-Instruct
-  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
-  inventory_fingerprint: null
-  chat_template_fingerprint: null
-base_revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+evidence_bundle_fingerprint: null
 tokenization_config_fingerprint: null
+tokenizer_identity: Qwen/Qwen2.5-1.5B-Instruct@989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+tokenizer_inventory_fingerprint: null
+chat_template_fingerprint: null
 backend_fingerprint: null
-dependency_snapshot_fingerprint: null
+dependency_fingerprint: null
 source_commit: null
-allowed_action: fresh_tokenization_publish
-allowed_input_roots: []
-allowed_output_roots: []
+allowed_action: tokenize_and_publish
+allowed_input_root_id: null
+allowed_output_root_id: null
+expected_artifact_set_fingerprint: null
+predecessor_run_id: DOHALM-V0.3-TOKENIZATION-20260802-0001
 issued_at: null
 expires_at: null
 consumed_at: null
+retired_at: null
 status: draft
-approver: null
-predecessor_failure_reference: DOHALM-V0.3-TOKENIZATION-20260802-0001
-retry_allowed: false
-resume_allowed: false
-overwrite_allowed: false
-maximum_consumptions: 1
-stable_fingerprint: null
-checksum: null
+approver_id: null
+issue_nonce: null
+approval_fingerprint: null
+approval_checksum: null
+retirement_reason: null
 ```
 
 ### 9.3 상태와 전이
 
 ```text
 draft -> issued -> consumed
-draft -> retired
 issued -> retired
 issued -> expired
 ```
@@ -433,35 +432,45 @@ Approval은 재사용하지 않는다.
 ```yaml
 schema_version: 1
 request_id: null
+request_type: v03_fresh_tokenization
 run_id: null
+reservation_id: null
 approval_id: null
 approval_fingerprint: null
 dataset_id: null
-dataset_package_fingerprint: null
+canonical_dataset_fingerprint: null
 effective_dataset_fingerprint: null
+evidence_bundle_fingerprint: null
 tokenization_config_fingerprint: null
+tokenizer_identity: null
 tokenizer_inventory_fingerprint: null
 chat_template_fingerprint: null
 backend_fingerprint: null
-dependency_snapshot_fingerprint: null
+dependency_fingerprint: null
 source_commit: null
-requested_output_root: null
+requested_output_root_id: null
+requested_staging_root_id: null
+requested_failure_root_id: null
 expected_artifact_set: []
-environment_requirements_fingerprint: null
+expected_artifact_set_fingerprint: null
+execution_environment_fingerprint: null
+predecessor_run_id: DOHALM-V0.3-TOKENIZATION-20260802-0001
 created_at: null
 expires_at: null
-requested_by: null
-nonce: null
+request_nonce: null
+anti_replay_token_hash: null
+request_fingerprint: null
 request_checksum: null
+status: created
 ```
 
 검증 규칙은 다음과 같다.
 
 - Approval의 모든 identity·fingerprint·allowed root·action과 exact match
 - request ID·nonce·checksum·approval fingerprint의 과거 사용 이력 0
-- request root는 예약된 Run의 canonical final root와 정확히 일치
-- final·staging·failed·emergency·worker root와 conflicting reservation 부재
-- current clean HEAD와 `source_commit` 일치, commit은 `origin/develop`에서 reachable
+- request output root는 Approval의 logical output root identity와 정확히 일치
+- output·staging·failure logical root identity는 서로 다름
+- `source_commit`은 Approval·reservation과 exact match
 - backend execution surface와 dependency snapshot fingerprint 일치
 - expected artifact set exact match, unknown file 금지
 - timezone-aware 발급·만료와 최대 1시간 TTL
@@ -609,9 +618,9 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 | `V03-BLOCK-007` | blocking | v0.3 독립 PII evidence 없음 | PII 4-artifact set | 예 | scan·review 필요 | scan 범위와 수동 검토 전 | V03-1 |
 | `V03-BLOCK-009` | blocking | 독립 Safety evidence 없음 | Safety 4-artifact set | 예 | scan·review 필요 | scan 범위와 disposition 전 | V03-1 |
 | `V03-BLOCK-008` | blocking | 외부 benchmark·v0.3 leakage clear 없음 | Leakage 3-artifact set | 예 | scan·review 필요 | benchmark source·threshold 전 | V03-1·평가 |
-| `V03-BLOCK-010` | blocking | 새 Run identity ledger/reservation 미구현 | reservation·registry evidence | 예 | 예약 필요 | 실제 identity 예약 전 | V03-2 |
-| `V03-BLOCK-004` | critical | Tokenization Approval 계약 미구현 | TokenizationApproval v1 | 예 | issue 필요 | issue 직전 | V03-2 |
-| `V03-BLOCK-011` | critical | Tokenization request writer 미구현 | TokenizationExecutionRequest v1 | 예 | request 생성 필요 | request 발급 전 | V03-2 |
+| `V03-BLOCK-010` | blocking | 실제 새 Run identity 미예약 | reservation·registry evidence | 예 | 별도 승인 후 예약 필요 | 실제 identity 예약 전 | V03-2 |
+| `V03-BLOCK-004` | critical | 실제 Tokenization Approval 미발급 | TokenizationApproval v1 | 예 | 별도 승인 후 issue 필요 | issue 직전 | V03-2 |
+| `V03-BLOCK-011` | critical | 실제 Tokenization request 미생성 | TokenizationExecutionRequest v1 | 예 | 별도 승인 후 request 생성 필요 | request 발급 전 | V03-2 |
 | `V03-BLOCK-003` | blocking | 내부 publish 원인 unresolved | 새 Run stage·terminal evidence | 예 | fresh 실행에서만 확인 | 실행 직전 | V03-2 |
 | `V03-BLOCK-012` | blocking | metadata preflight·input integrity 분리 미구현 | preflight evidence·unit test | 예 | metadata preflight 필요 | preflight 전 | V03-2 |
 | `V03-BLOCK-013` | blocking | Windows termination·orphan 계약 미검증 | supervisor synthetic evidence | 예 | synthetic만 먼저 | 실제 실행 전 | V03-2 |
@@ -625,8 +634,8 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 | `V03-R1` | Evidence envelope·strict loader·bundle schema·atomic writer·finalizer. `src/data/v03_evidence.py`, `src/data/v03_evidence_writer.py` | exact schema, canonical fingerprint, no-replace, strict reload, Gate contradiction, zero payload call | 실제 evidence 생성 전 승인 필요 | `implemented_synthetic_validated` | R2 |
 | `V03-R2` | PII·Safety·Leakage backend와 review/exclusion writer. 기존 inspector·duplicate 로직 최소 재사용 | synthetic detector/category, raw leak 0, deterministic rerun, unknown fail closed | 실제 v0.3 scan·review 전 승인 필요 | `implemented_synthetic_validated` | V03-1 decision |
 | `V03-R3` | Run identity ledger·reservation·commit·abandon·retirement. `src/training/v03_run_identity.py`, `tests/test_v03_run_identity.py` | concurrency single winner, all-surface collision, date/sequence, write failure cleanup, corruption, symlink, abandoned/retired, predecessor | 실제 ID 예약 전 승인 필요 | `implemented_synthetic_validated` | R4 |
-| `V03-R4` | `TokenizationApproval v1`, issue/consume/expire/retire와 lifecycle lock | state matrix, drift retirement, one-shot, concurrent request/retire/consume, legacy reject | 실제 issue·consume 전 승인 필요 | `designed_not_started` | R5 |
-| `V03-R5` | `TokenizationExecutionRequest v1` writer·validator | exact match, nonce/TTL/replay, path/root, atomic no-replace, lifecycle race | 실제 request 생성 전 승인 필요 | `designed_not_started` | R6 |
+| `V03-R4` | `TokenizationApproval v1`, issue/consume/expire/retire와 lifecycle lock | state matrix, drift retirement, one-shot, concurrent request/retire/consume, legacy reject | 실제 issue·consume 전 승인 필요 | `implemented_synthetic_validated` | R5 |
+| `V03-R5` | `TokenizationExecutionRequest v1` writer·validator | exact match, nonce/TTL/replay, path/root, atomic no-replace, lifecycle race | 실제 request 생성 전 승인 필요 | `implemented_synthetic_validated` | R6 |
 | `V03-R6` | metadata-only preflight와 별도 input-integrity Gate | payload/tokenizer call 0, checksum evidence, disk/path/dependency/process failure matrix | metadata preflight 실행 전 승인 필요 | `designed_not_started` | R7·R8 |
 | `V03-R7` | 기존 `src/training/v03_tokenization_runtime.py`의 platform stop·orphan·terminal authority 보완 | POSIX/Windows synthetic, missing SIGKILL, heartbeat stall, child orphan, exit preservation | synthetic 불필요; 실제 worker 실행 승인 필요 | `designed_not_started` | R9 |
 | `V03-R8` | 기존 publisher에 publish-preflight·completion marker·after-visibility failure 추가 | 단계별 fault injection, exact set, same-volume, collision, final reload, consumer eligibility | synthetic 불필요; 실제 publish 승인 필요 | `designed_not_started` | R9 |
@@ -637,8 +646,8 @@ identity와 Approval을 소비하지 않았더라도 원인이 source/backend dr
 
 ## 17. 구현과 실행 순서
 
-`V03-R1`과 `V03-R3`의 schema·순수 validator는 synthetic-only 구현·검증을 완료했다. 다음 코드 범위는
-`V03-R4`, `V03-R5`이며 실제 payload를 읽지 않고 사용자 실행 승인을 소비하지 않는다. 이후 `R6 → R7 → R8 → R9`
+`V03-R1`부터 `V03-R5`까지의 schema·순수 validator와 원자적 writer는 synthetic-only 구현·검증을 완료했다. 다음 코드 범위는
+`V03-R6` metadata-only preflight이며 실제 payload를 읽지 않고 사용자 실행 승인을 소비하지 않는다. 이후 `R7 → R8 → R9`
 순서로 검증한다.
 
 아직 실행하면 안 되는 작업:
@@ -689,7 +698,13 @@ v03_r2_exclusion_builder: implemented_synthetic_validated
 v03_r3_identity_schema: implemented_synthetic_validated
 v03_r3_ledger_validator: implemented_synthetic_validated
 v03_r3_reservation_writer: implemented_synthetic_validated
+v03_r4_approval_schema: implemented_synthetic_validated
+v03_r4_approval_lifecycle: implemented_synthetic_validated
+v03_r5_request_schema: implemented_synthetic_validated
+v03_r5_request_writer: implemented_synthetic_validated
 actual_v03_run_reserved: false
+actual_v03_approval_issued: false
+actual_v03_request_created: false
 actual_v03_evidence_bundle: not_created
 actual_pii_scan: not_started
 actual_safety_scan: not_started
@@ -709,6 +724,7 @@ execution_allowed: false
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R4 TokenizationApproval와 immutable consume·retire·expire lifecycle, V03-R5 TokenizationExecutionRequest·exact-match·TTL·anti-replay·atomic writer를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R3 strict Run Identity schema·ledger validator·atomic reservation/commit/abandon/retire를 synthetic-only로 구현·검증; 실제 ledger migration과 Run 예약은 수행하지 않고 execution 금지를 유지 |
 | 2026-08-05 | V03-R2 synthetic-only PII·Safety·Leakage scanner, opaque HMAC reference, review policy, exclusion builder, R1 payload 변환을 구현·검증; 실제 Dataset scan·review·evidence 생성은 수행하지 않음 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, 10-file bundle finalizer와 readiness Gate를 synthetic-only 검증으로 구현; 실제 evidence·승인·실행은 생성하지 않음 |

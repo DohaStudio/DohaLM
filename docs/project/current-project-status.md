@@ -87,7 +87,13 @@ v03_r2_exclusion_builder: implemented_synthetic_validated
 v03_r3_identity_schema: implemented_synthetic_validated
 v03_r3_ledger_validator: implemented_synthetic_validated
 v03_r3_reservation_writer: implemented_synthetic_validated
+v03_r4_approval_schema: implemented_synthetic_validated
+v03_r4_approval_lifecycle: implemented_synthetic_validated
+v03_r5_request_schema: implemented_synthetic_validated
+v03_r5_request_writer: implemented_synthetic_validated
 actual_v03_run_reserved: false
+actual_v03_approval_issued: false
+actual_v03_request_created: false
 actual_v03_evidence_bundle: not_created
 actual_pii_scan: not_started
 actual_safety_scan: not_started
@@ -136,7 +142,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 ## 7. 다음 권장 작업
 
-1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R4 Approval·R5 request validator 구현
+1. [v0.3 Recovery Contract](../instruct/dohalm-v0.3-recovery-contract.md)의 V03-R6 metadata-only preflight 구현
 2. 별도 승인으로 실제 license evidence와 PII·Safety·Leakage evidence를 생성·확정한 뒤 V03-1 판정
 3. 별도 승인 뒤 새 identity 기반 canonical Tokenization·QLoRA preflight·평가를 순서대로 진행
 4. 적격 General Instruct Adapter가 생긴 뒤 manifest 고정과 실제 GPU READY 검증
@@ -147,6 +153,7 @@ Browser → Next.js → FastAPI → BaseQwenProvider → local Qwen snapshot
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | V03-R4 Tokenization Approval lifecycle과 V03-R5 Runtime Execution Request를 synthetic-only로 구현·검증; 실제 Approval·Request·Run 예약·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R3 Run Identity schema·ledger validator·reservation writer synthetic 검증 완료; 실제 ledger migration·Run 예약·Approval·Request·실행은 수행하지 않음 |
 | 2026-08-05 | V03-R2 scanner·review·exclusion 및 R1 payload 변환 synthetic 검증 완료; actual scan `not_started`, review evidence `not_created`, execution 금지 유지 |
 | 2026-08-05 | V03-R1 strict evidence schema·loader, atomic no-replace writer, bundle finalizer synthetic 검증 완료; actual bundle `not_created`, data evidence `pending`, execution 금지 유지 |
