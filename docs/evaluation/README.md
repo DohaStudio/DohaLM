@@ -54,13 +54,16 @@
 - Candidate B design/backend: `implemented_and_cpu_validated`; 실행 직전 clean immutable Git identity·physical preflight·single-use approval 재검증 필요
 - Candidate B Run 0002 training·Final Quick·Full: `completed`; official result: `evaluated_contract_not_passed`
 - EOS 다중 길이·decoding 진단: `completed`; 정책·ADR-008은 `approved`, historical Candidate B 상태 변경 없음
-- Candidate B 신규 read-only EOS 진단: 계약·D1~D8·single-use control 설계 `completed`; R1 외 후속 구현·Approval·Request·GPU·Full 실행
-  `not_started`, execution false, checkpoint mutation false
+- Candidate B 신규 read-only EOS 진단: 계약·D1~D8·single-use control 설계 `completed`; R1~R3 synthetic 구현 완료,
+  R4 이후·Approval·Request·GPU·Full 실행 `not_started`, execution false, checkpoint mutation false
 - EOS-DIAG-R1 artifact system: 18개 strict schema, canonical loader/validator, atomic no-replace writer, inventory와
   completion evidence `implemented_synthetic_verified`; D1~D8 backend·실제 Run artifact는 미구현·미생성
 - EOS-DIAG-R2 identity·matrix freezer: explicit-input immutable Checkpoint·Tokenizer·Prompt·Backend·Dependency identity,
   Candidate B evaluation lineage, 기존 decoder의 11 profile × 4 length canonical matrix, Gate EOS-DIAG-1·2 evidence와 R1 관리
   payload 연결 `implemented_synthetic_verified`; 실제 identity freeze `incomplete`, Gate 1·2 `not_passed`, 실행 허용 false
+- EOS-DIAG-R3 static preflight: strict request, repository/source·backend·dependency identity, metadata-only input root,
+  신규 output·disk·path·lock·explicit process inventory와 Gate 1·2/R1 plan 연결 `implemented_synthetic_verified`;
+  actual Candidate B preflight `not_run`, payload read·output 생성·실행 허용 없음
 - Candidate C EOS 주가설 선택 정책: 설계 `completed`; primary hypothesis `not_selected`
 - Candidate B ADR-008 reassessment: `approved_as_base_baseline`; current Base baseline은 Candidate B,
   Candidate A는 historical baseline
@@ -74,6 +77,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R3 metadata-only Static Preflight와 Gate 1·2/R1 plan synthetic 연결; actual preflight·payload·GPU 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R2 identity·generation matrix freezer와 Gate 1·2/R1 payload synthetic 검증 연결; 실제 checkpoint·Tokenizer·prompt·환경 조회와 GPU·generation 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R1 strict artifact system과 synthetic 10-test 검증 연결; checkpoint·Tokenizer·GPU·generation 미실행 유지 |
 | 2026-08-05 | Candidate B Final read-only EOS 진단 계약과 Candidate C 단일 주가설 선택 정책 등록; 실행·Approval·GPU 미시작 유지 |

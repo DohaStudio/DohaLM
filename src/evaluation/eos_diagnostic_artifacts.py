@@ -333,15 +333,19 @@ def _validate_payload(
     artifact_type: str, value: object, record_count: int
 ) -> dict[str, Any]:
     if artifact_type == "diagnostic_run_manifest":
-        payload = _strict_object(
-            value,
-            (
+        base_fields = frozenset(
+            {
                 "purpose",
                 "execution_mode",
                 "permissions",
                 "exact_artifact_set",
                 "predecessor_diagnostic_run_id",
-            ),
+            }
+        )
+        payload = _strict_subset(
+            value,
+            allowed=base_fields | {"preflight"},
+            required=base_fields,
         )
         _string(payload["purpose"])
         if payload["execution_mode"] not in {
@@ -368,6 +372,86 @@ def _validate_payload(
         predecessor = payload["predecessor_diagnostic_run_id"]
         if predecessor is not None:
             _run_id(predecessor)
+        if "preflight" in payload:
+            preflight = _strict_object(
+                payload["preflight"],
+                (
+                    "schema_version",
+                    "diagnostic_run_id",
+                    "status",
+                    "request_fingerprint",
+                    "repository_state",
+                    "backend_fingerprint",
+                    "dependency_fingerprint",
+                    "input_root_status",
+                    "output_destination_status",
+                    "gate_1_status",
+                    "gate_2_status",
+                    "blockers",
+                    "approved_next_actions",
+                    "prohibited_actions",
+                    "diagnostic_execution_allowed",
+                    "preflight_fingerprint",
+                ),
+            )
+            if preflight["schema_version"] != 3:
+                _raise()
+            _run_id(preflight["diagnostic_run_id"])
+            if preflight["status"] not in {
+                "passed",
+                "passed_with_conditions",
+                "blocked",
+                "incomplete",
+                "incompatible",
+                "failed",
+            }:
+                _raise()
+            for field in (
+                "request_fingerprint",
+                "backend_fingerprint",
+                "dependency_fingerprint",
+                "preflight_fingerprint",
+            ):
+                _fingerprint(preflight[field])
+            if preflight["gate_1_status"] not in {
+                "passed",
+                "blocked",
+                "incomplete",
+                "review",
+            }:
+                _raise()
+            if preflight["gate_2_status"] not in {
+                "passed",
+                "blocked",
+                "incomplete",
+                "review",
+            }:
+                _raise()
+            if preflight["diagnostic_execution_allowed"] is not False:
+                _raise()
+            _string_list(preflight["approved_next_actions"])
+            prohibited = _string_list(preflight["prohibited_actions"])
+            if not {
+                "checkpoint_payload_read",
+                "tokenizer_payload_read",
+                "prompt_payload_read",
+                "gpu",
+                "generation",
+            }.issubset(prohibited):
+                _raise()
+            for field in (
+                "repository_state",
+                "input_root_status",
+                "output_destination_status",
+                "blockers",
+            ):
+                _validate_json_tree(preflight[field])
+            semantic_preflight = dict(preflight)
+            semantic_preflight.pop("preflight_fingerprint")
+            if preflight["preflight_fingerprint"] != diagnostic_fingerprint(
+                semantic_preflight
+            ):
+                _raise("EOS_DIAGNOSTIC_ARTIFACT_INTEGRITY_MISMATCH")
         if record_count != 1:
             _raise()
     elif artifact_type == "checkpoint_identity":
@@ -680,6 +764,12 @@ def _validate_artifact_value(value: object) -> DiagnosticArtifact:
     created_at = _timestamp(root["created_at"])
     record_count = _integer(root["record_count"])
     payload = _validate_payload(artifact_type, root["payload"], record_count)
+    if (
+        artifact_type == "diagnostic_run_manifest"
+        and "preflight" in payload
+        and payload["preflight"]["diagnostic_run_id"] != run_id
+    ):
+        _raise("EOS_DIAGNOSTIC_ARTIFACT_IDENTITY_MISMATCH")
     artifact_fingerprint = _fingerprint(root["artifact_fingerprint"])
     checksum = _fingerprint(root["checksum"])
     if artifact_fingerprint != _artifact_fingerprint(

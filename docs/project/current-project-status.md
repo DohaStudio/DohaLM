@@ -65,10 +65,21 @@ candidate_c_training_started: false
 | 단일 root cause | `unconfirmed` | 관측 현상을 하나의 원인으로 확정하지 않음 |
 | EOS-DIAG-R1 artifact system | `implemented_synthetic_verified` | strict 18-artifact schema·validator·writer·completion evidence |
 | EOS-DIAG-R2 identity·matrix freezer | `implemented_synthetic_verified` | immutable explicit-input identity, generation matrix, R1 payload 연결 |
+| EOS-DIAG-R3 static preflight | `implemented_synthetic_verified` | strict request, Git/source·dependency, metadata-only input, output·disk·path·lock·process와 R1 plan 연결 |
+| 실제 Candidate B static preflight | `not_run` | 실제 logical identity·local path 미공급, 구현 변경으로 현재 worktree dirty; payload 접근 없음 |
 | 실제 Candidate B identity freeze | `incomplete` | checkpoint manifest fingerprint, prompt identity, source/backend/dependency evidence 미동결 |
 | EOS Diagnostic Gate 1·2 | `not_passed` | 실제 artifact·승인 입력의 gate evidence 없음 |
 
-R1/R2는 실제 checkpoint load, tokenizer load, GPU, generation 또는 EOS 계산 완료를 의미하지 않습니다.
+```text
+eos_diag_r3_static_preflight: implemented_synthetic_verified
+actual_candidate_b_static_preflight: not_run
+gate_eos_diag_1: not_passed
+gate_eos_diag_2: not_passed
+diagnostic_execution_allowed: false
+gpu_diagnostic: not_started
+```
+
+R1/R2/R3는 실제 checkpoint·Tokenizer·prompt payload read, model load, GPU, generation 또는 EOS 계산 완료를 의미하지 않습니다.
 
 ## 4. Phase 2 — Reusable Model and Runtime
 
@@ -112,13 +123,14 @@ DohaMusic integration은 `planned, separate repository`입니다. DohaMusic의 U
 
 ## 8. 다음 권장 작업
 
-현재 우선순위에서 다음 후보는 실제 Candidate B identity와 승인 입력을 대상으로 하는 `EOS-DIAG-R3`입니다. 시작 전
-R3 계약·허용 입력·실제 checkpoint read-only 접근 승인과 선행 Gate를 확인해야 합니다. Candidate C 학습, Qwen recovery,
+현재 우선순위에서 다음 구현 후보는 synthetic fixture만 사용하는 `EOS-DIAG-R4` D1~D8 backend입니다. 실제 Candidate B
+preflight나 checkpoint 접근 전에는 formal identity, clean immutable commit과 별도 승인 경계를 확인해야 합니다. Candidate C 학습, Qwen recovery,
 Python SDK 또는 DohaMusic 구현으로 자동 전환하지 않습니다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R3 Static Preflight synthetic 검증, actual preflight not_run과 Gate 1/2 미통과 상태 반영 |
 | 2026-08-05 | reusable provider 정의, 세 Phase 산출물 상태, 외부 Reference Application과 lineage 병행 관계 반영 |
 | 2026-08-05 | EOS-DIAG-R1/R2 synthetic 상태와 실제 identity·Gate 미완료 상태 반영 |

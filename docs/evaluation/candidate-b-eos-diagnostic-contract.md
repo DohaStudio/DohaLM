@@ -9,6 +9,8 @@
 - EOS-DIAG-R1: `implemented_synthetic_verified`
 - EOS-DIAG-R2 Identity Freezer: `implemented_synthetic_verified`
 - EOS-DIAG-R2 Generation Matrix: `implemented_synthetic_verified`
+- EOS-DIAG-R3 Static Preflight: `implemented_synthetic_verified`
+- 실제 Candidate B Static Preflight: `not_run`
 - 실제 Candidate B identity freeze: `incomplete`
 - EOS-DIAG-1 / EOS-DIAG-2: `not_passed` / `not_passed`
 - 대상: Candidate B Final checkpoint, evaluation-only read-only 분석
@@ -166,7 +168,7 @@ redaction validator를 통과해야 하며 traceback은 restricted local log로�
 |---|---|---|
 | EOS-DIAG-1 Identity Freeze | checkpoint manifest·checksum, Tokenizer, prompt set, diagnostic source commit을 immutable identity로 연결 | `blocked` |
 | EOS-DIAG-2 Config Freeze | generation matrix, seed, device/dtype, exact output set의 미결정 0과 canonical fingerprint | `blocked` |
-| EOS-DIAG-3 Static Preflight | import·strict config, read-only permission, 신규 destination, disk, clean tree, checksum inventory, dependency snapshot, no-replace writer를 payload load 없이 검증 | `not_started` |
+| EOS-DIAG-3 Static Preflight | strict request, repository/source, explicit backend·dependency, metadata-only input, 신규 destination, disk/path/lock/process를 payload load 없이 검증 | `implemented_synthetic_verified`; actual `not_run` |
 | EOS-DIAG-4 GPU Smoke Approval | 동일 Run 안의 최소 prompt·짧은 generation, load/unload·OOM/VRAM과 전후 checksum; 별도 자동 권한 없음 | `not_started` |
 | EOS-DIAG-5 Full Diagnostic Approval | EOS-DIAG-1~4 계약 충족, single-use Approval·Runtime Request, exact set, 자원·시간, checkpoint write 불가 | `not_started` |
 
@@ -239,7 +241,7 @@ planned -> identity_frozen -> config_frozen -> preflight_passed
 |---|---|---|---|---|---|---|
 | EOS-DIAG-R1 schema·strict validator | [artifact system](../../src/evaluation/eos_diagnostic_artifacts.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_artifacts.py) | unknown/duplicate/non-finite/schema/Git SHA/timestamp/checksum/fingerprint/exact set, canonical/no-replace/reload | 불필요 | 없음 | 불필요 | `implemented_synthetic_verified`; 10 tests passed |
 | EOS-DIAG-R2 matrix·identity freezer | [identity freezer](../../src/evaluation/eos_diagnostic_identity.py), [matrix freezer](../../src/evaluation/eos_generation_matrix.py), [identity tests](../../tests/evaluation/test_eos_diagnostic_identity.py), [matrix tests](../../tests/evaluation/test_eos_generation_matrix.py) | explicit-input canonicalization, immutable ID/version·fingerprint, lineage, exact profile/count, R1 payload 연결 | 불필요 | synthetic metadata fixture만 | 실제 freeze 승인 없음 | `implemented_synthetic_verified`; 실제 Gate 1·2 미통과 |
-| EOS-DIAG-R3 read-only loader preflight | `src/evaluation/eos_diagnostic_preflight.py`, checkpoint fixture tests | write permission 제거, before/after digest, no payload before consume | synthetic CPU | 합성 fixture만 | 불필요 | mutation·early load fail-closed |
+| EOS-DIAG-R3 metadata-only static preflight | [preflight](../../src/evaluation/eos_diagnostic_preflight.py), [synthetic tests](../../tests/evaluation/test_eos_diagnostic_preflight.py) | strict request, clean Git, allowlist source hash, dependency snapshot, stat-only input, 신규 destination·disk·path·lock·process, Gate 1·2 mapping, R1 plan 연결 | 불필요 | payload read 없음 | 불필요 | `implemented_synthetic_verified`; actual preflight `not_run` |
 | EOS-DIAG-R4 D1~D8 backend | `src/evaluation/eos_diagnostic_backend.py`, metric unit tests | synthetic logits·prefix·boundary·loop fixtures | 단위 검증 불필요 | 없음 | 불필요 | D1~D8와 insufficient evidence 상태 |
 | EOS-DIAG-R5 aggregate·hypothesis assessor | `src/evaluation/eos_hypothesis_assessor.py`, assessor tests | support/contradiction/insufficient·no forced selection | 불필요 | 없음 | 정책 검토 | decision artifact strict 생성 |
 | EOS-DIAG-R6 Approval·Request·Run ledger | `src/evaluation/eos_diagnostic_control.py`, CLI, lifecycle tests | TTL·nonce·anti-replay·consume·atomic no-replace·race | 불필요 | 없음 | schema 승인 | one-shot control plane 합성 검증 |
@@ -247,7 +249,7 @@ planned -> identity_frozen -> config_frozen -> preflight_passed
 | EOS-DIAG-R8 GPU smoke | 외부 immutable smoke evidence만 | 1개 최소 prompt, 짧은 길이, load/unload, VRAM, 전후 checksum | 필요 | 실제 read-only | single-use 실행 승인 | smoke 통과 또는 terminal 실패 |
 | EOS-DIAG-R9 Full diagnostic | 외부 immutable 18-artifact bundle, 결과 문서 | D1~D8·exact set·checksum·completion validation | 필요 | 실제 read-only | 같은 bounded Run 승인 | completed 또는 terminal 실패; 상태 자동 승격 없음 |
 
-R1은 아래 범위로 구현·합성 검증됐습니다. R2~R7은 별도 요청이며 R8/R9는 실제 Run ID, Approval과 Request가 생긴
+R1~R3은 아래 범위로 구현·합성 검증됐습니다. R4~R7은 별도 요청이며 R8/R9는 실제 Run ID, Approval과 Request가 생긴
 뒤에만 가능합니다.
 
 ### 14.1 EOS-DIAG-R1 구현 경계
@@ -281,6 +283,34 @@ prefix를 재사용하므로 trajectory 호출 수는 `15 × 11 = 165`로 별도
 distribution·normalization·formal leakage evidence가 미동결이며, diagnostic source commit·backend module fingerprint·dependency
 snapshot도 아직 공급되지 않았습니다. 따라서 실제 identity freeze는 `incomplete`, Gate EOS-DIAG-1·2는 `not_passed`입니다.
 
+### 14.3 EOS-DIAG-R3 구현 경계
+
+[확정] R3는 절대경로를 artifact에 넣지 않는 strict `StaticPreflightRequest`, 명시된 저장소의 branch·remote·HEAD·
+`origin/develop`·clean worktree·진행 중 Git operation 검증, caller allowlist source/schema 파일의 결정론적 fingerprint와
+stat mutation detection, 경로를 노출하지 않는 dependency snapshot을 구현했습니다. Backend source read만 허용하며 저장소
+전체 scan이나 네트워크 조회는 하지 않습니다. Dependency version의 local suffix는 제거하지 않고 exact 문자열로 보존합니다.
+
+[확정] Checkpoint·Tokenizer·Prompt root는 root와 지정 manifest의 존재·type·symlink·read access를 stat metadata로만
+확인합니다. 쓰기 가능 여부를 시험하기 위한 파일 생성이나 permission 변경은 하지 않고, read-only 계약은 `payload_reads=0`,
+`write_attempts=0`으로 증명합니다. Output·staging·failure는 생성하지 않은 채 신규성, 서로 다른 경로, source/input 하위 금지,
+부모 writable metadata, same-volume, explicit disk minimum, longest exact artifact/temp/failure path, reserved name, lock와
+caller-supplied process inventory를 검증합니다.
+
+[확정] R3 evidence는 18개 exact set을 변경하지 않고 `diagnostic-plan.json`의 optional strict `preflight` section으로 연결됩니다.
+Synthetic complete fixture에서 Gate 1·2 `passed` 경로를 검증해도 `diagnostic_execution_allowed=false`이고 completion evidence,
+Approval 또는 Runtime Request를 만들지 않습니다.
+
+[확정] 외부 오류는 `EOS_DIAG_PREFLIGHT_INVALID`, `EOS_DIAG_REPOSITORY_STATE_INVALID`,
+`EOS_DIAG_SOURCE_COMMIT_MISMATCH`, `EOS_DIAG_BACKEND_FINGERPRINT_INVALID`,
+`EOS_DIAG_DEPENDENCY_SNAPSHOT_INVALID`, `EOS_DIAG_INPUT_ROOT_INVALID`, `EOS_DIAG_INPUT_NOT_READ_ONLY`,
+`EOS_DIAG_OUTPUT_ROOT_INVALID`, `EOS_DIAG_OUTPUT_CONFLICT`, `EOS_DIAG_DISK_SPACE_INSUFFICIENT`,
+`EOS_DIAG_PATH_LENGTH_EXCEEDED`, `EOS_DIAG_LOCK_CONFLICT`, `EOS_DIAG_PROCESS_CONFLICT`,
+`EOS_DIAG_IDENTITY_INCOMPLETE`, `EOS_DIAG_GATE_NOT_READY`의 stable code만 사용합니다. 전체 절대경로, remote credential,
+environment path, payload와 traceback은 오류에 포함하지 않습니다.
+
+[검증 필요] 실제 Candidate B local path, formal identity evidence와 clean immutable 실행 commit을 입력하지 않았으므로 actual
+Static Preflight는 `not_run`입니다. Synthetic R3 구현 완료가 실제 Gate 1·2 또는 EOS-DIAG-3 통과를 뜻하지 않습니다.
+
 ## 15. 현재 상태
 
 ```text
@@ -288,6 +318,8 @@ candidate_b_eos_diagnostic_contract: design_completed
 eos_diag_r1_artifact_system: implemented_synthetic_verified
 eos_diag_r2_identity_freezer: implemented_synthetic_verified
 eos_diag_r2_generation_matrix: implemented_synthetic_verified
+eos_diag_r3_static_preflight: implemented_synthetic_verified
+actual_candidate_b_static_preflight: not_run
 actual_candidate_b_identity_freeze: incomplete
 gate_eos_diag_1: not_passed
 gate_eos_diag_2: not_passed
@@ -305,6 +337,7 @@ full_diagnostic: not_started
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-05 | EOS-DIAG-R3 metadata-only Static Preflight, explicit backend/dependency identity, Git·input/output·disk/path/lock/process 검증과 Gate 1·2/R1 plan synthetic 연결; actual preflight 미실행 유지 |
 | 2026-08-05 | EOS-DIAG-R2 explicit-input identity·lineage freezer, exact 11-profile/4-length matrix, Gate 1·2 evidence와 R1 management payload 연결을 synthetic-only로 구현; 실제 identity freeze·Gate는 미완료 유지 |
 | 2026-08-05 | EOS-DIAG-R1 18-artifact strict schema·canonical loader/validator·atomic no-replace writer·inventory·completion evidence 구현과 synthetic 10-test 검증 반영 |
 | 2026-08-05 | Candidate B Final read-only EOS 진단 identity·matrix·D1~D8·artifact·Gate·Approval·Request·상태 머신·blocker·구현 Task 설계 |
