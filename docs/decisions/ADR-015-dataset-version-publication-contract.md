@@ -137,12 +137,12 @@ ADR은 dependency 변경을 수행하지 않는다.
    검증한다.
 4. [제안] domain validation까지 통과하면 DatasetVersion을 `approved` 상태로 결정하되 외부 공개나 Training 허용으로
    해석하지 않는다.
-5. [제안] approved Version의 immutable identity와 artifact/checksum set에서 DatasetManifest draft와 frozen Version
-   candidate를 staging에 구성하고 각각 `validate_contract()`한다.
-6. [제안] `evaluated_at`, required upstream objects, issued Manifest candidate와 frozen Version candidate를 포함한
-   `validate_scenario()`로 Dataset Gate와 Version/Manifest identity를 검증한다.
-7. [제안] Common issue가 0건인 뒤 DohaLM domain validator가 실제 artifact bytes·checksum set, item count,
-   split identity, local storage constraints와 publication target collision을 재검증한다.
+5. [제안] approved Version의 immutable `dataset_manifest_id`와 explicit publication metadata로 frozen Version candidate와
+   issued Manifest candidate를 메모리에서 구성하고 각각 `validate_contract()`한다. artifact file이나 directory는 읽지 않는다.
+6. [제안] caller가 명시적으로 전달한 `evaluated_at`과 required upstream Common objects, issued Manifest candidate와 frozen
+   Version candidate를 포함한 `validate_scenario()`로 Dataset Gate와 Version/Manifest identity를 검증한다.
+7. [제안] Common issue가 0건인 뒤 DohaLM domain validator가 reference metadata, checksum-set ID, item count, split identity,
+   local storage constraints와 publication target collision을 재검증한다.
 8. [제안] 어느 validation이든 실패하면 더 뒤 단계는 실행하지 않고 정제된 오류로 fail closed한다. Common schema·version
    failure가 domain validation보다 우선하며, domain failure는 Common 성공을 승인이나 허용으로 승격하지 않는다.
 
@@ -184,6 +184,53 @@ artifact reference가 하나의 immutable publication identity 아래에서 외�
   새 field로 삽입하지 않는다.
 - [제안] `ApprovedDatasetVersion`은 Governance 호출자가 Publication에 immutable 명시 인자로 전달한다. Publication은
   pre-publication approval store나 lookup을 새로 만들지 않는다. 재시작 후 조회 가능한 권위는 commit된 frozen/issued pair뿐이다.
+
+### Publication v1 construction·input 결정
+
+[제안] Publication entry는 immutable `ApprovedDatasetVersion`과 explicit immutable publication metadata를 받는다. metadata는
+Manifest envelope의 `created_at`, `created_by`, `producer`, `manifest_format_version`, `dataset_domain`, `source`,
+`license_status`, `commercial_usage_status`, `redistribution_allowed`, `object_file_artifact_refs`, `content_checksum_set_id`,
+`split_id`, `deletion_status`, scenario `evaluated_at`과 required upstream Common objects를 포함한다. optional Manifest field
+`supersedes`와 optional envelope field인
+`correlation_id`, `workspace_id`, `job_id`, `extensions`는 caller가 명시한 경우에만 그대로 포함한다. 현재 clock, UUID, host,
+environment, legacy config·manifest, corpus 또는 filesystem scan으로 어떤 값도 생성·보완하지 않는다.
+
+[제안] Manifest ID를 Publication에서 새로 생성하지 않는다. Authority schema상 approved DatasetVersion에도
+`dataset_manifest_id`가 필수이고 현재 `ApprovedDatasetVersion` snapshot·fingerprint에 그 값이 이미 결속된다. Publication은 이
+immutable 값을 frozen DatasetVersion의 `dataset_manifest_id`, issued DatasetManifest의 `object_id`와
+`dataset_manifest_id` 세 위치에 동일하게 사용한다. Common ID pattern과 세 값의 equality가 실패하면 staging 전에 fail closed한다.
+즉 Governance caller가 Version proposal에 명시한 ID를 Governance approval이 snapshot·fingerprint에 먼저 결속하고,
+Publication은 그 승인된 ID를 소비할 뿐 새 ID의 형식 prefix나 생성 algorithm을 결정하지 않는다.
+Manifest semantic object ID와 hash-based local storage key는 서로 다른 identity이며 상호 대체하지 않는다.
+
+[제안] frozen DatasetVersion candidate는 approved canonical payload를 복사해 `status="frozen"`, `frozen=true`,
+`training_allowed=true`만 전이한다. `approved=true`, `object_id`, `dataset_id`, `dataset_version`, `dataset_manifest_id`,
+`content_fingerprint`와 나머지 approval·lineage field는 변경하지 않는다. issued DatasetManifest는 다음 값을 파생한다.
+
+- `schema_name="dataset_manifest"`, `schema_version="1.0.0"`, `manifest_status="issued"`
+- `object_id`와 `dataset_manifest_id`: approved Version의 `dataset_manifest_id`
+- `source_dataset_version_id`: approved Version의 `object_id`
+- `source_dataset_version_checksum`: approved Version의 `content_fingerprint`
+- `dataset_id`, `dataset_version`: approved Version의 같은 field
+- `training_allowed=true`, `item_count`: approved Version의 `candidate_count`
+- 그 밖의 required Manifest field와 envelope 작성 evidence: explicit publication metadata의 동일 이름 값
+
+[제안] `manifest_checksum` self-reference는 final issued DatasetManifest에서 top-level `manifest_checksum` field 하나만 제외한
+object를 checksum projection으로 삼아 해소한다. projection에는 required·optional envelope field와 나머지 Manifest field를
+모두 포함하며 placeholder, field rename, default와 중첩 field 제외는 없다. 계산은 기존 `checksum_value(projection)`을 사용하므로
+UTF-8, key sort, compact separator, trailing LF, SHA-256과 `sha256:` + 64 lowercase hex 규칙을 그대로 따른다. mapping order는
+결과에 영향을 주지 않고 Unicode·newline·backslash는 canonical JSON bytes로 보존하며 non-string key, non-JSON value와
+NaN/Infinity는 fail closed한다. 이 semantic projection 방식은 현재 DohaLM의 `v02_sidecar` manifest semantic fingerprint와
+`v03_short_answer`·EOS diagnostic self-integrity projection 관례를 재사용하며 Authority의 checksum 형식과 충돌하지 않는다.
+
+[제안] required upstream objects는 frozen Version의 split candidate 각각에 대한 `LearningCandidate`, 그 Candidate가 참조하는
+`RightsMetadata`, current `TrainingEligibility` 등 pinned Authority `validate_scenario()`가 요구하는 완전한 immutable object
+collection이다. `evaluated_at`은 그 current evidence를 판정할 caller-provided timezone-aware timestamp다. Publication은 현재
+시각을 읽거나 누락 object·reference를 합성하지 않으며, caller input의 immutable snapshot과 pair만 scenario에 전달한다.
+
+[제안] 세 checksum은 분리한다. DatasetVersion `content_fingerprint`는 approved Dataset content identity로 그대로 보존하고,
+DatasetManifest `manifest_checksum`은 위 self-field-excluded Manifest projection의 integrity digest이며, publication pair
+fingerprint는 final frozen/issued 두 payload의 replay·conflict digest다. 어느 값도 다른 값으로 복사하거나 대체하지 않는다.
 
 [제안] staging은 final directory의 동일 parent에 생성하는 숨김 sibling이며 한 Publication 호출만 소유한다. 파일을 닫고 지원되는
 file flush가 성공한 뒤에만 directory rename을 시도한다. rename 전 실패·process 종료에는 final이 없고 orphan staging이 남을 수
