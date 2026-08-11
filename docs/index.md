@@ -1,7 +1,19 @@
 # DohaLM 문서 인덱스
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-05
+- 마지막 검토일: 2026-08-11
+
+## Product Reorganization 조사 문서
+
+| 파일명 | 문서 목적 | 현재 상태 | 마지막 검토일 | 핵심 미결정 사항 |
+|---|---|---|---|---|
+| [product-reorganization/README.md](./product-reorganization/README.md) | 제품 재편 조사 요약·문서 지도·Blocker·다음 PR | `review` | 2026-08-11 | ADR-012 승인 |
+| [product-reorganization/inventory.md](./product-reorganization/inventory.md) | Repository·로컬 자산·Dataset·Model·Checkpoint·Prompt·DB inventory | `review` | 2026-08-11 | 접근 제한 temp metadata |
+| [product-reorganization/current-architecture.md](./product-reorganization/current-architecture.md) | 현재 training·inference·REST/SSE·Provider·저장 연결 | `review` | 2026-08-11 | 없음; develop snapshot |
+| [product-reorganization/target-architecture.md](./product-reorganization/target-architecture.md) | AI Music Director capability와 Doha 제품 책임 경계 | `draft` | 2026-08-11 | 제품 방향·API·feature schema |
+| [product-reorganization/continuous-learning.md](./product-reorganization/continuous-learning.md) | Learning Candidate와 Dataset·Model lifecycle | `draft` | 2026-08-11 | consent·review actor·registry storage |
+| [product-reorganization/reference-and-similarity.md](./product-reorganization/reference-and-similarity.md) | Reference feature와 Similarity Risk·Revision 구조 | `draft` | 2026-08-11 | feature schema·threshold·법무 검토 |
+| [product-reorganization/directory-and-migration.md](./product-reorganization/directory-and-migration.md) | 목표 디렉터리·재사용·PR 단위 이행 계획·문서 충돌 | `draft` | 2026-08-11 | ADR-012 이후 실제 migration 승인 |
 
 ## 1. 문서 상태 체계
 
