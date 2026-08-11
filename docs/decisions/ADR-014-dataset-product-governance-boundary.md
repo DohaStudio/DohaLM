@@ -144,18 +144,58 @@ append-only projection으로 기록한다. 이전 candidate, eligibility, Datase
 - validation 전후 payload key, value, type와 `schema_version`을 변경하지 않는다.
 - 누락 evidence 추정, default 보완, alias 변환과 기존 manifest 자동 승격을 금지한다.
 
-## 후속 resource-specific ADR 진입 Gate
+## 후속 resource-specific ADR 단계별 Gate
 
-다음 조건이 모두 실제 evidence로 충족되기 전에는 ADR-013의 resource-specific consumer 결정을 시작하지 않는다.
+### 1. Resource-specific design ADR 작성 전 Gate
 
-1. 선택 대상 Common 객체의 producer repository, service/module/function과 accountable Owner가 승인·구현됨
-2. 완성 payload와 immutable identity를 생성하는 lifecycle event가 구현·테스트됨
-3. Rights·Consent·Provenance·Review evidence producer와 current/revoke/expiry 조회 계약이 구현됨
-4. DatasetVersion approval, Manifest issuance, freeze와 supersede transaction이 구현됨
-5. validation/publication 실패 시 partial output 0과 idempotent retry·cleanup이 검증됨
-6. authority Git commit, package version, policy version과 exact resource identity가 고정됨
-7. 정확한 DohaLM consumer module/function, 호출 전후 순서와 expected kind가 결정됨
-8. Common validation과 DohaLM domain validation의 책임·오류·sanitization이 테스트 계약으로 고정됨
+이 단계는 구현 완료가 아니라 ADR-013의 resource-specific consumer 설계를 시작할 근거만 요구한다.
+
+1. cross-repository future ownership boundary가 승인된 문서로 존재함
+2. immutable authority Git commit·tree, package version과 policy version pin을 확인할 수 있음
+3. Common package public API에 실제 canonical resource 후보가 존재하고 schema identity·compatibility policy를 조사할 수 있음
+4. package resource를 사용한 offline `$ref` resolution 근거가 존재함
+5. candidate·evidence·review·eligibility·DatasetVersion·publication lifecycle의 책임 경계가 정의됨
+6. producer와 consumer의 repository·module·function 후보 위치와 호출 흐름을 설계할 근거가 존재함
+7. legacy corpus 자동 승격 금지와 별도 migration·ingestion 결정 필요성이 유지됨
+8. 아직 구현되지 않은 producer, evidence, lifecycle, publication과 consumer는 `future` 또는 `not implemented`로 기록됨
+
+이 Gate는 producer·evidence producer·lifecycle·DatasetVersion approval·Manifest issuance/freeze transaction·consumer의
+구현 또는 테스트 완료와 Training/Evaluation 실행을 요구하지 않는다.
+
+### 2. Resource-specific ADR 병합 후 구현 진입 Gate
+
+resource-specific ADR은 독립 검증·명시 승인·병합된 뒤에만 구현 진입 근거가 된다. 해당 ADR은 최소 다음을 결정해야 한다.
+
+1. exact canonical resource, public package API와 schema `$id`
+2. object version과 package·policy compatibility 범위
+3. producer repository·module·function과 lifecycle event 경계
+4. consumer repository·module·function, validation 시점과 expected kind
+5. payload·evidence immutable boundary와 오류 sanitization
+6. package resource 기반 offline `$ref` resolution 방식
+7. fail-closed validation과 version compatibility 처리
+8. lifecycle state·event mapping과 current/revoke/expiry 조회 계약
+9. publication transaction, staging, cleanup과 retry/idempotency 경계
+10. legacy migration·ingestion의 포함 여부 또는 명시적 제외
+11. 구현·테스트 acceptance criteria와 consumer 활성화 승인 절차
+
+resource-specific ADR 병합 전에는 위 결정을 구현으로 선행 확정하지 않는다.
+
+### 3. 구현 후 검증과 consumer 활성화 Gate
+
+구현 완료 후에만 다음 evidence를 요구하며, 모두 독립 검증되고 별도 승인되기 전에는 consumer를 활성화하지 않는다.
+
+1. producer와 evidence producer 구현·테스트
+2. 승인된 lifecycle transition 구현·테스트
+3. DatasetVersion approval과 Manifest issuance/freeze transaction 검증
+4. Common package public API만 사용하고 private API·path 의존 0
+5. package resource 기반 offline `$ref` resolution과 Runtime network lookup 0
+6. payload·evidence mutation 0과 compatibility mismatch fail closed
+7. staging cleanup, partial publication 0과 retry/idempotency 검증
+8. legacy 자료 자동 wrapping·alias·default 보완·key/type/version 변환 0
+9. validation 실패 시 Dataset·Model·Provider 접근과 Training/Evaluation 실행 0
+10. consumer 활성화 전 독립 검증과 별도 승인
+
+구현 완료나 consumer 활성화는 Dataset 승인, Training Readiness 통과 또는 Training 실행 권한을 의미하지 않는다.
 
 ## 명시적 non-decision
 
@@ -206,4 +246,5 @@ resource-specific ADR의 진입 조건만 제공하며 consumer 또는 Training 
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] resource-specific ADR 설계·구현 진입·구현 후 활성화 Gate를 분리해 순환 의존성을 제거함 |
 | 2026-08-12 | [제안] Common 객체 repository ownership, legacy 분리와 Dataset publication governance 경계를 정의함 |
