@@ -94,8 +94,8 @@ reference/evidence다. 이번 ADR은 그 객체의 producer·review lifecycle이
 evidence 결속을 책임진다. future DohaLM Dataset Publication boundary는 approved DatasetVersion을 입력으로
 DatasetManifest draft를 구성하고 issuance·freeze transaction을 책임진다.
 
-[검증 필요] 두 boundary의 실제 module·class·function과 persistence 기술은 아직 존재하거나 승인되지 않았다. 구현 이름을
-이 ADR에서 발명하지 않으며 후속 구현 계획에서 실제 경로를 제안하고 검증한다. `.github`는 schema·resource
+[검증 필요] 두 boundary의 실제 module·class·function은 아직 존재하거나 승인되지 않았다. 구현 이름을 이 ADR에서
+발명하지 않으며 후속 구현 계획에서 실제 경로를 제안하고 검증한다. `.github`는 schema·resource
 semantics·version·compatibility authority일 뿐 product workflow 또는 Runtime data producer가 아니다.
 
 ### Consumer boundary
@@ -137,12 +137,12 @@ ADR은 dependency 변경을 수행하지 않는다.
    검증한다.
 4. [제안] domain validation까지 통과하면 DatasetVersion을 `approved` 상태로 결정하되 외부 공개나 Training 허용으로
    해석하지 않는다.
-5. [제안] approved Version의 immutable identity와 artifact/checksum set에서 DatasetManifest draft와 frozen Version
-   candidate를 staging에 구성하고 각각 `validate_contract()`한다.
-6. [제안] `evaluated_at`, required upstream objects, issued Manifest candidate와 frozen Version candidate를 포함한
-   `validate_scenario()`로 Dataset Gate와 Version/Manifest identity를 검증한다.
-7. [제안] Common issue가 0건인 뒤 DohaLM domain validator가 실제 artifact bytes·checksum set, item count,
-   split identity, local storage constraints와 publication target collision을 재검증한다.
+5. [제안] approved Version의 immutable `dataset_manifest_id`와 explicit publication metadata로 frozen Version candidate와
+   issued Manifest candidate를 메모리에서 구성하고 각각 `validate_contract()`한다. artifact file이나 directory는 읽지 않는다.
+6. [제안] caller가 명시적으로 전달한 `evaluated_at`과 required upstream Common objects, issued Manifest candidate와 frozen
+   Version candidate를 포함한 `validate_scenario()`로 Dataset Gate와 Version/Manifest identity를 검증한다.
+7. [제안] Common issue가 0건인 뒤 DohaLM domain validator가 reference metadata, checksum-set ID, item count, split identity,
+   local storage constraints와 publication target collision을 재검증한다.
 8. [제안] 어느 validation이든 실패하면 더 뒤 단계는 실행하지 않고 정제된 오류로 fail closed한다. Common schema·version
    failure가 domain validation보다 우선하며, domain failure는 Common 성공을 승인이나 허용으로 승격하지 않는다.
 
@@ -161,22 +161,101 @@ DatasetVersion Approved → DatasetManifest Issued → DatasetVersion Freeze
 staging 내부에서 issued Manifest와 frozen Version candidate를 순서대로 완성·검증할 수 있지만 둘 중 하나도 commit 전에
 consumer가 관찰할 수 없다. `freeze-before-manifest`를 재도입하지 않는다.
 
-[제안] publication commit point는 검증을 마친 issued DatasetManifest와 frozen DatasetVersion pair 및 결속된 artifact
-reference가 하나의 immutable publication identity 아래에서 외부 조회에 동시에 나타나는 단일 no-replace commit이다.
-구체적인 filesystem·DB·object-store primitive는 미결정이며, 단일 원자성을 제공하지 못하는 기술은 이 Gate를 통과하지 못한다.
+[제안] publication commit point는 검증을 마친 issued DatasetManifest와 frozen DatasetVersion pair 및 Manifest 안의 결속된
+artifact reference가 하나의 immutable publication identity 아래에서 외부 조회에 동시에 나타나는 단일 no-replace commit이다.
+
+### Publication v1 persistence·identity 결정
+
+- [제안] Publication v1 persistence primitive는 주입된 local filesystem Dataset publication root와
+  `src.data.artifacts.AtomicArtifactDirectory`의 동일-parent directory no-replace rename이다. DB, object store, distributed
+  lock·CAS와 network filesystem은 채택하지 않는다. root는 pinned Authority repository의 proposed Storage Layout이 제안하는
+  `DohaData/{domain}` 책임과 정합하게 환경별로 주입하며 절대 경로를 외부 계약·로그·payload에 넣지 않는다.
+- [제안] 외부 visibility unit은 final directory 하나다. 그 안에는 canonical JSON bytes인 `dataset-version.json`과
+  `dataset-manifest.json` 두 파일만 둔다. 이 파일명은 Common schema나 외부 API가 아니라 Publication v1의 private storage
+  protocol이다. 실제 Dataset artifact bytes는 unit에 복사하지 않고 Manifest reference와 checksum으로 결속한다.
+- [제안] 논리 identity는 `DatasetVersionIdentity(object_id, dataset_id, dataset_version)` 세 값이다. 세 값은 frozen
+  DatasetVersion과 issued DatasetManifest의 Authority identity invariant를 모두 통과해야 한다. final storage key는
+  `checksum_value({"dataset_id": dataset_id, "dataset_version": dataset_version, "object_id": object_id})`의 `sha256:` 뒤
+  64자리 lowercase hex이며, 주입 root 바로 아래의 단일 directory component로만 사용한다. raw ID를 경로로 해석하지 않는다.
+- [제안] publication pair fingerprint는
+  `checksum_value({"dataset_manifest": issued_manifest_payload, "dataset_version": frozen_version_payload})`다. 여기서 각
+  payload는 validation 전후 key·value·type을 바꾸지 않은 Common object이고 `checksum_value()`의 기존 canonical JSON
+  규칙을 그대로 사용한다. 이 fingerprint는 Authority의 `content_fingerprint`나 `manifest_checksum`을 대체하거나 payload에
+  새 field로 삽입하지 않는다.
+- [제안] `ApprovedDatasetVersion`은 Governance 호출자가 Publication에 immutable 명시 인자로 전달한다. Publication은
+  pre-publication approval store나 lookup을 새로 만들지 않는다. 재시작 후 조회 가능한 권위는 commit된 frozen/issued pair뿐이다.
+
+### Publication v1 construction·input 결정
+
+[제안] Publication entry는 immutable `ApprovedDatasetVersion`과 explicit immutable publication metadata를 받는다. metadata는
+Manifest envelope의 `created_at`, `created_by`, `producer`, `manifest_format_version`, `dataset_domain`, `source`,
+`license_status`, `commercial_usage_status`, `redistribution_allowed`, `object_file_artifact_refs`, `content_checksum_set_id`,
+`split_id`, `deletion_status`, scenario `evaluated_at`과 required upstream Common objects를 포함한다. optional Manifest field
+`supersedes`와 optional envelope field인
+`correlation_id`, `workspace_id`, `job_id`, `extensions`는 caller가 명시한 경우에만 그대로 포함한다. 현재 clock, UUID, host,
+environment, legacy config·manifest, corpus 또는 filesystem scan으로 어떤 값도 생성·보완하지 않는다.
+
+[제안] Manifest ID를 Publication에서 새로 생성하지 않는다. Authority schema상 approved DatasetVersion에도
+`dataset_manifest_id`가 필수이고 현재 `ApprovedDatasetVersion` snapshot·fingerprint에 그 값이 이미 결속된다. Publication은 이
+immutable 값을 frozen DatasetVersion의 `dataset_manifest_id`, issued DatasetManifest의 `object_id`와
+`dataset_manifest_id` 세 위치에 동일하게 사용한다. Common ID pattern과 세 값의 equality가 실패하면 staging 전에 fail closed한다.
+즉 Governance caller가 Version proposal에 명시한 ID를 Governance approval이 snapshot·fingerprint에 먼저 결속하고,
+Publication은 그 승인된 ID를 소비할 뿐 새 ID의 형식 prefix나 생성 algorithm을 결정하지 않는다.
+Manifest semantic object ID와 hash-based local storage key는 서로 다른 identity이며 상호 대체하지 않는다.
+
+[제안] frozen DatasetVersion candidate는 approved canonical payload를 복사해 `status="frozen"`, `frozen=true`,
+`training_allowed=true`만 전이한다. `approved=true`, `object_id`, `dataset_id`, `dataset_version`, `dataset_manifest_id`,
+`content_fingerprint`와 나머지 approval·lineage field는 변경하지 않는다. issued DatasetManifest는 다음 값을 파생한다.
+
+- `schema_name="dataset_manifest"`, `schema_version="1.0.0"`, `manifest_status="issued"`
+- `object_id`와 `dataset_manifest_id`: approved Version의 `dataset_manifest_id`
+- `source_dataset_version_id`: approved Version의 `object_id`
+- `source_dataset_version_checksum`: approved Version의 `content_fingerprint`
+- `dataset_id`, `dataset_version`: approved Version의 같은 field
+- `training_allowed=true`, `item_count`: approved Version의 `candidate_count`
+- 그 밖의 required Manifest field와 envelope 작성 evidence: explicit publication metadata의 동일 이름 값
+
+[제안] `manifest_checksum` self-reference는 final issued DatasetManifest에서 top-level `manifest_checksum` field 하나만 제외한
+object를 checksum projection으로 삼아 해소한다. projection에는 required·optional envelope field와 나머지 Manifest field를
+모두 포함하며 placeholder, field rename, default와 중첩 field 제외는 없다. 계산은 기존 `checksum_value(projection)`을 사용하므로
+UTF-8, key sort, compact separator, trailing LF, SHA-256과 `sha256:` + 64 lowercase hex 규칙을 그대로 따른다. mapping order는
+결과에 영향을 주지 않고 Unicode·newline·backslash는 canonical JSON bytes로 보존하며 non-string key, non-JSON value와
+NaN/Infinity는 fail closed한다. 이 semantic projection 방식은 현재 DohaLM의 `v02_sidecar` manifest semantic fingerprint와
+`v03_short_answer`·EOS diagnostic self-integrity projection 관례를 재사용하며 Authority의 checksum 형식과 충돌하지 않는다.
+
+[제안] required upstream objects는 frozen Version의 split candidate 각각에 대한 `LearningCandidate`, 그 Candidate가 참조하는
+`RightsMetadata`, current `TrainingEligibility` 등 pinned Authority `validate_scenario()`가 요구하는 완전한 immutable object
+collection이다. `evaluated_at`은 그 current evidence를 판정할 caller-provided timezone-aware timestamp다. Publication은 현재
+시각을 읽거나 누락 object·reference를 합성하지 않으며, caller input의 immutable snapshot과 pair만 scenario에 전달한다.
+
+[제안] 세 checksum은 분리한다. DatasetVersion `content_fingerprint`는 approved Dataset content identity로 그대로 보존하고,
+DatasetManifest `manifest_checksum`은 위 self-field-excluded Manifest projection의 integrity digest이며, publication pair
+fingerprint는 final frozen/issued 두 payload의 replay·conflict digest다. 어느 값도 다른 값으로 복사하거나 대체하지 않는다.
+
+[제안] staging은 final directory의 동일 parent에 생성하는 숨김 sibling이며 한 Publication 호출만 소유한다. 파일을 닫고 지원되는
+file flush가 성공한 뒤에만 directory rename을 시도한다. rename 전 실패·process 종료에는 final이 없고 orphan staging이 남을 수
+있다. rename의 namespace 결과는 final 전체 또는 부재뿐이며 rename 뒤 검증·응답 중 종료해도 complete final은 replay 대상이다.
+Publication v1은 power-loss durability를 보장하지 않는다. POSIX parent-directory fsync와 지원되는 file flush 실패는 성공으로
+보정하지 않지만, Windows parent-directory durability나 storage hardware의 영속성을 주장하지 않는다.
+
+[제안] 같은 process의 정상 예외는 자신이 만든 staging만 정리한다. process crash orphan은 final로 승격·추정하지 않고 consumer와
+retry가 무시한다. repository와 Authority에 안전한 stale lifetime 근거가 없으므로 시간 기반 자동 삭제는 하지 않는다. liveness와
+소유권을 별도로 증명한 offline 운영 정리 정책은 미래 범위이며, orphan 존재는 final pair의 identity·bytes를 변경하지 않는다.
 
 ### Failure와 retry
 
-- staging cleanup: 완료되어야 함
+- same-process staging cleanup: 시도되어야 하며 실패는 별도 sanitized failure
+- process-crash orphan staging: final로 추정·승격·자동 삭제 0
 - externally visible partial Version·Manifest·artifact: 0
 - published Dataset mutation: 0
 - Model·Provider access: 0
 - Training·Evaluation execution: 0
 - 동일 ID overwrite·fallback: 0
 
-[제안] retry는 동일 immutable input, authority/package/policy pin, DatasetVersion ID, DatasetManifest ID와 content
-fingerprint/checksum set이 모두 같을 때만 idempotent success 또는 동일 결과 재확인을 허용한다. 같은 identity에 다른 bytes,
-lineage, split, evidence 또는 fingerprint가 있으면 conflict로 실패하고 새 Version/Manifest identity가 필요하다.
+[제안] retry는 storage key의 final이 없을 때만 새 staging과 no-replace commit을 시도한다. final이 있거나 concurrent rename에서
+패배하면 고정된 두 파일을 strict JSON으로 읽고, expected canonical bytes·논리 identity·pair fingerprint가 모두 같은 경우에만
+기존 pair를 반환하는 idempotent success다. 누락·추가 파일, 비정규 bytes, unreadable payload, 같은 identity의 다른 bytes·lineage·
+split·evidence·Manifest ID 또는 fingerprint는 sanitized conflict/corruption으로 fail closed하며 overwrite·삭제·fallback은 0이다.
 
 ## Revoke, supersede와 expiry
 
@@ -207,12 +286,12 @@ lineage를 갖춘 별도 migration/ingestion ADR이 먼저 승인·병합돼야 
 | 구분 | 실제 경로·symbol | 판정 |
 |---|---|---|
 | legacy Dataset 처리·manifest 생성 | `src.data.pipeline.validate_pipeline()`, `build_pipeline()`, `_run()` | `EXISTING_IMPLEMENTATION`; Common producer 아님 |
-| legacy atomic directory publication | `src.data.artifacts.AtomicArtifactDirectory`, `_rename_directory_no_replace()` | `EXISTING_IMPLEMENTATION`; 재사용 여부 미결정 |
+| local atomic directory publication | `src.data.artifacts.AtomicArtifactDirectory`, `_rename_directory_no_replace()` | `EXISTING_REQUIRES_ADAPTER`; Publication v1 primitive로 채택, Common layout·flush·replay는 후속 구현 필요 |
 | legacy Dataset config identity | `src.data.config.DataConfig.dataset_version` | `EXISTING_IMPLEMENTATION`; Common DatasetVersion 아님 |
 | tokenized Dataset reader | `src.data.tokenized_dataset.TokenizedJsonlDataset` | `EXISTING_IMPLEMENTATION`; Common validation 없음 |
 | training readiness | `src.training.full_pretraining.inspect_full_pretraining_readiness()`, `require_full_pretraining_approval()` | `EXISTING_IMPLEMENTATION`; domain Gate이며 Common Gate 아님 |
 | Common Dataset Governance producer | abstract Dataset governance boundary | `DESIGN_CANDIDATE`; module·function·storage 미결정 |
-| Common Dataset Publication producer | abstract Dataset publication boundary | `DESIGN_CANDIDATE`; transaction primitive 미결정 |
+| Common Dataset Publication producer | abstract Dataset publication boundary | `DESIGN_CANDIDATE`; local directory transaction 계약 확정, module·function 미결정 |
 | frozen Version·issued Manifest consumer | abstract training-entry boundary | `DESIGN_CANDIDATE`; module·function 미결정 |
 | LearningCandidate·RightsMetadata·TrainingEligibility producer | ADR-014의 cross-repository future boundary | `OUT_OF_SCOPE_FUTURE`; 이번 ADR에서 구현·운영 의무 확정 안 함 |
 | legacy migration/ingestion | 별도 authority·migration 결정 필요 | `OUT_OF_SCOPE_FUTURE` |
@@ -235,8 +314,8 @@ lineage를 갖춘 별도 migration/ingestion ADR이 먼저 승인·병합돼야 
 1. 실제 producer·consumer module·function과 호출 흐름
 2. immutable dependency requested/resolved commit과 package integrity
 3. current eligibility·rights·review와 append-only event 조회 계약
-4. DatasetVersion/Manifest identity·fingerprint의 canonical 계산 규칙
-5. single atomic commit을 보장하는 staging·persistence primitive와 crash recovery
+4. 확정된 identity·storage key·pair fingerprint 규칙의 구현 symbol과 test vector
+5. local directory staging adapter, flush·replay·same-process cleanup과 process-crash evidence hook
 6. sanitized deterministic error와 observability boundary
 7. synthetic valid/invalid, expiry/revocation, collision, cleanup과 idempotent retry test 계획
 
@@ -250,7 +329,7 @@ lineage를 갖춘 별도 migration/ingestion ADR이 먼저 승인·병합돼야 
 2. offline `$ref` resolution과 Runtime network lookup 0
 3. Common → domain 순서, payload mutation 0과 fail-closed compatibility test
 4. DatasetVersion approval → Manifest issuance → freeze와 single external commit 검증
-5. crash/failure별 staging cleanup, partial publication 0과 no-replace test
+5. failure별 same-process cleanup, orphan 비가시성, partial publication 0과 no-replace test
 6. immutable identity/fingerprint collision과 idempotent retry test
 7. revoke·supersede·expiry append-only 처리와 current 판정 test
 8. legacy wrapping·alias·default·key/type/version 변환과 evidence 추정 0
@@ -262,8 +341,8 @@ consumer 활성화는 Dataset 승인, Training Readiness 또는 Training 실행 
 ## 명시적 미결정과 제외
 
 - [검증 필요] 실제 producer·consumer module·class·function 이름
-- [검증 필요] persistence, event transport, lock·CAS와 atomic commit primitive
-- [검증 필요] canonical identity·fingerprint serialization 규칙과 storage key
+- [검증 필요] event transport와 append-only revoke·supersede 운영 저장 기술
+- [검증 필요] power-loss durability, process-crash orphan의 offline 운영 정리와 network filesystem·외부 backend 도입 필요성
 - [검증 필요] reviewer roster, 법률 escalation, 운영 SLA와 retention 실행 기술
 - [검증 필요] dependency source·artifact hash와 rollback pin 절차
 - [제외] Python·schema·fixture·dependency·workflow 변경
@@ -288,13 +367,13 @@ consumer 활성화는 Dataset 승인, Training Readiness 또는 Training 실행 
 - 장점: 첫 Common resource가 실제 Dataset ownership과 현재 training 경계에 인접하며 Version/Manifest 권위를 분리한다.
 - 장점: Common schema validation과 DohaLM artifact/domain validation을 서로 대체하지 않는다.
 - 장점: 실패 시 외부 partial output과 Dataset·Model·Training side effect를 0으로 고정한다.
-- 비용: producer·persistence·transaction·consumer 구현과 검증이 별도 작업으로 남는다.
-- 위험: 현재 저장 기술이 Version·Manifest pair의 single atomic commit을 제공하는지는 검증되지 않았다.
+- 비용: producer·local persistence adapter·transaction·consumer 구현과 플랫폼 검증이 별도 작업으로 남는다.
+- 위험: local filesystem의 namespace atomicity는 재사용할 수 있지만 power-loss durability와 Windows directory flush는 보장하지 않는다.
 - rollback: 이 proposed ADR은 실행 mutation이 없어 문서 branch/PR을 폐기하면 된다. 병합 뒤 설계 변경은 후속 ADR로
   대체하고 구현 pin은 별도 승인 전 추가하지 않는다.
 
-다음 단계는 이 Draft PR의 독립 검증과 필요한 보완이다. 같은 head를 재검증하고 Ready·squash merge한 뒤에만 별도의
-implementation 작업을 시작할 수 있다.
+다음 단계는 이 persistence 결정 보완 PR의 독립 검증과 필요한 보완이다. 같은 head를 재검증하고 Ready·squash merge한 뒤에만
+별도의 Publication implementation 작업을 시작할 수 있다.
 
 ## 승인 Gate
 
@@ -305,4 +384,5 @@ implementation 작업을 시작할 수 있다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] Publication v1 local directory primitive, identity·fingerprint·replay·crash·durability 경계 확정 |
 | 2026-08-12 | [제안] DatasetVersion·DatasetManifest canonical set, validation 순서와 atomic publication transaction 설계 |
