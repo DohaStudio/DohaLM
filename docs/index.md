@@ -105,6 +105,7 @@
 | [decisions/ADR-010-dohalm-instruct-strategy.md](./decisions/ADR-010-dohalm-instruct-strategy.md) | Candidate B parent 기반 Instruct·Chat lineage·data·evaluation·safety 전략 | ADR-004·008·009 | Instruct Readiness·후속 backend | `approved` | Instruct 설계·실행 전 필수 | 2026-07-28 | execution_not_approved |
 | [decisions/ADR-011-candidate-c-experimental-successor.md](./decisions/ADR-011-candidate-c-experimental-successor.md) | ADR-009 보존·Candidate B baseline 유지·Candidate C experimental successor와 실행/승격 승인 분리 제안 | ADR-008·009, Base Readiness | 사용자 결정·C-1~C-4 | `draft` | Candidate C 재개 승인 전 필수 | 2026-08-05 | proposed; execution false |
 | [decisions/ADR-013-initial-common-ai-contract-consumer-boundary.md](./decisions/ADR-013-initial-common-ai-contract-consumer-boundary.md) | 특정 resource 승인 전 초기 Common AI Contract consumer 구현을 보류하는 경계 결정 | Project Definition, ADR-004, Common Contract authority | 실제 producer·단일 resource·`$id`·소비 함수·호출 시점 후속 ADR 승인·병합 후 immutable consumer 구현 | `draft` | Common Contract consumer 구현 전 필수 | 2026-08-12 | resource·`$id`·producer·consumer 함수·validation 호출 시점 N/A |
+| [decisions/ADR-014-dataset-product-governance-boundary.md](./decisions/ADR-014-dataset-product-governance-boundary.md) | Common 객체 repository ownership, legacy corpus 분리와 DatasetVersion publication governance 제안 | Project Definition, ADR-004·013, Common Contract authority | Owner별 producer 구현 결정·resource-specific ADR·immutable consumer | `draft` | Common producer와 resource-specific consumer 결정 전 필수 | 2026-08-12 | 실제 service/module/function, reviewer roster, event transport와 legacy migration 미결정 |
 | [architecture/system-architecture.md](./architecture/system-architecture.md) | Foundation 흐름과 Base Qwen API·UI 시스템 경계 | 프로젝트 범위, 개발 규칙, ADR-001 | 모델·저장소·Service 문서 | `review` | 예 | 2026-08-04 | Adapter Loader·Prompt Engine·metadata schema |
 | [architecture/model-architecture.md](./architecture/model-architecture.md) | Tiny 계산 구조, shape와 파라미터 산식 정의 | [범위와 목표](./project/scope-and-goals.md), ADR-001, ADR-002 | [사전학습 계획](./training/pretraining-plan.md), [SFT 계획](./training/sft-plan.md), [GPU 메모리 전략](./training/gpu-memory-strategy.md), [테스트 체크리스트](./quality/testing-checklist.md), `11-inference-design.md` | `review` | 예 | 2026-07-23 | Dropout, 초기화, padding mask 세부 규칙 |
 | [architecture/model-components.md](./architecture/model-components.md) | Tiny Config·embedding·LayerNorm·causal MHA·FFN·Pre-LN block·tied LM Head·parameter count 구현 경계 기록 | [모델 아키텍처](./architecture/model-architecture.md), [핵심 기능명세](./architecture/core-development-feature-specification.md), ADR-002 | [구성요소 테스트](./quality/model-component-testing.md), Phase 4 통합 모델 | `review` | Phase 4 통합 전 필수 | 2026-07-24 | Dropout·epsilon 후보 승인, 초기화, 통합 model 재검증 |
@@ -304,6 +305,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | ADR-014의 Common 객체 repository ownership, legacy corpus 분리와 Dataset publication governance 경계를 등록 |
 | 2026-08-12 | ADR-013의 초기 Common AI Contract consumer 구현 보류 경계와 후속 resource-specific 승인 Gate를 등록 |
 | 2026-08-05 | EOS-DIAG-R5 독립 감사 C-01~L-01 보완과 R6 전 독립 재감사 경계를 문서 상태에 반영 |
 | 2026-08-05 | EOS-DIAG-R5 synthetic assessor·R1 hypothesis payload 상태를 등록하고 후속을 R6 control plane으로 갱신 |
