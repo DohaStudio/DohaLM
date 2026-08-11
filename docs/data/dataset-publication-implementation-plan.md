@@ -17,7 +17,8 @@
 
 [확정] 이 문서는 병합된 ADR-015의 `DatasetVersion`·`DatasetManifest` publication 계약을 현재 DohaLM 코드의
 실재 symbol과 테스트 seam에 매핑하고, 구현을 독립 검증 가능한 최소 PR로 분해한다. 새 Architecture Decision이 아니며
-ADR-014·015의 상태, 결정과 review date를 변경하지 않는다.
+ADR-014·015의 상태와 review date를 변경하지 않는다. ADR-015가 implementation 진입 Gate로 남긴 persistence 세부를 기존
+single-unit·no-replace invariant 안에서 고정한다.
 
 [확정] 이번 계획은 Python 구현, dependency 변경, Common 객체 발행, legacy migration, consumer 활성화와
 Training/Evaluation을 수행하지 않는다. 미래 파일·module·함수·class·table 이름은 구현자가 확정한 것처럼 만들지 않는다.
@@ -27,7 +28,7 @@ Training/Evaluation을 수행하지 않는다. 미래 파일·module·함수·cl
 
 | 항목 | 고정값 |
 |---|---|
-| DohaLM 기준 commit / tree | `af4467869ca248e064e4ae19e95b6dfda75329e9` / `49a24874f4310983d200640335873fabed1ceb3e` |
+| DohaLM 기준 commit / tree | `7136b348133d244d794b2e498fc97294c185f649` / `aa92f698bd04a687245f47e87f83bda2ba66d5b4` |
 | Authority commit / tree | `dd75fc88c16e9ae9a04acfafb72756a905f6365b` / `217ed885d2555d753c785cd00df1c836a52095c3` |
 | DatasetVersion `$id` | `https://schemas.dohastudio.org/common-ai/v1/dataset-version.schema.json` |
 | DatasetManifest `$id` | `https://schemas.dohastudio.org/common-ai/v1/dataset-manifest.schema.json` |
@@ -47,7 +48,7 @@ network endpoint가 아니며 Runtime network lookup은 0이어야 한다.
 | 분류 | 파일과 qualified symbol | 현재 caller → callee | 현재 side effect·Owner | 판정과 재사용 조건 |
 |---|---|---|---|---|
 | `EXISTING_REUSABLE` | `src.data.artifacts._rename_directory_no_replace()` | `AtomicArtifactDirectory.publish()` → OS rename | 동일 parent의 staging directory를 기존 destination 교체 없이 rename; Data 영역 | local filesystem no-replace capability로 재사용 가능. Common identity·validation·retry 의미는 갖지 않음 |
-| `EXISTING_REQUIRES_ADAPTER` | `src.data.artifacts.AtomicArtifactDirectory` | `src.data.pipeline._run()` 및 여러 legacy producer → context manager → `_rename_directory_no_replace()` | hidden staging 생성, 단일 directory publish, 예외 시 staging 삭제; Data 영역 | Version/Manifest pair를 하나의 directory에 담을 수 있는 transaction seam 후보. Common transaction owner, recovery와 backend abstraction 필요 |
+| `EXISTING_REQUIRES_ADAPTER` | `src.data.artifacts.AtomicArtifactDirectory` | `src.data.pipeline._run()` 및 여러 legacy producer → context manager → `_rename_directory_no_replace()` | hidden staging 생성, 단일 directory publish, 예외 시 staging 삭제; Data 영역 | Publication v1 local filesystem primitive로 채택. Common layout·flush·replay·sanitized failure adapter 필요 |
 | `EXISTING_REQUIRES_ADAPTER` | `src.data.pipeline.validate_pipeline()`, `build_pipeline()`, `_run()` | CLI/tests → `_run()` → discovery·read·domain validation·artifact write | legacy corpus read·정제·split·`source-manifest.json` 생성·directory publish; Data 영역 | domain validation·검증 순서 참고만 가능. Common producer 또는 Common payload source로 승격 금지 |
 | `EXISTING_REUSABLE` | `src.data.checksums.checksum_value()`, `file_checksum()` | data/training code → canonical value/file checksum | deterministic checksum 계산; Data 영역 | artifact/domain fingerprint 재검증에 사용 가능. Common object identity 계산 규칙을 자동 결정하지 않음 |
 | `NOT_A_COMMON_BOUNDARY` | `src.data.config.DataConfig.dataset_version` | config loader → pipeline output path/legacy manifest | legacy 문자열 identity와 path segment | Common DatasetVersion ID·payload·lifecycle이 아님 |
@@ -60,7 +61,7 @@ network endpoint가 아니며 Runtime network lookup은 0이어야 한다.
 | `OUT_OF_SCOPE` | `src.training.qlora_training._rename_directory_no_replace()` | QLoRA staging/failure flow | QLoRA artifact 이동 | Training-specific duplicate primitive이며 Dataset publication에 연결하지 않음 |
 | `NEW_REQUIRED` | Dataset Governance 역할, 이름 미확정 (`src/data` 허용 layer) | 승인된 외부 candidate/evidence 입력 → proposal/domain validation/approval 결과 | in-memory proposal·identity/fingerprint·approval 전이; Dataset Governance Owner | 실제 module/function 이름은 구현 PR에서 import graph와 tests를 함께 제시한 뒤 확정 |
 | `NEW_REQUIRED` | Common validation adapter 역할, 이름 미확정 (`src/data` 허용 layer) | Governance/Publication/consumer → package root public API | payload mutation 없이 schema·scenario issue를 sanitized domain error로 변환 | private API·schema path 접근 금지, policy mismatch fail closed |
-| `NEW_REQUIRED` | Dataset Publication 역할, 이름 미확정 (`src/data` 허용 layer) | approved Version → Manifest/frozen Version staging → commit | pair staging·validation·single publication·cleanup·retry; Dataset Publication Owner | persistence primitive와 transaction owner를 같은 구현 PR의 evidence로 확정 |
+| `NEW_REQUIRED` | Dataset Publication 역할, 이름 미확정 (`src/data` 허용 layer) | approved Version 명시 인자 → Manifest/frozen Version staging → commit | pair staging·validation·single publication·cleanup·retry; Dataset Publication Owner | 확정된 local primitive를 adapter로 사용하고 transaction owner를 구현 evidence로 검증 |
 | `NEW_REQUIRED` | training-entry pair Gate 역할, 이름 미확정 (`src/training` 허용 layer) | explicit frozen Version/issued Manifest pair → Common/domain permission result | read-only validation; Training entry Owner | reader·model 생성 전에 호출. 구현 PR과 활성화 PR 분리 |
 
 [확정] 저장소에는 Common publication용 transaction 또는 unit-of-work abstraction이 없다. 위 `NEW_REQUIRED` 역할은
@@ -108,7 +109,8 @@ network endpoint가 아니며 Runtime network lookup은 0이어야 한다.
 
 ### 6.2 Dataset Publication
 
-- input 후보: approved DatasetVersion candidate, immutable artifact metadata/checksum set, authority pin.
+- input 후보: Governance caller가 명시 인자로 전달하는 immutable `ApprovedDatasetVersion`, immutable artifact
+  metadata/checksum set, authority pin. 별도 approval persistence·lookup은 만들지 않는다.
 - output 후보: externally observable frozen DatasetVersion와 issued DatasetManifest pair, 또는 sanitized 실패 결과.
 - side effect: 같은 transaction unit의 staging, 최종 no-replace commit, 실패 cleanup만 허용한다.
 - failure: Version/Manifest/schema/scenario/artifact/collision 실패 시 partial publication 0. cleanup 실패는 원래 실패를
@@ -122,25 +124,77 @@ network endpoint가 아니며 Runtime network lookup은 0이어야 한다.
 
 | 후보 | atomic visibility | no-replace | pair 동시 관찰 | crash/cleanup | concurrency·retry | platform/backend | 판정 |
 |---|---|---|---|---|---|---|---|
-| `AtomicArtifactDirectory` | 동일 parent에서 directory entry 하나 | Windows `os.rename`, Linux `renameat2(RENAME_NOREPLACE)` | Version·Manifest와 결속 metadata를 같은 directory에 넣으면 가능 | Python 예외는 `__exit__` cleanup; process crash stale staging 복구는 없음 | destination race를 fail closed하는 test 존재; idempotent replay 결과 조회는 없음 | Windows/Linux 분기, 그 외 OS `ENOTSUP`; local filesystem only | `EXISTING_REQUIRES_ADAPTER` |
+| `AtomicArtifactDirectory` | 동일 parent에서 directory entry 하나 | Windows `os.rename`, Linux `renameat2(RENAME_NOREPLACE)` | 고정된 Version·Manifest 두 파일을 같은 directory에 넣어 가능 | Python 예외는 `__exit__` cleanup; process crash orphan은 비가시 상태로 남음 | destination race test 존재; replay lookup은 adapter에서 신규 구현 | Windows/Linux local filesystem, 그 외 OS `ENOTSUP` | `ADOPTED_REQUIRES_ADAPTER` |
 | `write_atomic_outputs()` | SFT directory 하나 | `os.replace`로 기존 대상 교체 가능 | Common pair 의미 없음 | `.failed` compensation | Common identity retry 없음 | local filesystem | `NOT_A_COMMON_BOUNDARY` |
 | `_publish_no_replace()` | file 하나 | hard-link create-if-absent | pair 동시 visibility 없음 | temporary file cleanup | single-file collision만 처리 | filesystem/link 제약 | `NOT_A_COMMON_BOUNDARY` |
 | DB/object store | 현재 구현 없음 | 근거 없음 | 근거 없음 | 근거 없음 | 근거 없음 | 미결정 | 발명 금지 |
 
-[판정] 현재 저장소에는 ADR-015의 unit을 담을 수 있는 실재 seam이 있다. `AtomicArtifactDirectory`의 단일 directory
-visibility와 no-replace 동작은 Version/Manifest pair를 한 commit candidate로 구성할 수 있으므로
-`BLOCKED_BY_TRANSACTION_SEAM`은 아니다. 그러나 이것이 채택된 Common persistence primitive라는 뜻은 아니다.
+[판정] Publication v1은 `AtomicArtifactDirectory`를 local filesystem persistence primitive로 채택한다. 단일 directory
+visibility와 no-replace 동작으로 Version/Manifest pair를 한 commit candidate로 구성하며 DB·object store·network filesystem,
+distributed lock·CAS는 범위 밖이다. 따라서 `BLOCKED_BY_PERSISTENCE_DECISION`과 `BLOCKED_BY_TRANSACTION_SEAM`은 해소됐다.
 
-[검증 필요] publication implementation PR은 primitive 채택 전에 다음 evidence를 모두 제시해야 한다. 충족하지 못하면
-그 PR은 중단하며 다른 기술을 임의 선택하지 않는다.
+### 7.1 Publication v1 storage protocol
+
+| 항목 | 고정 계약 |
+|---|---|
+| root | pinned Authority repository의 proposed Storage Layout이 제안하는 `DohaData/{domain}` 책임과 정합하게 환경별로 주입되는 local filesystem root. 절대 경로 노출·payload 저장 0 |
+| logical identity | 기존 `DatasetVersionIdentity(object_id, dataset_id, dataset_version)` |
+| storage key | `checksum_value({"dataset_id": dataset_id, "dataset_version": dataset_version, "object_id": object_id})`의 `sha256:` 뒤 64자리 lowercase hex |
+| visibility unit | storage key 이름의 final directory 하나. raw ID path 해석 0 |
+| private layout | canonical `dataset-version.json`, canonical `dataset-manifest.json` 두 파일만 허용 |
+| pair fingerprint | `checksum_value({"dataset_manifest": issued_manifest_payload, "dataset_version": frozen_version_payload})` |
+| staging | final과 동일 parent의 호출별 hidden sibling; staging path는 해당 호출만 소유 |
+| commit | 두 파일 close·지원 file flush·검증 뒤 directory no-replace rename 한 번 |
+| lookup | logical identity → storage key → 고정 두 파일 strict read; directory scan이나 staging fallback 0 |
+
+[확정] storage key와 pair fingerprint는 기존 `canonical_json_bytes()`·`checksum_value()`의 UTF-8, key sort, compact separator,
+trailing LF와 SHA-256 규칙을 재사용한다. pair fingerprint는 Authority payload field가 아니며 Version
+`content_fingerprint`·Manifest `manifest_checksum`을 대체하지 않는다. storage protocol 파일명도 Common 외부 계약이 아니다.
+
+### 7.2 Replay·conflict·crash contract
+
+1. final이 없을 때만 새 staging을 만들고 no-replace commit을 시도한다.
+2. final이 이미 있거나 concurrent commit에서 패배하면 고정된 두 파일을 읽는다. expected canonical bytes, logical identity와
+   pair fingerprint가 모두 같을 때만 기존 immutable pair를 반환하는 idempotent success다.
+3. 누락·추가 파일, non-canonical/unreadable bytes, identity는 같지만 Manifest ID·lineage·split·evidence·payload 또는 fingerprint가
+   다르면 sanitized conflict/corruption으로 fail closed한다. overwrite·delete·fallback·repair는 하지 않는다.
+4. rename 전 exception은 자신의 staging cleanup을 시도한다. cleanup 실패는 원래 실패를 성공으로 바꾸지 않는다.
+5. process가 rename 전에 종료되면 final은 없고 orphan staging이 남을 수 있다. consumer와 retry는 staging을 조회·승격하지 않는다.
+   rename 뒤 종료되면 complete final을 위 replay 규칙으로 재확인한다.
+6. 안전한 stale lifetime 근거가 없으므로 PR 3·4는 시간 기반 자동 cleanup을 구현하지 않는다. liveness와 ownership이 별도로
+   증명된 offline 운영 정리는 미래 범위다.
+7. 보장 수준은 local filesystem namespace atomicity와 지원되는 file flush다. POSIX parent-directory fsync 실패는 fail closed지만
+   Windows directory flush, power-loss durability, network filesystem semantics는 보장하지 않는다.
+
+### 7.3 결정·evidence 책임표
+
+| Decision | Status | 현재 evidence | PR 3 responsibility | PR 4 responsibility |
+|---|---|---|---|---|
+| persistence primitive | `DECIDED` | `AtomicArtifactDirectory`, `_rename_directory_no_replace()`와 기존 pipeline test | local adapter와 single rename transaction | production 의미 변경 없이 독립 process 검증 |
+| atomic visibility unit | `DECIDED` | ADR-015 pair 동시 공개 invariant와 directory-entry seam | 고정 두 파일만 staging·검증·commit | partial final 0 adversarial 검증 |
+| publication logical identity | `DECIDED` | `DatasetVersionIdentity`와 Authority Version/Manifest identity invariant | 세 field exact validation | identity collision vector 재검증 |
+| final storage key | `DECIDED_PRIVATE_PROTOCOL` | 기존 `checksum_value()` canonical SHA-256와 path injection 금지 | exact digest vector·single component 보장 | unrelated identity collision·path 공격 vector |
+| pair fingerprint | `DECIDED_PRIVATE_PROTOCOL` | 기존 canonical JSON helper와 ADR-015 immutable retry 계약 | named-object vector와 Authority checksum field 비변경 test | same identity/different pair conflict 재검증 |
+| existing target lookup/replay | `DECIDED` | ADR-015 idempotent retry·overwrite 0 | exact target strict read와 byte-identical replay | restart·concurrent loser replay |
+| conflicting retry | `DECIDED` | ADR-015 same identity/different content fail-closed | sanitized conflict, mutation·repair 0 | concurrent conflicting writer winner 보존 |
+| staging location/ownership | `DECIDED` | 현재 same-parent random hidden staging과 context ownership | 호출별 sibling staging, own cleanup만 | orphan이 다른 retry/final을 방해하지 않음 증명 |
+| crash boundary | `DECIDED_ATOMIC_VISIBILITY` | single directory rename과 no-replace 구현 | pre-rename failure injection, post-rename replay | rename 전/후 process termination |
+| stale staging cleanup | `DEFERRED_NOT_BLOCKING` | repository·Authority에 수명 수치 근거 없음 | same-process cleanup, orphan 조회·자동 삭제 0 | orphan 비가시성·restart 검증; TTL 발명 0 |
+| durability level | `DECIDED_LIMITED` | POSIX parent fsync, Windows no-op인 현재 source | file flush 실패 fail-closed, power-loss 보장 0 | OS/filesystem과 실제 flush 경로 기록 |
+| Windows evidence | `PR4_REQUIRED` | `os.rename` branch와 existing race test | current-host regression만 | Windows process concurrency·termination evidence |
+| Linux evidence | `PR4_REQUIRED` | `renameat2(RENAME_NOREPLACE)`·directory fsync branch | implementation을 우회하지 않는 unit seam | Linux process concurrency·termination·fsync-path evidence |
+| PR 3 / PR 4 split | `DECIDED` | 기존 최소 PR 분리와 activation 금지 | production transaction·deterministic unit/integration | cross-platform adversarial evidence 전용 |
+| approved result delivery | `DECIDED` | immutable in-memory `ApprovedDatasetVersion`와 Governance side-effect 0 | explicit argument, implicit lookup·DB·registry 0 | caller 재구성·restart 입력 경계 확인 |
+
+[검증 필요] publication implementation과 evidence PR은 다음 증거를 나눠 제시한다. 충족하지 못하면 다른 기술을 임의 선택하지
+않고 해당 PR을 중단한다.
 
 - pair와 immutable publication identity가 한 visibility unit에 포함됨
 - concurrent writer 둘 중 하나만 성공하고 winner bytes가 보존됨
-- commit 직전·도중 process crash 뒤 partial final 0과 deterministic recovery
-- stale staging 식별·cleanup 실패의 fail-closed 처리
+- commit 직전 failure 뒤 partial final 0, same-process cleanup과 orphan 비가시성
 - same input replay의 동일 결과와 same ID/different fingerprint 충돌
-- Windows와 Linux 각각의 no-replace·durability evidence
-- local filesystem 이외 backend가 필요해질 경우 별도 결정 Gate
+- PR 4의 Windows·Linux process/concurrency evidence와 정확한 비보장 범위
+- local filesystem 이외 backend가 필요해질 경우 별도 decision Gate
 
 ## 8. State machine과 immutability
 
@@ -158,7 +212,7 @@ lineage나 결속을 변경하지 않는다. replacement는 새 identity와 auth
 
 | case | 예상 계약 | 최소 test level |
 |---|---|---|
-| same immutable input + same identity/fingerprint replay | 기존 pair를 byte-identical 성공 결과로 조회; 새 write·overwrite 0 | integration |
+| same immutable input + same identity/fingerprint replay | 고정 두 파일의 canonical bytes를 확인해 기존 pair 반환; 새 write·overwrite 0 | integration |
 | same identity + different fingerprint | sanitized conflict로 fail closed | unit + integration |
 | duplicate approval | 동일 approval idempotent 또는 충돌; 새 identity 추정 0 | unit |
 | duplicate issuance/freeze | terminal pair 변경 0 | unit + integration |
@@ -169,9 +223,9 @@ lineage나 결속을 변경하지 않는다. replacement는 새 identity와 auth
 | artifact/domain validation 실패 | final pair 0, staging cleanup | integration |
 | staging write 중 실패 | final pair 0, staging cleanup | integration failure injection |
 | commit 직전 실패 | final pair 0 | integration failure injection |
-| commit 도중 실패 | pair의 부분 관찰 0 | platform/process failure injection |
+| rename 경계 process 종료 | final directory 전체 또는 부재, 파일 단위 partial 관찰 0 | platform/process failure injection |
 | cleanup 실패 | publication 성공으로 보정하지 않고 sanitized cleanup failure 기록 | integration |
-| crash 후 재시작 | stale staging을 final로 추정하지 않고 identity 검증 후 cleanup/retry | platform/process |
+| crash 후 재시작 | orphan staging 조회·승격·시간 기반 자동 삭제 0; final이 있으면 strict replay, 없으면 새 staging | platform/process |
 
 ## 10. Legacy/Common 비승격
 
@@ -236,28 +290,32 @@ PR과 독립 승인 전에는 기존 execution path를 허용 방향으로 변�
 ### PR 3 — Dataset Publication staging과 transaction
 
 - 목적: Manifest construction, pair validation, artifact/domain revalidation와 single no-replace commit을 구현한다.
-- 허용 layer: `src/data`, 관련 `tests`; `AtomicArtifactDirectory`는 evidence 통과 시에만 adapter를 통해 재사용.
+- 허용 layer: `src/data`, 관련 `tests`; `AtomicArtifactDirectory`를 확정 protocol adapter를 통해 재사용.
 - 정확한 기존 seam: `AtomicArtifactDirectory`, `_rename_directory_no_replace()`, checksum helpers.
-- 선행 Gate: PR 2 병합, publication identity 계산 규칙, persistence/crash recovery evidence 설계 승인.
+- 선행 Gate: PR 2 병합과 같은 authority pin. 이 문서의 storage key·pair fingerprint·replay·crash 비보장 범위를 test vector로 고정.
 - 계약: approved → issued → frozen 논리 순서와 pair 동시 external visibility.
 - transaction owner: 새 Dataset Publication 역할 하나.
-- 최소 test: individual/scenario/artifact ordering, collision, cleanup, idempotent/conflicting retry, terminal immutability.
+- 최소 test: individual/scenario/artifact ordering, exact two-file layout, identity/storage-key vector, collision, same-process cleanup,
+  idempotent/conflicting retry, terminal immutability, orphan staging 비가시성.
 - 회귀 test: atomic directory race와 legacy pipeline publication tests.
 - 금지: legacy 변환, consumer 연결, Training/Evaluation.
-- 완료 evidence: Windows/Linux no-replace, crash recovery, partial final 0.
+- 완료 evidence: 지원되는 개발 host에서 no-replace, deterministic replay, injected pre-rename failure와 partial final 0. power-loss
+  durability·automatic stale cleanup은 완료 조건이 아니다.
 - 다음 Gate: PR 4 독립 failure/concurrency 검증.
 
 ### PR 4 — Publication failure·concurrency evidence
 
-- 목적: PR 3의 새 기능을 활성화하지 않고 adversarial evidence로 검증한다.
+- 목적: PR 3의 새 기능을 활성화하지 않고 Windows·Linux adversarial process evidence로 검증한다.
 - 허용 layer: tests와 synthetic fixtures, 필요한 test-only failure hook; production 의미 변경은 별도 PR로 되돌림.
 - 선행 Gate: PR 3의 exact head와 transaction contract.
 - 계약: test matrix의 모든 failure가 partial output·overwrite·추정 없이 fail closed.
 - transaction owner: 변경 없음.
-- 최소 test: concurrent processes, commit boundary injection, crash/restart, stale cleanup, cleanup failure.
+- 최소 test: concurrent processes, rename 전/후 process termination, restart replay, orphan staging 무시, cleanup failure. Windows는
+  `os.rename` no-replace winner 보존, Linux는 `renameat2(RENAME_NOREPLACE)`와 parent-directory fsync 경로를 각각 실행한다.
 - 회귀 test: full data test slice와 platform matrix.
 - 금지: 실제 Dataset/Artifact/DB 접근, consumer activation, Training/Evaluation.
-- 완료 evidence: 독립 검증 report와 exact head/platform 기록.
+- 완료 evidence: Windows·Linux 각각 exact head·OS·filesystem·결과를 기록한 독립 report. namespace atomicity 범위를 넘는
+  power-loss durability는 주장하지 않는다.
 - 다음 Gate: producer 승인·병합 여부.
 
 ### PR 5 — immutable training-entry consumer 구현
@@ -295,8 +353,8 @@ PR과 독립 승인 전에는 기존 execution path를 허용 방향으로 변�
 | unit | `tests/`의 source module 대응 test 관례; 신규 파일명은 구현 symbol 확정 뒤 결정 | adapter, schema, lifecycle, immutability, validation order, legacy non-promotion |
 | integration | `tests/test_data_pipeline.py`, `tests/test_full_pretraining_readiness.py`, `tests/test_full_pretraining_backend.py`의 tmp path·monkeypatch 관례 | staging, cleanup, pair visibility, downstream call 0, consumer ordering |
 | concurrency/process | 신규 synthetic test module, 이름 미확정 | two publishers, crash/restart, commit boundary failure |
-| Windows platform | current Windows CI 또는 독립 evidence 환경 | `os.rename` no-replace race, crash cleanup, visibility |
-| Linux platform | Linux CI 또는 독립 evidence 환경 | `renameat2(RENAME_NOREPLACE)`, directory fsync, crash durability |
+| Windows platform | PR 4의 Windows CI 또는 독립 evidence 환경 | `os.rename` no-replace race, pre/post-rename process 종료, orphan 비가시성, replay |
+| Linux platform | PR 4의 Linux CI 또는 독립 evidence 환경 | `renameat2(RENAME_NOREPLACE)`, directory fsync 경로, pre/post-rename process 종료, replay |
 
 [확정] fixture는 합성 Common object만 사용하고 실제 dataset, 사용자 evidence, 원문·path를 포함하지 않는다. Authority fixture를
 private path로 import하지 않고 public API와 consumer-owned synthetic payload를 사용한다.
@@ -312,17 +370,18 @@ private path로 import하지 않고 public API와 consumer-owned synthetic paylo
 ## 15. 미결정과 명시적 제외
 
 - [검증 필요] 신규 module/function/class 이름과 import surface
-- [검증 필요] DatasetVersion/Manifest identity와 fingerprint canonical 계산의 product 규칙
-- [검증 필요] persistence backend, lock/CAS, crash recovery와 stale staging 수명
 - [검증 필요] Windows/Linux platform evidence를 실행할 CI 또는 독립 환경
-- [검증 필요] approved Version candidate의 내부 persistence와 조회 방식
+- [검증 필요] power-loss durability 또는 network filesystem·DB·object store가 실제 요구될 경우 별도 decision
+- [검증 필요] process-crash orphan을 삭제해야 하는 운영 요구와 liveness·ownership 증명 방식
+- [검증 필요] revoke·supersede event의 운영 persistence와 조회 방식
 - [제외] RightsEvidence·ConsentEvidence·ReviewEvidence라는 authority 비존재 resource 생성
 - [제외] DohaMusic·Authority 변경과 cross-repository transport 구현
 - [제외] legacy migration·ingestion·backfill
 - [제외] consumer activation, Dataset/Artifact/Model/Provider 접근과 Training/Evaluation 실행
 
-이 미결정은 ADR-015의 resource set이나 atomic publication invariant를 되돌리지 않는다. persistence 후보가 single unit을
-증명하지 못하거나 외부 backend 결정이 필요해지면 PR 3을 중단하고 추가 decision 필요성을 보고한다.
+이 미결정은 PR 3의 local filesystem implementation 진입을 막지 않으며 ADR-015의 resource set이나 atomic publication
+invariant를 되돌리지 않는다. 확정된 local primitive가 지원 filesystem에서 single unit을 증명하지 못하거나 외부 backend가
+실제로 필요해지면 PR 3을 중단하고 추가 decision 필요성을 보고한다.
 
 ## 16. 완료 Gate
 
@@ -331,6 +390,7 @@ private path로 import하지 않고 public API와 consumer-owned synthetic paylo
 - 실제 기존 symbol과 Common이 아닌 경계를 확인함
 - 새 역할의 owner·input/output·failure·side-effect와 검증 순서를 분해함
 - transaction seam 후보와 증거 부족을 구분함
+- Publication v1 persistence·identity·replay·crash·durability 경계를 고정함
 - 각 implementation PR의 선행 Gate·완료 evidence·금지 side effect를 정의함
 
 `PLAN_ONLY`, `NOT_IMPLEMENTED`, `NOT_ACTIVATED`, `TRAINING_NOT_AUTHORIZED`는 이 계획이 병합돼도 유지된다. 첫 구현 PR은
@@ -340,4 +400,5 @@ private path로 import하지 않고 public API와 consumer-owned synthetic paylo
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] local directory primitive, storage protocol, replay·crash 경계와 PR 3/4 evidence 분리 확정 |
 | 2026-08-12 | [제안] ADR-015를 실제 DohaLM symbol, transaction seam, 최소 implementation PR과 evidence Gate로 분해 |
