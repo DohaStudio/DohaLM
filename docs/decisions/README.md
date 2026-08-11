@@ -24,8 +24,10 @@
 | ADR-009 | [Candidate B Official Reassessment under ADR-008](./ADR-009-candidate-b-official-reassessment.md) | `approved` | 2026-07-28 | [Candidate A/B Full 비교](../evaluation/candidate-a-b-full-comparison.md), [리더보드](../evaluation/model-evaluation-leaderboard.md) | Candidate B 현재 Base baseline·experimental derivative parent 승인; historical 판정 보존 | 새 identity·파생 계약·심각한 회귀 확인 시 |
 | ADR-010 | [DohaLM Instruct Strategy](./ADR-010-dohalm-instruct-strategy.md) | `approved` | 2026-07-28 | [Instruct 전략](../instruct/instruct-strategy.md), [Readiness](../instruct/instruction-readiness.md) | Candidate B immutable parent·SFT pipeline·Chat lineage·data/evaluation/safety 경계 | parent·schema·Chat lineage·실행 정책 변경 시 |
 | ADR-011 | [Candidate C Experimental Successor 재개 제안](./ADR-011-candidate-c-experimental-successor.md) | `draft` | 미결정 | [Candidate C 설계](../training/candidate-c-design.md), [Base Readiness](../training/base-training-readiness.md) | ADR-009 보존, Candidate B baseline 유지, Candidate C 실행·승격 승인 분리 제안 | 사용자 승인·Candidate C 단일 intervention 결정 시 |
+| ADR-013 | [초기 Common AI Contract 소비 경계](./ADR-013-initial-common-ai-contract-consumer-boundary.md) | `draft` | 미결정 | [Project Definition](../project/overview.md), [ADR-004](./ADR-004-data-governance.md) | producer 없는 초기 resource 선택·consumer 구현 보류 제안 | Common 객체 producer와 정확한 소비 boundary 승인 시 |
 
 - [확정] 승인 ADR-001부터 ADR-010과 draft ADR-011을 등록했다.
+- [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -34,6 +36,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] ADR-013 초기 Common AI Contract resource·consumer boundary 보류 결정 draft 등록 |
 | 2026-08-05 | [제안] ADR-011 Candidate C experimental successor 재개와 실행·승격 승인 분리 draft 등록 |
 | 2026-07-28 | [확정] ADR-010 DohaLM Instruct 전략·Readiness 결정 등록 |
 | 2026-07-28 | [확정] ADR-009 Candidate B 공식 재평가와 현재 Base baseline 결정 등록 |
