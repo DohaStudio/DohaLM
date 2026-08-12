@@ -93,6 +93,15 @@ fingerprint projection에 포함한다. dirty tree는 readiness failure이며 ca
 `TRAINING_EXECUTION_REQUEST_INVALID`로 실패한다. external orchestration은 검증된 request fingerprint를 승인할 뿐 Git identity를
 제공하거나 clean-tree를 증명하지 않는다.
 
+[제안] readiness, request builder와 consume-time gate는 fixed-argument `git` inspection을 수행하는 하나의 module-private
+source-state verifier를 재사용한다. readiness는 초기 실행 준비 상태를, request builder는 issuer에게 보낼 immutable identity
+확정 시점을, consume-time gate는 발급된 capability를 실제 실행에 사용하는 시점을 각각 보호한다. caller-controlled command,
+shell execution, raw Git stderr와 repository path 노출은 금지한다.
+
+[제안] `source_worktree_clean`은 request canonical projection에 새 field로 추가하지 않는다. clean tree는 immutable source
+identity가 아니라 readiness와 execution의 prerequisite이며, readiness fingerprint에 포함된 검증 결과로만 request에 간접
+결속한다. `source_commit`을 포함한 기존 request projection과 checksum algorithm은 변경하지 않는다.
+
 ### 3. Run과 request 관계
 
 [제안] 현재 `output_root.name`을 `run_id`로 사용하고 config의 logical output root를 함께 묶는다. generic Job, scheduler,
@@ -188,7 +197,10 @@ DatasetTrainingPermission exact-instance/target 검증
 → existing readiness 검증
 → config inspection과 config/request fingerprint 구성
 → TrainingExecutionRequest exact identity 검증
-→ TrainingExecutionApproval exact target 검증·atomic consume
+→ external issuer decision과 TrainingExecutionApproval 발급
+→ TrainingExecutionApproval exact-instance·request·permission target 검증
+→ final source-state 검증: current HEAD == request.source_commit, worktree clean
+→ registry lock 아래 atomic consume
 → seed
 → Dataset reader
 → Model / Trainer
@@ -198,6 +210,22 @@ DatasetTrainingPermission exact-instance/target 검증
 [제안] config/readiness/request 계산은 inspection-only다. approval consume 전 Dataset/Artifact content read, seed mutation,
 reader construction, Model/Provider, Trainer, optimizer, GPU, Training과 Evaluation은 모두 0이어야 한다. 승인 후 초기화 실패도
 approval을 복원하지 않는다.
+
+[제안] execution approval consumer/activation boundary가 shared source-state verifier를 호출해 atomic consume 직전에 final
+source-state 검증을 수행한다. current `HEAD`가 `TrainingExecutionRequest.source_commit`과 다르거나
+`git status --porcelain`이 empty가 아니면 `TRAINING_EXECUTION_REQUEST_INVALID`로 실패한다. raw Git output, branch·path와
+불일치 값은 오류에 포함하지 않는다. 이 실패는 lifecycle transition이 아니므로 approval은 `issued`로 남고 execution side
+effect는 0이다.
+
+[제안] final source-state 실패 뒤 repository를 승인된 commit과 clean tree로 복구하면 같은 exact `issued` approval로 다시
+시도할 수 있다. 재시도는 final source-state와 모든 exact binding을 다시 검사하며, 성공하기 전에는 single-use consume이
+발생하지 않는다. 새 request나 approval을 자동 발급하거나 source drift를 `revoked`로 바꾸지 않는다.
+
+[제안] source-state verifier는 Git inspection 중 registry lock을 보유하지 않는다. 검증 성공 직후 consumer가 lock을 얻어
+`issued → consumed` compare-and-set을 수행한다. 그 사이 revoke가 먼저 성공하면 consume은
+`TRAINING_EXECUTION_APPROVAL_REVOKED`로 실패하고 execution은 0이다. consume이 먼저 성공하면 뒤의 revoke는
+`TRAINING_EXECUTION_APPROVAL_CONSUMED`로 실패한다. source check와 approval consume은 Git repository와 process-local registry를
+묶는 하나의 atomic transaction이 아니다.
 
 ### 10. Failure와 error contract
 
@@ -213,6 +241,9 @@ approval을 복원하지 않는다.
 
 [제안] 오류는 code와 sanitized message만 노출한다. raw permission/readiness/config, 절대 경로, registry identity, 외부 evidence,
 사용자 identity, secret/token과 stack trace를 포함하지 않는다.
+
+[제안] consume-time commit mismatch와 dirty worktree는 모두 현재 request가 실행 source와 일치하지 않는 경우이므로 새 code를
+추가하지 않고 `TRAINING_EXECUTION_REQUEST_INVALID`로 분류한다. 이 code를 반환하기 전에 approval state를 변경하지 않는다.
 
 ### 11. CLI와 실제 실행 상태
 
@@ -252,7 +283,7 @@ fail closed다.
 | issuer | external orchestration approval authority | ADR-014 external user workflow owner | future production adapter | adapter absent fail closed |
 | evidence | approved일 때만 opaque authorization/issuer/approver/evidence refs + request fp + issued_at | historical explicit approval, privacy boundary | future adapter | denial issuance 0·raw/secret leakage 0 |
 | provenance | object-external weak exact-identity registry | PR #114 repaired precedent | future boundary | constructor/copy/pickle/replace 차단 |
-| source identity | readiness output commit + builder의 HEAD/clean 재검증 | current manifest↔HEAD check, clean check·output은 후속 확장 | readiness inspector/request builder | stale commit·dirty tree 차단 |
+| source identity | readiness output commit + builder·consume-time HEAD/clean 재검증 | current manifest↔HEAD check, clean check·output은 후속 확장 | shared private verifier + readiness/builder/consumer | construction/approval 사이 drift·dirty tree 차단 |
 | lifecycle | process-local `issued→consumed` or `issued→revoked`; terminal operation은 stable rejection | V03 terminal rejection·current same-process entry | future boundary | 6-operation·consume/revoke race matrix |
 | expiry | consume/revoke/GC/process end; no wall-clock TTL | exact request + no generic TTL authority | future boundary | arbitrary TTL 0 |
 | revocation | trusted adapter-owned pre-consume registry transition | external issuer accountability | future adapter/boundary | revoked downstream 0 |
@@ -260,19 +291,24 @@ fail closed다.
 ## Implementation Gate
 
 1. ADR 독립 검증과 명시적 승인·병합
-2. readiness의 verified `source_commit`·`source_worktree_clean` output/fingerprint 확장과 request builder의 HEAD·clean 재검증
+2. readiness의 verified `source_commit`·`source_worktree_clean` output/fingerprint 확장과 shared verifier 구현
 3. pure immutable request projection과 deterministic fingerprint vectors
-4. process-local approval registry·consume/revoke state machine의 synthetic-only 구현
-5. production issuer adapter 부재 시 issuance 0과 CLI fail-closed 유지
-6. permission → readiness → request → approval → execution sentinel ordering 독립 검증
-7. 별도 production issuer adapter/security contract 결정
-8. 그 이후에만 controlled execution-enablement 검토
+4. request builder와 consume-time gate의 HEAD·clean 재검증 및 pre-consume failure test
+5. process-local approval registry·consume/revoke state machine의 synthetic-only 구현
+6. production issuer adapter 부재 시 issuance 0과 CLI fail-closed 유지
+7. permission → readiness → request → approval → final source check → consume → execution sentinel ordering 독립 검증
+8. 별도 production issuer adapter/security contract 결정
+9. 그 이후에만 controlled execution-enablement 검토
 
 ## Test and evidence Gate
 
 [제안] 후속 구현은 absent, denied, direct constructor, field manipulation, copy/deepcopy, pickle, replace, equality, wrong Dataset,
 wrong config/readiness/run/source, revoked, duplicate/concurrent consume를 모두 차단해야 한다. 모든 blocked path에서 reader, Model,
 Provider, Trainer, optimizer, GPU, Training과 Evaluation 호출은 0이어야 한다.
+
+[제안] request construction 뒤 commit·worktree drift는 final source check에서 approval을 소비하지 않고 차단해야 한다. source
+복구 후 exact approval 재시도, source-check/consume 사이 revoke race와 consume 승리 뒤 revoke rejection을 synthetic test로
+검증한다.
 
 [제안] valid synthetic path는 approval을 정확히 한 번 consume하고 execution sentinel까지만 도달한다. actual Dataset reader,
 Model, Trainer, Training과 Evaluation은 해당 구현 PR에서도 실행하지 않는다.
@@ -283,10 +319,15 @@ Model, Trainer, Training과 Evaluation은 해당 구현 PR에서도 실행하지
 arbitrary malicious Python code, compromised process, external issuer compromise 또는 cryptographic authorization을 방어한다고
 표현하지 않는다. 이 범위를 넘는 요구는 별도 product/security 결정이다.
 
+[확정] supported orchestration path는 execution boundary 직전에 source commit과 clean working tree를 재검증하고 성공한
+경우에만 approval capability를 process-local registry에서 원자적으로 consume한다. 그러나 Git working tree와 registry를
+하나의 cryptographic·filesystem transaction으로 잠그지 않는다. final check 직후 arbitrary external 또는 malicious actor가
+repository를 변경하는 것을 sandbox 수준으로 방지하거나 source가 절대 변하지 않는다고 보장하지 않는다.
+
 ## Consequences
 
 - Dataset eligibility와 execution authorization이 독립 gate로 유지된다.
-- config·run·source drift와 approval replay를 execution 전에 차단할 계약이 생긴다.
+- supported path의 config·run binding, request 이후 source drift와 approval replay를 execution boundary 직전에 차단할 계약이 생긴다.
 - production issuer adapter가 없으므로 이 ADR 병합만으로 실제 approval을 발급하거나 Training을 실행할 수 없다.
 - cross-process approval이 필요해지면 persistence·signature·revocation 설계를 새로 결정해야 한다.
 
@@ -294,5 +335,6 @@ arbitrary malicious Python code, compromised process, external issuer compromise
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] approval consume 직전 final source-state 검증, retry·race와 residual TOCTOU 경계 보완 |
 | 2026-08-12 | [제안] denial issuance semantics, terminal lifecycle matrix와 readiness-backed source commit·clean-tree 계약 보완 |
 | 2026-08-12 | [제안] Common Dataset 기반 generic full-pretraining request·external issuer·process-local single-use approval 경계 초안 등록 |
