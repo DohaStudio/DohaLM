@@ -20,6 +20,12 @@ from .dataset_governance import (
     begin_dataset_review,
     propose_dataset_version,
 )
+from .dataset_publication import (
+    DatasetPublicationError,
+    DatasetPublicationMetadata,
+    DatasetPublicationResult,
+    publish_dataset_version,
+)
 from .errors import DataIssue, DataPipelineError
 from .pipeline import build_pipeline, validate_pipeline
 
@@ -33,6 +39,9 @@ __all__ = [
     "DataPipelineError",
     "DatasetGovernanceError",
     "DatasetGovernanceIssue",
+    "DatasetPublicationError",
+    "DatasetPublicationMetadata",
+    "DatasetPublicationResult",
     "DatasetVersionIdentity",
     "DatasetVersionProposal",
     "approve_dataset_version",
@@ -40,6 +49,7 @@ __all__ = [
     "build_pipeline",
     "load_data_config",
     "propose_dataset_version",
+    "publish_dataset_version",
     "validate_data_config",
     "validate_dataset_manifest",
     "validate_dataset_publication_scenario",
