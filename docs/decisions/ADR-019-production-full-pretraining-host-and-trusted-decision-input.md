@@ -15,7 +15,7 @@
 
 ## Context
 
-[확정] 현재 production execution backend는 `src.training.full_pretraining.run_full_pretraining()`이지만 non-test
+[확정] 현재 production execution backend는 `src.training.full_pretraining_backend.run_full_pretraining()`이지만 non-test
 호출자는 없다. `scripts/training/run_full_pretraining.py`의 `--execute`는
 `TRAINING_EXECUTION_APPROVAL_REQUIRED`로 종료하는 inspection CLI이며 production composition root가 아니다.
 inference `create_app()`과 일반 `dohalm` CLI도 Training object graph를 소유하지 않는다.
