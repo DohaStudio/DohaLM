@@ -69,6 +69,30 @@ registry는 module-private이고 exact `is` identity와 process-local lifetime�
 [확정] 이 인증 계약은 외부 network identity나 사람 계정을 인증하지 않는다. composition root가 신뢰할 adapter를
 선택하는 행위가 application trust decision이며, compromised composition root·adapter·process·host는 보장 범위 밖이다.
 
+#### Production composition root와 registration owner
+
+[확정] 현재 repository에는 production Training object graph를 조립하는 non-CLI composition root가 없다. package entrypoint
+`src.cli.main:main`과 `scripts.training.run_full_pretraining:main`은 진단·inspection 전용 CLI이며 production issuer trust
+anchor를 설치하지 않는다. module import, `run_full_pretraining()`, backend construction과 CLI startup도 registration trigger가
+아니다.
+
+[확정] 후속 adapter 구현의 exact production assembly point는 `src.training.execution_issuer` module의 package-private
+`_compose_production_training_execution_issuer()`다. 이 함수가 concrete `TrainingExecutionIssuerAdapter` exact instance를
+직접 생성하고 같은 module의 package-private `_register_training_execution_issuer_adapter(adapter)` one-time seam을 즉시 호출하는
+유일한 registration owner다. 함수는 caller가 만든 adapter, factory, callback, mapping 또는 import string을 받지 않으며 package
+public API로 export하지 않는다.
+
+[확정] adapter가 필요한 non-CLI host process는 다른 Training API를 사용하기 전에 bootstrap에서 이 composition function을
+명시적으로 정확히 한 번 호출해야 한다. composition을 선택한 process에서 construction 또는 registration 실패는 startup
+failure다. composition을 호출하지 않은 process는 정상적인 issuer-unavailable fail-closed 상태이며 lazy registration이나
+첫 요청 시 auto-registration을 하지 않는다.
+
+[확정] registration registry는 exact adapter에 대한 strong reference를 process 종료까지 보존한다. registration은 lock 아래
+원자적으로 `absent -> registered`만 허용하며 invocation 전이면 unavailable, registration 완료 뒤면 그 exact instance만
+resolve된다. 두 번째 registration, replacement, unregister와 GC 기반 재등록은 없으므로 registration과 invocation race에서
+구현자가 다른 lifecycle 정책을 선택할 수 없다. 이 strong reference는 adapter registration registry에만 적용되며 ADR-016의
+request·approval exact-instance weak-reference lifecycle을 변경하지 않는다.
+
 ### 3. Adapter와 transport boundary
 
 [확정] transport는 in-process typed call뿐이다. production adapter는 typed request view를 받아 자체 orchestration
@@ -77,6 +101,43 @@ decision을 검증하고 typed decision을 반환하는 composition boundary다.
 
 [확정] 이번 결정은 REST endpoint, webhook, HTTP client, IPC, socket과 network protocol을 만들지 않는다. topology가
 변하면 principal, credential, transport integrity와 durable replay를 새 ADR에서 다시 결정해야 한다.
+
+#### Typed adapter protocol과 trusted issuance bridge
+
+[확정] `TrainingExecutionIssuerAdapter`의 issuance protocol은 하나다. trusted bridge가 registry에서 exact registered adapter를
+resolve하고 그 adapter의 `decide(request: TrainingExecutionRequest) -> TrainingExecutionIssuerDecision`을 immutable request exact
+instance 하나로 호출한다. method는 아래 canonical fields를 가진 exact immutable decision 하나를 반환한다. supported caller는
+adapter instance나 decision을 parameter로 선택·주입할 수 없고 adapter를 직접 호출하지 않는다.
+
+[확정] 같은 `src.training.execution_issuer` module의 `issue_training_execution_approval()`이 유일한 supported trusted bridge다.
+bridge는 adapter가 아니며 external approval을 결정하지 않는다. bridge는 exact adapter resolution·invocation, returned decision
+provenance, request binding, evidence shape와 replay를 검증한 뒤에만 `src.training.execution_approval`의 existing package-private
+`_issue_training_execution_approval_from_trusted_adapter()` seam을 호출한다. adapter 자체는 private issuance seam을 호출하거나
+`TrainingExecutionApproval`을 생성하지 않는다.
+
+[확정] ADR-016의 “production issuer adapter가 evidence를 검증한 뒤 내부 issuance seam을 호출한다”는 문구는 trusted issuer
+issuance layer 전체를 지칭한다. 이 ADR의 concrete responsibility split에서는 adapter object가 evidence decision을 만들고,
+그 layer의 trusted bridge가 provenance·binding·replay 검증 뒤 seam을 호출한다. accountable external orchestration, evidence
+ownership, denied semantics와 process-local approval 의미는 변경하지 않는다.
+
+[확정] normative ordering은 다음과 같다.
+
+1. non-CLI production composition root가 exact adapter를 생성하고 one-time 등록한다.
+2. 기존 builder가 source-validated immutable request와 exact Dataset permission을 준비한다.
+3. trusted bridge가 registry에서 exact registered adapter를 resolve한다. caller-provided adapter selection은 없다.
+4. bridge가 exact adapter를 immutable request exact instance로 동기 호출한다.
+5. adapter가 adapter-owned exact immutable typed decision instance를 반환한다.
+6. bridge가 호출 중 반환된 exact instance와 registered adapter·request exact reference·immutable field snapshot을 module-private
+   object-external provenance registry에 원자적으로 기록하고 검증한다.
+7. bridge가 exact request fingerprint, evidence fields와 decision replay key를 검증·claim한다.
+8. `denied`면 private issuance seam을 호출하지 않고 approval object와 approval registry entry 0으로 종료한다.
+9. `approved`면 bridge만 private issuance seam을 정확히 한 번 호출해 process-local `TrainingExecutionApproval`을 받는다.
+10. bridge가 그 exact approval capability를 caller에 반환하며 Training은 자동 시작하지 않는다.
+
+[확정] adapter exception, `None`, wrong concrete decision type, field mutation과 malformed/empty evidence는
+`TRAINING_EXECUTION_DECISION_INVALID`, request fingerprint mismatch는 기존
+`TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH`로 fail closed다. raw exception, stack trace, adapter detail과 evidence는 노출하지
+않고 private issuance seam 호출과 approval 생성은 0이다.
 
 ### 4. Request disclosure
 
@@ -103,6 +164,23 @@ adapter-owned immutable value contract다.
 | `request_fingerprint` | exact DohaLM-built fingerprint |
 | `issued_at` | timezone-aware audit timestamp; TTL authority가 아님 |
 
+[확정] approved decision에서 trusted bridge가 existing private issuance seam으로 전달하는 mapping은 고정한다.
+
+| Private seam input | Source |
+|---|---|
+| `request` | adapter에 전달했던 exact `TrainingExecutionRequest` instance |
+| `dataset_permission` | request registry에 이미 결속되고 bridge call에서 검증한 exact permission instance |
+| `decision` | typed decision의 exact enum value `approved` |
+| `authorization_id` | typed decision의 동명 field |
+| `issuer_id` | typed decision의 동명 metadata field |
+| `approver_reference` | typed decision의 동명 opaque field |
+| `evidence_reference` | typed decision의 동명 opaque field |
+| `request_fingerprint` | typed decision field; request의 fingerprint와 exact match 검증 뒤 전달 |
+| `issued_at` | typed decision의 timezone-aware 동명 field |
+
+[확정] adapter identity와 decision provenance object는 scalar seam input이 아니다. trusted bridge가 seam 호출 전에 exact
+object-external provenance를 검증하는 mandatory precondition이며, seam에는 위 mapping 외 값을 새로 합성하거나 전달하지 않는다.
+
 [확정] evidence authority와 schema owner는 registered adapter다. DohaLM boundary는 exact adapter/decision provenance,
 필수 field type·enum·non-empty, request fingerprint, process-local replay state만 검증한다. adapter는 자신의 orchestration
 evidence currentness, issuer/approver 의미와 decision integrity를 책임진다. Dataset rights·eligibility·readiness 검증은
@@ -122,20 +200,26 @@ registry entry는 0이며 denied를 approval capability나 revoked state로 변�
 ### 7. Decision integrity와 provenance
 
 [확정] decision integrity는 registered trusted adapter boundary가 책임진다. DohaLM은 cryptographic verification을
-주장하지 않는다. supported provenance는 adapter-owned object-external registry의 adapter exact identity, decision exact
-identity, immutable field snapshot과 request exact binding이다.
+주장하지 않는다. adapter는 decision을 생성하고 evidence integrity를 소유한다. supported provenance proof는 trusted bridge가
+exact registered adapter invocation 중 반환받은 decision에 대해 소유하는 module-private object-external record다. record는
+adapter exact reference, decision exact identity, immutable field snapshot, request exact reference와 fingerprint binding을 함께
+보존한다. decision field, adapter class/type 또는 `issuer_id`만으로 provenance를 인정하지 않는다.
 
 [확정] manual constructor, copy, deepcopy, pickle/JSON round-trip, `dataclasses.replace()`, equal-value reconstruction과
 field mutation decision은 authority가 없다. hostile Python introspection과 compromised process memory는 범위 밖이다.
 
 ### 8. External decision replay와 restart
 
-[확정] adapter는 same process에서 exact decision instance와 `(authorization_id, request_fingerprint)` binding을
-process-local registry로 관리한다. 하나의 approved decision은 최대 하나의 `TrainingExecutionApproval` issuance attempt에만
-사용할 수 있다. issuance seam 호출이 시작되면 성공·실패와 관계없이 해당 decision은 재사용하지 않는다.
+[확정] trusted bridge는 same process에서 exact decision instance와 `(authorization_id, request_fingerprint)` binding을
+하나의 lock-protected process-local provenance/replay registry로 관리한다. 최초 처리에서 exact instance와 binding을 원자적으로
+claim한 뒤 approved decision은 최대 하나의 `TrainingExecutionApproval` issuance attempt에만 사용한다. private issuance seam
+호출이 시작되면 성공·실패와 관계없이 해당 decision은 재사용하지 않는다. concurrent duplicate processing에서도 claim 승자만
+seam에 도달한다. claimed authorization/fingerprint replay key는 decision GC와 무관하게 process 종료까지 유지한다.
 
-[확정] denied, malformed, request mismatch와 이미 사용된 decision도 새 approval을 만들지 않는다. equal-value 새 decision,
-같은 `authorization_id`, 같은 request fingerprint 또는 같은 exact decision 재제출은 `decision replayed`로 fail closed다.
+[확정] denied decision도 최초 처리에서 terminal claim되고 private issuance seam 호출과 approval 생성은 0이다. 같은 denied
+decision을 다시 반환하거나 처리하면 `decision replayed`다. malformed와 request mismatch도 새 approval을 만들지 않으며 exact
+returned instance는 재사용할 수 없다. equal-value 새 decision, 같은 `authorization_id`, 같은 request fingerprint 또는 같은
+exact decision 재제출은 `decision replayed`로 fail closed다.
 
 [확정] process restart 뒤 decision registry, adapter registration, decision 또는 approval authority를 복원하지 않는다.
 serialized evidence를 읽어 authority를 재구성하지 않으며 새 composition-root registration과 새 orchestration decision이
@@ -188,8 +272,8 @@ adapter implementation detail을 포함하지 않는다.
 
 ### 13. CLI와 execution state
 
-[확정] registered adapter가 없으면 production issuance는 fail closed다. CLI는 composition root로서 adapter를 자동·임의
-설치하지 않으므로 `--execute`를 계속 `TRAINING_EXECUTION_APPROVAL_REQUIRED`로 차단한다.
+[확정] registered adapter가 없으면 production issuance는 fail closed다. 현재 CLI는 production composition root가 아니며
+adapter를 자동·임의 설치하지 않으므로 `--execute`를 계속 `TRAINING_EXECUTION_APPROVAL_REQUIRED`로 차단한다.
 
 [확정] 이 결정은 production adapter implementation, actual approval issuance, Dataset/Artifact content read, reader,
 Model/Provider/Trainer, optimizer, GPU, Training, Evaluation 또는 controlled execution을 승인하지 않는다.
@@ -227,7 +311,7 @@ modification, secret exfiltration과 external user authentication의 정확성�
 4. exact request fingerprint·permission binding과 approved/denied test
 5. decision reconstruction·mutation·duplicate authorization·concurrent replay 차단
 6. process restart authority 복원 0과 serialized decision non-authority test
-7. private issuance seam만 registered adapter가 호출하고 direct caller issuance 0
+7. trusted bridge만 private issuance seam을 호출하고 adapter·direct caller의 seam 호출 0
 8. raw evidence/credential/path 비노출과 sanitized stable error test
 9. CLI fail-closed, reader/model/trainer/training/evaluation call 0 유지
 10. production revoke 구현 전 별도 exact revoke decision contract 승인·병합
@@ -245,4 +329,5 @@ modification, secret exfiltration과 external user authentication의 정확성�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [확정] non-CLI composition root 위치·registration lifecycle과 typed adapter→trusted bridge→private issuance seam 순서를 보완 |
 | 2026-08-12 | [확정] same-process composition-root registered issuer adapter, in-process typed decision, process-local replay/restart와 audit 경계를 제안 |
