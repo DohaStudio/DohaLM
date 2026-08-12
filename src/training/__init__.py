@@ -4,6 +4,10 @@ from .checkpoint import CheckpointInspection, CheckpointManager, capture_rng_sta
 from .collator import CausalLMCollator
 from .config import TrainingConfig
 from .dataloader import create_dataloader
+from .dataset_training_entry import (
+    DatasetTrainingPermission,
+    evaluate_dataset_training_entry,
+)
 from .dataset import SyntheticTokenDataset
 from .errors import TrainingError
 from .gate7_overfit import (
@@ -43,6 +47,7 @@ __all__ = [
     "CheckpointManager",
     "CosineWarmupDecayScheduler",
     "CudaMemoryProbe",
+    "DatasetTrainingPermission",
     "DEFAULT_BATCH_CANDIDATES",
     "JsonlMetricLogger",
     "Gate7OverfitConfig",
@@ -72,6 +77,7 @@ __all__ = [
     "create_optimizer",
     "create_scheduler",
     "evaluate_language_model",
+    "evaluate_dataset_training_entry",
     "evaluate_gate7_checkpoint",
     "evaluate_gate7_model",
     "evaluate_pilot_checkpoint",
