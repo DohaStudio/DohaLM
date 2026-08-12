@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import copy
+import gc
 import importlib.util
+import pickle
+import weakref
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -75,6 +80,93 @@ def test_directly_constructed_permission_is_not_validated() -> None:
     )
     with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
         require_dataset_training_activation(forged, **_target(forged))
+
+
+def test_only_evaluator_issued_exact_instance_is_accepted(tmp_path: Path) -> None:
+    original = _permission(tmp_path)
+    require_dataset_training_activation(original, **_target(original))
+
+    reconstructed = (
+        copy.copy(original),
+        copy.deepcopy(original),
+        pickle.loads(pickle.dumps(original)),
+        replace(original),
+        DatasetTrainingPermission(
+            allowed=original.allowed,
+            reason_codes=original.reason_codes,
+            dataset_version_id=original.dataset_version_id,
+            dataset_manifest_id=original.dataset_manifest_id,
+            pair_fingerprint=original.pair_fingerprint,
+        ),
+    )
+    for forged in reconstructed:
+        assert forged == original
+        with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
+            require_dataset_training_activation(forged, **_target(forged))
+
+    field_forged = reconstructed[-1]
+    object.__setattr__(field_forged, "_validated", True)
+    with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
+        require_dataset_training_activation(field_forged, **_target(field_forged))
+
+    require_dataset_training_activation(original, **_target(original))
+
+
+def test_permission_issuance_registry_follows_object_lifecycle(tmp_path: Path) -> None:
+    permission = _permission(tmp_path)
+    reference = weakref.ref(permission)
+    equivalent = replace(permission)
+
+    del permission
+    gc.collect()
+
+    assert reference() is None
+    with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
+        require_dataset_training_activation(equivalent, **_target(equivalent))
+
+
+def test_reconstructed_permissions_have_zero_downstream_calls(
+    monkeypatch, tmp_path: Path
+) -> None:
+    original = _permission(tmp_path)
+    manual = DatasetTrainingPermission(
+        allowed=original.allowed,
+        reason_codes=original.reason_codes,
+        dataset_version_id=original.dataset_version_id,
+        dataset_manifest_id=original.dataset_manifest_id,
+        pair_fingerprint=original.pair_fingerprint,
+    )
+    marker_forged = replace(original)
+    object.__setattr__(marker_forged, "_validated", True)
+    forged_permissions = (
+        copy.copy(original),
+        copy.deepcopy(original),
+        pickle.loads(pickle.dumps(original)),
+        replace(original),
+        manual,
+        marker_forged,
+    )
+    calls: list[str] = []
+
+    def forbidden(*_args, **_kwargs):
+        calls.append("downstream")
+        raise AssertionError("downstream side effect")
+
+    for name in (
+        "require_full_pretraining_approval",
+        "TokenizedJsonlDataset",
+        "DohaLMTiny",
+        "Trainer",
+        "evaluate_language_model",
+    ):
+        monkeypatch.setattr(backend, name, forbidden)
+
+    for forged in forged_permissions:
+        with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
+            backend.run_full_pretraining(
+                Path("config"), Path("manifest"), {}, **_run_kwargs(forged)
+            )
+    assert calls == []
 
 
 def test_denied_and_target_mismatch_fail_closed(tmp_path: Path) -> None:

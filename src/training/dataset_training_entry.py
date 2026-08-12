@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import weakref
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from src.data.checksums import canonical_json_bytes, checksum_value
@@ -31,7 +32,11 @@ class DatasetTrainingPermission:
     dataset_version_id: str = ""
     dataset_manifest_id: str = ""
     pair_fingerprint: str = ""
-    _validated: bool = field(default=False, init=False, repr=False, compare=False)
+
+
+_ISSUED_PERMISSION_REFS: dict[
+    int, weakref.ReferenceType[DatasetTrainingPermission]
+] = {}
 
 
 def evaluate_dataset_training_entry(
@@ -115,17 +120,17 @@ def evaluate_dataset_training_entry(
     if artifacts != manifest.get("object_file_artifact_refs"):
         return _blocked("DATASET_ARTIFACT_REFERENCE_MISMATCH")
 
-    permission = DatasetTrainingPermission(
-        allowed=True,
-        reason_codes=(),
-        dataset_version_id=version["object_id"],
-        dataset_manifest_id=manifest["dataset_manifest_id"],
-        pair_fingerprint=checksum_value(
-            {"dataset_manifest": manifest, "dataset_version": version}
-        ),
+    return _register_issued_permission(
+        DatasetTrainingPermission(
+            allowed=True,
+            reason_codes=(),
+            dataset_version_id=version["object_id"],
+            dataset_manifest_id=manifest["dataset_manifest_id"],
+            pair_fingerprint=checksum_value(
+                {"dataset_manifest": manifest, "dataset_version": version}
+            ),
+        )
     )
-    object.__setattr__(permission, "_validated", True)
-    return permission
 
 
 def require_dataset_training_activation(
@@ -137,9 +142,8 @@ def require_dataset_training_activation(
 ) -> None:
     """Consume one validated permission for an explicit execution target."""
 
-    if (
-        type(permission) is not DatasetTrainingPermission
-        or permission._validated is not True
+    if type(permission) is not DatasetTrainingPermission or not _is_evaluator_issued(
+        permission
     ):
         raise TrainingError(
             "DATASET_TRAINING_PERMISSION_INVALID",
@@ -212,9 +216,31 @@ def _checksums_match(version: Mapping[str, Any], manifest: Mapping[str, Any]) ->
 
 
 def _blocked(code: str) -> DatasetTrainingPermission:
-    permission = DatasetTrainingPermission(allowed=False, reason_codes=(code,))
-    object.__setattr__(permission, "_validated", True)
+    return _register_issued_permission(
+        DatasetTrainingPermission(allowed=False, reason_codes=(code,))
+    )
+
+
+def _register_issued_permission(
+    permission: DatasetTrainingPermission,
+) -> DatasetTrainingPermission:
+    key = id(permission)
+
+    def discard(
+        reference: weakref.ReferenceType[DatasetTrainingPermission],
+        *,
+        identity: int = key,
+    ) -> None:
+        if _ISSUED_PERMISSION_REFS.get(identity) is reference:
+            _ISSUED_PERMISSION_REFS.pop(identity, None)
+
+    _ISSUED_PERMISSION_REFS[key] = weakref.ref(permission, discard)
     return permission
+
+
+def _is_evaluator_issued(permission: DatasetTrainingPermission) -> bool:
+    reference = _ISSUED_PERMISSION_REFS.get(id(permission))
+    return reference is not None and reference() is permission
 
 
 __all__ = [
