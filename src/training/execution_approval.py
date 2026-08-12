@@ -348,6 +348,18 @@ def _issue_training_execution_approval_from_trusted_adapter(
     return approval
 
 
+def _dataset_permission_for_training_execution_request(
+    request: TrainingExecutionRequest,
+) -> DatasetTrainingPermission:
+    """Resolve the exact permission bound to an evaluator-issued request."""
+
+    record = _current_request_record(request)
+    permission = record.permission_reference()
+    if permission is None:
+        raise _invalid_request()
+    return permission
+
+
 def _approval_record(
     approval: TrainingExecutionApproval | None,
 ) -> _ApprovalRecord:

@@ -23,6 +23,7 @@ from .execution_approval import (
     consume_training_execution_approval,
     require_training_execution_request,
 )
+from .execution_issuer import issue_training_execution_approval
 from .gate7_overfit import (
     Gate7OverfitConfig,
     clone_gate7_prepared,
@@ -113,6 +114,7 @@ __all__ = [
     "evaluate_dataset_training_entry",
     "evaluate_gate7_checkpoint",
     "evaluate_gate7_model",
+    "issue_training_execution_approval",
     "evaluate_pilot_checkpoint",
     "generate_from_pilot_checkpoint",
     "module_gradient_bytes",
