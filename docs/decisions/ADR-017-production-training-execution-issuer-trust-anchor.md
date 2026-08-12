@@ -7,6 +7,7 @@
 - 권위 기준: `DohaStudio/.github@dd75fc88c16e9ae9a04acfafb72756a905f6365b`
 - 관련 문서: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md),
+  [ADR-018](./ADR-018-composition-root-owned-training-execution-decision-source.md),
   [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md)
 
 ## Context
@@ -305,7 +306,7 @@ modification, secret exfiltration과 external user authentication의 정확성�
 
 ## Implementation Gate
 
-1. 이 ADR의 독립 검증·명시 승인·병합
+1. 이 ADR과 후속 ADR-018 Decision Source contract의 독립 검증·명시 승인·병합
 2. module-private one-time exact adapter registration과 absent/replacement fail-closed test
 3. typed immutable decision과 adapter/decision exact-instance provenance registry
 4. exact request fingerprint·permission binding과 approved/denied test
@@ -329,5 +330,6 @@ modification, secret exfiltration과 external user authentication의 정확성�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [확정] 후속 ADR-018 Decision Source contract를 production adapter 구현 선행 Gate로 연결 |
 | 2026-08-12 | [확정] non-CLI composition root 위치·registration lifecycle과 typed adapter→trusted bridge→private issuance seam 순서를 보완 |
 | 2026-08-12 | [확정] same-process composition-root registered issuer adapter, in-process typed decision, process-local replay/restart와 audit 경계를 제안 |
