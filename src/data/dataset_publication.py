@@ -18,7 +18,11 @@ from .common_dataset_contracts import (
     validate_dataset_version,
     verify_common_contract_runtime,
 )
-from .dataset_governance import ApprovedDatasetVersion, DatasetVersionIdentity
+from .dataset_governance import (
+    ApprovedDatasetVersion,
+    DatasetGovernanceError,
+    DatasetVersionIdentity,
+)
 from .errors import DataPipelineError
 
 _REQUIRED_METADATA = frozenset(
@@ -224,24 +228,33 @@ def publish_dataset_version(
 def _approved_payload(approved: ApprovedDatasetVersion) -> dict[str, Any]:
     if not isinstance(approved, ApprovedDatasetVersion):
         raise DatasetPublicationError("APPROVED_VERSION_INVALID", "input")
-    payload = approved.payload
     try:
+        payload = approved.payload
         validate_dataset_version(payload)
         identity = DatasetVersionIdentity(
             payload["object_id"], payload["dataset_id"], payload["dataset_version"]
         )
         fingerprint = checksum_value(payload)
-    except (CommonDatasetValidationError, KeyError, TypeError, ValueError) as exc:
+        if (
+            payload.get("status") != "approved"
+            or payload.get("approved") is not True
+            or payload.get("frozen") is not False
+            or payload.get("training_allowed") is not False
+            or identity != approved.identity
+            or fingerprint != approved.fingerprint
+        ):
+            raise DatasetPublicationError("APPROVED_VERSION_INVALID", "input")
+    except DatasetPublicationError:
+        raise
+    except (
+        AttributeError,
+        CommonDatasetValidationError,
+        DatasetGovernanceError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
         raise DatasetPublicationError("APPROVED_VERSION_INVALID", "input") from exc
-    if (
-        payload.get("status") != "approved"
-        or payload.get("approved") is not True
-        or payload.get("frozen") is not False
-        or payload.get("training_allowed") is not False
-        or identity != approved.identity
-        or fingerprint != approved.fingerprint
-    ):
-        raise DatasetPublicationError("APPROVED_VERSION_INVALID", "input")
     return payload
 
 

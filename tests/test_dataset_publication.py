@@ -375,6 +375,31 @@ def test_invalid_time_and_tampered_approval_are_sanitized(tmp_path: Path):
         assert rejected.value.code == "APPROVED_VERSION_INVALID"
 
 
+def test_malformed_approved_snapshot_is_sanitized_before_filesystem_entry(
+    monkeypatch, tmp_path: Path
+):
+    approved = approved_version()
+    malformed = b'{"secret":"token-credential",'
+    object.__setattr__(approved, "_canonical_payload", malformed)
+    publication_root = tmp_path / "publication-root"
+
+    def forbidden_entry(_self):
+        raise AssertionError("AtomicArtifactDirectory must not be entered")
+
+    monkeypatch.setattr(
+        publication.AtomicArtifactDirectory, "__enter__", forbidden_entry
+    )
+    with pytest.raises(DatasetPublicationError) as raised:
+        publish(publication_root, approved=approved)
+
+    assert raised.value.code == "APPROVED_VERSION_INVALID"
+    assert raised.value.stage == "input"
+    assert str(raised.value) == "APPROVED_VERSION_INVALID:input:dataset_publication"
+    assert "JSONDecodeError" not in str(raised.value)
+    assert "token-credential" not in str(raised.value)
+    assert not publication_root.exists()
+
+
 def test_precommit_failure_leaves_no_partial_final(monkeypatch, tmp_path: Path):
     def fail(_path: Path, _payload: bytes) -> None:
         raise DatasetPublicationError("PUBLICATION_WRITE_FAILED", "staging")
