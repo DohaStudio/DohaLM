@@ -69,13 +69,29 @@ job submission, resume/retry, Evaluation 또는 후속 Training을 승인하지 
 | `readiness_fingerprint` | approved readiness report | readiness evidence exact match |
 | `run_id` | existing resolved output root basename | 새 Job system 없이 현재 run identity 재사용 |
 | `output_logical_root` | config-declared logical output | 절대·private path가 아닌 logical identity |
-| `source_commit` | readiness가 검사한 immutable Git HEAD | 40자리 commit과 clean tree 재검증 |
+| `source_commit` | readiness가 검증·출력한 Git commit | request builder가 같은 40자리 current HEAD와 clean tree를 재검증 |
 | `execution_mode` | caller | `fresh`만 허용; resume/retry 제외 |
 
 [제안] `request_fingerprint`는 위 projection을 고정 key로 구성해 기존 `checksum_value()`로 계산한다. mapping-order나 호출자
 객체 identity를 포함하지 않는다. seed, model, budget, dataset/tokenizer paths는 exact config bytes에 이미 포함되므로 별도
 중복 field로 두지 않는다. config parser가 향후 semantic canonical representation을 제공하기 전까지 기존
 `file_checksum(config_path)`가 authority다.
+
+[확정] 현재 `inspect_full_pretraining_readiness()`는 approval manifest의 `source.git_commit`이 40자리 commit이고 current
+`HEAD`와 같은지, `source.git_branch`가 current branch와 같은지만 검사한다. clean worktree를 검사하지 않고 반환 report에도
+`source_commit`을 포함하지 않는다.
+
+[제안] 후속 boundary 구현은 이 readiness contract를 최소 확장한다. readiness inspector가 manifest의 `source.git_commit`과
+current `HEAD` equality 및 `git status --porcelain` empty를 검사하고, 모두 통과한 경우에만 report의 `source_commit`에 그
+commit을 출력하며 같은 값을 readiness fingerprint projection에 포함한다. `source_worktree_clean=true`도 report에 명시하고
+fingerprint projection에 포함한다. dirty tree는 readiness failure이며 caller가 clean 여부를 선언하거나 우회할 수 없다.
+
+[제안] request builder는 caller가 별도 `source_commit` 문자열을 제공받지 않는다. evaluator가 반환한 readiness report의
+`source_commit`을 사용하고 request construction 직전에 repository의 current `HEAD`를 다시 읽어 40자리 형식과 exact equality,
+`git status --porcelain` empty를 재검증한다. manifest commit과의 관계는 readiness inspector가 보장하고 builder는 그 결과와
+현재 checkout 사이의 drift를 차단한다. current HEAD 또는 worktree가 readiness 뒤 바뀌면 request를 발급하지 않고
+`TRAINING_EXECUTION_REQUEST_INVALID`로 실패한다. external orchestration은 검증된 request fingerprint를 승인할 뿐 Git identity를
+제공하거나 clean-tree를 증명하지 않는다.
 
 ### 3. Run과 request 관계
 
@@ -94,6 +110,12 @@ queue 또는 별도 Run registry를 만들지 않는다. 같은 request fingerpr
 - exact `request_fingerprint`
 - `decision=approved`
 - caller-provided timezone-aware `issued_at`
+
+[제안] `TrainingExecutionApproval`은 `approved` 결정일 때만 발급되는 capability이며 decision field나 `denied` lifecycle state를
+갖지 않는다. accountable issuer가 request를 승인하지 않으면 trusted issuer adapter의 issuance layer가
+`TRAINING_EXECUTION_APPROVAL_DENIED`를 반환하고 approval object와 registry entry를 만들지 않는다. 이 code는 consumption
+layer의 상태가 아니다. consumer가 capability를 받지 못한 채 호출되면 `TRAINING_EXECUTION_APPROVAL_REQUIRED`, 직접 생성·복원한
+object를 받으면 `TRAINING_EXECUTION_APPROVAL_INVALID`를 사용한다.
 
 [제안] DohaLM은 이 identity를 생성·추정·인증하지 않는다. production issuer adapter는 외부 authority의 evidence를 검증한
 뒤에만 내부 issuance seam을 호출하는 trusted composition boundary다. 이 ADR은 IAM, 서명, 외부 transport 또는 adapter
@@ -135,6 +157,22 @@ evidence지만 local TTL 계산에 사용하지 않는다.
 내부 revoke seam을 호출해 registry state를 `revoked`로 바꾼다. public caller-facing revoke/restore API와 consumed approval
 복원은 금지한다. durable cross-process revocation registry는 이번 범위가 아니다.
 
+[제안] consume과 revoke는 같은 process-local registry lock 아래 다음 operation matrix를 따른다.
+
+| Current state | Operation | Result |
+|---|---|---|
+| `issued` | consume | atomic `issued → consumed` 성공 |
+| `issued` | revoke | atomic `issued → revoked` 성공 |
+| `consumed` | consume | `TRAINING_EXECUTION_APPROVAL_CONSUMED` rejection |
+| `consumed` | revoke | `TRAINING_EXECUTION_APPROVAL_CONSUMED` rejection; 이미 시작된 실행의 cancellation 의미 없음 |
+| `revoked` | consume | `TRAINING_EXECUTION_APPROVAL_REVOKED` rejection |
+| `revoked` | revoke | `TRAINING_EXECUTION_APPROVAL_REVOKED` rejection; idempotent success 아님 |
+
+[제안] 같은 `issued` exact instance에 consume과 revoke가 경쟁하면 하나의 compare-and-set terminal transition만 성공한다.
+승자는 `consumed` 또는 `revoked` 중 하나를 확정하고 패자는 lock 획득 뒤 확정 상태에 대응하는 stable rejection을 받는다.
+두 operation이 모두 성공하거나 terminal 상태를 복원·변경할 수 없다. 이 atomicity는 thread-level same-process 보장이며
+distributed lock이나 cross-process cancellation을 의미하지 않는다.
+
 ### 8. Replay와 atomic consumption
 
 [제안] approval은 execution-attempt-bound single-use다. consume은 같은 process의 registry lock 아래 compare-and-set으로
@@ -168,7 +206,7 @@ approval을 복원하지 않는다.
 - `TRAINING_EXECUTION_REQUEST_INVALID`
 - `TRAINING_EXECUTION_APPROVAL_REQUIRED`
 - `TRAINING_EXECUTION_APPROVAL_INVALID`
-- `TRAINING_EXECUTION_APPROVAL_DENIED`
+- `TRAINING_EXECUTION_APPROVAL_DENIED`: issuer가 거부하여 capability가 발급되지 않은 issuance-layer 결과
 - `TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH`
 - `TRAINING_EXECUTION_APPROVAL_REVOKED`
 - `TRAINING_EXECUTION_APPROVAL_CONSUMED`
@@ -212,21 +250,23 @@ fail closed다.
 | run/job identity | run ID + logical output; no Job system | current `output_root.name` | request builder | reuse/collision 차단 |
 | request fingerprint | `checksum_value()` fixed projection | existing checksum helper | request builder | deterministic vectors |
 | issuer | external orchestration approval authority | ADR-014 external user workflow owner | future production adapter | adapter absent fail closed |
-| evidence | opaque authorization/issuer/approver/evidence refs + request fp + issued_at | historical explicit approval, privacy boundary | future adapter | raw/secret leakage 0 |
+| evidence | approved일 때만 opaque authorization/issuer/approver/evidence refs + request fp + issued_at | historical explicit approval, privacy boundary | future adapter | denial issuance 0·raw/secret leakage 0 |
 | provenance | object-external weak exact-identity registry | PR #114 repaired precedent | future boundary | constructor/copy/pickle/replace 차단 |
-| lifecycle | process-local `issued→consumed` or `issued→revoked` | current same-process entry | future boundary | GC/concurrency/state matrix |
+| source identity | readiness output commit + builder의 HEAD/clean 재검증 | current manifest↔HEAD check, clean check·output은 후속 확장 | readiness inspector/request builder | stale commit·dirty tree 차단 |
+| lifecycle | process-local `issued→consumed` or `issued→revoked`; terminal operation은 stable rejection | V03 terminal rejection·current same-process entry | future boundary | 6-operation·consume/revoke race matrix |
 | expiry | consume/revoke/GC/process end; no wall-clock TTL | exact request + no generic TTL authority | future boundary | arbitrary TTL 0 |
 | revocation | trusted adapter-owned pre-consume registry transition | external issuer accountability | future adapter/boundary | revoked downstream 0 |
 
 ## Implementation Gate
 
 1. ADR 독립 검증과 명시적 승인·병합
-2. pure immutable request projection과 deterministic fingerprint vectors
-3. process-local approval registry·consume/revoke state machine의 synthetic-only 구현
-4. production issuer adapter 부재 시 issuance 0과 CLI fail-closed 유지
-5. permission → readiness → request → approval → execution sentinel ordering 독립 검증
-6. 별도 production issuer adapter/security contract 결정
-7. 그 이후에만 controlled execution-enablement 검토
+2. readiness의 verified `source_commit`·`source_worktree_clean` output/fingerprint 확장과 request builder의 HEAD·clean 재검증
+3. pure immutable request projection과 deterministic fingerprint vectors
+4. process-local approval registry·consume/revoke state machine의 synthetic-only 구현
+5. production issuer adapter 부재 시 issuance 0과 CLI fail-closed 유지
+6. permission → readiness → request → approval → execution sentinel ordering 독립 검증
+7. 별도 production issuer adapter/security contract 결정
+8. 그 이후에만 controlled execution-enablement 검토
 
 ## Test and evidence Gate
 
@@ -254,4 +294,5 @@ arbitrary malicious Python code, compromised process, external issuer compromise
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [제안] denial issuance semantics, terminal lifecycle matrix와 readiness-backed source commit·clean-tree 계약 보완 |
 | 2026-08-12 | [제안] Common Dataset 기반 generic full-pretraining request·external issuer·process-local single-use approval 경계 초안 등록 |
