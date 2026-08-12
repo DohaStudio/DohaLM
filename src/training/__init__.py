@@ -1,12 +1,18 @@
 """Synthetic Trainer Foundation public API."""
 
-from .checkpoint import CheckpointInspection, CheckpointManager, capture_rng_state, restore_rng_state
+from .checkpoint import (
+    CheckpointInspection,
+    CheckpointManager,
+    capture_rng_state,
+    restore_rng_state,
+)
 from .collator import CausalLMCollator
 from .config import TrainingConfig
 from .dataloader import create_dataloader
 from .dataset_training_entry import (
     DatasetTrainingPermission,
     evaluate_dataset_training_entry,
+    require_dataset_training_activation,
 )
 from .dataset import SyntheticTokenDataset
 from .errors import TrainingError
@@ -19,13 +25,28 @@ from .gate7_overfit import (
     run_gate7_training,
 )
 from .metrics import JsonlMetricLogger, TrainingMetric
-from .memory_probe import CudaMemoryProbe, MemorySnapshot, module_gradient_bytes, module_parameter_bytes, optimizer_state_bytes
+from .memory_probe import (
+    CudaMemoryProbe,
+    MemorySnapshot,
+    module_gradient_bytes,
+    module_parameter_bytes,
+    optimizer_state_bytes,
+)
 from .optimizer import OptimizerStats, create_optimizer
 from .pilot_config import PilotPretrainingConfig
 from .pilot_execution import inspect_pilot_execution, require_pilot_execution_approval
-from .pilot_pretraining import build_pilot_trainer, evaluate_pilot_checkpoint, generate_from_pilot_checkpoint, run_pilot_pretraining
+from .pilot_pretraining import (
+    build_pilot_trainer,
+    evaluate_pilot_checkpoint,
+    generate_from_pilot_checkpoint,
+    run_pilot_pretraining,
+)
 from .sampler_state import SamplerState, StatefulBatchSampler
-from .scheduler import CosineWarmupDecayScheduler, LinearWarmupDecayScheduler, create_scheduler
+from .scheduler import (
+    CosineWarmupDecayScheduler,
+    LinearWarmupDecayScheduler,
+    create_scheduler,
+)
 from .state import TrainingState
 from .throughput import ThroughputSummary, summarize_throughput
 from .tiny_validation import (
@@ -57,6 +78,7 @@ __all__ = [
     "PilotPretrainingConfig",
     "inspect_pilot_execution",
     "require_pilot_execution_approval",
+    "require_dataset_training_activation",
     "SamplerState",
     "StatefulBatchSampler",
     "SyntheticTokenDataset",

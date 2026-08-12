@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.data.checksums import canonical_json_bytes, checksum_value
@@ -30,6 +31,7 @@ class DatasetTrainingPermission:
     dataset_version_id: str = ""
     dataset_manifest_id: str = ""
     pair_fingerprint: str = ""
+    _validated: bool = field(default=False, init=False, repr=False, compare=False)
 
 
 def evaluate_dataset_training_entry(
@@ -113,7 +115,7 @@ def evaluate_dataset_training_entry(
     if artifacts != manifest.get("object_file_artifact_refs"):
         return _blocked("DATASET_ARTIFACT_REFERENCE_MISMATCH")
 
-    return DatasetTrainingPermission(
+    permission = DatasetTrainingPermission(
         allowed=True,
         reason_codes=(),
         dataset_version_id=version["object_id"],
@@ -122,6 +124,52 @@ def evaluate_dataset_training_entry(
             {"dataset_manifest": manifest, "dataset_version": version}
         ),
     )
+    object.__setattr__(permission, "_validated", True)
+    return permission
+
+
+def require_dataset_training_activation(
+    permission: DatasetTrainingPermission | None,
+    *,
+    dataset_version_id: str,
+    dataset_manifest_id: str,
+    pair_fingerprint: str,
+) -> None:
+    """Consume one validated permission for an explicit execution target."""
+
+    if (
+        type(permission) is not DatasetTrainingPermission
+        or permission._validated is not True
+    ):
+        raise TrainingError(
+            "DATASET_TRAINING_PERMISSION_INVALID",
+            "A validated immutable Dataset permission is required.",
+        )
+    if permission.allowed is not True or permission.reason_codes != ():
+        raise TrainingError(
+            "DATASET_TRAINING_PERMISSION_DENIED",
+            "The Dataset permission does not allow training entry.",
+        )
+    if (
+        not all(
+            isinstance(value, str) and value
+            for value in (dataset_version_id, dataset_manifest_id, pair_fingerprint)
+        )
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", pair_fingerprint) is None
+    ):
+        raise TrainingError(
+            "DATASET_TRAINING_TARGET_INVALID",
+            "Explicit immutable Dataset target identity is required.",
+        )
+    if (
+        permission.dataset_version_id != dataset_version_id
+        or permission.dataset_manifest_id != dataset_manifest_id
+        or permission.pair_fingerprint != pair_fingerprint
+    ):
+        raise TrainingError(
+            "DATASET_TRAINING_PERMISSION_TARGET_MISMATCH",
+            "The Dataset permission does not match the execution target.",
+        )
 
 
 def _snapshot_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -164,7 +212,13 @@ def _checksums_match(version: Mapping[str, Any], manifest: Mapping[str, Any]) ->
 
 
 def _blocked(code: str) -> DatasetTrainingPermission:
-    return DatasetTrainingPermission(allowed=False, reason_codes=(code,))
+    permission = DatasetTrainingPermission(allowed=False, reason_codes=(code,))
+    object.__setattr__(permission, "_validated", True)
+    return permission
 
 
-__all__ = ["DatasetTrainingPermission", "evaluate_dataset_training_entry"]
+__all__ = [
+    "DatasetTrainingPermission",
+    "evaluate_dataset_training_entry",
+    "require_dataset_training_activation",
+]
