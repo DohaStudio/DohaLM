@@ -7,6 +7,7 @@
 - 권위 기준: `DohaStudio/.github@dd75fc88c16e9ae9a04acfafb72756a905f6365b`
 - 관련 문서: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
+  [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md),
   [Dataset publication 구현 계획](../data/dataset-publication-implementation-plan.md),
   [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md)
 
@@ -130,6 +131,10 @@ object를 받으면 `TRAINING_EXECUTION_APPROVAL_INVALID`를 사용한다.
 뒤에만 내부 issuance seam을 호출하는 trusted composition boundary다. 이 ADR은 IAM, 서명, 외부 transport 또는 adapter
 구현을 선택하지 않는다. production adapter가 별도 승인·구성되기 전에는 실제 `TrainingExecutionApproval` 발급이 항상
 fail closed다.
+
+[확정] 후속 [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md)은 accountable issuer를 same-process
+composition root가 one-time 등록한 exact adapter instance로 제한하고 in-process typed call, process-local decision replay와
+restart non-restoration 경계를 제안한다. ADR-017 승인·병합과 adapter 구현 전 fail-closed 상태는 유지한다.
 
 [제안] 다음 구현 PR은 public `approve=True`, `approved_by` 문자열, default issuer, environment flag, public marker setter
 또는 임의 callable을 issuer로 받는 API를 제공해서는 안 된다. synthetic test issuer는 test scope 밖에서 import·사용할 수
@@ -297,7 +302,7 @@ fail closed다.
 5. process-local approval registry·consume/revoke state machine의 synthetic-only 구현
 6. production issuer adapter 부재 시 issuance 0과 CLI fail-closed 유지
 7. permission → readiness → request → approval → final source check → consume → execution sentinel ordering 독립 검증
-8. 별도 production issuer adapter/security contract 결정
+8. [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md)의 production issuer trust contract 승인·병합
 9. 그 이후에만 controlled execution-enablement 검토
 
 ## Test and evidence Gate
@@ -335,6 +340,7 @@ repository를 변경하는 것을 sandbox 수준으로 방지하거나 source가
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [확정] ADR-017 same-process composition-root issuer trust contract를 후속 Gate로 연결 |
 | 2026-08-12 | [제안] approval consume 직전 final source-state 검증, retry·race와 residual TOCTOU 경계 보완 |
 | 2026-08-12 | [제안] denial issuance semantics, terminal lifecycle matrix와 readiness-backed source commit·clean-tree 계약 보완 |
 | 2026-08-12 | [제안] Common Dataset 기반 generic full-pretraining request·external issuer·process-local single-use approval 경계 초안 등록 |
