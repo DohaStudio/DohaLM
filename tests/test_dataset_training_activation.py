@@ -279,6 +279,8 @@ def test_valid_permission_reaches_reader_only_after_both_gates(
 
     monkeypatch.setattr(backend, "require_dataset_training_activation", activation_gate)
     monkeypatch.setattr(backend, "require_full_pretraining_approval", readiness_gate)
+    monkeypatch.setattr(backend, "require_training_execution_request", lambda *_args, **_kwargs: calls.append("request"))
+    monkeypatch.setattr(backend, "consume_training_execution_approval", lambda *_args, **_kwargs: calls.append("approval"))
     monkeypatch.setattr(
         backend.FullPretrainingConfig, "from_yaml", lambda _path: config
     )
@@ -301,7 +303,7 @@ def test_valid_permission_reaches_reader_only_after_both_gates(
             {"execution_allowed": True},
             **_run_kwargs(permission),
         )
-    assert calls == ["dataset_permission", "readiness", "seed", "reader"]
+    assert calls == ["dataset_permission", "readiness", "request", "approval", "seed", "reader"]
 
 
 def test_cli_execute_cannot_synthesize_permission(monkeypatch, capsys) -> None:
@@ -312,4 +314,4 @@ def test_cli_execute_cannot_synthesize_permission(monkeypatch, capsys) -> None:
     monkeypatch.setattr(cli, "inspect_full_pretraining_readiness", forbidden)
     result = cli.main(["--config", "config", "--manifest", "manifest", "--execute"])
     assert result == 2
-    assert "DATASET_TRAINING_PERMISSION_REQUIRED" in capsys.readouterr().err
+    assert "TRAINING_EXECUTION_APPROVAL_REQUIRED" in capsys.readouterr().err

@@ -30,6 +30,12 @@ from .dataset_training_entry import (
     require_dataset_training_activation,
 )
 from .errors import TrainingError
+from .execution_approval import (
+    TrainingExecutionApproval,
+    TrainingExecutionRequest,
+    consume_training_execution_approval,
+    require_training_execution_request,
+)
 from .full_pretraining import (
     FullPretrainingConfig,
     inspect_full_pretraining_readiness,
@@ -46,6 +52,10 @@ MID_CHECKPOINT_STEP = 2_442
 FINAL_CHECKPOINT_STEP = 4_883
 ALLOWED_CHECKPOINTS = ("checkpoint-2442", "checkpoint-4883")
 SCHEDULED_TOKEN_LIMIT = 10_000_384
+
+
+def _enter_execution_boundary() -> None:
+    """Explicit post-consumption seam used by tests before any content access."""
 
 
 def _write_json(path: Path, value: Any, *, replace: bool = False) -> None:
@@ -301,6 +311,8 @@ def run_full_pretraining(
     dataset_version_id: str = "",
     dataset_manifest_id: str = "",
     dataset_pair_fingerprint: str = "",
+    execution_request: TrainingExecutionRequest | None = None,
+    execution_approval: TrainingExecutionApproval | None = None,
 ) -> dict[str, Any]:
     """Execute Candidate A after explicit final approval (never used by dry-run)."""
     require_dataset_training_activation(
@@ -328,6 +340,25 @@ def run_full_pretraining(
             "FULL_PRETRAINING_DISK_BUDGET_NOT_SATISFIED",
             "Start free disk is below 10 GiB.",
         )
+
+    require_training_execution_request(
+        execution_request,
+        config_path,
+        readiness_report,
+        dataset_permission=dataset_permission,
+        dataset_version_id=dataset_version_id,
+        dataset_manifest_id=dataset_manifest_id,
+        dataset_pair_fingerprint=dataset_pair_fingerprint,
+    )
+    consume_training_execution_approval(
+        execution_approval,
+        execution_request,
+        dataset_permission=dataset_permission,
+        dataset_version_id=dataset_version_id,
+        dataset_manifest_id=dataset_manifest_id,
+        dataset_pair_fingerprint=dataset_pair_fingerprint,
+    )
+    _enter_execution_boundary()
 
     started = time.perf_counter()
     lineage = _lineage(config)

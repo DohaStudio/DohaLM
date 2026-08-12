@@ -16,6 +16,13 @@ from .dataset_training_entry import (
 )
 from .dataset import SyntheticTokenDataset
 from .errors import TrainingError
+from .execution_approval import (
+    TrainingExecutionApproval,
+    TrainingExecutionRequest,
+    build_training_execution_request,
+    consume_training_execution_approval,
+    require_training_execution_request,
+)
 from .gate7_overfit import (
     Gate7OverfitConfig,
     clone_gate7_prepared,
@@ -85,6 +92,8 @@ __all__ = [
     "Trainer",
     "TrainingConfig",
     "TrainingError",
+    "TrainingExecutionApproval",
+    "TrainingExecutionRequest",
     "TrainingMetric",
     "TrainingResult",
     "TrainingState",
@@ -92,12 +101,14 @@ __all__ = [
     "ThroughputSummary",
     "capture_rng_state",
     "build_synthetic_stream",
+    "build_training_execution_request",
     "build_pilot_trainer",
     "build_tiny_trainer",
     "clone_gate7_prepared",
     "create_dataloader",
     "create_optimizer",
     "create_scheduler",
+    "consume_training_execution_approval",
     "evaluate_language_model",
     "evaluate_dataset_training_entry",
     "evaluate_gate7_checkpoint",
@@ -115,5 +126,6 @@ __all__ = [
     "run_tiny_validation",
     "run_gate7_training",
     "run_pilot_pretraining",
+    "require_training_execution_request",
     "tiny_model_config",
 ]
