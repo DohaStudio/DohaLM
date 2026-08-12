@@ -362,18 +362,19 @@ _TRANSITIONS = {
     ),
     TrainingOrchestrationPhase.DECISION_SUBMITTED: frozenset(
         {
+            TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+            TrainingOrchestrationPhase.FAILED,
+            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+        }
+    ),
+    TrainingOrchestrationPhase.APPROVAL_CONSUMED: frozenset(
+        {
             TrainingOrchestrationPhase.BACKEND_ENTERED,
             TrainingOrchestrationPhase.FAILED,
             TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
         }
     ),
     TrainingOrchestrationPhase.BACKEND_ENTERED: frozenset(
-        {
-            TrainingOrchestrationPhase.APPROVAL_CONSUMED,
-            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
-        }
-    ),
-    TrainingOrchestrationPhase.APPROVAL_CONSUMED: frozenset(
         {
             TrainingOrchestrationPhase.COMPLETED,
             TrainingOrchestrationPhase.FAILED,
@@ -435,10 +436,13 @@ class TrainingOrchestrationRecord:
                 self.phase
                 in {
                     TrainingOrchestrationPhase.BACKEND_ENTERED,
-                    TrainingOrchestrationPhase.APPROVAL_CONSUMED,
                     TrainingOrchestrationPhase.COMPLETED,
                 }
                 and not self.backend_entered
+            )
+            or (
+                self.phase is TrainingOrchestrationPhase.APPROVAL_CONSUMED
+                and self.backend_entered
             )
         ):
             raise _journal_conflict()
@@ -550,7 +554,6 @@ def _next_journal_record(
         raise _journal_conflict()
     backend_entered = current.backend_entered or transition.next_phase in {
         TrainingOrchestrationPhase.BACKEND_ENTERED,
-        TrainingOrchestrationPhase.APPROVAL_CONSUMED,
         TrainingOrchestrationPhase.COMPLETED,
     }
     return TrainingOrchestrationRecord(
