@@ -140,7 +140,14 @@ available-unclaimed authorization이 없다는 claim 결과다.
 
 [확정] `unavailable != denied`다. unavailable은 business denial을 만들지 않고 typed
 `TrainingExecutionIssuerDecision`, bridge replay record, private issuance seam call, approval object와 execution을 모두 0으로
-유지한다. adapter는 stable `TRAINING_EXECUTION_DECISION_UNAVAILABLE`로 종료한다.
+유지한다. `src.training.execution_issuer` module이 unavailable control signal의 semantic owner다. source의 absent claim만 exact
+concrete module-private `_TrainingExecutionDecisionUnavailable` instance를 생성하며 source registry를 변경하지 않는다.
+
+[확정] adapter는 source가 발생시킨 exact unavailable exception을 catch·wrap·replace하지 않고 같은 instance로 bridge까지
+전파한다. trusted bridge는 exact concrete type을 다른 adapter exception보다 먼저 catch해 sanitized
+`TRAINING_EXECUTION_DECISION_UNAVAILABLE`로 변환한다. raw internal type·message·stack은 caller에게 노출하지 않는다. `None`,
+Optional/union return, sentinel decision, subclass·equal-name reconstruction과 arbitrary exception은 unavailable 표현이 아니며
+ADR-017의 `TRAINING_EXECUTION_DECISION_INVALID` 계약을 유지한다.
 
 ### 7. Request와 authorization binding
 
@@ -160,7 +167,8 @@ available-unclaimed authorization이 없다는 claim 결과다.
 
 [확정] source `claim(request_fingerprint)`는 read가 아니라 lock 아래의 atomic
 `available-unclaimed -> claimed-terminal` compare-and-set이다. 성공한 claim은 immutable authorization material exact value를
-한 번 반환한다. source는 `TrainingExecutionIssuerDecision`을 생성하지 않는다.
+한 번 반환한다. absent lookup은 registry mutation이나 authorization claim 없이 exact private unavailable exception을 발생시킨다.
+source는 `TrainingExecutionIssuerDecision`을 생성하지 않는다.
 
 [확정] registered adapter가 성공한 exact claim material로 ADR-017의 exact immutable
 `TrainingExecutionIssuerDecision` instance 하나를 생성하여 `adapter.decide(request)`의 direct return value로 bridge에 반환한다.
@@ -210,6 +218,10 @@ authorization을 unavailable로 숨기지 않는다.
 - submit이 먼저 `available-unclaimed`를 publish하면 뒤의 claim이 정상 성공한다.
 - unavailable 결과는 fingerprint를 예약하거나 future submit을 차단하지 않는다.
 
+[확정] unavailable 뒤 동일 request는 소비되지 않는다. trusted orchestration이 이후 그 fingerprint에 최초 decision을 submit하면
+같은 exact request의 다음 `adapter.decide(request)`가 정상 claim할 수 있다. unavailable observation은 source business replay,
+bridge typed-decision replay와 approval registry를 변경하지 않는다.
+
 ### 12. Reapproval와 execution retry
 
 [확정] 같은 `TrainingExecutionRequest` 또는 같은 request fingerprint에 새 authorization을 제출하지 않는다. 최초 decision이
@@ -238,7 +250,7 @@ fingerprint, registry identity, object representation, path와 stack trace는 �
 | Meaning | Stable code |
 |---|---|
 | registered adapter 자체 없음 | ADR-017 `TRAINING_EXECUTION_ISSUER_UNAVAILABLE` |
-| source에 decision 없음 | `TRAINING_EXECUTION_DECISION_UNAVAILABLE` |
+| registered adapter/source는 있으나 decision 없음 | exact private signal을 bridge가 `TRAINING_EXECUTION_DECISION_UNAVAILABLE`로 변환 |
 | explicit business denial | ADR-016 `TRAINING_EXECUTION_APPROVAL_DENIED` |
 | malformed submission/claim material/typed decision | ADR-017 `TRAINING_EXECUTION_DECISION_INVALID` |
 | request fingerprint mismatch | ADR-017 `TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH` |
@@ -268,7 +280,7 @@ schema, retention과 access는 별도 architecture decision이다.
 | request binding | exact request fingerprint | source + adapter | process-local | conflicting binding reject | mismatch reject |
 | APPROVED | claim once, adapter constructs typed decision | source claim + adapter | 없음 | exactly one winner | bridge seam at most once |
 | DENIED | terminal claim, approval 0 | source claim + adapter/bridge | 없음 | exactly one winner | repeated denial replay reject |
-| UNAVAILABLE | absent observation, denial 아님 | source | 없음 | no mutation | issuance/execution 0 |
+| UNAVAILABLE | source-owned exact private exception; denial 아님 | source→adapter unchanged→bridge conversion | 없음 | no mutation·후속 submit 허용 | decision/replay/approval/execution 0 |
 | claim | atomic single-use CAS | DecisionSource | terminal tombstone | linearizable | two-thread one success |
 | submission replay | stable rejection | DecisionSource | terminal tombstone | duplicate loses | identical/conflict 분리 |
 | concurrent submit | one success or conflict/replay | DecisionSource | process-local | same lock | deterministic race test |
@@ -283,7 +295,8 @@ schema, retention과 access는 별도 architecture decision이다.
 2. exact source/submission capability/adapter construction-time binding과 replacement 0
 3. arbitrary caller submission·source injection·public setter 0
 4. exact typed submission과 authorization ID non-generation 검증
-5. approved·denied·unavailable 및 sanitized stable failure 검증
+5. source-only exact unavailable exception construction, unchanged adapter propagation, bridge stable conversion과
+   `None`·wrong type·arbitrary exception invalid 분리 검증
 6. one request fingerprint/one authorization과 conflicting resubmission 차단
 7. atomic submit/claim, two-thread concurrent submit/claim과 linearizable race 검증
 8. source business claim과 ADR-017 bridge replay의 독립 single-use 검증
@@ -325,4 +338,5 @@ Authority와 workflow 변경은 포함하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [확정] UNAVAILABLE을 source-owned exact private exception→adapter unchanged propagation→bridge stable conversion으로 고정 |
 | 2026-08-12 | [확정] composition-root-owned same-process DecisionSource, trusted submission, authorization single-use와 concurrency/restart 계약 초안 작성 |
