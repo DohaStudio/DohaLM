@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections import namedtuple
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -91,8 +92,8 @@ def inspect_with_mocks(tmp_path: Path, monkeypatch, value: dict) -> dict:
     write_yaml(manifest_path, value)
     monkeypatch.setattr("src.training.full_pretraining._lineage", lambda _config: lineage_from_manifest(load_yaml(MANIFEST_PATH)))
     monkeypatch.setattr(
-        "src.training.full_pretraining._git_value",
-        lambda *args: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9" if args[0] == "rev-parse" else "feat/pilot-pretraining",
+        "src.training.full_pretraining._inspect_source_state",
+        lambda: SimpleNamespace(commit="c3b778df31b9888ca6539b1d2b3c09faca6ec0e9", branch="feat/pilot-pretraining", clean=True),
     )
     monkeypatch.setattr("src.training.full_pretraining.resolve_full_pretraining_path", lambda *_args: tmp_path / "new-run")
     return inspect_full_pretraining_readiness(CONFIG_PATH, manifest_path)
@@ -198,7 +199,25 @@ def test_fully_approved_package_can_only_reach_readiness_not_training(tmp_path: 
     assert report["execution_allowed"] is True
     assert report["execution_backend_implemented"] is True
     assert report["training_started"] is False
+    assert report["source_commit"] == "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
+    assert report["source_worktree_clean"] is True
     require_full_pretraining_approval(report)
+
+
+def test_dirty_worktree_is_blocked_and_not_reported_as_verified(tmp_path: Path, monkeypatch) -> None:
+    value = approved_manifest()
+    manifest_path = tmp_path / "manifest.yaml"
+    write_yaml(manifest_path, value)
+    monkeypatch.setattr("src.training.full_pretraining._lineage", lambda _config: lineage_from_manifest(value))
+    monkeypatch.setattr(
+        "src.training.full_pretraining._inspect_source_state",
+        lambda: SimpleNamespace(commit="c3b778df31b9888ca6539b1d2b3c09faca6ec0e9", branch="feat/pilot-pretraining", clean=False),
+    )
+    monkeypatch.setattr("src.training.full_pretraining.resolve_full_pretraining_path", lambda *_args: tmp_path / "new-run")
+    report = inspect_full_pretraining_readiness(CONFIG_PATH, manifest_path)
+    assert "FULL_PRETRAINING_GIT_WORKTREE_DIRTY" in report["blocking_codes"]
+    assert report["source_commit"] is None
+    assert report["source_worktree_clean"] is False
 
 
 def test_existing_output_blocks_reexecution(tmp_path: Path, monkeypatch) -> None:
@@ -209,8 +228,8 @@ def test_existing_output_blocks_reexecution(tmp_path: Path, monkeypatch) -> None
     write_yaml(manifest_path, value)
     monkeypatch.setattr("src.training.full_pretraining._lineage", lambda _config: lineage_from_manifest(value))
     monkeypatch.setattr(
-        "src.training.full_pretraining._git_value",
-        lambda *args: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9" if args[0] == "rev-parse" else "feat/pilot-pretraining",
+        "src.training.full_pretraining._inspect_source_state",
+        lambda: SimpleNamespace(commit="c3b778df31b9888ca6539b1d2b3c09faca6ec0e9", branch="feat/pilot-pretraining", clean=True),
     )
     monkeypatch.setattr("src.training.full_pretraining.resolve_full_pretraining_path", lambda *_args: output)
     assert "FULL_PRETRAINING_OUTPUT_EXISTS" in inspect_full_pretraining_readiness(CONFIG_PATH, manifest_path)["blocking_codes"]

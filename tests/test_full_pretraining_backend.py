@@ -171,8 +171,8 @@ def test_dry_run_never_starts_training(tmp_path: Path, monkeypatch) -> None:
     }
     monkeypatch.setattr("src.training.full_pretraining._lineage", lambda _config: lineage)
     monkeypatch.setattr(
-        "src.training.full_pretraining._git_value",
-        lambda *args: identity.get("unused", "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9") if args[0] == "rev-parse" else "feat/pilot-pretraining",
+        "src.training.full_pretraining._inspect_source_state",
+        lambda: type("SourceState", (), {"commit": "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9", "branch": "feat/pilot-pretraining", "clean": True})(),
     )
     monkeypatch.setattr("src.training.full_pretraining.resolve_full_pretraining_path", lambda *_args: tmp_path / "new-run")
     report = dry_run_full_pretraining(CONFIG_PATH, MANIFEST_PATH)

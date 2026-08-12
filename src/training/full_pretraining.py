@@ -7,7 +7,6 @@ import math
 import os
 import re
 import shutil
-import subprocess
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -18,11 +17,12 @@ import yaml
 from src.data.aihub_71748_tokenizer_corpus import resolve_local_paths
 from src.data.checksums import checksum_value, file_checksum
 from src.model import ModelConfig
-from src.runtime.paths import repository_root, resolve_repository_path
+from src.runtime.paths import resolve_repository_path
 
 from .errors import TrainingError
 from .pilot_pretraining import _lineage
 from .config import TrainingConfig
+from .source_state import _SourceStateInspectionError, _inspect_source_state
 
 
 TRAIN_TOKEN_COUNT = 71_307_940
@@ -299,14 +299,6 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     return value
 
 
-def _git_value(*args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=repository_root(), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
-
-
 def _approved(section: dict[str, Any]) -> bool:
     return section.get("approval_status") == "approved"
 
@@ -460,12 +452,27 @@ def inspect_full_pretraining_readiness(
     if output.exists():
         blockers.append("FULL_PRETRAINING_OUTPUT_EXISTS")
 
+    source_state = None
+    try:
+        source_state = _inspect_source_state()
+    except _SourceStateInspectionError:
+        blockers.append("FULL_PRETRAINING_GIT_SOURCE_UNAVAILABLE")
     if not isinstance(source.get("git_commit"), str) or COMMIT_PATTERN.fullmatch(source["git_commit"]) is None:
         blockers.append("FULL_PRETRAINING_GIT_COMMIT_MISSING")
-    elif source["git_commit"] != _git_value("rev-parse", "HEAD"):
+    elif source_state is None or source["git_commit"] != source_state.commit:
         blockers.append("FULL_PRETRAINING_GIT_COMMIT_MISMATCH")
-    if source.get("git_branch") != _git_value("branch", "--show-current"):
+    if source_state is None or source.get("git_branch") != source_state.branch:
         blockers.append("FULL_PRETRAINING_GIT_BRANCH_MISMATCH")
+    if source_state is None or not source_state.clean:
+        blockers.append("FULL_PRETRAINING_GIT_WORKTREE_DIRTY")
+    source_verified = (
+        source_state is not None
+        and isinstance(source.get("git_commit"), str)
+        and COMMIT_PATTERN.fullmatch(source["git_commit"]) is not None
+        and source["git_commit"] == source_state.commit
+        and source.get("git_branch") == source_state.branch
+        and source_state.clean
+    )
     environment = manifest.get("environment", {}) if isinstance(manifest.get("environment"), dict) else {}
     if any(not environment.get(key) for key in ("python_version", "torch_version", "cuda_version", "gpu_name")):
         blockers.append("FULL_PRETRAINING_ENVIRONMENT_INCOMPLETE")
@@ -504,6 +511,8 @@ def inspect_full_pretraining_readiness(
         "token_budget": config.token_budget,
         "maximum_steps": config.max_steps,
         "scheduled_tokens": config.scheduled_tokens,
+        "source_commit": source["git_commit"] if source_verified else None,
+        "source_worktree_clean": source_verified,
     }
     return {
         "schema_version": "1.0",
@@ -514,6 +523,8 @@ def inspect_full_pretraining_readiness(
         "blocking_codes": blockers,
         "config_fingerprint": actual_config_fingerprint,
         "model_fingerprint": actual_model_fingerprint,
+        "source_commit": source["git_commit"] if source_verified else None,
+        "source_worktree_clean": source_verified,
         "readiness_fingerprint": checksum_value(evidence),
         "budget": estimate_training_budget(config.token_budget),
         "storage_probe": storage,

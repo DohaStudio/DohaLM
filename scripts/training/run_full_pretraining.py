@@ -35,8 +35,8 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.execute:
             raise TrainingError(
-                "DATASET_TRAINING_PERMISSION_REQUIRED",
-                "CLI execution cannot synthesize or look up an immutable Dataset permission.",
+                "TRAINING_EXECUTION_APPROVAL_REQUIRED",
+                "CLI execution cannot issue a production Training Execution Approval.",
             )
         config_path = resolve_repository_path(args.config)
         manifest_path = resolve_repository_path(args.manifest)
