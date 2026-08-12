@@ -492,6 +492,9 @@ def test_valid_backend_path_stops_at_post_consume_sentinel(
         backend.shutil, "disk_usage", lambda _p: SimpleNamespace(free=1)
     )
     monkeypatch.setattr(
+        backend, "issue_training_execution_approval", lambda _request: approval
+    )
+    monkeypatch.setattr(
         backend,
         "_enter_execution_boundary",
         lambda: (_ for _ in ()).throw(
@@ -518,7 +521,6 @@ def test_valid_backend_path_stops_at_post_consume_sentinel(
             approval_context.report,
             dataset_permission=approval_context.permission,
             execution_request=request,
-            execution_approval=approval,
             **_target(approval_context.permission),
         )
     assert calls == []
@@ -530,6 +532,11 @@ def test_readiness_denial_never_reaches_approval_or_execution(
     approval_context, monkeypatch
 ) -> None:
     calls: list[str] = []
+    monkeypatch.setattr(
+        backend,
+        "issue_training_execution_approval",
+        lambda _request: calls.append("issuer"),
+    )
     monkeypatch.setattr(
         backend,
         "consume_training_execution_approval",
@@ -588,6 +595,9 @@ def test_invalid_approval_paths_have_zero_execution_side_effects(
     monkeypatch.setattr(
         backend.shutil, "disk_usage", lambda _p: SimpleNamespace(free=1)
     )
+    monkeypatch.setattr(
+        backend, "issue_training_execution_approval", lambda _request: approval
+    )
     calls: list[str] = []
     for name in (
         "_enter_execution_boundary",
@@ -610,7 +620,6 @@ def test_invalid_approval_paths_have_zero_execution_side_effects(
             approval_context.report,
             dataset_permission=approval_context.permission,
             execution_request=request,
-            execution_approval=approval,
             **_target(approval_context.permission),
         )
     assert calls == []

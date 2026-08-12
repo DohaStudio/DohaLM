@@ -1,8 +1,8 @@
 """Candidate A-only Full Pretraining execution backend.
 
 Importing and inspecting this module never starts training. The execution entry
-point requires a fully approved readiness report and is intentionally called
-only from the CLI's explicit ``--execute`` branch.
+point requires a fully approved readiness report and a production-issued
+Training Execution Approval. The CLI does not compose that issuer.
 """
 
 from __future__ import annotations
@@ -31,11 +31,11 @@ from .dataset_training_entry import (
 )
 from .errors import TrainingError
 from .execution_approval import (
-    TrainingExecutionApproval,
     TrainingExecutionRequest,
     consume_training_execution_approval,
     require_training_execution_request,
 )
+from .execution_issuer import issue_training_execution_approval
 from .full_pretraining import (
     FullPretrainingConfig,
     inspect_full_pretraining_readiness,
@@ -312,9 +312,8 @@ def run_full_pretraining(
     dataset_manifest_id: str = "",
     dataset_pair_fingerprint: str = "",
     execution_request: TrainingExecutionRequest | None = None,
-    execution_approval: TrainingExecutionApproval | None = None,
 ) -> dict[str, Any]:
-    """Execute Candidate A after explicit final approval (never used by dry-run)."""
+    """Execute Candidate A after all prerequisites and a production decision."""
     require_dataset_training_activation(
         dataset_permission,
         dataset_version_id=dataset_version_id,
@@ -350,6 +349,7 @@ def run_full_pretraining(
         dataset_manifest_id=dataset_manifest_id,
         dataset_pair_fingerprint=dataset_pair_fingerprint,
     )
+    execution_approval = issue_training_execution_approval(execution_request)
     consume_training_execution_approval(
         execution_approval,
         execution_request,
