@@ -330,9 +330,11 @@ def _claim_returned_decision(
 
 
 def _validate_returned_decision(
-    decision: TrainingExecutionIssuerDecision,
+    decision: object,
     request: TrainingExecutionRequest,
 ) -> None:
+    if type(decision) is not TrainingExecutionIssuerDecision:
+        raise _decision_invalid()
     if type(decision.decision) is not TrainingExecutionIssuerDecisionValue:
         raise _decision_invalid()
     evidence = (
@@ -352,6 +354,23 @@ def _validate_returned_decision(
             "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH",
             "The approval target does not match the execution request.",
         )
+
+
+def _validate_returned_decision_fail_closed(
+    decision: object,
+    request: TrainingExecutionRequest,
+) -> None:
+    try:
+        _validate_returned_decision(decision, request)
+    except TrainingError as exc:
+        if type(exc) is TrainingError and exc.code in {
+            "TRAINING_EXECUTION_DECISION_INVALID",
+            "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH",
+        }:
+            raise
+        raise _decision_invalid() from None
+    except Exception:
+        raise _decision_invalid() from None
 
 
 def issue_training_execution_approval(
@@ -381,7 +400,7 @@ def issue_training_execution_approval(
         raise _decision_invalid() from None
     except Exception:
         raise _decision_invalid() from None
-    _validate_returned_decision(decision, request)
+    _validate_returned_decision_fail_closed(decision, request)
     _claim_returned_decision(decision, registration.adapter, request)
     if decision.decision is TrainingExecutionIssuerDecisionValue.DENIED:
         raise _error(

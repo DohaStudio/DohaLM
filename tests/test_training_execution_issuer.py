@@ -468,6 +468,24 @@ def test_submit_claim_race_is_linearizable(issuer_context) -> None:
     [
         lambda _request: None,
         lambda _request: object(),
+        lambda request: SimpleNamespace(
+            decision=issuer.TrainingExecutionIssuerDecisionValue.APPROVED,
+            authorization_id="authorization-duck",
+            issuer_id="issuer-1",
+            approver_reference="approver-1",
+            evidence_reference="evidence-1",
+            request_fingerprint=request.request_fingerprint,
+            issued_at="2026-08-12T12:00:00+09:00",
+        ),
+        lambda request: issuer.TrainingExecutionIssuerDecision(
+            decision="approved",  # type: ignore[arg-type]
+            authorization_id="authorization-malformed",
+            issuer_id="issuer-1",
+            approver_reference="approver-1",
+            evidence_reference="evidence-1",
+            request_fingerprint=request.request_fingerprint,
+            issued_at="2026-08-12T12:00:00+09:00",
+        ),
         lambda _request: (_ for _ in ()).throw(RuntimeError("private")),
         lambda _request: (_ for _ in ()).throw(ValueError("private")),
         lambda _request: (_ for _ in ()).throw(
@@ -483,15 +501,103 @@ def test_none_wrong_type_and_arbitrary_exception_are_invalid(
 ) -> None:
     request = issuer_context.build()
     issuer._compose_production_training_execution_issuer()
+    adapter_calls: list[TrainingExecutionRequest] = []
+    seam_calls = 0
+    approval_registry = dict(approval_boundary._APPROVAL_REGISTRY)
+    request_snapshot = request.__dict__.copy()
+
+    def decide(_self, bound_request):
+        adapter_calls.append(bound_request)
+        return result_factory(bound_request)
+
+    def private_seam(*_args, **_kwargs):
+        nonlocal seam_calls
+        seam_calls += 1
+        raise AssertionError("invalid decisions must not reach the issuance seam")
+
     monkeypatch.setattr(
         issuer.ProductionTrainingExecutionIssuerAdapter,
         "decide",
-        result_factory,
+        decide,
+    )
+    monkeypatch.setattr(
+        issuer,
+        "_issue_training_execution_approval_from_trusted_adapter",
+        private_seam,
     )
     with pytest.raises(TrainingError) as caught:
         issuer.issue_training_execution_approval(request)
+    assert type(caught.value) is TrainingError
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_INVALID"
     assert "private" not in str(caught.value)
+    assert "AttributeError" not in str(caught.value)
+    assert "TypeError" not in str(caught.value)
+    assert "NoneType" not in str(caught.value)
+    assert adapter_calls == [request]
+    assert seam_calls == 0
+    assert approval_boundary._APPROVAL_REGISTRY == approval_registry
+    assert request.__dict__ == request_snapshot
+
+
+def test_unexpected_return_validation_exception_is_sanitized(
+    issuer_context, monkeypatch
+) -> None:
+    request = issuer_context.build()
+    issuer._compose_production_training_execution_issuer()
+    decision = issuer.TrainingExecutionIssuerDecision(
+        decision=issuer.TrainingExecutionIssuerDecisionValue.APPROVED,
+        authorization_id="authorization-validation-error",
+        issuer_id="issuer-1",
+        approver_reference="approver-1",
+        evidence_reference="evidence-1",
+        request_fingerprint=request.request_fingerprint,
+        issued_at="2026-08-12T12:00:00+09:00",
+    )
+    seam_calls = 0
+    approval_registry = dict(approval_boundary._APPROVAL_REGISTRY)
+    request_snapshot = request.__dict__.copy()
+
+    def private_seam(*_args, **_kwargs):
+        nonlocal seam_calls
+        seam_calls += 1
+        raise AssertionError("invalid decisions must not reach the issuance seam")
+
+    monkeypatch.setattr(
+        issuer.ProductionTrainingExecutionIssuerAdapter,
+        "decide",
+        lambda _self, _request: decision,
+    )
+    monkeypatch.setattr(
+        issuer,
+        "_valid_timestamp",
+        lambda _value: (_ for _ in ()).throw(RuntimeError("validation-private")),
+    )
+    monkeypatch.setattr(
+        issuer,
+        "_issue_training_execution_approval_from_trusted_adapter",
+        private_seam,
+    )
+    with pytest.raises(TrainingError) as caught:
+        issuer.issue_training_execution_approval(request)
+    assert type(caught.value) is TrainingError
+    assert caught.value.code == "TRAINING_EXECUTION_DECISION_INVALID"
+    assert "validation-private" not in str(caught.value)
+    assert "RuntimeError" not in str(caught.value)
+    assert seam_calls == 0
+    assert approval_boundary._APPROVAL_REGISTRY == approval_registry
+    assert request.__dict__ == request_snapshot
+
+
+def test_adapter_base_exception_is_not_swallowed(issuer_context, monkeypatch) -> None:
+    request = issuer_context.build()
+    issuer._compose_production_training_execution_issuer()
+    monkeypatch.setattr(
+        issuer.ProductionTrainingExecutionIssuerAdapter,
+        "decide",
+        lambda _self, _request: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+    with pytest.raises(KeyboardInterrupt):
+        issuer.issue_training_execution_approval(request)
 
 
 def test_unavailable_subclass_and_equal_name_exception_are_invalid(
