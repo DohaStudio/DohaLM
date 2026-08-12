@@ -7,6 +7,7 @@
 - 권위 기준: `DohaStudio/.github@dd75fc88c16e9ae9a04acfafb72756a905f6365b`
 - 관련 문서: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md),
+  [ADR-018](./ADR-018-composition-root-owned-training-execution-decision-source.md),
   [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md)
 
 ## Context
@@ -106,8 +107,17 @@ decision을 검증하고 typed decision을 반환하는 composition boundary다.
 
 [확정] `TrainingExecutionIssuerAdapter`의 issuance protocol은 하나다. trusted bridge가 registry에서 exact registered adapter를
 resolve하고 그 adapter의 `decide(request: TrainingExecutionRequest) -> TrainingExecutionIssuerDecision`을 immutable request exact
-instance 하나로 호출한다. method는 아래 canonical fields를 가진 exact immutable decision 하나를 반환한다. supported caller는
-adapter instance나 decision을 parameter로 선택·주입할 수 없고 adapter를 직접 호출하지 않는다.
+instance 하나로 호출한다. available business decision이 있으면 method는 아래 canonical fields를 가진 exact immutable decision
+하나를 반환한다. decision이 없으면 return type을 `Optional` 또는 union으로 넓히거나 `None`·sentinel을 반환하지 않고, 같은
+`src.training.execution_issuer` module이 소유하는 exact module-private `_TrainingExecutionDecisionUnavailable` control exception을
+발생시킨다. 이 raises contract는 public exception API가 아니다. supported caller는 adapter instance나 decision을 parameter로
+선택·주입할 수 없고 adapter를 직접 호출하지 않는다.
+
+[확정] ADR-018 `DecisionSource.claim()`의 absent lookup만 exact concrete
+`_TrainingExecutionDecisionUnavailable`을 생성한다. registered adapter는 이 exact exception instance를 catch·wrap·reconstruct하지
+않고 bridge까지 그대로 전파한다. bridge는 adapter invocation을 감싼 가장 가까운 boundary에서 exact concrete type만 먼저
+catch해 sanitized `TRAINING_EXECUTION_DECISION_UNAVAILABLE`로 변환한다. subclass, equal-name exception과 다른 module의
+reconstruction은 unavailable authority가 아니며 invalid adapter exception으로 처리한다.
 
 [확정] 같은 `src.training.execution_issuer` module의 `issue_training_execution_approval()`이 유일한 supported trusted bridge다.
 bridge는 adapter가 아니며 external approval을 결정하지 않는다. bridge는 exact adapter resolution·invocation, returned decision
@@ -126,15 +136,18 @@ ownership, denied semantics와 process-local approval 의미는 변경하지 않
 2. 기존 builder가 source-validated immutable request와 exact Dataset permission을 준비한다.
 3. trusted bridge가 registry에서 exact registered adapter를 resolve한다. caller-provided adapter selection은 없다.
 4. bridge가 exact adapter를 immutable request exact instance로 동기 호출한다.
-5. adapter가 adapter-owned exact immutable typed decision instance를 반환한다.
-6. bridge가 호출 중 반환된 exact instance와 registered adapter·request exact reference·immutable field snapshot을 module-private
+5. source에 decision이 없으면 exact private unavailable exception이 bridge까지 전파되고 bridge는 unavailable error로 종료한다.
+   decision object, source claim, bridge replay record, private issuance seam과 approval object는 0이다.
+6. decision이 있으면 adapter가 adapter-owned exact immutable typed decision instance를 반환한다.
+7. bridge가 호출 중 반환된 exact instance와 registered adapter·request exact reference·immutable field snapshot을 module-private
    object-external provenance registry에 원자적으로 기록하고 검증한다.
-7. bridge가 exact request fingerprint, evidence fields와 decision replay key를 검증·claim한다.
-8. `denied`면 private issuance seam을 호출하지 않고 approval object와 approval registry entry 0으로 종료한다.
-9. `approved`면 bridge만 private issuance seam을 정확히 한 번 호출해 process-local `TrainingExecutionApproval`을 받는다.
-10. bridge가 그 exact approval capability를 caller에 반환하며 Training은 자동 시작하지 않는다.
+8. bridge가 exact request fingerprint, evidence fields와 decision replay key를 검증·claim한다.
+9. `denied`면 private issuance seam을 호출하지 않고 approval object와 approval registry entry 0으로 종료한다.
+10. `approved`면 bridge만 private issuance seam을 정확히 한 번 호출해 process-local `TrainingExecutionApproval`을 받는다.
+11. bridge가 그 exact approval capability를 caller에 반환하며 Training은 자동 시작하지 않는다.
 
-[확정] adapter exception, `None`, wrong concrete decision type, field mutation과 malformed/empty evidence는
+[확정] exact private unavailable exception만 위 unavailable branch다. `None`, wrong concrete decision type, field mutation,
+malformed/empty evidence, `RuntimeError`, `ValueError`, unexpected exception과 그 밖의 모든 adapter exception은
 `TRAINING_EXECUTION_DECISION_INVALID`, request fingerprint mismatch는 기존
 `TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH`로 fail closed다. raw exception, stack trace, adapter detail과 evidence는 노출하지
 않고 private issuance seam 호출과 approval 생성은 0이다.
@@ -261,6 +274,7 @@ owner다. DohaLM은 approval object에 ADR-016의 opaque evidence fields만 보�
 - `TRAINING_EXECUTION_ISSUER_UNAVAILABLE`
 - `TRAINING_EXECUTION_ISSUER_UNAUTHENTICATED`
 - `TRAINING_EXECUTION_ISSUER_UNAUTHORIZED`
+- `TRAINING_EXECUTION_DECISION_UNAVAILABLE`
 - `TRAINING_EXECUTION_DECISION_INVALID`
 - `TRAINING_EXECUTION_DECISION_REPLAYED`
 - 기존 `TRAINING_EXECUTION_APPROVAL_DENIED`
@@ -305,17 +319,19 @@ modification, secret exfiltration과 external user authentication의 정확성�
 
 ## Implementation Gate
 
-1. 이 ADR의 독립 검증·명시 승인·병합
+1. 이 ADR과 후속 ADR-018 Decision Source contract의 독립 검증·명시 승인·병합
 2. module-private one-time exact adapter registration과 absent/replacement fail-closed test
 3. typed immutable decision과 adapter/decision exact-instance provenance registry
 4. exact request fingerprint·permission binding과 approved/denied test
-5. decision reconstruction·mutation·duplicate authorization·concurrent replay 차단
-6. process restart authority 복원 0과 serialized decision non-authority test
-7. trusted bridge만 private issuance seam을 호출하고 adapter·direct caller의 seam 호출 0
-8. raw evidence/credential/path 비노출과 sanitized stable error test
-9. CLI fail-closed, reader/model/trainer/training/evaluation call 0 유지
-10. production revoke 구현 전 별도 exact revoke decision contract 승인·병합
-11. 그 이후에만 controlled execution enablement 별도 검토
+5. exact private unavailable exception의 source-only construction, unchanged adapter propagation, bridge conversion과
+   `None`·wrong type·arbitrary exception invalid 분리 test
+6. decision reconstruction·mutation·duplicate authorization·concurrent replay 차단
+7. process restart authority 복원 0과 serialized decision non-authority test
+8. trusted bridge만 private issuance seam을 호출하고 adapter·direct caller의 seam 호출 0
+9. raw evidence/credential/path 비노출과 sanitized stable error test
+10. CLI fail-closed, reader/model/trainer/training/evaluation call 0 유지
+11. production revoke 구현 전 별도 exact revoke decision contract 승인·병합
+12. 그 이후에만 controlled execution enablement 별도 검토
 
 ## Consequences
 
@@ -329,5 +345,7 @@ modification, secret exfiltration과 external user authentication의 정확성�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-12 | [확정] no-decision을 source-owned exact private exception과 bridge unavailable conversion으로 고정하고 `None`·기타 exception invalid 계약 유지 |
+| 2026-08-12 | [확정] 후속 ADR-018 Decision Source contract를 production adapter 구현 선행 Gate로 연결 |
 | 2026-08-12 | [확정] non-CLI composition root 위치·registration lifecycle과 typed adapter→trusted bridge→private issuance seam 순서를 보완 |
 | 2026-08-12 | [확정] same-process composition-root registered issuer adapter, in-process typed decision, process-local replay/restart와 audit 경계를 제안 |
