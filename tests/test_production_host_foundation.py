@@ -535,6 +535,32 @@ def test_approval_consumed_record_is_not_backend_entered() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "phase",
+    (
+        TrainingOrchestrationPhase.CLAIMED,
+        TrainingOrchestrationPhase.RESOLVED,
+        TrainingOrchestrationPhase.VALIDATED,
+    ),
+)
+def test_pre_submission_active_phase_can_require_restart_reconciliation(
+    phase: TrainingOrchestrationPhase,
+) -> None:
+    identity = _identity()
+    record = TrainingOrchestrationRecord(identity=identity, phase=phase)
+    reconciled = foundation._next_journal_record(
+        record,
+        _transition(
+            identity,
+            phase,
+            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+            reason_code="PROCESS_RESTART",
+        ),
+    )
+    assert reconciled.phase is TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED
+    assert reconciled.reconciliation_required is True
+
+
 def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> None:
     journal = InMemoryJournal()
     identity = _identity()

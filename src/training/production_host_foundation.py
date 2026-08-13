@@ -349,15 +349,24 @@ _TERMINAL_PHASES = frozenset(
 )
 _TRANSITIONS = {
     TrainingOrchestrationPhase.CLAIMED: frozenset(
-        {TrainingOrchestrationPhase.RESOLVED, TrainingOrchestrationPhase.FAILED}
+        {
+            TrainingOrchestrationPhase.RESOLVED,
+            TrainingOrchestrationPhase.FAILED,
+            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+        }
     ),
     TrainingOrchestrationPhase.RESOLVED: frozenset(
-        {TrainingOrchestrationPhase.VALIDATED, TrainingOrchestrationPhase.FAILED}
+        {
+            TrainingOrchestrationPhase.VALIDATED,
+            TrainingOrchestrationPhase.FAILED,
+            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+        }
     ),
     TrainingOrchestrationPhase.VALIDATED: frozenset(
         {
             TrainingOrchestrationPhase.DECISION_SUBMITTED,
             TrainingOrchestrationPhase.FAILED,
+            TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
         }
     ),
     TrainingOrchestrationPhase.DECISION_SUBMITTED: frozenset(
