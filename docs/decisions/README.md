@@ -52,6 +52,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | [제안] ADR-021 C1 잔여 Gate의 policy provenance ordering, exact producer identifier, state effective-time·supersession, family envelope NOT NULL 계약 확정 |
 | 2026-08-13 | [제안] ADR-021 journal·phase-event exact schema, UUID authority identity와 commit outcome 계약 확정 |
 | 2026-08-13 | [제안] ADR-021의 authority event/projection, journal evidence, transaction failure, C1/C2/C3와 accountable role 계약 보완 |
 | 2026-08-13 | [제안] ADR-021 Production Training Adapters와 Durable Journal Authority contract draft 등록 |
