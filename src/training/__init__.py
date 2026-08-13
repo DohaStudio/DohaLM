@@ -63,6 +63,10 @@ from .production_host_foundation import (
     TrustedDecisionResolution,
     TrustedTrainingDecisionResolver,
 )
+from .production_full_pretraining_host import (
+    ProductionFullPretrainingHost,
+    ProductionTrainingHostResult,
+)
 from .sampler_state import SamplerState, StatefulBatchSampler
 from .scheduler import (
     CosineWarmupDecayScheduler,
@@ -100,6 +104,8 @@ __all__ = [
     "OptimizerStats",
     "PilotPretrainingConfig",
     "ProductionTrainingHostIntent",
+    "ProductionFullPretrainingHost",
+    "ProductionTrainingHostResult",
     "ResolvedTrainingExecutionDecision",
     "inspect_pilot_execution",
     "require_pilot_execution_approval",
