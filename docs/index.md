@@ -314,6 +314,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | ADR-021 journal·phase-event exact schema, UUID authority identity와 commit outcome 계약 확정 |
 | 2026-08-13 | ADR-021 authority event/projection, journal evidence, failure mapping, C1/C2/C3와 accountable owner 계약 보완 |
 | 2026-08-13 | ADR-021 Production Training Adapters와 Durable Journal Authority contract를 등록 |
 | 2026-08-13 | ADR-020 Production Training Orchestration Ownership Seams contract를 등록 |

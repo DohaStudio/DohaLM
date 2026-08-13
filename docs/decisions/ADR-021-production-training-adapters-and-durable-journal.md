@@ -94,13 +94,29 @@ decision:<id>
 `authorization_id`, `issuer_id`, `approver_reference`와 `policy_reference`는 whitespace 없는 위 Host reference grammar의
 opaque scalar다. `evidence_reference`는 exact `decision:<authority_id>`다. scalar를 소지하거나 재구성해도 authority는 없다.
 
-[제안] 모든 authority row는 다음 공통 envelope를 갖는다. DB timestamp를 canonical ISO 8601로 직렬화할 때 UTC offset
-`+00:00`을 포함한다. `payload_sha256`은 `sha256:` + lowercase hex 64이며 payload의 repository-defined canonical bytes에
-기존 `checksum_value()`와 동일한 SHA-256 표현을 적용한 값이다.
+[제안] 모든 immutable authority family row는 `training_authority_identity`의 UUID surrogate identity를 공유한다. 외부
+domain reference는 UUID PK를 대체하지 않는 immutable UNIQUE alternate key다. DB timestamp를 canonical ISO 8601로
+직렬화할 때 UTC offset `+00:00`을 포함한다. `payload_sha256`은 `sha256:` + lowercase hex 64이며 payload의
+repository-defined canonical bytes에 기존 `checksum_value()`와 동일한 SHA-256 표현을 적용한 값이다.
+
+`training_authority_identity`의 exact schema는 다음과 같다.
+
+| field | exact PostgreSQL type / constraint |
+|---|---|
+| `authority_id` | `uuid PRIMARY KEY`, no default; producer가 생성한 UUID |
+| `subject_family` | `text NOT NULL CHECK` exact `config`, `readiness`, `dataset_version`, `dataset_manifest`, `dataset_pair`, `decision`, `issuer`, `approver` |
+| `domain_key` | `varchar(256) NOT NULL`, Host reference grammar, whitespace-only 금지 |
+| `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+
+`UNIQUE(subject_family, domain_key)`이며 세 identity field는 insert 뒤 UPDATE·DELETE할 수 없다. 각 family table은
+`authority_id uuid PRIMARY KEY`와 같은 `subject_family` 상수를 보존하고
+`FOREIGN KEY (authority_id, subject_family) REFERENCES training_authority_identity(authority_id, subject_family) ON DELETE
+RESTRICT`를 사용한다. 이를 위해 identity table은 `UNIQUE(authority_id, subject_family)`도 갖는다. polymorphic application
+predicate나 opaque key만으로 family binding을 대체하지 않는다.
 
 | field | exact type / constraint | 의미 |
 |---|---|---|
-| `authority_id` | UUID primary key | reference의 `<id>` |
+| `authority_id` | UUID primary key/FK | `training_authority_identity.authority_id` |
 | `schema_version` | smallint, exact `1` | record envelope version |
 | `payload_bytes` | bytea, non-empty | immutable source bytes |
 | `payload_sha256` | text, fingerprint pattern | exact source-byte identity |
@@ -113,30 +129,72 @@ opaque scalar다. `evidence_reference`는 exact `decision:<authority_id>`다. sc
 `canonical_json_bytes()`로 만들며 UTF-8, key 이름순, compact separator, trailing LF 하나와 non-finite rejection을 그대로
 사용한다. YAML source는 byte-for-byte identity를 보존한다.
 
-insert 뒤 identity, validity, `payload_bytes`, fingerprint와 provenance는 UPDATE·DELETE할 수 없다. raw secret, DSN, absolute
-path, capability, approval과 PII payload를 저장하지 않는다. revoke/supersede는 immutable row를 수정하지 않고 아래 공통
-append-only `training_authority_event`에만 기록한다.
+insert 뒤 identity, domain key, validity, `payload_bytes`, fingerprint와 provenance는 UPDATE·DELETE할 수 없다. raw secret,
+DSN, absolute path, capability, approval과 PII payload를 저장하지 않는다. revoke/supersede는 immutable row를 수정하지 않고
+아래 공통 append-only `training_authority_event`에만 기록한다.
 
 | field | exact type / constraint |
 |---|---|
-| `event_id` | UUID primary key |
-| `subject_family` | closed authority-family enum |
-| `subject_key` | varchar(256), family-specific stable primary key/reference |
-| `subject_version` | bigint, `>= 1` |
-| `event_kind` | exact `created`, `revoked`, `superseded` |
-| `superseded_by` | varchar(256) nullable; `superseded`일 때만 non-null, self-reference 금지 |
-| `effective_at` | timestamptz, non-null |
-| `recorded_at` | timestamptz, DB transaction time |
-| `producer_role` | closed accountable-role identifier |
-| `evidence_reference` | opaque Host-reference grammar |
+| `event_id` | `uuid PRIMARY KEY`, no default; producer-generated |
+| `authority_id` | `uuid NOT NULL` |
+| `subject_family` | 위 identity와 같은 closed `text NOT NULL` set |
+| `subject_version` | `bigint NOT NULL CHECK (subject_version >= 1)` |
+| `event_kind` | `text NOT NULL CHECK` exact `published`, `activated`, `revoked`, `superseded` |
+| `superseded_by_authority_id` | `uuid NULL`; `superseded`에서만 NOT NULL, self-reference 금지 |
+| `effective_at` | `timestamptz NOT NULL` |
+| `recorded_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `producer_role` | `varchar(128) NOT NULL`, closed accountable-role identifier |
+| `correlation_reference` | `varchar(256) NOT NULL`, opaque Host-reference grammar |
+| `evidence_reference` | `varchar(256) NOT NULL`, opaque Host-reference grammar |
+| `event_fingerprint` | `char(71) NOT NULL`, canonical event projection의 fingerprint pattern |
 
-`UNIQUE(subject_family, subject_key, subject_version)`이 duplicate/same-version conflict를 차단하며 version은 subject별 직전
-version + 1이다. event insert는 family별 immutable row primary key에 대한 exact referential predicate를 요구한다.
-`(subject_family, subject_key)` PK를 가진 `training_authority_current`는 `current_event_id`,
-`current_version`, `state`, `effective_at`, `superseded_by` projection을 갖는다. event insert와 exact expected-version projection
-CAS는 하나의 transaction이다. event stream으로 projection을 결정적으로 재계산할 수 있어야 한다. version gap, event/projection
-불일치, impossible successor, checksum/FK/schema 손상은 해당 subject와 process preflight를 fail closed하고 자동 repair하지
-않는다.
+`FOREIGN KEY (authority_id, subject_family)`은 identity table의 같은 pair를 `ON DELETE RESTRICT`로 참조하고,
+`superseded_by_authority_id`도 identity를 `ON DELETE RESTRICT`로 참조한다. `UNIQUE(authority_id, subject_version)`이
+same-version duplicate/different-payload conflict를 차단한다. event fingerprint는 event ID와 `recorded_at`을 제외한 모든
+event field의 canonical projection을 결속한다. event row는 INSERT-only이고 UPDATE·DELETE 권한은 어느 runtime role에도 없다.
+
+`training_authority_current`의 exact schema는 다음과 같다.
+
+| field | exact PostgreSQL type / constraint |
+|---|---|
+| `authority_id` | `uuid PRIMARY KEY REFERENCES training_authority_identity(authority_id) ON DELETE RESTRICT` |
+| `subject_family` | closed `text NOT NULL`; identity와 composite FK |
+| `stream_head_event_id` | `uuid NOT NULL REFERENCES training_authority_event(event_id) ON DELETE RESTRICT` |
+| `current_event_id` | `uuid NULL REFERENCES training_authority_event(event_id) ON DELETE RESTRICT`; 아직 효력 있는 event가 없을 때만 NULL |
+| `current_subject_version` | `bigint NOT NULL CHECK (current_subject_version >= 1)`; recorded stream head version |
+| `state` | `text NOT NULL CHECK` exact `scheduled`, `current`, `expired`, `revoked`, `superseded` |
+| `state_effective_at` | `timestamptz NULL`; `scheduled`에서만 NULL |
+| `superseded_by_authority_id` | `uuid NULL`; `superseded`에서만 NOT NULL |
+| `valid_from` | `timestamptz NOT NULL`; immutable family row와 exact equality |
+| `valid_until` | `timestamptz NULL`; immutable family row와 exact equality |
+| `projection_version` | `bigint NOT NULL CHECK (projection_version >= 1)`; stream head version과 exact equality |
+| `projected_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+
+`unavailable`과 `invalid`은 projection state가 아니라 resolver control outcome이다. `scheduled`는 authority row가 존재하지만
+DB clock `as_of`에 효력이 시작되지 않았다는 source state다. projection의 event ID는 반드시 같은 `authority_id`의 event여야
+하며 restricted writer function이 이를 검증한다. `state='scheduled'`이면 `current_event_id`, `state_effective_at`과
+`superseded_by_authority_id`가 모두 NULL이고, 그 외 state는 앞의 두 field가 NOT NULL이다. superseded target은
+`state='superseded'`일 때만 NOT NULL이다.
+
+subject version은 **recorded order authority**이며 effective time과 별개다. 첫 event는 version 1 `published`이고 이후 insert는
+expected stream-head version + 1만 허용한다. recorded-order legal graph는
+`published -> activated | revoked | superseded`, `activated -> revoked | superseded`뿐이며 revoked/superseded 뒤 successor는
+없다. `expired`는 event kind가 아니라 immutable `valid_until <= as_of`에서 파생되는 terminal source state다. family의 `valid_from`이
+publication 즉시 current를 허용하면 version 1 `published`를 effective-state 계산에서 `current`로 해석할 수 있지만 별도
+`activated` event를 합성하지 않는다.
+
+effective-state order는 `(effective_at ASC, subject_version ASC)`이다. 동일 effective time에는 더 큰 subject version이
+후속이다. future event를 append하면 stream head/projection version은 전진하지만 `effective_at > transaction_timestamp()`인
+event로 `current_event_id`나 current state를 즉시 덮지 않는다. delayed past-effective event는 전체 effective-order graph를
+재검증한 뒤 그 순서의 deterministic state를 projection한다. overlap, impossible transition 또는 terminal 뒤 event는 insert
+transaction 자체를 거부한다. retroactive event는 이미 소비된 approval/capability를 복원하거나 backend를 재실행하지 않는다.
+`effective_at >= valid_until`인 새 event와 이미 DB clock상 expired인 subject의 새 event는 거부한다.
+
+event insert와 expected-version projection CAS는 하나의 transaction이다. 시간이 future boundary를 통과한 경우 Producer
+role의 restricted refresh function만 event stream을 DB `transaction_timestamp()` 기준으로 재계산해 같은 stream-head CAS로
+projection을 갱신한다. resolver는 use-time read-only transaction에서 같은 계산으로 projection을 검증하며 stale projection은
+fail closed하고 직접 repair하지 않는다. 동일 event stream의 rebuild 결과는 항상 같아야 한다. version gap, event/projection
+불일치, impossible successor, checksum/FK/schema 손상은 해당 subject와 process preflight를 fail closed한다.
 
 adapter는 unknown field, duplicate key, type coercion, checksum mismatch, future schema, not-yet-effective, expired, revoked와
 superseded record를 거부한다. prerequisite read는 명시적 `REPEATABLE READ` transaction 하나에서 수행하며 caller timestamp나
@@ -152,12 +210,19 @@ payload를 신뢰하지 않는다.
 | DatasetManifest | UUID / `dataset-manifest:<id>` | Common canonical JSON/object ID | family+UUID | projection version | Training Authority Producer | Production Training Resolver |
 | Dataset pair | UUID / `dataset-pair:<id>` | two IDs, pair fingerprint, scenario | family+UUID | projection version | Training Authority Producer | Production Training Resolver |
 | business decision | UUID / `decision:<id>` | exact seven fields and validity | family+UUID | projection version | Training Authority Producer | Production Training Decision Resolver |
-| issuer registry | opaque `issuer_id` PK | identity, adapter kind, active interval | issuer+ID | projection version | Training Authority Producer | Production Training Decision Resolver |
-| approver registry | opaque reference PK | identity, active interval | approver+ID | projection version | Training Authority Producer | Production Training Decision Resolver |
+| issuer registry | UUID PK + immutable UNIQUE `issuer_id` | identity, adapter kind, active interval | issuer+UUID | projection version | Training Authority Producer | Production Training Decision Resolver |
+| approver registry | UUID PK + immutable UNIQUE `approver_reference` | identity, active interval | approver+UUID | projection version | Training Authority Producer | Production Training Decision Resolver |
 | currentness event | event UUID | subject/version/effect/evidence | family+subject | expected version | Training Authority Producer | both resolvers |
 
 Producer DB role만 immutable row와 event를 INSERT하고 projection CAS를 실행한다. Resolver DB role은 authority/projection
 read-only, Journal DB role은 restricted journal claim/transition function만 실행한다. Host/caller/CLI/runtime role은 authority
+
+issuer table은 `authority_id uuid PRIMARY KEY`와 `issuer_id varchar(256) NOT NULL UNIQUE`, approver table은
+`authority_id uuid PRIMARY KEY`와 `approver_reference varchar(256) NOT NULL UNIQUE`를 사용한다. rename/key mutation은 없다.
+decision relation은 `issuer_authority_id`+`issuer_id`, `approver_authority_id`+`approver_reference`를 integrity-only binding으로
+보유하고 각 registry의 `UNIQUE(authority_id, issuer_id)`와 `UNIQUE(authority_id, approver_reference)`에 composite FK를 둔다.
+이 binding column은 일곱-field decision
+projection을 늘리는 외부 field가 아니다. UUID와 opaque key가 서로 다른 row를 가리키는 decision insert는 거부한다.
 row/event/projection을 직접 생성·변경·삭제할 수 없고 unrestricted table UPDATE 권한을 갖지 않는다.
 
 ### 3. Config authority
@@ -257,43 +322,124 @@ adapter로 전달된다. restart 뒤 DB decision을 다시 읽는 것은 새 orc
 
 ### 7. Durable journal schema와 concurrency
 
-[제안] `training_execution_journal`은 current lifecycle projection이다. primary key는 `run_id`다. request/prerequisite
-binding column은 INSERT 뒤 immutable하고 decision metadata는 null에서 `decision_submitted` transition 때 한 번만 기록한 뒤
-immutable하다. columns는 아래 exact set을 갖는다.
+[제안] `training_execution_journal`은 current lifecycle projection이다. 아래 표의 `NO DEFAULT`는 restricted claim/transition
+function이 값을 명시해야 한다는 뜻이다. fingerprint CHECK는 exact `sha256:` + lowercase hex 64, opaque reference CHECK는
+Host grammar와 whitespace-only 금지를 뜻한다.
 
-| field | type / constraint |
-|---|---|
-| `run_id` | varchar(256) primary key, Host reference pattern |
-| `request_fingerprint` | char(71), fingerprint pattern |
-| `intent_fingerprint` | char(71), fingerprint pattern |
-| `host_schema_version` | smallint, v1 exact `1` |
-| `host_lifecycle_version` | smallint, v1 exact `1` |
-| `orchestration_correlation_id` | varchar(256), opaque reference, unique |
-| `dataset_version_id` | varchar(256), non-empty Common object ID |
-| `dataset_manifest_id` | varchar(256), non-empty Common object ID |
-| `dataset_pair_fingerprint` | char(71), fingerprint pattern |
-| `config_fingerprint` | char(71), fingerprint pattern |
-| `readiness_fingerprint` | char(71), fingerprint pattern |
-| `source_commit` | char(40), lowercase Git SHA-1 |
-| `authorization_id` | varchar(256) nullable before decision submission; opaque reference grammar |
-| `issuer_id` | varchar(256) nullable before decision submission; registry reference |
-| `approver_reference` | varchar(256) nullable before decision submission; registry reference |
-| `evidence_reference` | varchar(265) nullable before decision submission; exact decision reference |
-| `policy_reference` | varchar(256), opaque reference, non-null |
-| `phase` | text check: `claimed`, `resolved`, `validated`, `decision_submitted`, `approval_consumed`, `backend_entered`, `completed`, `failed`, `manual_reconciliation_required` |
-| `version` | bigint, starts `1`, strictly increments |
-| `authorization_fingerprint` | char(71) nullable, fingerprint pattern |
-| `decision_evidence_fingerprint` | char(71) nullable, fingerprint pattern |
-| `backend_entered` | boolean, phase invariant과 일치 |
-| `reconciliation_required` | boolean, manual phase와 exact 동치 |
-| `reason_code` | varchar(128) nullable, uppercase reason pattern |
-| `process_boundary_id` | varchar(256), opaque process-start identity; host/user/credential가 아님 |
-| `created_at` | timestamptz, DB transaction time |
-| `updated_at` | timestamptz, DB transaction time |
+| column | exact PostgreSQL type / nullability / default | first write | later update | key/check와 보존 의미 |
+|---|---|---|---|---|
+| `run_id` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 금지 | `PRIMARY KEY`, Host reference pattern; 실행 identity |
+| `request_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | claim | 금지 | fingerprint CHECK, `UNIQUE(run_id, request_fingerprint)` |
+| `intent_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | claim | 금지 | fingerprint CHECK |
+| `host_schema_version` | `smallint NOT NULL DEFAULT 1` | claim | 금지 | `CHECK (= 1)` |
+| `host_lifecycle_version` | `smallint NOT NULL DEFAULT 1` | claim | 금지 | `CHECK (= 1)` |
+| `orchestration_correlation_id` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 금지 | opaque reference CHECK, `UNIQUE` |
+| `dataset_version_id` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 금지 | non-empty Common object ID |
+| `dataset_manifest_id` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 금지 | non-empty Common object ID |
+| `dataset_pair_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | claim | 금지 | fingerprint CHECK |
+| `config_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | claim | 금지 | fingerprint CHECK |
+| `readiness_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | claim | 금지 | fingerprint CHECK |
+| `source_commit` | `char(40) NOT NULL`, NO DEFAULT | claim | 금지 | lowercase Git SHA-1 CHECK |
+| `policy_reference` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 금지 | opaque reference CHECK |
+| `authorization_id` | `varchar(256) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | opaque reference CHECK; decision bundle all-or-none |
+| `issuer_id` | `varchar(256) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | issuer registry FK; bundle all-or-none |
+| `approver_reference` | `varchar(256) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | approver registry FK; bundle all-or-none |
+| `evidence_reference` | `varchar(256) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | exact `decision:<uuid>` CHECK/FK; bundle all-or-none |
+| `authorization_fingerprint` | `char(71) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | fingerprint CHECK; bundle all-or-none |
+| `decision_evidence_fingerprint` | `char(71) NULL`, DEFAULT NULL | `decision_submitted` | 이후 금지 | fingerprint CHECK; bundle all-or-none |
+| `phase` | `text NOT NULL DEFAULT 'claimed'` | claim | restricted transition만 | closed actual `TrainingOrchestrationPhase` CHECK |
+| `journal_version` | `bigint NOT NULL DEFAULT 1` | claim | 매 legal transition | `CHECK (>= 1)`, exact +1 |
+| `backend_entered` | `boolean NOT NULL DEFAULT false` | claim | entry/terminal transition | phase/event invariant |
+| `reconciliation_required` | `boolean NOT NULL DEFAULT false` | claim | manual transition | `phase = 'manual_reconciliation_required'`와 exact 동치 |
+| `reconciliation_reason_code` | `varchar(128) NULL`, DEFAULT NULL | manual transition | 금지 | uppercase reason CHECK; manual에서만 NOT NULL |
+| `process_boundary_id` | `varchar(256) NOT NULL`, NO DEFAULT | claim | 각 transition에서 current process 값으로 갱신 | opaque process-start identity; user/host/credential 아님 |
+| `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` | claim | 금지 | 최초 DB transaction clock |
+| `updated_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` | claim | 각 transition | 해당 transition의 DB transaction clock |
 
-[제안] append-only `training_execution_phase_event`는 `(run_id, journal_version)` primary key, unique event UUID,
-from/to phase, process boundary ID, sanitized reason과 `occurred_at` DB transaction timestamp를 갖는다. journal projection CAS와
-phase event INSERT는 한 transaction이다. 이 table이 ADR-019의 각 phase timestamp와 restart boundary를 보존한다.
+identity/binding columns와 `created_at`은 claim 뒤 immutable하다. decision bundle 여섯 field는 모두 NULL이거나 모두 NOT NULL인
+row CHECK를 갖고, NULL→NOT NULL은 `decision_submitted` restricted transition 한 번뿐이다. 이후 NULL 복귀·교체는 금지한다.
+`process_boundary_id`, lifecycle projection, version과 `updated_at`만 legal transition에서 갱신할 수 있다. 두 timestamp는
+timezone-aware PostgreSQL value이고 caller/app clock을 받지 않는다. table은 자동 삭제하지 않으며 retention은 9절을 따른다.
+같은 live attempt의 normal transition은 claim event의 process boundary를 유지한다. restart된 새 process는 active lifecycle을
+정상 phase로 계속 진행하지 않고 새 boundary를 기록한 manual-reconciliation transition만 요청할 수 있다.
+
+phase row CHECK와 restricted transition invariant는 다음과 같다. `failed`와 manual phase는 어느 predecessor에서 왔는지에 따라
+decision bundle/backend flag를 보존하므로 history-dependent 조건은 phase-event와 restricted function이 강제한다.
+
+| Phase | decision bundle | `backend_entered` | reconciliation | journal/event reason | Terminal |
+|---|---|---:|---:|---|---:|
+| `claimed` | 모두 NULL | false | false | NULL | no |
+| `resolved` | 모두 NULL | false | false | NULL | no |
+| `validated` | 모두 NULL | false | false | NULL | no |
+| `decision_submitted` | 모두 NOT NULL | false | false | NULL | no |
+| `approval_consumed` | 모두 NOT NULL | false | false | NULL | no |
+| `backend_entered` | 모두 NOT NULL | true | false | NULL | no |
+| `completed` | 모두 NOT NULL | true | false | NULL | yes |
+| `failed` | predecessor의 bundle/flag 보존 | predecessor의 값 | false | journal NULL / event NOT NULL | yes |
+| `manual_reconciliation_required` | predecessor의 bundle/flag 보존 | predecessor의 값 | true | journal/event 모두 NOT NULL | yes |
+
+`succeeded`는 실제 enum이 아니므로 저장하지 않고 성공 terminal은 `completed`다. DB row CHECK는 bundle all-or-none,
+normal-phase reason NULL, terminal/manual boolean 관계와 명백한 flag 조합을 강제한다. predecessor 보존, phase regression/skip,
+terminal overwrite와 exact +1은 cross-row 조건이므로 아래 restricted function만 강제한다. unrestricted UPDATE 권한은 없다.
+구체적으로 `claimed|resolved|validated`는 decision bundle 전체 NULL,
+`decision_submitted|approval_consumed|backend_entered|completed`는 전체 NOT NULL이다.
+`backend_entered|completed`는 `backend_entered=true`, 그 전 normal phase는 false다.
+`reconciliation_required = (phase='manual_reconciliation_required')`이고
+`reconciliation_reason_code IS NOT NULL`도 같은 predicate와 exact 동치다. `failed`/manual의 predecessor bundle과
+backend flag 보존은 restricted function이 직전 event와 비교한다.
+
+#### Append-only phase event exact schema
+
+| column | exact PostgreSQL type / nullability / default | constraint와 의미 |
+|---|---|---|
+| `event_id` | `uuid NOT NULL`, NO DEFAULT | `PRIMARY KEY`; function-generated UUID |
+| `run_id` | `varchar(256) NOT NULL`, NO DEFAULT | journal `run_id`에 `ON DELETE RESTRICT` FK |
+| `request_fingerprint` | `char(71) NOT NULL`, NO DEFAULT | fingerprint CHECK; journal과 composite FK |
+| `journal_version` | `bigint NOT NULL`, NO DEFAULT | `CHECK (>= 1)`, `UNIQUE(run_id, journal_version)` |
+| `from_phase` | `text NULL`, DEFAULT NULL | version 1 claim event에서만 NULL; 그 외 closed phase NOT NULL |
+| `to_phase` | `text NOT NULL`, NO DEFAULT | closed actual phase CHECK |
+| `process_boundary_id` | `varchar(256) NOT NULL`, NO DEFAULT | transition을 수행한 opaque process-start identity |
+| `reason_code` | `varchar(128) NULL`, DEFAULT NULL | uppercase CHECK; `failed`/manual destination에서만 NOT NULL |
+| `event_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` | phase가 실제로 durable해진 DB transaction time |
+| `recorded_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` | event insert DB time; v1에서는 `event_at = recorded_at` CHECK |
+
+`FOREIGN KEY (run_id, request_fingerprint)`는 journal의 같은 UNIQUE pair를 `ON DELETE RESTRICT`로 참조한다. claim function은
+journal version 1과 `(from_phase=NULL, to_phase='claimed', journal_version=1)` event를 같은 transaction에 insert한다. 이후
+transition function은 journal의 current version N/phase를 lock/CAS하고 `(from_phase=current phase, to_phase=next phase,
+journal_version=N+1)` event를 insert한 뒤 journal을 같은 N+1로 갱신한다. 마지막 event의 destination/version/request
+fingerprint/process boundary는 commit되는 journal projection과 exact 일치해야 한다.
+
+event row CHECK는 정확히 version 1이면 `from_phase IS NULL`, `to_phase='claimed'`, `reason_code IS NULL`을 요구하고,
+version > 1이면 `from_phase IS NOT NULL`을 요구한다. `to_phase IN ('failed','manual_reconciliation_required')`와
+`reason_code IS NOT NULL`은 exact 동치이고 다른 destination에서는 reason이 NULL이다. `event_at = recorded_at`이며 두 값은
+caller 입력을 받지 않는다.
+
+일반 CHECK만으로 event contiguity를 주장하지 않는다. restricted claim/transition function이 previous event N의 존재,
+N+1, legal edge, same request와 same transaction projection을 검증한다. unique conflict, gap, duplicate/different payload,
+projection mismatch는 transaction rollback과 sanitized conflict다. event role은 INSERT만 가능하고 UPDATE·DELETE 권한이 없다.
+terminal event 뒤 successor도 없다.
+
+#### ADR-019 durable evidence mapping
+
+| ADR-019 evidence | Journal column/event | Type/nullability | First write | Immutable/update rule |
+|---|---|---|---|---|
+| Host lifecycle/schema | `host_lifecycle_version`, `host_schema_version` | `smallint NOT NULL = 1` | claim | immutable |
+| orchestration correlation | `orchestration_correlation_id` | `varchar(256) NOT NULL UNIQUE` | claim | immutable |
+| run/request/intent | `run_id`, request/intent fingerprints | NOT NULL exact grammar | claim | immutable |
+| Dataset pair | two IDs + `dataset_pair_fingerprint` | NOT NULL exact ID/fingerprint | claim | immutable |
+| config/readiness | two fingerprint columns | `char(71) NOT NULL` | claim | immutable |
+| source provenance | `source_commit` | `char(40) NOT NULL` | claim | immutable |
+| decision provenance | six-field decision bundle + `policy_reference` | policy NOT NULL at claim; bundle NULL until submit | claim/decision submission | bundle one-time write |
+| bootstrap/claim | journal `claimed`, phase event version 1 | closed phase/event, NOT NULL except `from_phase` | claim | append-only |
+| resolve/validate/submit/consume/entry/terminal | `phase`, `journal_version`, one event per transition | current projection + append-only events | each transition | expected-phase/version CAS |
+| each phase timestamp | phase event `event_at`/`recorded_at` | `timestamptz NOT NULL` | each transition | immutable |
+| process/restart boundary | journal/event `process_boundary_id` | `varchar(256) NOT NULL` | claim and every transition | event immutable; projection advances |
+| backend entry | `backend_entered` + phase event | `boolean NOT NULL` | claim, becomes true at entry | never true→false |
+| terminal outcome/reason | terminal phase + reason | closed phase; failed/manual reason NOT NULL | terminal | terminal immutable |
+| manual reconciliation | phase/boolean/reason + event | exact phase equivalence | manual transition | terminal immutable |
+
+따라서 ADR-019의 `bootstrap` durable evidence는 ADR-021의 `claimed` projection과 version 1 claim event에 정확히 대응한다.
+main journal phase/version은 항상 마지막 event와 일치하고 phase별 timestamp와 restart boundary는 event history가 보존한다.
 
 approval/capability/token, DecisionSource·adapter object, raw config/readiness/Dataset/decision payload, raw exception/stack trace,
 absolute path, DSN과 credential은 두 journal table에 저장하지 않는다.
@@ -304,13 +450,16 @@ RETURNING`이 row를 반환하면 acquired다. 반환하지 않으면 같은 `RE
 active/manual row 또는 binding mismatch는 deterministic conflict다.
 
 transition은 restricted DB function 안에서
-`UPDATE ... WHERE run_id = ? AND request_fingerprint = ? AND phase = ? AND version = ? RETURNING ...` CAS와 phase event insert를
-한 transaction으로 수행한다. 이 predicate의 `phase`와 `version`은 caller가 읽은 exact expected phase와 expected version이다.
+`UPDATE ... WHERE run_id = ? AND request_fingerprint = ? AND phase = ? AND journal_version = ? RETURNING ...` CAS와 phase event insert를
+한 transaction으로 수행한다. 이 predicate의 `phase`와 `journal_version`은 caller가 읽은 exact expected phase와 expected
+version이다.
 affected row 0은 re-read하여 terminal conflict, stale phase/version 또는 unavailable로 mapping한다.
 unrestricted direct UPDATE 권한, lossy upsert, last-write-wins, advisory/filesystem/in-memory lock을 권한 근거로 쓰지 않는다.
 
 [제안] legal phase graph는 ADR-019·020의
-`claimed -> resolved -> validated -> decision_submitted -> approval_consumed -> backend_entered -> terminal`뿐이다.
+`claimed -> resolved -> validated -> decision_submitted -> approval_consumed -> backend_entered -> completed`가 success path다.
+`claimed`부터 `backend_entered`까지 각 non-terminal phase는 `failed` 또는 `manual_reconciliation_required`로만 terminal 전이할
+수 있다. 실제 foundation enum의 legal graph와 동일하다.
 terminal overwrite, phase skip, backward transition과 deletion은 DB constraint와 restricted transition function으로 차단한다.
 immutable binding update, phase event gap, impossible flag 조합도 거부한다. `approval_consumed`는
 `backend_entered=false`, `backend_entered`·`completed`는 true이고 `reconciliation_required=true` iff manual phase다. consumed 또는
@@ -339,15 +488,34 @@ payload가 손상되면 해당 request와 process preflight를 fail closed하고
 referenced authority, decision, issuer와 approver의 use-time currentness를 다시 검증한다. 재검증 뒤 revoke와 process-local
 submit/consume 사이에도 잔여 race가 있으며 distributed revocation 또는 exactly-once로 표현하지 않는다.
 
-| failure | sanitized mapping | automatic retry | 제한 |
-|---|---|---|---|
-| known rollback 전 read-only transient failure | unavailable | policy-bounded same-process retry 가능 | submit/consume/backend 0이 증명될 때만 |
-| unique violation | replay/conflict 재판정 | 없음 | 새 authority/attempt 생성 금지 |
-| deadlock/serialization failure | DB conflict/unavailable | known rollback DB-only unit만 최대 1회 | authority/backend operation 포함 시 금지 |
-| commit 전 connection loss | unavailable | read-only/DB-only만 조건부 | side effect 0이 증명돼야 함 |
-| commit acknowledgement 전 connection loss | outcome unknown | 없음 | 재-read는 분류용; operation 재실행 금지 |
-| submit/consume/backend entry 중·후 failure | outcome unknown | 없음 | 가능한 경우 manual reconciliation |
-| raw DB/schema/corruption error | invalid/unavailable | 없음 | query/DSN/host/path 비노출 |
+| Failure point | Statement sent | Commit requested | Commit acknowledged | Durable outcome | Retry DB op | Retry authority/backend | Required handling |
+|---|---:|---:|---:|---|---|---|---|
+| connection loss before statement send | no | no | no | mutation 0 proven | 아래 DB-only allowlist에서 최대 1회 | 금지 | same immutable input으로 새 transaction |
+| statement sent 뒤 commit request 전 loss | yes/unknown | no | no | server가 rollback을 확인한 경우만 known rollback; 아니면 unknown | known rollback+allowlist만 최대 1회 | 금지 | 확인 불가면 re-read/classify, raw mutation 재실행 금지 |
+| commit request 뒤 acknowledgement 전 loss | yes | yes | no | pre-ack outcome unknown | 금지 | 금지 | durable re-read는 분류용; 증명 불가면 manual reconciliation |
+| successful commit acknowledgement 뒤 loss | yes | yes | yes | committed | 금지 | 금지 | acknowledged DB mutation을 사용하고 같은 mutation 재실행 금지 |
+| read-only authority snapshot 중 loss | read only | 해당 없음 | 해당 없음 | mutation 0 | policy-bounded 최대 1회 | submission/consume/backend 금지 | snapshot 전체를 새 transaction으로 다시 읽음 |
+| deadlock/serialization, server-confirmed rollback | yes | no/aborted | rollback 확인 | mutation 0 | allowlist transaction 전체 최대 1회 | 금지 | partial statement 재시도 금지, 전체 unit 재시도 |
+| decision submission response ambiguity | process-local call 가능 | 해당 없음 | 해당 없음 | submission/claim 여부 unknown | 금지 | 금지 | 새 authorization 생성·resubmit 금지, manual reconciliation |
+| approval issue/consume ambiguity | DB 밖 side effect 가능 | 해당 없음 | 해당 없음 | consume 여부 unknown | 금지 | 금지 | approval 복원·재발급 금지, manual reconciliation |
+| backend entry/result ambiguity | backend side effect 가능 | 해당 없음 | 해당 없음 | entry/result unknown | 금지 | 금지 | backend 재호출 금지, manual reconciliation |
+
+connection이 끊겼다는 사실만으로 이미 받은 successful commit acknowledgement를 잃은 것으로 재분류하지 않는다. 반대로
+acknowledgement를 받지 못한 transaction을 성공 또는 rollback으로 추측하지 않는다. durable re-read는 상태 분류 evidence일 뿐
+decision submission, approval issue/consume 또는 backend side effect의 재실행 권한이 아니다.
+
+automatic DB retry allowlist는 다음 세 transaction뿐이며 모두 **server-confirmed rollback 또는 statement 미전송**, 같은
+immutable input, 최대 1회 조건을 동시에 요구한다.
+
+1. read-only prerequisite/currentness snapshot 전체
+2. decision resolve/submission 전 journal claim transaction
+3. decision resolve/submission 전 `claimed -> resolved` 또는 `resolved -> validated` journal transition transaction
+
+`decision_submitted` 진입 및 이후 transition, authority event writer operation, reconciliation closure와 backend result 기록은
+automatic retry allowlist 밖이다. 같은 SQL 함수라도 decision submission, approval consume 또는 backend entry가 이미 가능했던
+호출 맥락이면 재시도하지 않는다. unique violation은 새 INSERT retry가 아니라 existing row의 replay/conflict 재판정이다.
+raw DB/schema/corruption error는 sanitized invalid/unavailable로 mapping하고 SQL, query parameter, DSN, host, credential과 path를
+노출하지 않는다.
 
 commit ambiguity 뒤 row를 재-read해도 decision submission, approval issuance/consume 또는 backend entry를 자동 재실행하지
 않는다. consume 또는 backend entry 가능성이 있거나 journal transition 결과를 증명할 수 없으면
@@ -491,5 +659,6 @@ exactly-once Training, cross-process capability, automatic restart/retry와 dura
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | [제안] journal·phase-event exact schema, authority UUID identity/event time model과 commit outcome matrix 확정 |
 | 2026-08-13 | [제안] independent validation의 persistent decision, authority projection, journal evidence, transaction, PR 순서와 accountable owner 결함 보완 |
 | 2026-08-13 | [제안] production authority catalog, adapter source, durable journal과 composition lifecycle 계약 초안 등록 |
