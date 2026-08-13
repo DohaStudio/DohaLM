@@ -121,15 +121,79 @@ predicate나 opaque key만으로 family binding을 대체하지 않는다.
 | `authority_id` | UUID primary key/FK | `training_authority_identity.authority_id` |
 | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` | record envelope version |
 | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT | immutable source bytes |
-| `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, fingerprint grammar CHECK | exact source-byte identity |
+| `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` | exact source-byte identity |
 | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` | DB가 기록한 생성 시각 |
 | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` | 효력 시작 |
 | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` | null이면 별도 expiry 없음 |
-| `source_commit` | `char(40) NOT NULL`, NO DEFAULT, lowercase Git SHA-1 CHECK | producer source provenance |
+| `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` | producer source provenance |
 
 위 column은 SQL inheritance 없이 config, readiness, DatasetVersion, DatasetManifest, pair, decision, issuer와 approver의
 각 family table DDL에 동일하게 반복한다. nullable family 예외는 없다. CHECK가 NULL을 허용하는 PostgreSQL 의미에 의존하지
 않고 `schema_version`, `payload_bytes`, `payload_sha256`과 `source_commit`을 별도 `NOT NULL`로 강제한다.
+
+다음 56개 정의는 위 공통 envelope의 **normative C1 family expansion**이다. 설명용 참조, PostgreSQL inheritance,
+`LIKE`, generated DDL 또는 암묵적 macro가 아니며 migration은 각 named family table에 해당 7개 column을 그대로 선언한다.
+8개 family 모두 `valid_until`만 nullable이고 다른 nullable 예외는 없다. 아래 정의와 각 절의 family-specific identity,
+alternate key, payload binding, FK, uniqueness, currentness와 supersession constraint를 함께 적용한다.
+
+| Authority family table | Envelope column | Exact PostgreSQL definition repeated in that family DDL |
+|---|---|---|
+| `training_config_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `training_config_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `training_config_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `training_config_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `training_config_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `training_config_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `training_config_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `training_readiness_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `training_readiness_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `training_readiness_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `training_readiness_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `training_readiness_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `training_readiness_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `training_readiness_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `dataset_version_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `dataset_version_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `dataset_version_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `dataset_version_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `dataset_version_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `dataset_version_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `dataset_version_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `dataset_manifest_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `dataset_manifest_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `dataset_manifest_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `dataset_manifest_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `dataset_manifest_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `dataset_manifest_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `dataset_manifest_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `dataset_pair_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `dataset_pair_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `dataset_pair_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `dataset_pair_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `dataset_pair_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `dataset_pair_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `dataset_pair_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `training_execution_decision_authority` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `training_execution_decision_authority` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `training_execution_decision_authority` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `training_execution_decision_authority` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `training_execution_decision_authority` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `training_execution_decision_authority` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `training_execution_decision_authority` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `training_issuer_registry` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `training_issuer_registry` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `training_issuer_registry` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `training_issuer_registry` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `training_issuer_registry` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `training_issuer_registry` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `training_issuer_registry` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
+| `training_approver_registry` | `schema_version` | `smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1)` |
+| `training_approver_registry` | `payload_bytes` | `bytea NOT NULL CHECK (octet_length(payload_bytes) > 0)`, NO DEFAULT |
+| `training_approver_registry` | `payload_sha256` | `char(71) NOT NULL`, NO DEFAULT, `CHECK (payload_sha256 ~ '^sha256:[0-9a-f]{64}$')` |
+| `training_approver_registry` | `created_at` | `timestamptz NOT NULL DEFAULT transaction_timestamp()` |
+| `training_approver_registry` | `valid_from` | `timestamptz NOT NULL`, NO DEFAULT, `CHECK (created_at <= valid_from)` |
+| `training_approver_registry` | `valid_until` | `timestamptz NULL DEFAULT NULL`, `CHECK (valid_until IS NULL OR valid_from < valid_until)` |
+| `training_approver_registry` | `source_commit` | `char(40) NOT NULL`, NO DEFAULT, `CHECK (source_commit ~ '^[0-9a-f]{40}$')` |
 
 `payload_sha256`은 existing `sha256_bytes(payload_bytes)`와 exact 동일하다. JSON resource는 먼저 existing
 `canonical_json_bytes()`로 만들며 UTF-8, key 이름순, compact separator, trailing LF 하나와 non-finite rejection을 그대로
@@ -729,6 +793,7 @@ exactly-once Training, cross-process capability, automatic restart/retry와 dura
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | [제안] 8개 authority family에 공통 envelope 7개 column의 exact C1 DDL을 56/56으로 명시 |
 | 2026-08-13 | [제안] C1 잔여 Gate의 policy provenance ordering, exact producer identifier, 5-state effective-time·same-family supersession, family envelope NOT NULL 계약 확정 |
 | 2026-08-13 | [제안] journal·phase-event exact schema, authority UUID identity/event time model과 commit outcome matrix 확정 |
 | 2026-08-13 | [제안] independent validation의 persistent decision, authority projection, journal evidence, transaction, PR 순서와 accountable owner 결함 보완 |
