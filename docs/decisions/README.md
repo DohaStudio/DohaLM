@@ -32,6 +32,7 @@
 | ADR-018 | [Composition-root-owned Training Execution Decision Source](./ADR-018-composition-root-owned-training-execution-decision-source.md) | `draft` | 미결정 | [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md), [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md) | same-process trusted decision submission·single-use claim·concurrency·retry 경계 제안; 실행 영향 없음 | durable decision supply, cross-process orchestration 또는 authorization lifecycle 변경 시 |
 | ADR-019 | [Production Full Pretraining Host와 Trusted Decision Input](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md) | `draft` | 미결정 | [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md), [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md), [ADR-018](./ADR-018-composition-root-owned-training-execution-decision-source.md) | non-CLI same-process Host·trusted input·7-field authority·restart/crash 경계 제안; 실행 영향 없음 | production resolver·durable journal·Host 구현과 별도 activation 승인 시 |
 | ADR-020 | [Production Training Orchestration Ownership Seams](./ADR-020-production-training-orchestration-ownership-seams.md) | `draft` | 미결정 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md) | construction-bound prerequisite resolver·immutable resolved schema·package-private backend lifecycle seam 제안; 실행 영향 없음 | PR S 구현·production adapters·별도 activation 승인 전 |
+| ADR-021 | [Production Training Adapters와 Durable Journal Authority](./ADR-021-production-training-adapters-and-durable-journal.md) | `draft` | 미결정 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [ADR-020](./ADR-020-production-training-orchestration-ownership-seams.md) | PostgreSQL authority catalog·exact references·decision provenance·journal CAS·composition lifecycle 제안; 실행 영향 없음 | dependency·migration·producer 승인과 PR C·별도 activation 승인 전 |
 
 - [확정] 승인 ADR-001부터 ADR-010과 draft ADR-011을 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
@@ -42,6 +43,7 @@
 - [제안] ADR-018은 ADR-017 adapter에 construction-time 결속되는 composition-root-owned DecisionSource와 trusted submission·authorization claim lifecycle을 정의하며 production 구현은 승인하지 않는다.
 - [제안] ADR-019는 production full-pretraining object graph의 non-CLI Host와 trusted decision input·field authority·crash 경계를 정의하며 Host 구현이나 실제 execution은 승인하지 않는다.
 - [제안] ADR-020은 ADR-019 후속으로 prerequisite resolution과 approval-consume/backend-entry 관찰의 ownership seam을 정의하며 구현이나 실제 execution을 승인하지 않는다.
+- [제안] ADR-021은 production prerequisite·decision source와 durable journal의 제품·schema·recovery·composition 계약을 제안하며 adapter 구현이나 실제 execution을 승인하지 않는다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -50,6 +52,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | [제안] ADR-021 Production Training Adapters와 Durable Journal Authority contract draft 등록 |
 | 2026-08-13 | [제안] ADR-020 Production Training Orchestration Ownership Seams contract draft 등록 |
 | 2026-08-13 | [제안] ADR-019 Production Full Pretraining Host와 Trusted Decision Input contract draft 등록 |
 | 2026-08-12 | [제안] ADR-018 Composition-root-owned Training Execution Decision Source contract draft 등록 |
