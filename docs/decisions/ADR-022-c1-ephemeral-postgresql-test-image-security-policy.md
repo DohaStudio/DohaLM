@@ -1,7 +1,7 @@
 # ADR-022: C1 Ephemeral PostgreSQL Test Image Security Policy
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-08-13
+- 마지막 검토일: 2026-08-14
 - 결정 상태: `proposed`
 - 실행 영향: 없음
 - 관련 문서: [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md),
@@ -119,20 +119,44 @@ advisory timestamp와 report hash는 현재 저장소에 영속화되지 않았�
 
 ### 선택지 C — Repository-owned minimal test image
 
-- source Dockerfile과 base digest를 저장소가 소유하고 `gosu` 대체 또는 제거 가능성을 검토한다.
-- SBOM, rebuild cadence, signing/provenance, registry ownership과 patch SLA가 필요하다.
-- 새로운 supply-chain 및 유지보수 책임을 만들므로 별도 ADR과 사용자 승인 전 자동 채택하지 않는다.
+- 적용 범위: C1 local/CI contract test 전용 minimal PostgreSQL image이며 production runtime image가 아니다.
+- 장점: 불필요한 package와 entrypoint helper를 제거·교체하고 base, PostgreSQL package, startup helper와 build toolchain을
+  review 가능한 Dockerfile에 고정할 수 있다. digest, SBOM, provenance와 rebuild도 repository review에 결속된다.
+- 위험/비용과 ownership: repository가 registry, rebuild, signing/provenance, patch SLA와 공급망 유지보수를 새로 소유해야 한다.
+- C1 재개 증거: 별도 승인된 image design ADR 또는 동등한 governance decision, review 가능한 Dockerfile과 exact base/package
+  digest, PostgreSQL 16 current supported minor, build provenance·SBOM, signature/attestation 또는 승인된 대체 무결성 증거,
+  Critical/High 전체 scan·disposition, entrypoint/initdb/role/transaction/volume/restart contract suite, CI가 동일
+  `linux/amd64` artifact를 사용한다는 증거와 registry/rebuild/patch owner·cadence가 모두 필요하다.
+- 자동 채택 금지: 이 ADR만으로 custom image를 build·push하거나 registry를 도입할 수 없다. 새 supply-chain owner와 maintenance
+  책임에 대한 별도 사용자 승인 전에는 C1에 사용할 수 없다.
 
 ### 선택지 D — Hardened third-party PostgreSQL image
 
-- provider trust, license, PostgreSQL compatibility, SBOM, signing과 update policy를 별도 검토한다.
-- Docker Official Image에서 다른 authority로 이동하는 결정이므로 공급자 Decision Gate 전 자동 채택하지 않는다.
+- 적용 범위: 별도 승인된 third-party PostgreSQL image를 C1 local/CI contract test에만 사용하는 후보이며 production 채택이 아니다.
+- 장점: 공급자가 reduced attack surface, frequent rebuild, SBOM/signing 또는 hardened defaults를 제공하면 공식 image rebuild
+  대기 시간을 줄일 수 있다.
+- 위험/비용과 ownership: provider trust, license, source·build provenance, update/EOL/CVE response와 공급 중단·digest drift·
+  compromise 대응 owner를 새로 결정해야 한다.
+- C1 재개 증거: 공급자 identity·trust assessment, license/redistribution/use 조건, source availability·build provenance,
+  SBOM/signature/attestation 검증, update/EOL/CVE response policy, exact `linux/amd64` digest, PostgreSQL 16 current supported minor와
+  extension/locale/entrypoint compatibility, role/transaction/migration/restore/restart contract suite가 모두 필요하다.
+- 자동 채택 금지: Docker Official Image에서 authority가 이동하므로 별도 공급자 ADR과 사용자 승인이 필요하다. scanner 수치가
+  낮다는 이유만으로 채택하지 않는다.
 
 ### 선택지 E — Container 없는 PostgreSQL contract-test 전략
 
-- isolated test fixture/service, managed runner 또는 OS package 사용 가능성을 검토한다.
-- version pin, reproducibility, isolation, cleanup과 local/CI parity 계약이 필요하다.
-- production credential과 shared/live database 사용은 계속 금지하며 별도 infrastructure ADR 전 자동 채택하지 않는다.
+- 적용 범위: container 대신 승인된 isolated fixture/service, managed runner 또는 OS package로 C1 contract test를 수행하는
+  infrastructure 후보이며 shared/live database 경로가 아니다.
+- 장점: container base와 entrypoint helper의 CVE를 C1 경로에서 제거할 수 있고, 승인된 runner/service가 있다면 startup
+  overhead와 image supply-chain 의존을 줄일 수 있다.
+- 위험/비용과 ownership: infrastructure owner가 provisioning, availability, failure, teardown, version drift와 Windows local·
+  Linux CI parity 또는 승인된 차이를 책임져야 한다.
+- C1 재개 증거: exact provisioning contract와 owner, PostgreSQL 16 current supported minor pin, test별 isolated
+  database/schema/role, shared state·production credential/data 부재 증거, deterministic reset/cleanup, local/CI parity 또는 차이의
+  명시 승인, migration lock·concurrency·restore/restart test 가능성, version drift detection과 availability/failure/teardown
+  contract가 모두 필요하다.
+- 자동 채택 금지: shared live DB, developer-owned persistent DB와 production service는 사용할 수 없다. 별도 infrastructure ADR과
+  사용자 승인 없이 managed service 또는 OS package를 선택하지 않는다.
 
 ## Proposed recommendation
 
@@ -169,7 +193,8 @@ tracker 및 기능 evidence를 먼저 완성해야 한다.
 | `network_policy` | public port publish 금지; test-scoped private network만 허용 |
 | `credential_policy` | synthetic test credential only; production DSN/secret 금지 |
 | `runtime_privilege` | non-root 또는 검증된 최소 권한과 privilege-drop evidence |
-| `cleanup_policy` | test container, volume, network와 temporary report의 deterministic teardown |
+| `cleanup_policy` | 실행 전 승인된 deterministic teardown 절차; disposable container, volume, network, image archive/cache와 credential fixture의 제거 대상·책임자·시점 및 기존 사용자 자원 불변 조건 |
+| `cleanup_evidence` | 실제 test 종료 뒤 생성한 redacted cleanup 결과; execution/correlation ID, 완료 시각, disposable container/volume/network 잔존 수, 전후 inventory 또는 승인 delta, sanitized result/status, evidence reference·SHA-256, verifier/process-boundary identity와 failure/ambiguity 상태 |
 | `starts_at` | timezone-aware 승인 시작 시각 |
 | `expires_at` | `starts_at` 이후 최대 30일; 연장 불가 |
 | `early_termination` | fixed official image, digest drift, 새 Critical/High, exploitability/VEX/advisory 변화 중 하나라도 발생 |
@@ -181,6 +206,10 @@ tracker 및 기능 evidence를 먼저 완성해야 한다.
 [확정] 이 record는 C1 local/CI contract test의 제한적 사용 범위만 표현한다. production activation, production DB credential,
 Dataset/Model 접근, approval issuance, backend invocation 또는 Training 권한을 부여하지 않는다.
 
+[확정] `cleanup_policy`는 실행 전에 승인하는 절차이고 `cleanup_evidence`는 실제 ephemeral test 종료 뒤에만 기록하는 결과다.
+`cleanup_evidence`는 raw Docker command, PID, private path, credential, DSN 또는 token을 저장하지 않으며 실행 전에 성공
+placeholder로 만들 수 없다. evidence가 없으면 cleanup을 PASS로 표현하지 않는다.
+
 ## 재검증과 fail-closed 조건
 
 선택지 B가 별도 승인되더라도 다음을 모두 적용한다.
@@ -190,7 +219,9 @@ Dataset/Model 접근, approval issuance, backend invocation 또는 Training 권�
 3. Critical/High 전체와 Alpine, Go, Docker Official Image 및 PostgreSQL official tracker를 교차 검증한다.
 4. digest, component, CVE, exploitability, VEX 또는 official provenance가 바뀌면 기존 exception을 사용하지 않는다.
 5. fixed official image가 공개되면 exception을 즉시 종료하고 새 immutable candidate를 독립 검증한다.
-6. cleanup 실패, public exposure 또는 production credential/data 접촉은 Gate 실패다.
+6. cleanup 실패, 결과 ambiguity, evidence 부재, public exposure 또는 production credential/data 접촉은 Gate 실패다.
+7. unresolved cleanup은 manual review와 cleanup 완료 전 새 C1 integration run을 차단하며, 기존 risk acceptance로 다음 실행을
+   자동 허용하지 않는다.
 
 ## Decision Packet
 
@@ -224,4 +255,5 @@ Dataset/Model 접근, approval issuance, backend invocation 또는 Training 권�
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-14 | [제안] 선택지 C/D/E의 장점·ownership·C1 재개 증거와 실행 후 `cleanup_evidence` fail-closed 계약 보완 |
 | 2026-08-13 | [제안] ADR-021의 확정 C1 contract와 후속 image Security Gate를 분리하고 다섯 정책 선택지·time-bound exception schema를 등록 |
