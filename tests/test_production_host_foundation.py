@@ -495,8 +495,8 @@ def test_journal_valid_cas_lifecycle_and_manual_reconciliation() -> None:
         TrainingOrchestrationPhase.RESOLVED,
         TrainingOrchestrationPhase.VALIDATED,
         TrainingOrchestrationPhase.DECISION_SUBMITTED,
-        TrainingOrchestrationPhase.BACKEND_ENTERED,
         TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+        TrainingOrchestrationPhase.BACKEND_ENTERED,
         TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
     )
     expected = TrainingOrchestrationPhase.CLAIMED
@@ -517,6 +517,22 @@ def test_journal_valid_cas_lifecycle_and_manual_reconciliation() -> None:
     assert record.reconciliation_required is True
     assert record.phase is TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED
     assert journal.claim(identity).status is TrainingOrchestrationClaimStatus.REPLAY
+
+
+def test_approval_consumed_record_is_not_backend_entered() -> None:
+    identity = _identity()
+    consumed = TrainingOrchestrationRecord(
+        identity=identity,
+        phase=TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+        backend_entered=False,
+    )
+    assert consumed.backend_entered is False
+    with pytest.raises(TrainingError, match="TRAINING_HOST_JOURNAL_CONFLICT"):
+        TrainingOrchestrationRecord(
+            identity=identity,
+            phase=TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+            backend_entered=True,
+        )
 
 
 def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> None:

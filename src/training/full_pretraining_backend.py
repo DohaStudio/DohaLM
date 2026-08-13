@@ -302,7 +302,7 @@ def _checkpoint_manifest(output_root: Path) -> dict[str, Any]:
     }
 
 
-def run_full_pretraining(
+def _run_full_pretraining(
     config_path: Path,
     manifest_path: Path,
     readiness_report: dict[str, Any],
@@ -312,8 +312,19 @@ def run_full_pretraining(
     dataset_manifest_id: str = "",
     dataset_pair_fingerprint: str = "",
     execution_request: TrainingExecutionRequest | None = None,
+    _lifecycle: object | None = None,
 ) -> dict[str, Any]:
-    """Execute Candidate A after all prerequisites and a production decision."""
+    """Shared package-private implementation for public and future Host paths."""
+    if _lifecycle is not None:
+        from .production_orchestration_seams import (
+            _HostFullPretrainingBackendLifecycle,
+        )
+
+        if type(_lifecycle) is not _HostFullPretrainingBackendLifecycle:
+            raise TrainingError(
+                "TRAINING_HOST_LIFECYCLE_INVALID",
+                "A valid internal training backend lifecycle is required.",
+            )
     require_dataset_training_activation(
         dataset_permission,
         dataset_version_id=dataset_version_id,
@@ -358,7 +369,11 @@ def run_full_pretraining(
         dataset_manifest_id=dataset_manifest_id,
         dataset_pair_fingerprint=dataset_pair_fingerprint,
     )
+    if _lifecycle is not None:
+        _lifecycle._approval_was_consumed()
     _enter_execution_boundary()
+    if _lifecycle is not None:
+        _lifecycle._backend_was_entered()
 
     started = time.perf_counter()
     lineage = _lineage(config)
@@ -567,3 +582,27 @@ def run_full_pretraining(
             replace=(output_root / "full-failure-report.json").exists(),
         )
         raise
+
+
+def run_full_pretraining(
+    config_path: Path,
+    manifest_path: Path,
+    readiness_report: dict[str, Any],
+    *,
+    dataset_permission: DatasetTrainingPermission | None = None,
+    dataset_version_id: str = "",
+    dataset_manifest_id: str = "",
+    dataset_pair_fingerprint: str = "",
+    execution_request: TrainingExecutionRequest | None = None,
+) -> dict[str, Any]:
+    """Execute Candidate A after all prerequisites and a production decision."""
+    return _run_full_pretraining(
+        config_path,
+        manifest_path,
+        readiness_report,
+        dataset_permission=dataset_permission,
+        dataset_version_id=dataset_version_id,
+        dataset_manifest_id=dataset_manifest_id,
+        dataset_pair_fingerprint=dataset_pair_fingerprint,
+        execution_request=execution_request,
+    )
