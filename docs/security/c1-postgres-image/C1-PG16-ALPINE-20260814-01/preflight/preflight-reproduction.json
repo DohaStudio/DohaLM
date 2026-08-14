@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "evidence_id": "C1-PG16-ALPINE-20260814-01-PREFLIGHT",
+  "target_manifest": "sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382",
+  "platform": "linux/amd64",
+  "network": {"scope": "task-private", "published_host_ports": 0},
+  "credential": "synthetic-disposable-not-recorded",
+  "checks": {
+    "postgresql_version_16_14": "pass",
+    "encoding_utf8_timezone_utc_locale_en_US_utf8": "pass",
+    "official_entrypoint_and_initdb": "pass",
+    "owner_and_group_nologin_runtime_login_membership": "pass",
+    "schema_ownership_and_selective_privilege": "pass",
+    "security_definer_owner_nologin_fixed_search_path": "pass",
+    "runtime_direct_insert_denied": "pass",
+    "approved_select_and_function_execute": "pass",
+    "composite_fk_and_positive_check_reject_invalid": "pass",
+    "transaction_advisory_lock_and_rollback": "pass",
+    "restart_volume_persistence": "pass",
+    "cleanup_inventory": "pass"
+  },
+  "history": [
+    "probe 1 failed closed because database collation was read as a GUC",
+    "probe 2 failed closed because selective schema USAGE was omitted",
+    "the disposable database was recreated before the passing run"
+  ],
+  "sensitive_material_committed": false
+}

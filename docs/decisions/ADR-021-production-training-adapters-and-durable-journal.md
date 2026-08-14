@@ -1,15 +1,18 @@
 # ADR-021: Production Training Adapters와 Durable Journal Authority
 
-- 문서 상태: `draft`
+- 문서 상태: `approved`
 - 마지막 검토일: 2026-08-13
-- 결정 상태: `proposed`
-- 실행 영향: 없음
+- 결정 상태: `approved`
+- 실행 영향: architecture contract 승인; C1/C2/C3 미구현, production activation 미승인
+- 승인 근거: [PR #126](https://github.com/DohaStudio/DohaLM/pull/126), squash merge
+  `dc999571117bcc6349bf948f3f1e85661aef626a` (2026-08-13)
 - 관련 문서: [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md),
   [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md),
   [ADR-018](./ADR-018-composition-root-owned-training-execution-decision-source.md),
   [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md),
   [ADR-020](./ADR-020-production-training-orchestration-ownership-seams.md),
+  [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md),
   [Dataset publication 구현 계획](../data/dataset-publication-implementation-plan.md),
   [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md)
 
@@ -28,8 +31,12 @@ ADR-017·018의 DecisionSource와 issuer registry는 process-local이며 process
 
 [확정] 따라서 future production persistence/adapter 구현은 Definition of Ready의 입력·출력, 설정, persistence와 recovery 조건을 충족하지
 않는다. 제품·경로·schema·환경변수·secret provider를 구현자가 임의 선택하지 않도록 이 ADR에서 선택지를 비교하고 하나의
-proposed 계약을 정의한다. 이 문서 PR은 Python, dependency, migration, credential, production data와 runtime activation을
+승인 계약을 정의한다. 이 ADR의 승인은 Python, dependency, migration, credential, production data와 runtime activation을
 변경하지 않는다.
+
+[확정] C1 ephemeral PostgreSQL test image의 취약점 허용 기준은 이 ADR에서 결정하지 않았다. `Critical 0 / High 0`,
+특정 `gosu` rebuild 대기, official-image-only 또는 대체 image 금지는 [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md)의
+별도 proposed Decision Gate이며 이 ADR의 승인 요구사항으로 소급하지 않는다.
 
 ## 검토한 선택지
 
@@ -40,7 +47,7 @@ proposed 계약을 정의한다. 이 문서 PR은 Python, dependency, migration,
 | ADR-015 local publication 디렉터리와 JSON journal | dependency가 작음 | cross-process CAS, transaction, fsync·power-loss, schema migration과 backup 계약이 없음 | 기각 |
 | process별 SQLite database | 단일 파일·local test가 쉬움 | process/service ownership, network filesystem 금지, writer contention과 운영 backup 경계가 배포 topology에 결속됨 | 기각 |
 | prerequisite별 별도 저장소 + journal database | 각 도메인 독립 운영 가능 | 한 request snapshot의 currentness와 decision/journal claim 사이 원자 경계가 없고 분산 복구가 필요 | 기각 |
-| supported PostgreSQL authority catalog + 외부 immutable artifact reference | row-level CAS, constraint, transaction, recovery와 운영 도구가 명확함 | 운영 database와 driver·migration·backup 책임이 추가됨 | 채택 제안 |
+| supported PostgreSQL authority catalog + 외부 immutable artifact reference | row-level CAS, constraint, transaction, recovery와 운영 도구가 명확함 | 운영 database와 driver·migration·backup 책임이 추가됨 | 채택 |
 | object storage를 모든 authority와 journal로 사용 | immutable payload 보관에 적합 | conditional update와 journal transaction 의미가 provider마다 달라짐 | metadata/journal에는 기각; Dataset content 위치는 후속 범위 |
 
 ### Credential 공급
@@ -49,14 +56,14 @@ proposed 계약을 정의한다. 이 문서 PR은 Python, dependency, migration,
 |---|---|---|---|
 | DSN 원문 environment variable | 배포가 단순함 | process listing·diagnostic·error 환경 dump에 secret 노출 위험 | 기각 |
 | caller 또는 CLI가 DSN/path 전달 | test가 쉬움 | caller가 production composition과 authority를 선택함 | 기각 |
-| deployment-owned protected DSN file의 절대 경로만 environment로 전달 | secret rotation과 application config 분리 | mount·ACL 운영 책임 필요 | 채택 제안 |
+| deployment-owned protected DSN file의 절대 경로만 environment로 전달 | secret rotation과 application config 분리 | mount·ACL 운영 책임 필요 | 채택 |
 | 특정 cloud secret SDK | rotation 기능이 풍부함 | deployment provider가 선택되지 않았고 새 dependency가 필요 | 현재 기각; topology 변경 시 재검토 |
 
-## Proposed Decision
+## Decision
 
 ### 1. authority topology와 소유권
 
-[제안] production metadata authority와 durable journal은 단일 PostgreSQL database, 고정 schema
+[확정] production metadata authority와 durable journal은 단일 PostgreSQL database, 고정 schema
 `dohalm_training_v1`에 둔다. product version policy는 **PostgreSQL 16 이상이며 upstream이 지원하고 DohaLM compatibility
 matrix가 명시적으로 승인한 major의 최신 supported minor**다. 최초 Schema/Dependency PR C1의 validation baseline과 초기
 allowlist는 `16.x`/`{16}`이지만 16-only 기능을 주장하지 않는다. 다른 supported major는 driver·migration·concurrency·backup/
@@ -64,7 +71,7 @@ restore contract suite를 통과해 matrix가 갱신된 뒤 사용할 수 있다
 낮은 보안 minor는 fail closed한다. major upgrade는 별도 migration·restore·recovery 독립 검증 Gate다. schema version은 exact
 integer `1`이다. Dataset 원문·model·checkpoint·output은 database에 저장하지 않는다.
 
-[제안] Production Training Deployment Owner와 Security/Secret Provisioning Owner가 database deployment와 secret mount를
+[확정] Production Training Deployment Owner와 Security/Secret Provisioning Owner가 database deployment와 secret mount를
 각각 소유한다. future non-CLI production composition boundary만 연결을 만들고 아래 adapter를 정확히 한 번 구성한다.
 
 - `_PostgresTrainingPrerequisiteResolver`
@@ -79,7 +86,7 @@ environment-selected class는 adapter나 connection을 선택할 수 없다.
 
 ### 2. reference 문법과 공통 record envelope
 
-[제안] Host foundation의 기존 `[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}` 검증을 유지하면서 production reference를 아래 exact
+[확정] Host foundation의 기존 `[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}` 검증을 유지하면서 production reference를 아래 exact
 ASCII 형식으로 제한한다. `<id>`는 lowercase UUID textual form이고 namespace와 id의 조합은 immutable하다.
 
 ```text
@@ -96,7 +103,7 @@ decision:<id>
 producer와 lifecycle을 가지며 한 컬럼이나 fallback으로 혼용하지 않는다. `evidence_reference`는 exact
 `decision:<authority_id>`다. scalar를 소지하거나 재구성해도 authority는 없다.
 
-[제안] 모든 immutable authority family row는 `training_authority_identity`의 UUID surrogate identity를 공유한다. 외부
+[확정] 모든 immutable authority family row는 `training_authority_identity`의 UUID surrogate identity를 공유한다. 외부
 domain reference는 UUID PK를 대체하지 않는 immutable UNIQUE alternate key다. DB timestamp를 canonical ISO 8601로
 직렬화할 때 UTC offset `+00:00`을 포함한다. `payload_sha256`은 `sha256:` + lowercase hex 64이며 payload의
 repository-defined canonical bytes에 기존 `checksum_value()`와 동일한 SHA-256 표현을 적용한 값이다.
@@ -339,13 +346,13 @@ row/event/projection을 직접 생성·변경·삭제할 수 없고 unrestricted
 
 ### 3. Config authority
 
-[제안] `training_config_authority`는 공통 envelope 외에 `config_kind = 'full_pretraining'`과
+[확정] `training_config_authority`는 공통 envelope 외에 `config_kind = 'full_pretraining'`과
 `config_schema_version = 1`을 갖는다. `payload_bytes`는 UTF-8, BOM 없음, duplicate YAML key 없음인 exact YAML source다.
 fingerprint는 existing `file_checksum(config_path)`와 같아지도록 exact bytes에 `sha256_bytes()`를 적용한다. schema는 existing
 `FullPretrainingConfig.from_yaml()`이 exact type·required field·value를 검증하고 `to_dict()`가 만드는 snapshot으로 고정한다.
 unknown field, YAML alias/custom tag, environment substitution과 type coercion은 허용하지 않는다.
 
-[제안] adapter는 DB bytes를 process마다 새로 만든 private directory의 `config.yaml`에 exclusive create하고 flush/fsync한 뒤
+[확정] adapter는 DB bytes를 process마다 새로 만든 private directory의 `config.yaml`에 exclusive create하고 flush/fsync한 뒤
 absolute `Path`를 만든다. directory는 caller가 지정할 수 없고 OS temporary-directory API로 생성하며 symlink/reparse point,
 pre-existing file, `..`, backslash와 final-handle containment 불일치를 차단한다. materialized file은 read-only로 바꾸고 resolve와
 backend revalidation 사이 checksum·parsed snapshot을 다시 확인한 뒤 request 종료 시 삭제한다. reference, expected fingerprint,
@@ -354,7 +361,7 @@ authority나 audit identity가 아니다.
 
 ### 4. Readiness evidence authority
 
-[제안] `training_readiness_authority`는 existing Full Pretraining approval manifest의 exact UTF-8 YAML bytes를 공통 envelope에
+[확정] `training_readiness_authority`는 existing Full Pretraining approval manifest의 exact UTF-8 YAML bytes를 공통 envelope에
 저장하고 다음 typed columns를 추가한다.
 
 | field | constraint |
@@ -374,7 +381,7 @@ producer는 별도 승인된 readiness workflow이며 Host/caller/adapter가 evi
 
 ### 5. Dataset authority와 permission 생산
 
-[제안] `dataset_version_authority`와 `dataset_manifest_authority`는 ADR-015와 pinned Common package가 검증한 각 canonical JSON
+[확정] `dataset_version_authority`와 `dataset_manifest_authority`는 ADR-015와 pinned Common package가 검증한 각 canonical JSON
 bytes를 공통 envelope로 저장한다. 각 row의 `common_object_id`는 payload의 `object_id`와 exact 일치하며 unique다.
 `dataset_pair_authority`는 UUID primary key와 `dataset-pair:<id>` reference를 갖는 immutable join record다. 다음 tuple은
 별도 unique binding이다.
@@ -395,7 +402,7 @@ payload를 읽고 Common runtime verification, ADR-015 pair validation과 curren
 
 ### 6. Business decision authority
 
-[제안] 별도 승인 workflow가 `training_execution_decision_authority`에 decision을 append한다. Host, adapter, issuer와 caller는
+[확정] 별도 승인 workflow가 `training_execution_decision_authority`에 decision을 append한다. Host, adapter, issuer와 caller는
 business decision을 생성하거나 기본값으로 대체하지 않는다. record는 공통 envelope와 아래 exact seven-field projection을
 갖는다.
 
@@ -440,13 +447,13 @@ UNAVAILABLE row, placeholder authorization과 synthetic DENIED를 생성하지 �
 record, approval과 backend entry는 0이다. ADR-018의 private unavailable control exception과 실제 approved/denied enum을
 변경하지 않는다.
 
-[제안] resolved seven-field value는 기존 same-process DecisionSource에 exact 한 번 submit되고 process-local claim 뒤 issuer
+[확정] resolved seven-field value는 기존 same-process DecisionSource에 exact 한 번 submit되고 process-local claim 뒤 issuer
 adapter로 전달된다. restart 뒤 DB decision을 다시 읽는 것은 새 orchestration attempt와 새 canonical request decision을
 필요로 하며 이전 process의 claim, approval 또는 capability를 복원하지 않는다.
 
 ### 7. Durable journal schema와 concurrency
 
-[제안] `training_execution_journal`은 current lifecycle projection이다. 아래 표의 `NO DEFAULT`는 restricted claim/transition
+[확정] `training_execution_journal`은 current lifecycle projection이다. 아래 표의 `NO DEFAULT`는 restricted claim/transition
 function이 값을 명시해야 한다는 뜻이다. fingerprint CHECK는 exact `sha256:` + lowercase hex 64, opaque reference CHECK는
 Host grammar와 whitespace-only 금지를 뜻한다.
 
@@ -571,7 +578,7 @@ main journal phase/version은 항상 마지막 event와 일치하고 phase별 ti
 approval/capability/token, DecisionSource·adapter object, raw config/readiness/Dataset/decision payload, raw exception/stack trace,
 absolute path, DSN과 credential은 두 journal table에 저장하지 않는다.
 
-[제안] claim은 `run_id` primary key를 actual `ON CONFLICT` arbiter로 사용한다. `INSERT ... ON CONFLICT DO NOTHING
+[확정] claim은 `run_id` primary key를 actual `ON CONFLICT` arbiter로 사용한다. `INSERT ... ON CONFLICT DO NOTHING
 RETURNING`이 row를 반환하면 acquired다. 반환하지 않으면 같은 `READ COMMITTED` transaction에서 primary key로 existing row를
 읽고 immutable binding을 비교한다. 같은 run/fingerprint의 terminal result만 read-only terminal replay이며, 다른 fingerprint,
 active/manual row 또는 binding mismatch는 deterministic conflict다.
@@ -583,7 +590,7 @@ version이다.
 affected row 0은 re-read하여 terminal conflict, stale phase/version 또는 unavailable로 mapping한다.
 unrestricted direct UPDATE 권한, lossy upsert, last-write-wins, advisory/filesystem/in-memory lock을 권한 근거로 쓰지 않는다.
 
-[제안] legal phase graph는 ADR-019·020의
+[확정] legal phase graph는 ADR-019·020의
 `claimed -> resolved -> validated -> decision_submitted -> approval_consumed -> backend_entered -> completed`가 success path다.
 `claimed`부터 `backend_entered`까지 각 non-terminal phase는 `failed` 또는 `manual_reconciliation_required`로만 terminal 전이할
 수 있다. 실제 foundation enum의 legal graph와 동일하다.
@@ -595,7 +602,7 @@ terminal이며 Training Reconciliation Approver가 closure evidence를 검토해
 
 ### 8. transaction, restart와 corruption
 
-[제안] authority snapshot read와 journal CAS는 같은 database를 쓰지만 approval consume와 Training side effect를 하나의 DB
+[확정] authority snapshot read와 journal CAS는 같은 database를 쓰지만 approval consume와 Training side effect를 하나의 DB
 transaction으로 묶었다고 주장하지 않는다. process loss 위치에 따라 다음처럼 처리한다.
 
 - `decision_submitted` 이하: 기존 process-local authority는 복구하지 않고 record를 active conflict로 유지한다.
@@ -603,13 +610,13 @@ transaction으로 묶었다고 주장하지 않는다. process loss 위치에 �
   `manual_reconciliation_required` 후보로 보고한다.
 - `completed`/`failed`: exact run/fingerprint terminal evidence만 읽고 side effect를 재수행하지 않는다.
 
-[제안] startup reconciliation은 read-only scan과 redacted report 생성만 한다. 자동 phase 변경, decision resubmit,
+[확정] startup reconciliation은 read-only scan과 redacted report 생성만 한다. 자동 phase 변경, decision resubmit,
 approval/capability reconstruction과 backend retry는 금지한다. checksum, foreign key, phase/version, schema version 또는 canonical
 payload가 손상되면 해당 request와 process preflight를 fail closed하고 자동 repair하지 않는다.
 
 #### Isolation, use-time currentness와 failure mapping
 
-[제안] prerequisite authority resolution은 request build 전 명시적으로 시작한 read-only `REPEATABLE READ` transaction에서
+[확정] prerequisite authority resolution은 request build 전 명시적으로 시작한 read-only `REPEATABLE READ` transaction에서
 수행하고 immutable request binding material을 확정한 뒤 종료한다. journal claim은 별도 `READ COMMITTED` transaction이다.
 두 transaction은 원자적이지 않다. decision resolve 직전과 DecisionSource submit 직전에 짧은 read-only transaction으로
 referenced authority, decision, issuer와 approver의 use-time currentness를 다시 검증한다. 재검증 뒤 revoke와 process-local
@@ -665,24 +672,24 @@ connection과 process boundary ID를 폐기하고 새 pool/preflight를 요구�
 role은 stable repository contract이며 개인명, credential 또는 private deployment path가 아니다. 실제 deployment assignment는
 Activation evidence에서 기록한다.
 
-[제안] v1 authority, authority event, registry, journal과 reconciliation closure row는 자동 삭제하지 않는다. retention,
+[확정] v1 authority, authority event, registry, journal과 reconciliation closure row는 자동 삭제하지 않는다. retention,
 archive/deletion 변경은 별도 ADR, migration과 Training Database Backup/Restore Owner 승인이 필요하다. backup cadence와 RPO/RTO
 수치, encrypted backup, access control, PITR와 restore drill evidence가 운영 Gate에서 승인되기 전 production activation을
 차단한다. restore 뒤 backup 기준시점 이후 event/current projection을 재동기화하고 모든 currentness/revocation을 재검증하기
 전 intent intake를 열지 않는다.
 
-[제안] manual reconciliation closure는 approver role, original run, observed phase/version, redacted evidence, disposition과 DB
+[확정] manual reconciliation closure는 approver role, original run, observed phase/version, redacted evidence, disposition과 DB
 timestamp를 append-only로 기록한다. closure는 기존 approval/capability를 복원하거나 backend를 자동 실행하지 않으며 새 run과
 새 decision만 허용할 수 있다.
 
-[제안] audit는 prerequisite resolution policy reference와 decision policy reference를 이름이 분리된 opaque reference로 보존하고,
+[확정] audit는 prerequisite resolution policy reference와 decision policy reference를 이름이 분리된 opaque reference로 보존하고,
 그 밖에는 reference, fingerprint, phase, version, reason code, timestamp와 redacted correlation만 포함한다. DSN,
 credential, absolute path, raw config/readiness/Dataset/decision payload, approval, capability, exception repr와 stack trace를 log,
 error 또는 caller result에 넣지 않는다. durable audit export·SIEM 전송은 이 ADR이 승인하지 않는다.
 
 ### 10. secret/configuration contract
 
-[제안] Security/Secret Provisioning Owner는 exact environment name `DOHALM_TRAINING_DATABASE_DSN_FILE`에 protected secret
+[확정] Security/Secret Provisioning Owner는 exact environment name `DOHALM_TRAINING_DATABASE_DSN_FILE`에 protected secret
 file의 absolute path만 설정한다. raw DSN environment fallback과 caller/CLI/API DSN/path argument는 금지한다. file은 UTF-8
 단일 non-empty PostgreSQL DSN line만 포함하며 production process의 least-privilege reader identity만 읽는다. missing,
 relative, unreadable, malformed, symlink/reparse-point substitution, final-handle containment 실패, group/world-readable POSIX mode
@@ -699,7 +706,7 @@ ephemeral suite의 image digest와 driver version은 C1에서 dependency review�
 
 ### 11. composition lifecycle와 multiprocess ownership
 
-[제안] future non-CLI executable/service boundary는 별도 Composition PR C3에서 exact symbol로 확정한다. 현재 존재하지 않는
+[확정] future non-CLI executable/service boundary는 별도 Composition PR C3에서 exact symbol로 확정한다. 현재 존재하지 않는
 `src.training.production_composition`이나 `python -m` entrypoint를 사실로 고정하지 않는다. Production Training Process
 Owner가 process당 object graph 하나와 pool, adapters, clock/policy, DecisionSource/issuer와 Host를 construction-owned로
 bootstrap한다. module import는 connection, migration, registration, request, approval와 backend side effect가 0이어야 한다.
@@ -711,7 +718,7 @@ future explicit startup은 다음 순서만 수행한다.
 4. construction-owned pool, adapter와 exact Host object graph bootstrap
 5. 별도 Activation approval이 존재할 때만 intent intake 시작
 
-[제안] 한 process에는 Host object graph 하나만 존재한다. pool/connection은 fork·process·restart 사이 공유하지 않는다.
+[확정] 한 process에는 Host object graph 하나만 존재한다. pool/connection은 fork·process·restart 사이 공유하지 않는다.
 여러 process는 같은 database CAS를 공유하지만 process-local
 DecisionSource, issuer, approval와 capability를 공유·복구하지 않는다. graceful shutdown은 새 intent 수신을 먼저 닫고 bounded
 duration을 기다린 뒤 pool을 폐기한다. duration과 timeout disposition은 C3 운영 Gate에서 승인하며 timeout/process loss 뒤
@@ -719,7 +726,7 @@ active journal은 startup에서 자동 재개하지 않는다.
 
 ### 12. non-activating preflight와 test 전략
 
-[제안] C2/C3는 production activation 없이 다음을 검증하는 package-private preflight만 구현할 수 있다.
+[확정] C2/C3는 production activation 없이 다음을 검증하는 package-private preflight만 구현할 수 있다.
 
 - approved server compatibility matrix/schema version, required table/column/constraint와 least-privilege read/CAS 권한
 - reference namespace, canonical bytes/checksum, expiry/revoke/supersede와 provenance validation
@@ -754,7 +761,7 @@ writer role은 C2 전 Training Authority Producer Owner가 승인하며 readines
 
 ## Production Activation Gate
 
-[제안] ADR 또는 C1/C2/C3 병합은 production activation 승인이 아니다. 다음이 모두 충족되기 전 future actual run
+[확정] ADR 또는 C1/C2/C3 병합은 production activation 승인이 아니다. 다음이 모두 충족되기 전 future actual run
 entrypoint, intent intake와 backend invocation은 fail closed한다.
 
 1. ADR-016~021과 C1/C2/C3의 독립 검증·명시 승인·병합
@@ -786,13 +793,15 @@ exactly-once Training, cross-process capability, automatic restart/retry와 dura
 
 ## 승인 Gate
 
-이 ADR은 `draft`와 `proposed`다. 독립 검증과 사용자 명시 승인·병합 전에는 implementation requirement가 아니다. 이 문서
-병합만으로 C1/C2/C3 구현, migration, credential 설치, process activation 또는 Training을 승인하지 않는다.
+이 ADR의 architecture contract는 독립 검증, 사용자 명시 승인과 PR #126 squash merge로 `approved`다. `approved`는
+`implemented`가 아니며 C1/C2/C3 구현, migration, credential 설치, process activation 또는 Training을 승인하지 않는다.
+각 구현 PR과 Production Activation Gate는 위 순서대로 별도 독립 검증과 사용자 승인을 받아야 한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-13 | [확정] PR #126 사용자 승인·squash merge provenance에 맞춰 `approved`로 동기화하고 C1 image security policy를 ADR-022로 분리 |
 | 2026-08-13 | [제안] 8개 authority family에 공통 envelope 7개 column의 exact C1 DDL을 56/56으로 명시 |
 | 2026-08-13 | [제안] C1 잔여 Gate의 policy provenance ordering, exact producer identifier, 5-state effective-time·same-family supersession, family envelope NOT NULL 계약 확정 |
 | 2026-08-13 | [제안] journal·phase-event exact schema, authority UUID identity/event time model과 commit outcome matrix 확정 |

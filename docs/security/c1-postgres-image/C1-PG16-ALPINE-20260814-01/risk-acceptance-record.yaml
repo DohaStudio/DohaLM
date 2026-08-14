@@ -1,0 +1,176 @@
+schema_version: 1
+decision_id: C1-PG16-ALPINE-20260814-01
+decision: accepted
+decision_option: 2
+approval:
+  accountable_approver: DDORINY
+  accountable_approver_role: repository-owner-and-risk-decision-approver
+  provenance: explicit-user-selection-of-ADR-022-option-2-in-current-gate
+  approved_at: "2026-08-14T11:46:52.6887955+09:00"
+validity:
+  starts_at: "2026-08-14T11:46:52.6887955+09:00"
+  expires_at: "2026-09-13T11:46:52.6887955+09:00"
+  maximum_duration_days: 30
+  early_termination:
+    - fixed-official-image-published
+    - tag-index-manifest-config-base-source-or-binary-drift
+    - new-applicable-critical-or-high
+    - severity-exploitability-reachability-vex-or-advisory-change
+    - cleanup-failure-ambiguity-or-missing-evidence
+  renewal_policy: new-scan-new-decision-packet-and-new-explicit-user-approval-required
+artifact:
+  repository: docker.io/library/postgres
+  exact_tag: 16.14-alpine
+  platform: linux/amd64
+  index_digest: sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+  manifest_digest: sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382
+  config_digest: sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28
+  source_revision: 4f9ced003ba58a854656ba150d146243d27ae3ac
+  source_directory: 16/alpine3.24
+  base_digest: sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f
+  postgresql_version: 16.14
+  gosu:
+    path: /usr/local/bin/gosu
+    version: "1.19"
+    go_version: 1.24.6
+    binary_sha256: 52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0
+scanner:
+  name: Docker Scout
+  version: 1.24.0
+  cli_commit: b1c9331b2166aef7ec690aa16fd655b8798ea4c6
+  scanned_at: "2026-08-14T05:16:13.8620093Z"
+  advisory_source: Docker-Scout-advisory-service
+  advisory_database_build_timestamp: not-exposed-by-scanner
+  suppression_or_ignore_options: []
+  scout_exceptions_observed_but_not_filtered: 4
+  official_go_advisories:
+    - {id: GO-2026-5026, alias: CVE-2026-39821, source: "https://vuln.go.dev/ID/GO-2026-5026.json", modified_at: "2026-08-13T21:43:54Z", sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c}
+    - {id: GO-2026-4971, alias: CVE-2026-39836, source: "https://vuln.go.dev/ID/GO-2026-4971.json", modified_at: "2026-05-07T19:21:40Z", sha256: b8f9bbfe15af49db7bff521201e4acbfbea4b5d652149a23137ba222693b7421}
+    - {id: GO-2026-5942, alias: CVE-2026-46600, source: "https://vuln.go.dev/ID/GO-2026-5942.json", modified_at: "2026-08-13T21:43:54Z", sha256: 8c272c9ce0c016963283fb1449a35b5b71bade5d87dd42451b1d85989776a43b}
+  severity_enrichment: CVE-2026-46600-is-HIGH-7.5-in-current-advisory-service
+scan_counts:
+  raw:
+    critical: 2
+    high: 17
+    medium: 18
+    low: 5
+    unspecified: 8
+    total: 50
+  applicable_after_adjudication:
+    critical: 1
+    high: 15
+  historical_applicable_baseline:
+    critical: 1
+    high: 15
+  security_drift: false
+shared_residual_risk_analysis:
+  component: pkg:golang/stdlib@1.24.6
+  artifact_binding: /usr/local/bin/gosu
+  reachability: gosu-is-executed-only-for-process-identity-transition-and-exec-in-this-c1-path
+  disposition: accepted-residual-risk
+  rationale: no-official-not-affected-evidence-is-claimed-for-these-items-and-no-item-is-suppressed
+residual_risk_findings:
+  - {id: CVE-2025-68121, severity: CRITICAL, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.13", fixed: 1.24.13, status: accepted_residual_risk}
+  - {id: CVE-2025-58187, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.9", fixed: 1.24.9, status: accepted_residual_risk}
+  - {id: CVE-2025-58188, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61723, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61725, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61726, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.12", fixed: 1.24.12, status: accepted_residual_risk}
+  - {id: CVE-2025-61729, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.11", fixed: 1.24.11, status: accepted_residual_risk}
+  - {id: CVE-2026-25679, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.8", fixed: 1.25.8, status: accepted_residual_risk}
+  - {id: CVE-2026-32280, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-32281, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-32283, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-33811, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-33814, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-39820, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-42499, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-42504, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.11", fixed: 1.25.11, status: accepted_residual_risk}
+not_affected_findings:
+  - id: CVE-2026-39821
+    severity: CRITICAL
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.25.13"
+    fixed: 1.25.13
+    status: not_applicable_exact_artifact
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    adjudication: not_applicable_exact_artifact
+    evidence:
+      adjudication_summary_sha256: d925ea817766f99368826f76aef143f2b3bee578981c91d2ff4726888109a1cb
+      govulncheck_binary_sarif_sha256: b1bfbf0911fd48744947ecd03826e5c10da8137b80d409878f4c987b0a937a84
+      govulncheck_source_sarif_sha256: 99352b48bfe396c2e551c1c87a92fa3a70a029db2d9c005feae4386f09aba563
+      official_osv_sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c
+      image_identity_sha256: b8e064d8fbdc7d31c34b72ee5d8b520e07452f621d0398393858331174e967f7
+      bundle_manifest: adjudications/CVE-2026-39821/SHA256SUMS
+      adjudication_bundle_sha256: 3bf1171f9e240107124ea946cf451382d27170bc7a29f75060f66beaa17147a3
+    invalidation: any-artifact-go-metadata-symbol-official-record-or-adjudication-evidence-drift
+  - id: CVE-2026-39836
+    severity: HIGH
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.25.10"
+    fixed: 1.25.10
+    status: not_affected
+    reason: Windows-only-vulnerability-exact-artifact-is-linux-amd64
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    raw_finding_retained: true
+    evidence:
+      bundle_manifest: adjudications/CVE-2026-39836/SHA256SUMS
+      adjudication_bundle_sha256: ec8dfdba86c79a5e832c01f5ac7ad18b11e5faa1c7c1ce07632b4108fe4985b0
+    invalidation: any-platform-artifact-advisory-symbol-build-scanner-or-runtime-drift
+  - id: CVE-2026-46600
+    severity: HIGH
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.26.6"
+    fixed: 1.26.6
+    status: not_applicable_exact_artifact
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    raw_finding_retained: true
+    evidence:
+      bundle_manifest: adjudications/CVE-2026-46600/SHA256SUMS
+      adjudication_bundle_sha256: 9d1e2bfbfe0e0431d6febe005e17d019a0bb6a76c1749ffed823d280795f29f6
+    invalidation: any-artifact-go-metadata-symbol-official-record-scanner-runtime-or-adjudication-evidence-drift
+scope:
+  allowed_environments: [local_ephemeral, ci_ephemeral]
+  allowed_work: [c1_schema_contract_test, c1_migration_contract_test, c1_restore_contract_test]
+  forbidden_environments: [production, staging, shared_database, live_database]
+  forbidden_work: [c2, c3, production_activation, dataset_access, model_access, gpu_access, training, evaluation]
+  network_policy: test-scoped-private-network-only-and-no-public-port-publish
+  credential_policy: disposable-synthetic-test-credential-only-no-production-dsn-or-secret
+  data_policy: synthetic-non-production-only
+  privilege_policy:
+    runtime: postgres-uid-70-gid-70-after-gosu-drop
+    owner_roles: NOLOGIN
+    runtime_direct_dml: denied
+    security_definer_search_path: "pg_catalog, pg_temp"
+cleanup:
+  policy: deterministic-test-scoped-container-volume-network-image-cache-and-credential-fixture-teardown-with-preexisting-resource-preservation
+  evidence: cleanup-evidence.yaml
+  evidence_sha256: f426437ae63c90c7ae491c58195291f4b230f1805cd181d522a5fc854b9c8a35
+ready_revalidation:
+  required: true
+  requirements:
+    - re-resolve-tag-index-and-linux-amd64-manifest
+    - rerun-full-unsuppressed-image-scan
+    - recheck-official-trackers-and-all-three-adjudications
+    - rerun-isolated-functional-and-cleanup-verification
+evidence:
+  location: docs/security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/
+  manifest: SHA256SUMS
+  evidence_sha256: 0084c0612024a471111248cbf64ae928e178a2498fa6475850722b40fe9bd3c2
+  manifest_scope: manifest-scope.json
+  scout_sarif_sha256: c149af944a83a552ffa445967cd69a0f384fd48033759ac33987b56e9e210a18
+  scout_markdown_sha256: a81df51863ee535f7b01519ffed19c5c3c8a7a3ccd09c5a9c333a1fec61cb788
+  sbom_spdx_sha256: 56fb07d2b6a04ba2762b3cae011a7ab008581dea29d6122262e11b1318ffe091
+  preflight_sha256: 4fec360436d8bb9ca733a26816bd2fada6cc8f6542a27cf6b5179760d16cb4e5
+separation_of_authority:
+  c1_implementation_started: false
+  c2_authorized: false
+  c3_authorized: false
+  production_activation_authorized: false
+  actual_training_authorized: false

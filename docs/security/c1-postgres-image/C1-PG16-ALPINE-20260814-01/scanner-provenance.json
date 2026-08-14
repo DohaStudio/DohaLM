@@ -1,0 +1,13 @@
+{
+  "scanner": "Docker Scout",
+  "version": "1.24.0",
+  "commit": "b1c9331b2166aef7ec690aa16fd655b8798ea4c6",
+  "official_windows_amd64_release_zip_sha256": "1b7afb489e9224411fafe848eb5002cdc5c59a5cf2b77d6ccffcb44ffdf4f350",
+  "scanned_at": "2026-08-14T05:16:13.8620093Z",
+  "docker_client": "29.2.0",
+  "docker_engine": "29.2.0",
+  "docker_desktop": "4.59.0",
+  "platform": "linux/amd64",
+  "suppression_or_ignore_options": [],
+  "service_exceptions_observed_but_not_filtered": 4
+}

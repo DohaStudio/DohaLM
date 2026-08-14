@@ -1,0 +1,5 @@
+PostgreSQL init process complete; ready for start up.
+database system is ready to accept connections
+fast shutdown request received
+database system is shut down
+database system is ready to accept connections

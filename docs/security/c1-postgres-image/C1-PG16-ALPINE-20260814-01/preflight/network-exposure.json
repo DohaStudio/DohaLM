@@ -1,0 +1,6 @@
+{
+  "network_scope": "task-private",
+  "published_host_ports": 0,
+  "production_or_shared_network_access": false,
+  "result": "pass"
+}
