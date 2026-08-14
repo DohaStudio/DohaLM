@@ -3,6 +3,32 @@ evidence_id: C1-PG16-ALPINE-20260814-01-CLEANUP
 execution_correlation_id: C1-PG16-ALPINE-20260814-01
 completed_at: "2026-08-14T11:50:16.7656765+09:00"
 verifier_identity: codex-process-boundary/docker-engine-29.2.0
+evidence_correction_cleanup:
+  correlation_id: pr127-evidence-correction-20260814-140432
+  completed_at: "2026-08-14T14:16:13+09:00"
+  pre_inventory:
+    containers: 0
+    images: 0
+    volumes: 1
+    networks: 3
+  created_for_rescan:
+    pulled_exact_images: 1
+    extracted_scanner_binaries: 1
+    temporary_scan_directories: 1
+  removed_after_rescan:
+    pulled_exact_images: 1
+    extracted_scanner_binaries: 1
+    temporary_scan_directories: 1
+  post_inventory:
+    containers: 0
+    images: 0
+    volumes: 1
+    networks: 3
+  preserved_preexisting_volume_count: 1
+  preserved_default_network_count: 3
+  status: complete
+  failure: false
+  ambiguity: false
 created_resources:
   containers: 4
   named_volumes: 1
@@ -30,4 +56,4 @@ sanitized_status: complete
 failure: false
 ambiguity: false
 evidence_reference: preflight-evidence.md
-evidence_sha256: 0445e3b99bf199094dfe437caa9fb1f8edaec1f026ab9424cfc6e49bcb6cd75e
+evidence_sha256: 4fec360436d8bb9ca733a26816bd2fada6cc8f6542a27cf6b5179760d16cb4e5

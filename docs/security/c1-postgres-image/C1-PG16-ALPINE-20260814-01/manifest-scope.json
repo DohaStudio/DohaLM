@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "root_manifest": "SHA256SUMS",
+  "root_manifest_includes": [
+    "supporting evidence files in this directory",
+    "each adjudication bundle SHA256SUMS"
+  ],
+  "bundle_manifest_rule": "Each bundle SHA256SUMS lists every regular file in that bundle except itself.",
+  "root_manifest_excludes": {
+    "SHA256SUMS": "A manifest cannot contain its own hash.",
+    "risk-acceptance-record.yaml": "The risk record references the root manifest hash; both are bound by the same Git commit, tree, and repository-relative path."
+  },
+  "path_rules": {
+    "explicit_paths_only": true,
+    "globs_allowed": false,
+    "path_traversal_allowed": false,
+    "duplicate_paths_allowed": false,
+    "orphan_evidence_allowed": false
+  }
+}

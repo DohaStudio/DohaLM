@@ -36,33 +36,32 @@ artifact:
     binary_sha256: 52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0
 scanner:
   name: Docker Scout
-  version: 1.19.0
-  cli_commit: 91fd9f3262322a34537a7a7bbcd5cfd282b93402
-  scanned_at: "2026-08-14T02:41:56.6498368Z"
+  version: 1.24.0
+  cli_commit: b1c9331b2166aef7ec690aa16fd655b8798ea4c6
+  scanned_at: "2026-08-14T05:16:13.8620093Z"
   advisory_source: Docker-Scout-advisory-service
   advisory_database_build_timestamp: not-exposed-by-scanner
   suppression_or_ignore_options: []
   scout_exceptions_observed_but_not_filtered: 4
-  official_go_advisory:
-    id: GO-2026-5026
-    alias: CVE-2026-39821
-    source: https://vuln.go.dev/ID/GO-2026-5026.json
-    modified_at: "2026-08-13T21:43:54Z"
-    sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c
+  official_go_advisories:
+    - {id: GO-2026-5026, alias: CVE-2026-39821, source: "https://vuln.go.dev/ID/GO-2026-5026.json", modified_at: "2026-08-13T21:43:54Z", sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c}
+    - {id: GO-2026-4971, alias: CVE-2026-39836, source: "https://vuln.go.dev/ID/GO-2026-4971.json", modified_at: "2026-05-07T19:21:40Z", sha256: b8f9bbfe15af49db7bff521201e4acbfbea4b5d652149a23137ba222693b7421}
+    - {id: GO-2026-5942, alias: CVE-2026-46600, source: "https://vuln.go.dev/ID/GO-2026-5942.json", modified_at: "2026-08-13T21:43:54Z", sha256: 8c272c9ce0c016963283fb1449a35b5b71bade5d87dd42451b1d85989776a43b}
+  severity_enrichment: CVE-2026-46600-is-HIGH-7.5-in-current-advisory-service
 scan_counts:
   raw:
     critical: 2
-    high: 16
+    high: 17
     medium: 18
     low: 5
-    unspecified: 9
+    unspecified: 8
     total: 50
   applicable_after_adjudication:
     critical: 1
-    high: 16
+    high: 15
   historical_applicable_baseline:
     critical: 1
-    high: 16
+    high: 15
   security_drift: false
 shared_residual_risk_analysis:
   component: pkg:golang/stdlib@1.24.6
@@ -85,7 +84,6 @@ residual_risk_findings:
   - {id: CVE-2026-33811, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
   - {id: CVE-2026-33814, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
   - {id: CVE-2026-39820, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
-  - {id: CVE-2026-39836, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
   - {id: CVE-2026-42499, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
   - {id: CVE-2026-42504, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.11", fixed: 1.25.11, status: accepted_residual_risk}
 not_affected_findings:
@@ -98,15 +96,45 @@ not_affected_findings:
     status: not_applicable_exact_artifact
     scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
     suppression: false
-    adjudication: C1_CVE_2026_39821_NOT_APPLICABLE_AWAITING_RISK_RECORD_RETRY
+    adjudication: not_applicable_exact_artifact
     evidence:
-      adjudication_summary_sha256: 26b438b1df0dacfa528492432b3672eba7c231d41b3f78af0fb6239164b4639f
+      adjudication_summary_sha256: d925ea817766f99368826f76aef143f2b3bee578981c91d2ff4726888109a1cb
       govulncheck_binary_sarif_sha256: b1bfbf0911fd48744947ecd03826e5c10da8137b80d409878f4c987b0a937a84
       govulncheck_source_sarif_sha256: 99352b48bfe396c2e551c1c87a92fa3a70a029db2d9c005feae4386f09aba563
       official_osv_sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c
       image_identity_sha256: b8e064d8fbdc7d31c34b72ee5d8b520e07452f621d0398393858331174e967f7
-      adjudication_bundle_sha256: fc5a76b05bd8aa7083f119e359671a844a755cc389f02e3651342cac90fe561e
+      bundle_manifest: adjudications/CVE-2026-39821/SHA256SUMS
+      adjudication_bundle_sha256: 3bf1171f9e240107124ea946cf451382d27170bc7a29f75060f66beaa17147a3
     invalidation: any-artifact-go-metadata-symbol-official-record-or-adjudication-evidence-drift
+  - id: CVE-2026-39836
+    severity: HIGH
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.25.10"
+    fixed: 1.25.10
+    status: not_affected
+    reason: Windows-only-vulnerability-exact-artifact-is-linux-amd64
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    raw_finding_retained: true
+    evidence:
+      bundle_manifest: adjudications/CVE-2026-39836/SHA256SUMS
+      adjudication_bundle_sha256: ec8dfdba86c79a5e832c01f5ac7ad18b11e5faa1c7c1ce07632b4108fe4985b0
+    invalidation: any-platform-artifact-advisory-symbol-build-scanner-or-runtime-drift
+  - id: CVE-2026-46600
+    severity: HIGH
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.26.6"
+    fixed: 1.26.6
+    status: not_applicable_exact_artifact
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    raw_finding_retained: true
+    evidence:
+      bundle_manifest: adjudications/CVE-2026-46600/SHA256SUMS
+      adjudication_bundle_sha256: 9d1e2bfbfe0e0431d6febe005e17d019a0bb6a76c1749ffed823d280795f29f6
+    invalidation: any-artifact-go-metadata-symbol-official-record-scanner-runtime-or-adjudication-evidence-drift
 scope:
   allowed_environments: [local_ephemeral, ci_ephemeral]
   allowed_work: [c1_schema_contract_test, c1_migration_contract_test, c1_restore_contract_test]
@@ -129,16 +157,17 @@ ready_revalidation:
   requirements:
     - re-resolve-tag-index-and-linux-amd64-manifest
     - rerun-full-unsuppressed-image-scan
-    - recheck-official-trackers-and-cve-2026-39821-adjudication
+    - recheck-official-trackers-and-all-three-adjudications
     - rerun-isolated-functional-and-cleanup-verification
 evidence:
   location: docs/security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/
   manifest: SHA256SUMS
-  evidence_sha256: 850e5b63912c22a5c6026fbc6185991fcde11a0de2731d0a6f257d53562100d5
-  scout_sarif_sha256: 6d6ba83718d0c53ba70604acfdc8f7d5c550f1809d84e3808d0ad253f0d4afe1
-  scout_markdown_sha256: 251208586ad00e86496b2ce2fe01bf3b9b3e72080bae1b9193a76a26125194a3
-  sbom_spdx_sha256: 4661923e494ca942850d737395a8fd1237962f6bd9366a7262f9d9a7ddaf0063
-  preflight_sha256: 0445e3b99bf199094dfe437caa9fb1f8edaec1f026ab9424cfc6e49bcb6cd75e
+  evidence_sha256: 0084c0612024a471111248cbf64ae928e178a2498fa6475850722b40fe9bd3c2
+  manifest_scope: manifest-scope.json
+  scout_sarif_sha256: c149af944a83a552ffa445967cd69a0f384fd48033759ac33987b56e9e210a18
+  scout_markdown_sha256: a81df51863ee535f7b01519ffed19c5c3c8a7a3ccd09c5a9c333a1fec61cb788
+  sbom_spdx_sha256: 56fb07d2b6a04ba2762b3cae011a7ab008581dea29d6122262e11b1318ffe091
+  preflight_sha256: 4fec360436d8bb9ca733a26816bd2fada6cc8f6542a27cf6b5179760d16cb4e5
 separation_of_authority:
   c1_implementation_started: false
   c2_authorized: false

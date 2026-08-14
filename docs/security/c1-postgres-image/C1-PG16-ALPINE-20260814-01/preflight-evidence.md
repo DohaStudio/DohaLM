@@ -28,11 +28,12 @@ Two fail-closed harness corrections preceded the final PASS. The first attempted
 `pg_database.datcollate`. The second omitted the selective schema `USAGE` needed to resolve the approved function. Both stopped before
 an invalid PASS; the disposable database was recreated before the final run. These were probe defects, not image compatibility findings.
 
-## Sanitized source evidence hashes
+## Sanitized reproducibility evidence
 
-- final SQL/output: `bad425ff4089cab15fa0f83311ffe4e45bc86c904165df51f28aa14fda516ede`
-- network exposure: `ec84393a01d70d16906639bab9c071c361715cff7cbc0f1dc18c3f91d06c1a64`
-- restart persistence: `4317bf29a7c3e0ab47cf135f6743f1767c09dff8a29a928d7f21c680af3936bf`
-- official entrypoint log extract: `fb475a29b96855a5f598277164790658980c021bc7ee166780309ca610608bdc`
+- [`preflight/preflight-harness.sql`](./preflight/preflight-harness.sql): deterministic synthetic role, schema, privilege, constraint, and function contract
+- [`preflight/preflight-reproduction.json`](./preflight/preflight-reproduction.json): machine-readable result and correction history
+- [`preflight/network-exposure.json`](./preflight/network-exposure.json): task-private network and zero published ports
+- [`preflight/restart-persistence.json`](./preflight/restart-persistence.json): disposable-volume restart result
+- [`preflight/entrypoint-log-extract.txt`](./preflight/entrypoint-log-extract.txt): sanitized official-entrypoint lifecycle markers
 
-Raw commands, credentials, private paths, process IDs, and host environment dumps are intentionally excluded.
+These files are covered by the parent `SHA256SUMS`. Raw commands, credentials, private paths, process IDs, and host environment dumps are intentionally excluded.

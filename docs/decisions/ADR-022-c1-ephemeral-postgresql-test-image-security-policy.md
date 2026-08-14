@@ -65,12 +65,11 @@ tag는 아래 동일 artifact를 가리켰다.
 | Alpine base | `sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f` |
 | image created | `2026-07-07T17:45:07Z` |
 | gosu evidence | `1.19`, Go `1.24.6`, binary SHA-256 `52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0` |
-| prior Docker Scout counts | Critical 1, High 16, Medium 18 |
-| current metadata result | 이전 Security Gate와 동일 digest/provenance; 새 official rebuild 없음 |
+| current Docker Scout 1.24.0 counts | Critical 2, High 17, Medium 18, Low 5, Unspecified 8; total 50 |
+| current metadata result | 동일 digest/provenance; 새 official rebuild 없음; suppression 0 |
 
-[확정] 이번 문서 작업은 동일 digest를 pull, 재스캔 또는 기능 probe하지 않았다. 위 취약점 수치는 후속 Security Decision
-Packet에서 전달된 historical scanner evidence이며 이번 PR이 생성한 새 scan 결과가 아니다. exact scanner report artifact,
-advisory timestamp와 report hash는 현재 저장소에 영속화되지 않았으므로 선택지 B 승인 전 새 evidence로 보완해야 한다.
+[확정] evidence correction에서 동일 digest를 pull하고 Docker Scout 1.24.0으로 full unsuppressed scan을 재실행했다.
+raw SARIF, normalized Markdown derivative, SPDX SBOM과 report hash를 immutable evidence directory에 영속화했다.
 
 ### Historical Critical/High 목록
 
@@ -90,9 +89,11 @@ advisory timestamp와 report hash는 현재 저장소에 영속화되지 않았�
 | `CVE-2026-33811` | gosu embedded Go stdlib | residual risk; 공식 VEX/not-affected 없음 |
 | `CVE-2026-33814` | gosu embedded Go stdlib | residual risk; 공식 VEX/not-affected 없음 |
 | `CVE-2026-39820` | gosu embedded Go stdlib | residual risk; 공식 VEX/not-affected 없음 |
-| `CVE-2026-39836` | Windows-specific | `linux/amd64` not affected; 승인 시 공식 근거 재확인 필요 |
+| `CVE-2026-39821` | gosu embedded Go stdlib | exact artifact package/symbol evidence로 `not_applicable_exact_artifact` |
+| `CVE-2026-39836` | Windows-specific | official OSV와 exact `linux/amd64` evidence로 `not_affected` |
 | `CVE-2026-42499` | gosu embedded Go stdlib | residual risk; 공식 VEX/not-affected 없음 |
 | `CVE-2026-42504` | gosu embedded Go stdlib | residual risk; 공식 VEX/not-affected 없음 |
+| `CVE-2026-46600` | gosu embedded Go stdlib | exact artifact package/symbol evidence로 `not_applicable_exact_artifact` |
 
 [확정] 이 목록은 false positive 선언이나 suppression allowlist가 아니다. 같은 digest라도 advisory, exploitability 또는 VEX가
 변경되면 새 Decision Gate가 필요하다.
@@ -240,14 +241,17 @@ accountable approver와 만료 조건을 포함한 별도 사용자 명시 승�
 ## Accepted decision — 선택지 B
 
 [확정] 2026-08-14 사용자는 선택지 2를 명시 승인했고 accountable approver `DDORINY`로서 최신 unsuppressed scan,
-`CVE-2026-39821` package/symbol-level not-applicable adjudication, exact artifact identity, isolated compatibility preflight와
-cleanup evidence를 검토 가능한 immutable record로 고정했다.
+세 개의 독립 adjudication(`CVE-2026-39821` exact-artifact not-applicable, `CVE-2026-39836` linux/amd64 not-affected,
+`CVE-2026-46600` exact-artifact not-applicable), exact artifact identity, isolated compatibility preflight와 cleanup evidence를
+검토 가능한 immutable record로 고정했다.
 
 [확정] 승인 record는
 [C1-PG16-ALPINE-20260814-01](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml)이다.
 유효 기간은 `2026-08-14T11:46:52.6887955+09:00`부터 `2026-09-13T11:46:52.6887955+09:00`까지이며, fixed official
-image 공개 또는 record의 early termination 조건 발생 시 더 일찍 종료한다. raw scan은 Critical 2 / High 16이고,
-`CVE-2026-39821`을 suppression 없이 exact artifact not-applicable로 분리한 applicable 집합은 Critical 1 / High 16이다.
+image 공개 또는 record의 early termination 조건 발생 시 더 일찍 종료한다. raw scan은 Critical 2 / High 17이고,
+세 finding을 suppression 없이 독립 분리한 accepted residual 집합은 Critical 1 / High 15이다. raw SARIF의 finding은
+삭제하거나 severity를 변경하지 않았다. 상세 evidence와 layered manifest는
+[evidence summary](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/evidence-summary.md)에 고정한다.
 
 [확정] 이 승인은 C1 schema·migration·restore contract test를 local/CI isolated ephemeral 환경에서 수행할 수 있게 하는
 image risk decision만 승인한다. C1 구현 자체, C2/C3, production/staging/shared/live DB, production credential/data,
@@ -270,6 +274,7 @@ public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluatio
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-14 | [확정] Scout 1.24.0 raw C2/H17과 세 독립 adjudication을 반영하고 residual C1/H15 및 layered manifest를 동기화 |
 | 2026-08-14 | [확정] 사용자 선택지 2 승인, 최신 scan·not-applicable adjudication·preflight·cleanup evidence와 30일 immutable record 고정 |
 | 2026-08-14 | [제안] 선택지 C/D/E의 장점·ownership·C1 재개 증거와 실행 후 `cleanup_evidence` fail-closed 계약 보완 |
 | 2026-08-13 | [제안] ADR-021의 확정 C1 contract와 후속 image Security Gate를 분리하고 다섯 정책 선택지·time-bound exception schema를 등록 |

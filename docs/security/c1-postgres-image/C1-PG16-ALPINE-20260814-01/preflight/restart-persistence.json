@@ -1,0 +1,7 @@
+{
+  "storage": "disposable-task-volume",
+  "valid_row_present_before_restart": true,
+  "server_ready_after_restart": true,
+  "valid_row_present_after_restart": true,
+  "result": "pass"
+}

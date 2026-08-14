@@ -1,8 +1,8 @@
-<h2>:mag: Vulnerabilities of <code>postgres:16.14-alpine@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></h2>
+<h2>:mag: Vulnerabilities of <code>postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></h2>
 
-<details open="true"><summary>:package: Image Reference</strong> <code>postgres:16.14-alpine@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></summary>
+<details open="true"><summary>:package: Image Reference</strong> <code>postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></summary>
 <table>
-<tr><td>digest</td><td><code>sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></td><tr><tr><td>vulnerabilities</td><td><img alt="critical: 2" src="https://img.shields.io/badge/critical-2-8b1924"/> <img alt="high: 16" src="https://img.shields.io/badge/high-16-e25d68"/> <img alt="medium: 18" src="https://img.shields.io/badge/medium-18-fbb552"/> <img alt="low: 5" src="https://img.shields.io/badge/low-5-fce1a9"/> <img alt="unspecified: 9" src="https://img.shields.io/badge/unspecified-9-lightgrey"/></td></tr>
+<tr><td>digest</td><td><code>sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382</code></td><tr><tr><td>vulnerabilities</td><td><img alt="critical: 2" src="https://img.shields.io/badge/critical-2-8b1924"/> <img alt="high: 17" src="https://img.shields.io/badge/high-17-e25d68"/> <img alt="medium: 18" src="https://img.shields.io/badge/medium-18-fbb552"/> <img alt="low: 5" src="https://img.shields.io/badge/low-5-fce1a9"/> <img alt="unspecified: 8" src="https://img.shields.io/badge/unspecified-8-lightgrey"/></td></tr>
 <tr><td>platform</td><td>linux/amd64</td></tr>
 <tr><td>size</td><td>116 MB</td></tr>
 <tr><td>packages</td><td>67</td></tr>
@@ -12,7 +12,7 @@
 
 <table>
 <tr><td valign="top">
-<details><summary><img alt="critical: 2" src="https://img.shields.io/badge/C-2-8b1924"/> <img alt="high: 16" src="https://img.shields.io/badge/H-16-e25d68"/> <img alt="medium: 18" src="https://img.shields.io/badge/M-18-fbb552"/> <img alt="low: 1" src="https://img.shields.io/badge/L-1-fce1a9"/> <img alt="unspecified: 9" src="https://img.shields.io/badge/U-9-lightgrey"/><strong>stdlib</strong> <code>1.24.6</code> (golang)</summary>
+<details><summary><img alt="critical: 2" src="https://img.shields.io/badge/C-2-8b1924"/> <img alt="high: 17" src="https://img.shields.io/badge/H-17-e25d68"/> <img alt="medium: 18" src="https://img.shields.io/badge/M-18-fbb552"/> <img alt="low: 1" src="https://img.shields.io/badge/L-1-fce1a9"/> <img alt="unspecified: 8" src="https://img.shields.io/badge/U-8-lightgrey"/><strong>stdlib</strong> <code>1.24.6</code> (golang)</summary>
 
 <small><code>pkg:golang/stdlib@1.24.6</code></small><br/>
 <a href="https://scout.docker.com/v/CVE-2025-68121?s=golang&n=stdlib&t=golang&vr=%3C1.24.13"><img alt="critical : CVE--2025--68121" src="https://img.shields.io/badge/CVE--2025--68121-lightgrey?label=critical%20&labelColor=8b1924"/></a>
@@ -47,6 +47,23 @@ During session resumption in crypto/tls, if the underlying Config has its Client
 The ToASCII and ToUnicode functions incorrectly accept Punycode-encoded labels that decode to an ASCII-only label. For example, ToUnicode("xn--example-.com") incorrectly returns the name "example.com" rather than an error.
 
 This behavior can lead to privilege escalation in programs using the idna package. For example, a program which performs privilege checks on the ASCII hostname may reject "example.com" but permit "xn--example-.com". If that program subsequently converts the ASCII hostname to Unicode, it will inadvertently permits access to the Unicode name "example.com".
+
+</blockquote>
+</details>
+
+<a href="https://scout.docker.com/v/CVE-2026-46600?s=golang&n=stdlib&t=golang&vr=%3C1.26.6"><img alt="high : CVE--2026--46600" src="https://img.shields.io/badge/CVE--2026--46600-lightgrey?label=high%20&labelColor=e25d68"/></a>
+
+<table>
+<tr><td>Affected range</td><td><code><1.26.6</code></td></tr>
+<tr><td>Fixed version</td><td><code>1.26.6</code></td></tr>
+<tr><td>EPSS Score</td><td><code>0.339%</code></td></tr>
+<tr><td>EPSS Percentile</td><td><code>27th percentile</code></td></tr>
+</table>
+
+<details><summary>Description</summary>
+<blockquote>
+
+Parsing an invalid SVCB or HTTPS RR can panic when the size of a parameter value overflows the message buffer.
 
 </blockquote>
 </details>
@@ -745,23 +762,6 @@ Previously, pathological inputs could close an unescaped '/' early, allowing for
 <blockquote>
 
 When a server is configured to support unencrypted HTTP/2, it reads a few bytes from each new connection to see if they contain the HTTP/2 client preface. ReadHeaderTimeout is unexpectedly not being applied when doing this.
-
-</blockquote>
-</details>
-
-<a href="https://scout.docker.com/v/CVE-2026-46600?s=golang&n=stdlib&t=golang&vr=%3C1.26.6"><img alt="unspecified : CVE--2026--46600" src="https://img.shields.io/badge/CVE--2026--46600-lightgrey?label=unspecified%20&labelColor=lightgrey"/></a>
-
-<table>
-<tr><td>Affected range</td><td><code><1.26.6</code></td></tr>
-<tr><td>Fixed version</td><td><code>1.26.6</code></td></tr>
-<tr><td>EPSS Score</td><td><code>0.339%</code></td></tr>
-<tr><td>EPSS Percentile</td><td><code>27th percentile</code></td></tr>
-</table>
-
-<details><summary>Description</summary>
-<blockquote>
-
-Parsing an invalid SVCB or HTTPS RR can panic when the size of a parameter value overflows the message buffer.
 
 </blockquote>
 </details>
