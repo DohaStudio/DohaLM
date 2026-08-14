@@ -10,7 +10,7 @@
   [테스트 전략](../quality/test-strategy.md),
   [테스트 체크리스트](../quality/testing-checklist.md),
   [종료된 16.14 risk-acceptance record](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml),
-  [16.15 proposed Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md)
+  [16.15 accepted Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md)
 
 ## Context
 
@@ -79,15 +79,16 @@ artifact/advisory drift 조기 종료 조건이 충족됐다. 기존 immutable a
 [termination evidence](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/termination-C1-PG16-ALPINE-20260814-01.yaml)로
 append-only 기록한다. `C1-PG16-ALPINE-20260814-01`은 16.15 authorization으로 재사용할 수 없다.
 
-[제안] 새 `linux/amd64` manifest
+[확정] 새 `linux/amd64` manifest
 `sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571`에 대한
 [`C1-PG16-ALPINE-1615-20260814-01`](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/risk-decision-record.yaml)은
-새 scan과 세 adjudication 뒤 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로 검토하는 proposed record다.
-Option B는 추천일 뿐 사용자가 아직 승인하지 않았다.
+새 scan과 세 adjudication 뒤 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로 정확히 30일 허용하는 accepted record다.
+Accountable approver `DDORINY`가 Option B를 `2026-08-14T23:45:32.1303728+09:00`에 명시 승인했다.
 
-[확정] 새 record의 `accepted`, `execution_authorized`는 false이고 approver, approved/start/expiry는 null이다. 이 문서 변경이나
-Draft PR 병합만으로 risk acceptance 또는 실행 권한이 생기지 않는다. Psycopg binary/system-libpq provenance blocker는 유지하며
-C1-A/B/C는 미구현이다. C1→C2→C3→별도 Production Activation 순서도 변경하지 않는다.
+[확정] 새 record의 `accepted`와 `execution_authorized`는 true이고 승인 시작은 `2026-08-14T23:45:32.1303728+09:00`,
+만료는 정확히 30일 뒤인 `2026-09-13T23:45:32.1303728+09:00`이다. 실행 권한은 exact manifest의 local/CI isolated
+ephemeral test에만 적용된다. Psycopg binary/system-libpq provenance blocker는 유지하며 C1-A/B/C는 미구현이다.
+C1→C2→C3→별도 Production Activation 순서도 변경하지 않는다.
 
 ### Historical Critical/High 목록
 
@@ -288,13 +289,15 @@ public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluatio
 이 ADR은 `approved`와 `accepted`이며 위 immutable record 범위에서만 선택지 B를 승인한다. 이는 C1 구현 착수나 production 사용
 승인이 아니며, C1 구현은 별도 Draft PR과 독립 검증 Gate를 따라야 한다.
 
-[확정] 위 문장은 종료 전 16.14 historical record의 승인 사실만 보존한다. 16.15 proposed record에는 적용되지 않으며 사용자의
-exact Option B 명시 승인 전에는 fail closed다. 새 Draft PR의 merge, 문서 존재 또는 preflight 성공은 승인을 대체하지 않는다.
+[확정] 위 문장은 종료 전 16.14 historical record의 승인 사실만 보존한다. 별도 16.15 record는 accountable approver
+`DDORINY`가 `2026-08-14T23:45:32.1303728+09:00`에 exact Option B를 명시 승인했으며, 그 승인만이 record에 적힌 제한적
+image test 권한을 부여한다. 새 Draft PR의 merge, 문서 존재 또는 preflight 성공은 추가 권한을 부여하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-14 | [확정] PostgreSQL 16.15 exact Option B를 DDORINY가 명시 승인; local/CI isolated ephemeral image test만 30일 허용하고 C1 구현·Psycopg·production·Training은 계속 차단 |
 | 2026-08-14 | [제안] 16.14 record 조기 종료를 append-only로 기록하고 16.15 exact-image proposed/unapproved Decision Packet과 승인 전 fail-closed Gate를 연결 |
 | 2026-08-14 | [확정] Scout 1.24.0 raw C2/H17과 세 독립 adjudication을 반영하고 residual C1/H15 및 layered manifest를 동기화 |
 | 2026-08-14 | [확정] 사용자 선택지 2 승인, 최신 scan·not-applicable adjudication·preflight·cleanup evidence와 30일 immutable record 고정 |

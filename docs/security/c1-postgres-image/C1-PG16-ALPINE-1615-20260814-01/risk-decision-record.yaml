@@ -1,13 +1,13 @@
 schema_version: 1
 decision_id: C1-PG16-ALPINE-1615-20260814-01
-status: proposed
-decision: pending_explicit_approval
-accepted: false
-approver: null
-approved_at: null
-starts_at: null
-expires_at: null
-execution_authorized: false
+status: accepted
+decision: accepted
+accepted: true
+approver: DDORINY
+approved_at: "2026-08-14T23:45:32.1303728+09:00"
+starts_at: "2026-08-14T23:45:32.1303728+09:00"
+expires_at: "2026-09-13T23:45:32.1303728+09:00"
+execution_authorized: true
 repository_binding:
   repository: DohaStudio/DohaLM
   base_commit: 082f6fa14964f21fb8af1ca55efd3cb3b607f2b3
@@ -93,10 +93,14 @@ residual_risk_findings:
 set_contract:
   raw_critical_high_equals_residual_union_adjudicated: true
   residual_adjudicated_overlap: 0
-proposed_scope:
+scope:
   environments:
     - local_ephemeral
     - ci_ephemeral
+  allowed_work:
+    - c1_schema_contract_test
+    - c1_migration_contract_test
+    - c1_restore_contract_test
   synthetic_credentials_only: true
   synthetic_data_only: true
   private_task_network_only: true
@@ -115,9 +119,9 @@ proposed_scope:
     - GPU
     - Training
     - Evaluation
-duration_proposal:
+validity:
   maximum_days: 30
-  calculation: approval_timestamp_plus_maximum_30_days
+  calculation: explicit_approval_timestamp_plus_exactly_30_days
   auto_start: false
   auto_renewal: false
 early_termination:
@@ -138,7 +142,7 @@ renewal:
   new_explicit_user_approval_required: true
 evidence:
   parent_manifest: SHA256SUMS
-  parent_manifest_sha256: 8d54459f17bef5f9da3d0cc07fc0541a286a674fa256d153da02ceaddd4a0caf
+  parent_manifest_sha256: d6fa35a27e3b12bcb6f613d1ecdd68ed545fa58c607a4d575bd0905a67dd245a
   scope: manifest-scope.json
 authorization_gate:
   before_explicit_approval: fail_closed

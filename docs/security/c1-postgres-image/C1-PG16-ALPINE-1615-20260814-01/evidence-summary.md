@@ -1,10 +1,10 @@
-# PostgreSQL 16.15 Alpine proposed C1 image decision evidence
+# PostgreSQL 16.15 Alpine accepted C1 image decision evidence
 
-- 문서 상태: `proposed`
+- 문서 상태: `accepted`
 - 마지막 검토일: 2026-08-14
 - Decision ID: `C1-PG16-ALPINE-1615-20260814-01`
-- accepted: `false`
-- execution authorized: `false`
+- accepted: `true`
+- execution authorized: `true` — 아래 exact image의 local/CI isolated ephemeral test 범위만 허용
 
 ## 결론
 
@@ -18,9 +18,10 @@ Unspecified 8, 전체 50건을 재현했다.
 percentile만 변경됐고 CVE 추가·삭제, severity, component/PURL, installed/affected/fixed range, location, EPSS score,
 scanner와 artifact identity 변경은 0이다.
 
-[제안] 세 finding의 exact-artifact adjudication 후 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로
-최대 30일 수용하는 Option B를 검토한다. 사용자는 이 제안을 아직 승인하지 않았다. 이 Draft PR의 작성 또는 병합은 risk
-acceptance, execution authority, C1 구현이나 production activation을 발생시키지 않는다.
+[확정] 세 finding의 exact-artifact adjudication 후 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로
+정확히 30일 허용하는 Option B를 accountable approver `DDORINY`가 `2026-08-14T23:45:32.1303728+09:00`에 명시 승인했다.
+승인은 같은 시각에 시작하여 `2026-09-13T23:45:32.1303728+09:00`에 만료한다. 이 권한은 exact image test에만 적용되며
+C1 구현, Psycopg 선택·설치 또는 production activation을 발생시키지 않는다.
 
 ## Artifact와 scan
 
@@ -52,7 +53,7 @@ OCI inspect와 preflight JSON은 Windows PowerShell 기본 writer 대신 explici
 complete symbol table search, source dependency graph, fresh govulncheck binary/source SARIF와 runtime reachability를 포함한다.
 GO-2026-5026의 변경된 `net/http`·HTTP/2 및 `x/net/idna` symbol도 다시 판정했다. 공식 vendor VEX는 없다.
 
-## Proposed residual set
+## Accepted residual set
 
 - Critical: `CVE-2025-68121`
 - High: `CVE-2025-58187`, `CVE-2025-58188`, `CVE-2025-61723`, `CVE-2025-61725`,
@@ -84,9 +85,11 @@ composite FK/CHECK, advisory transaction lock, transactional DDL rollback, grace
 
 ## Approval Gate
 
-[확정] [proposed record](./risk-decision-record.yaml)의 approver, approved/start/expiry는 모두 null이고 accepted와
-execution_authorized는 false다. 명시적 사용자 승인 전 fail closed다. Psycopg binary/system-libpq provenance blocker도 유지된다.
-C1-A/B/C, C2/C3, Activation, production/staging/shared/live DB와 actual Training은 모두 미승인·미구현이다.
+[확정] [accepted record](./risk-decision-record.yaml)은 accountable approver `DDORINY`의 명시 승인, 시작 시각
+`2026-08-14T23:45:32.1303728+09:00`과 정확히 30일 뒤인 만료 시각 `2026-09-13T23:45:32.1303728+09:00`을 고정한다.
+`execution_authorized: true`는 exact accepted manifest의 local/CI isolated ephemeral test에만 적용된다. Psycopg
+binary/system-libpq provenance blocker는 유지되며, C1-A/B/C, C2/C3, Activation, production/staging/shared/live DB와
+actual Training은 모두 미승인·미구현이다.
 
 ## Integrity
 
