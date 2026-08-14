@@ -46,7 +46,9 @@
 - [제안] ADR-020은 ADR-019 후속으로 prerequisite resolution과 approval-consume/backend-entry 관찰의 ownership seam을 정의하며 구현이나 실제 execution을 승인하지 않는다.
 - [확정] ADR-021은 PR #126 사용자 승인·squash merge로 production authority event/current projection, approved/denied decision, durable journal evidence·recovery와 C1/C2/C3 순서를 승인했으며 dependency·adapter·composition 구현이나 실제 execution은 승인하지 않는다.
 - [확정] ADR-022의 16.14 exact-image risk acceptance는 fixed 16.15 image 공개로 조기 종료됐고 historical approval만 보존한다.
-- [제안] 16.15 exact-image record는 raw C2/H17과 세 adjudication 뒤 residual C1/H15를 local/CI ephemeral-only로 검토하지만 아직 unapproved이며 execution impact는 0이다.
+- [확정] 16.15 exact-image Option B record는 사용자 명시 승인으로 `accepted`이며 raw C2/H17과 세 adjudication 뒤 residual C1/H15를
+  exact local/CI isolated ephemeral schema·migration·restore contract test에만 30일 허용한다. C1 구현은 미승인이고 Psycopg dependency
+  provenance blocker는 유지하며 Ready·merge와 C1 구현은 별도 Gate다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
