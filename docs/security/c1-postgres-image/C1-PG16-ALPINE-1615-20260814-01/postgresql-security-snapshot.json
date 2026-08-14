@@ -1,0 +1,23 @@
+{
+  "schema": "dohalm.c1.postgresql-security-snapshot/1",
+  "retrieved_at": "2026-08-14T08:26:00Z",
+  "current_postgresql_16_minor": "16.15",
+  "release_date": "2026-08-13",
+  "release_url": "https://www.postgresql.org/docs/release/16.15/",
+  "security_url": "https://www.postgresql.org/support/security/16/",
+  "release_snapshot_sha256": "b396a17c696aa7d45ef8a73c7d03c4200cd4ffa2186989128e85ae2155eef088",
+  "security_snapshot_sha256": "cd9c700973a99a2a20f68ef944a2fbca77765e0a141c8a0acdbfad9dc8e9a335",
+  "minimum_verified_fixes": [
+    {"id":"CVE-2026-16239","component":"core server","affected_16_14":true,"fixed_16_15":true,"exact_image_includes_component":true},
+    {"id":"CVE-2026-15741","component":"core server","affected_16_14":true,"fixed_16_15":true,"exact_image_includes_component":true},
+    {"id":"CVE-2026-14680","component":"core server","affected_16_14":true,"fixed_16_15":true,"exact_image_includes_component":true},
+    {"id":"CVE-2026-14679","component":"core server","affected_16_14":true,"fixed_16_15":true,"exact_image_includes_component":true},
+    {"id":"CVE-2026-6477","component":"libpq client","affected_16_14":false,"fixed_16_15":true,"exact_image_includes_component":true,"note":"fixed in 16.14; not a 16.15 delta"}
+  ],
+  "additional_16_15_critical_high_fixes": [
+    "CVE-2026-19385","CVE-2026-18408","CVE-2026-15742","CVE-2026-14677",
+    "CVE-2026-14671","CVE-2026-14670","CVE-2026-14669","CVE-2026-14668",
+    "CVE-2026-14664","CVE-2026-14662","CVE-2026-6471","CVE-2026-6464"
+  ],
+  "scanner_reconciliation": "The exact 16.15 Scout report contains no PostgreSQL Critical/High finding; PGDG release and security records are retained as the authoritative upstream fix evidence."
+}

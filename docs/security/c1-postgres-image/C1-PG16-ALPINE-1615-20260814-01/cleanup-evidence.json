@@ -1,0 +1,29 @@
+{
+  "schema": "dohalm.c1.cleanup-evidence/1",
+  "correlation_id": "C1-PG1615-PROPOSED-20260814",
+  "completed_at": "2026-08-14T08:38:13.6027954Z",
+  "pre_inventory": {
+    "task_containers": 0,
+    "task_volumes": 0,
+    "task_networks": 0,
+    "target_image_preexisting": false,
+    "go_1_24_6_tool_image_preexisting": false,
+    "go_1_26_6_tool_image_preexisting": false
+  },
+  "post_inventory": {
+    "task_containers": 0,
+    "task_volumes": 0,
+    "task_networks": 0,
+    "task_image_cache": 0,
+    "scanner_temp_cache": 0,
+    "extracted_scanner_archive_or_source": 0
+  },
+  "approved_delta": "task-only images, scanner/archive, extracted binary/source and probe environment removed",
+  "existing_user_resources_changed": false,
+  "status": "clean",
+  "failure": null,
+  "ambiguity": null,
+  "evidence_artifact": "cleanup-evidence.json",
+  "evidence_sha256": "resolved_by_parent_manifest",
+  "verifier_process_boundary": "DDORINY local Docker process"
+}
