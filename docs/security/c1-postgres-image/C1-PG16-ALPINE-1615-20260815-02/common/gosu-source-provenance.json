@@ -1,0 +1,22 @@
+{
+    "repository":  "https://github.com/tianon/gosu.git",
+    "tag":  "1.19",
+    "tag_commit":  "6456aaa0f3c854d199d0f037f068eb97515b7513",
+    "source_archive_sha256":  "cd9719b775dbfedae53923c9b0dc792b66d42c51e0b36652ed6f747fbadc0164",
+    "official_release_binary_sha256":  "52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0",
+    "image_binary_sha256":  "52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0",
+    "byte_equal":  true,
+    "module":  "github.com/tianon/gosu@v1.19.0",
+    "dependencies":  [
+                         "github.com/moby/sys/user@v0.1.0",
+                         "golang.org/x/sys@v0.1.0"
+                     ],
+    "build":  {
+                  "go":  "1.24.6",
+                  "goos":  "linux",
+                  "goarch":  "amd64",
+                  "cgo_enabled":  false,
+                  "trimpath":  true
+              },
+    "extraction_note":  "The source archive .dockerignore symlink was excluded only during Windows extraction; the official archive bytes and SHA-256 are preserved."
+}

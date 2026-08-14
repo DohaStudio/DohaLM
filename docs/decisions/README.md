@@ -33,7 +33,7 @@
 | ADR-019 | [Production Full Pretraining Host와 Trusted Decision Input](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md) | `draft` | 미결정 | [ADR-016](./ADR-016-generic-training-execution-approval-boundary.md), [ADR-017](./ADR-017-production-training-execution-issuer-trust-anchor.md), [ADR-018](./ADR-018-composition-root-owned-training-execution-decision-source.md) | non-CLI same-process Host·trusted input·7-field authority·restart/crash 경계 제안; 실행 영향 없음 | production resolver·durable journal·Host 구현과 별도 activation 승인 시 |
 | ADR-020 | [Production Training Orchestration Ownership Seams](./ADR-020-production-training-orchestration-ownership-seams.md) | `draft` | 미결정 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md) | construction-bound prerequisite resolver·immutable resolved schema·package-private backend lifecycle seam 제안; 실행 영향 없음 | PR S 구현·production adapters·별도 activation 승인 전 |
 | ADR-021 | [Production Training Adapters와 Durable Journal Authority](./ADR-021-production-training-adapters-and-durable-journal.md) | `approved` | 2026-08-13 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [ADR-020](./ADR-020-production-training-orchestration-ownership-seams.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | supported PostgreSQL authority event/projection·approved/denied decision·durable journal과 C1→C2→C3→Activation 순서 승인; 구현·activation 없음 | C1/C2/C3 독립 Gate, image security 결정과 별도 activation 승인 시 |
-| ADR-022 | [C1 Ephemeral PostgreSQL Test Image Security Policy](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | `approved` | 2026-08-14 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [종료된 16.14 record](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml), [16.15 accepted Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md) | 16.14 historical approval은 종료; 16.15 raw C2/H17·세 adjudication·residual C1/H15 Option B를 exact local/CI ephemeral image test에 30일 승인 | expiry·drift·Ready 독립 재검증; Psycopg와 별도 C1 구현 Gate는 계속 차단 |
+| ADR-022 | [C1 Ephemeral PostgreSQL Test Image Security Policy](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | `approved` | 2026-08-15 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [종료된 16.15 record](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md), [새 proposed Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md) | A/B/C drift 정책 승인; 이전 16.15 authorization 종료; raw C2/H21·adjudicated 7·residual C1/H15 새 Option B는 승인 대기 | 새 risk 승인·Psycopg provenance·별도 C1 구현 Gate |
 
 - [확정] 승인 ADR-001부터 ADR-010과 ADR-021·022, draft ADR-011·013~020을 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
@@ -46,9 +46,9 @@
 - [제안] ADR-020은 ADR-019 후속으로 prerequisite resolution과 approval-consume/backend-entry 관찰의 ownership seam을 정의하며 구현이나 실제 execution을 승인하지 않는다.
 - [확정] ADR-021은 PR #126 사용자 승인·squash merge로 production authority event/current projection, approved/denied decision, durable journal evidence·recovery와 C1/C2/C3 순서를 승인했으며 dependency·adapter·composition 구현이나 실제 execution은 승인하지 않는다.
 - [확정] ADR-022의 16.14 exact-image risk acceptance는 fixed 16.15 image 공개로 조기 종료됐고 historical approval만 보존한다.
-- [확정] 16.15 exact-image Option B record는 사용자 명시 승인으로 `accepted`이며 raw C2/H17과 세 adjudication 뒤 residual C1/H15를
-  exact local/CI isolated ephemeral schema·migration·restore contract test에만 30일 허용한다. C1 구현은 미승인이고 Psycopg dependency
-  provenance blocker는 유지하며 Ready·merge와 C1 구현은 별도 Gate다.
+- [확정] 16.15의 이전 accepted record는 severity/advisory drift로 종료됐고 재사용할 수 없다.
+- [제안] 새 Option B record는 raw C2/H21·adjudicated 7·residual C1/H15를 결속하지만 `pending_explicit_approval`이다.
+  Psycopg patched cross-platform libpq provenance와 C1 구현은 별도 Gate로 계속 차단된다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -57,6 +57,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [제안] 이전 16.15 authorization 종료, raw C2/H21·adjudicated 7·residual C1/H15 새 proposed record와 Psycopg provenance blocker 등록 |
 | 2026-08-14 | [확정] PostgreSQL 16.15 exact Option B 승인과 30일 local/CI ephemeral image test 범위 동기화; C1 구현·Psycopg는 별도 Gate 유지 |
 | 2026-08-14 | [제안] 16.14 record 조기 종료와 16.15 proposed/unapproved Decision Packet·승인 전 fail-closed Gate 동기화 |
 | 2026-08-14 | [확정] ADR-022 security evidence를 세 CVE adjudication과 layered manifest로 보완 |

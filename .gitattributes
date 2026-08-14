@@ -1,1 +1,2 @@
 * text=auto eol=lf
+docs/security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/common/scout-cves.sarif.json -diff -text

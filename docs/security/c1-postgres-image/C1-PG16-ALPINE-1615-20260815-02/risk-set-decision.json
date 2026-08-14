@@ -1,0 +1,112 @@
+{
+    "schema":  "pr128.cve-adjudication.risk-set/1",
+    "former_option_b_record_status":  "terminated_by_severity_drift",
+    "raw_critical_high_count":  23,
+    "raw_critical_high_ids":  [
+                                  "CVE-2025-58187",
+                                  "CVE-2025-58188",
+                                  "CVE-2025-61723",
+                                  "CVE-2025-61725",
+                                  "CVE-2025-61726",
+                                  "CVE-2025-61729",
+                                  "CVE-2025-68121",
+                                  "CVE-2026-25679",
+                                  "CVE-2026-32280",
+                                  "CVE-2026-32281",
+                                  "CVE-2026-32283",
+                                  "CVE-2026-33811",
+                                  "CVE-2026-33814",
+                                  "CVE-2026-33818",
+                                  "CVE-2026-39820",
+                                  "CVE-2026-39821",
+                                  "CVE-2026-39836",
+                                  "CVE-2026-42499",
+                                  "CVE-2026-42504",
+                                  "CVE-2026-46600",
+                                  "CVE-2026-56853",
+                                  "CVE-2026-56859",
+                                  "CVE-2026-56862"
+                              ],
+    "existing_residual_count":  16,
+    "existing_residual_ids":  [
+                                  "CVE-2025-58187",
+                                  "CVE-2025-58188",
+                                  "CVE-2025-61723",
+                                  "CVE-2025-61725",
+                                  "CVE-2025-61726",
+                                  "CVE-2025-61729",
+                                  "CVE-2025-68121",
+                                  "CVE-2026-25679",
+                                  "CVE-2026-32280",
+                                  "CVE-2026-32281",
+                                  "CVE-2026-32283",
+                                  "CVE-2026-33811",
+                                  "CVE-2026-33814",
+                                  "CVE-2026-39820",
+                                  "CVE-2026-42499",
+                                  "CVE-2026-42504"
+                              ],
+    "existing_adjudicated_count":  3,
+    "existing_adjudicated_ids":  [
+                                     "CVE-2026-39821",
+                                     "CVE-2026-39836",
+                                     "CVE-2026-46600"
+                                 ],
+    "new_high_verdicts":  [
+                              {
+                                  "id":  "CVE-2026-33818",
+                                  "verdict":  "not_applicable_exact_artifact"
+                              },
+                              {
+                                  "id":  "CVE-2026-56853",
+                                  "verdict":  "not_applicable_exact_artifact"
+                              },
+                              {
+                                  "id":  "CVE-2026-56859",
+                                  "verdict":  "not_applicable_exact_artifact"
+                              },
+                              {
+                                  "id":  "CVE-2026-56862",
+                                  "verdict":  "not_applicable_exact_artifact"
+                              }
+                          ],
+    "updated_adjudicated_count":  7,
+    "updated_adjudicated_ids":  [
+                                    "CVE-2026-33818",
+                                    "CVE-2026-39821",
+                                    "CVE-2026-39836",
+                                    "CVE-2026-46600",
+                                    "CVE-2026-56853",
+                                    "CVE-2026-56859",
+                                    "CVE-2026-56862"
+                                ],
+    "updated_residual_count":  16,
+    "updated_residual_ids":  [
+                                 "CVE-2025-58187",
+                                 "CVE-2025-58188",
+                                 "CVE-2025-61723",
+                                 "CVE-2025-61725",
+                                 "CVE-2025-61726",
+                                 "CVE-2025-61729",
+                                 "CVE-2025-68121",
+                                 "CVE-2026-25679",
+                                 "CVE-2026-32280",
+                                 "CVE-2026-32281",
+                                 "CVE-2026-32283",
+                                 "CVE-2026-33811",
+                                 "CVE-2026-33814",
+                                 "CVE-2026-39820",
+                                 "CVE-2026-42499",
+                                 "CVE-2026-42504"
+                             ],
+    "equality":  {
+                     "raw_equals_residual_union_adjudicated":  true,
+                     "overlap":  0,
+                     "missing":  0,
+                     "duplicate":  0,
+                     "unknown":  0
+                 },
+    "automatic_reapproval":  false,
+    "remaining_expiry_reused":  false,
+    "next_gate":  "evidence correction, immutable proposed record, independent revalidation, then explicit risk acceptance"
+}

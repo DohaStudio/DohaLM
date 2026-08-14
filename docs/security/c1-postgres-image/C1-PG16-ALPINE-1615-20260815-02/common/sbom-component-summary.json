@@ -1,0 +1,12 @@
+{
+  "schema": "pr128.cve-adjudication.sbom-summary/1",
+  "exact_manifest": "sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571",
+  "fresh_scout_indexed_packages": 66,
+  "fresh_scout_vulnerable_packages": 3,
+  "fresh_scout_vulnerabilities": 50,
+  "spdx_source": "committed exact-artifact SBOM from fixed PR head",
+  "spdx_source_commit": "bb9482427bf247ad15ae55fdaab43eede27da92d",
+  "spdx_git_blob": "fc1454056c09a54b053db657ee67d81f0406e0b4",
+  "spdx_sha256": "59677d9e309bcaa6fec7a577f5a845f2e9ebeb2a77ef1274506a5af1947f5c22",
+  "fresh_vulnerability_sarif_sha256": "879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c"
+}

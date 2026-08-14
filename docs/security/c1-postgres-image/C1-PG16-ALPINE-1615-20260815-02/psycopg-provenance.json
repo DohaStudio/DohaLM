@@ -1,0 +1,26 @@
+{
+  "schema": "dohalm.c1.psycopg-provenance/1",
+  "queried_at": "2026-08-15T03:01:24+09:00",
+  "official_sources": [
+    "https://www.psycopg.org/psycopg3/docs/basic/install.html",
+    "https://pypi.org/pypi/psycopg/json",
+    "https://pypi.org/pypi/psycopg-binary/json",
+    "https://www.postgresql.org/support/security/",
+    "https://www.openssl-library.org/news/openssl-3.6-notes/"
+  ],
+  "versions": {"psycopg": "3.3.4", "psycopg_pool": "3.3.1", "asyncpg": "0.31.0", "pg8000": "1.31.5"},
+  "supported_python": ">=3.10",
+  "psycopg_wheel_sha256": "b6bbc25ccf05c8fad3b061d9db2ef0909a555171b84b07f29458a447253d679a",
+  "binary_wheels": {
+    "cp310_win_amd64": "574ea21a9651958f1535c5a1c649c7409e9168bcbffa29a3f2f961f58b322949",
+    "cp311_win_amd64": "41f2ec0fea529832982bcb6c9415de3c86264ebe562b77a467c0fbcd7efbba8d",
+    "cp312_win_amd64": "494ca54901be8cf9eb7e02c25b731f2317c378efa44f43e8f9bd0e1184ae7be4",
+    "cp310_manylinux_x86_64": "fa1cbc10768a796c96d3243656016bf4e337c81c71097270bb7b0ad6210d9765",
+    "cp311_manylinux_x86_64": "ab8cca8ef8fb1ccf5b048ae5bd78ba55b9e4b5d472e3ce5ca39ff4d2a9c249e4",
+    "cp312_manylinux_x86_64": "e7510c37550f91a187e3660a8cc50d4b760f8c3b8b2f89ebc5698cd2c7f2c85d"
+  },
+  "observed_bundled_versions": {"windows_cp312_libpq": "18.3", "windows_cp312_openssl": "3.6.2", "linux_cp312_libpq": "18.0"},
+  "probe": {"windows_import": "pass", "linux_private_network_contract": "pass", "public_port_count": 0, "task_residue_count": 0},
+  "scanner": {"name": "Docker Scout", "version": "1.24.0", "wheel_filesystem_packages_indexed": 0, "zero_findings_is_pass": false},
+  "decision": "blocked_pending_patched_cross_platform_libpq_provenance"
+}

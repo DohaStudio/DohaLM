@@ -1,0 +1,74 @@
+schema_version: 2
+decision_id: C1-PG16-ALPINE-1615-20260815-02
+status: proposed
+decision: pending_explicit_approval
+accepted: false
+execution_authorized: false
+approver: null
+approved_at: null
+starts_at: null
+expires_at: null
+artifact:
+  repository: docker.io/library/postgres
+  exact_tag: postgres:16.15-alpine
+  platform: linux/amd64
+  index_digest: sha256:ab5c955e9e57ae9879d4411ab49a912be9d162455676f7bf56e951b11ac73785
+  manifest_digest: sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
+  config_digest: sha256:75f5a96988cdf694a215073c3e9c001b706b371e2f94df3967f2efdec2787f6b
+  base_digest: sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f
+  source_revision: 9d15534160ade17f2b6c455a39ee967c49b1937d
+scanner:
+  name: Docker Scout
+  version: 1.24.0
+  commit: b1c9331b2166aef7ec690aa16fd655b8798ea4c6
+  scanned_at: "2026-08-15T02:11:24.0366116+09:00"
+  advisory_db_build_timestamp: null
+  raw_report: common/scout-cves.sarif.json
+  raw_report_sha256: 879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c
+  suppression_ignore_vex_filters: 0
+raw_findings:
+  critical: 2
+  high: 21
+  medium: 19
+  low: 5
+  unspecified: 3
+  total: 50
+adjudicated_findings:
+  - {id: CVE-2026-39821, verdict: not_applicable_exact_artifact, evidence: ../C1-PG16-ALPINE-1615-20260814-01/adjudications/CVE-2026-39821/SHA256SUMS}
+  - {id: CVE-2026-39836, verdict: not_affected, evidence: ../C1-PG16-ALPINE-1615-20260814-01/adjudications/CVE-2026-39836/SHA256SUMS}
+  - {id: CVE-2026-46600, verdict: not_applicable_exact_artifact, evidence: ../C1-PG16-ALPINE-1615-20260814-01/adjudications/CVE-2026-46600/SHA256SUMS}
+  - {id: CVE-2026-33818, verdict: not_applicable_exact_artifact, evidence: adjudications/CVE-2026-33818/SHA256SUMS}
+  - {id: CVE-2026-56853, verdict: not_applicable_exact_artifact, evidence: adjudications/CVE-2026-56853/SHA256SUMS}
+  - {id: CVE-2026-56859, verdict: not_applicable_exact_artifact, evidence: adjudications/CVE-2026-56859/SHA256SUMS}
+  - {id: CVE-2026-56862, verdict: not_applicable_exact_artifact, evidence: adjudications/CVE-2026-56862/SHA256SUMS}
+residual_risk:
+  critical: [CVE-2025-68121]
+  high: [CVE-2025-58187, CVE-2025-58188, CVE-2025-61723, CVE-2025-61725, CVE-2025-61726, CVE-2025-61729, CVE-2026-25679, CVE-2026-32280, CVE-2026-32281, CVE-2026-32283, CVE-2026-33811, CVE-2026-33814, CVE-2026-39820, CVE-2026-42499, CVE-2026-42504]
+set_contract:
+  raw_critical_high_count: 23
+  adjudicated_count: 7
+  residual_count: 16
+  residual_severity: {critical: 1, high: 15}
+  raw_equals_residual_union_adjudicated: true
+  overlap: 0
+  missing: 0
+  duplicate: 0
+  unknown: 0
+scope:
+  allowed_environments: [local_ephemeral, ci_ephemeral]
+  allowed_work: [c1_schema_contract_test, c1_migration_contract_test, c1_restore_contract_test]
+  synthetic_credentials_only: true
+  synthetic_data_only: true
+  private_task_network_only: true
+  public_port_publish_allowed: false
+  forbidden: [production, staging, shared_database, live_data, production_credentials, C2, C3, Production_Activation, Dataset, Model, GPU, Training, Evaluation]
+validity:
+  maximum_days: 30
+  calculation_after_approval: approval_timestamp_plus_exactly_30_days
+  auto_start: false
+  auto_renewal: false
+authorization_gate:
+  explicit_user_approval_required: true
+  c1_implementation_authorized: false
+  psycopg_dependency_approved: false
+  draft_or_merge_grants_acceptance: false

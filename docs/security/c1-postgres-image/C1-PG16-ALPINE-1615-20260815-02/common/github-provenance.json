@@ -1,0 +1,194 @@
+{
+    "queried_at":  "2026-08-14T17:29:28.8049756Z",
+    "pr":  {
+               "additions":  29215,
+               "baseRefName":  "develop",
+               "baseRefOid":  "082f6fa14964f21fb8af1ca55efd3cb3b607f2b3",
+               "changedFiles":  75,
+               "commits":  [
+                               {
+                                   "authoredDate":  "2026-08-14T08:54:44Z",
+                                   "authors":  [
+                                                   {
+                                                       "email":  "jihun22400669@gmail.com",
+                                                       "id":  "U_kgDOD0zYkQ",
+                                                       "login":  "DDORINY",
+                                                       "name":  "DOHA"
+                                                   }
+                                               ],
+                                   "committedDate":  "2026-08-14T08:54:44Z",
+                                   "messageBody":  "",
+                                   "messageHeadline":  "docs: PostgreSQL 16.15 C1 이미지 제안 증거 기록",
+                                   "oid":  "dc3344d857075f525bfeed80f8034985e60ff6a9"
+                               },
+                               {
+                                   "authoredDate":  "2026-08-14T11:56:42Z",
+                                   "authors":  [
+                                                   {
+                                                       "email":  "jihun22400669@gmail.com",
+                                                       "id":  "U_kgDOD0zYkQ",
+                                                       "login":  "DDORINY",
+                                                       "name":  "DOHA"
+                                                   }
+                                               ],
+                                   "committedDate":  "2026-08-14T11:56:42Z",
+                                   "messageBody":  "",
+                                   "messageHeadline":  "docs: PR128 보안 증거 무결성 갱신",
+                                   "oid":  "180129255a02ffd0d6e3a9af1006cf8f8d2dc568"
+                               },
+                               {
+                                   "authoredDate":  "2026-08-14T13:31:33Z",
+                                   "authors":  [
+                                                   {
+                                                       "email":  "jihun22400669@gmail.com",
+                                                       "id":  "U_kgDOD0zYkQ",
+                                                       "login":  "DDORINY",
+                                                       "name":  "DOHA"
+                                                   }
+                                               ],
+                                   "committedDate":  "2026-08-14T13:31:33Z",
+                                   "messageBody":  "",
+                                   "messageHeadline":  "docs: full pretraining approval YAML 계약 정합화",
+                                   "oid":  "577a347bfa90884d86c28be2aebc2ff601f2f9ac"
+                               },
+                               {
+                                   "authoredDate":  "2026-08-14T14:55:33Z",
+                                   "authors":  [
+                                                   {
+                                                       "email":  "jihun22400669@gmail.com",
+                                                       "id":  "U_kgDOD0zYkQ",
+                                                       "login":  "DDORINY",
+                                                       "name":  "DOHA"
+                                                   }
+                                               ],
+                                   "committedDate":  "2026-08-14T14:55:33Z",
+                                   "messageBody":  "",
+                                   "messageHeadline":  "docs: approve PostgreSQL 16.15 C1 image risk decision",
+                                   "oid":  "4f4e5602df5415fcd57df55cf762c764260d47be"
+                               },
+                               {
+                                   "authoredDate":  "2026-08-14T16:29:40Z",
+                                   "authors":  [
+                                                   {
+                                                       "email":  "jihun22400669@gmail.com",
+                                                       "id":  "U_kgDOD0zYkQ",
+                                                       "login":  "DDORINY",
+                                                       "name":  "DOHA"
+                                                   }
+                                               ],
+                                   "committedDate":  "2026-08-14T16:29:40Z",
+                                   "messageBody":  "",
+                                   "messageHeadline":  "docs: ADR-022 승인 상태를 인덱스와 정합화",
+                                   "oid":  "bb9482427bf247ad15ae55fdaab43eede27da92d"
+                               }
+                           ],
+               "deletions":  9,
+               "headRefName":  "docs/c1-postgres-1615-proposed-risk-evidence",
+               "headRefOid":  "bb9482427bf247ad15ae55fdaab43eede27da92d",
+               "isDraft":  true,
+               "mergeStateStatus":  "CLEAN",
+               "mergeable":  "MERGEABLE",
+               "number":  128,
+               "state":  "OPEN",
+               "url":  "https://github.com/DohaStudio/DohaLM/pull/128"
+           },
+    "refs":  {
+                 "develop":  "082f6fa14964f21fb8af1ca55efd3cb3b607f2b3",
+                 "main":  "f94a5c82f7f0de2420abb8ab17ffa74bbd9a0776",
+                 "source_branch":  "bb9482427bf247ad15ae55fdaab43eede27da92d"
+             },
+    "reviews":  0,
+    "comments":  0,
+    "threads":  0,
+    "unresolved_threads":  0,
+    "check_runs":  {
+                       "total_count":  0,
+                       "check_runs":  [
+
+                                      ]
+                   },
+    "commit_status":  {
+                          "state":  "pending",
+                          "statuses":  [
+
+                                       ],
+                          "sha":  "bb9482427bf247ad15ae55fdaab43eede27da92d",
+                          "total_count":  0,
+                          "repository":  {
+                                             "id":  1309003831,
+                                             "node_id":  "R_kgDOTgXQNw",
+                                             "name":  "DohaLM",
+                                             "full_name":  "DohaStudio/DohaLM",
+                                             "private":  false,
+                                             "owner":  {
+                                                           "login":  "DohaStudio",
+                                                           "id":  313200189,
+                                                           "node_id":  "O_kgDOEqsOPQ",
+                                                           "avatar_url":  "https://avatars.githubusercontent.com/u/313200189?v=4",
+                                                           "gravatar_id":  "",
+                                                           "url":  "https://api.github.com/users/DohaStudio",
+                                                           "html_url":  "https://github.com/DohaStudio",
+                                                           "followers_url":  "https://api.github.com/users/DohaStudio/followers",
+                                                           "following_url":  "https://api.github.com/users/DohaStudio/following{/other_user}",
+                                                           "gists_url":  "https://api.github.com/users/DohaStudio/gists{/gist_id}",
+                                                           "starred_url":  "https://api.github.com/users/DohaStudio/starred{/owner}{/repo}",
+                                                           "subscriptions_url":  "https://api.github.com/users/DohaStudio/subscriptions",
+                                                           "organizations_url":  "https://api.github.com/users/DohaStudio/orgs",
+                                                           "repos_url":  "https://api.github.com/users/DohaStudio/repos",
+                                                           "events_url":  "https://api.github.com/users/DohaStudio/events{/privacy}",
+                                                           "received_events_url":  "https://api.github.com/users/DohaStudio/received_events",
+                                                           "type":  "Organization",
+                                                           "user_view_type":  "public",
+                                                           "site_admin":  false
+                                                       },
+                                             "html_url":  "https://github.com/DohaStudio/DohaLM",
+                                             "description":  null,
+                                             "fork":  false,
+                                             "url":  "https://api.github.com/repos/DohaStudio/DohaLM",
+                                             "forks_url":  "https://api.github.com/repos/DohaStudio/DohaLM/forks",
+                                             "keys_url":  "https://api.github.com/repos/DohaStudio/DohaLM/keys{/key_id}",
+                                             "collaborators_url":  "https://api.github.com/repos/DohaStudio/DohaLM/collaborators{/collaborator}",
+                                             "teams_url":  "https://api.github.com/repos/DohaStudio/DohaLM/teams",
+                                             "hooks_url":  "https://api.github.com/repos/DohaStudio/DohaLM/hooks",
+                                             "issue_events_url":  "https://api.github.com/repos/DohaStudio/DohaLM/issues/events{/number}",
+                                             "events_url":  "https://api.github.com/repos/DohaStudio/DohaLM/events",
+                                             "assignees_url":  "https://api.github.com/repos/DohaStudio/DohaLM/assignees{/user}",
+                                             "branches_url":  "https://api.github.com/repos/DohaStudio/DohaLM/branches{/branch}",
+                                             "tags_url":  "https://api.github.com/repos/DohaStudio/DohaLM/tags",
+                                             "blobs_url":  "https://api.github.com/repos/DohaStudio/DohaLM/git/blobs{/sha}",
+                                             "git_tags_url":  "https://api.github.com/repos/DohaStudio/DohaLM/git/tags{/sha}",
+                                             "git_refs_url":  "https://api.github.com/repos/DohaStudio/DohaLM/git/refs{/sha}",
+                                             "trees_url":  "https://api.github.com/repos/DohaStudio/DohaLM/git/trees{/sha}",
+                                             "statuses_url":  "https://api.github.com/repos/DohaStudio/DohaLM/statuses/{sha}",
+                                             "languages_url":  "https://api.github.com/repos/DohaStudio/DohaLM/languages",
+                                             "stargazers_url":  "https://api.github.com/repos/DohaStudio/DohaLM/stargazers",
+                                             "contributors_url":  "https://api.github.com/repos/DohaStudio/DohaLM/contributors",
+                                             "subscribers_url":  "https://api.github.com/repos/DohaStudio/DohaLM/subscribers",
+                                             "subscription_url":  "https://api.github.com/repos/DohaStudio/DohaLM/subscription",
+                                             "commits_url":  "https://api.github.com/repos/DohaStudio/DohaLM/commits{/sha}",
+                                             "git_commits_url":  "https://api.github.com/repos/DohaStudio/DohaLM/git/commits{/sha}",
+                                             "comments_url":  "https://api.github.com/repos/DohaStudio/DohaLM/comments{/number}",
+                                             "issue_comment_url":  "https://api.github.com/repos/DohaStudio/DohaLM/issues/comments{/number}",
+                                             "contents_url":  "https://api.github.com/repos/DohaStudio/DohaLM/contents/{+path}",
+                                             "compare_url":  "https://api.github.com/repos/DohaStudio/DohaLM/compare/{base}...{head}",
+                                             "merges_url":  "https://api.github.com/repos/DohaStudio/DohaLM/merges",
+                                             "archive_url":  "https://api.github.com/repos/DohaStudio/DohaLM/{archive_format}{/ref}",
+                                             "downloads_url":  "https://api.github.com/repos/DohaStudio/DohaLM/downloads",
+                                             "issues_url":  "https://api.github.com/repos/DohaStudio/DohaLM/issues{/number}",
+                                             "pulls_url":  "https://api.github.com/repos/DohaStudio/DohaLM/pulls{/number}",
+                                             "milestones_url":  "https://api.github.com/repos/DohaStudio/DohaLM/milestones{/number}",
+                                             "notifications_url":  "https://api.github.com/repos/DohaStudio/DohaLM/notifications{?since,all,participating}",
+                                             "labels_url":  "https://api.github.com/repos/DohaStudio/DohaLM/labels{/name}",
+                                             "releases_url":  "https://api.github.com/repos/DohaStudio/DohaLM/releases{/id}",
+                                             "deployments_url":  "https://api.github.com/repos/DohaStudio/DohaLM/deployments"
+                                         },
+                          "commit_url":  "https://api.github.com/repos/DohaStudio/DohaLM/commits/bb9482427bf247ad15ae55fdaab43eede27da92d",
+                          "url":  "https://api.github.com/repos/DohaStudio/DohaLM/commits/bb9482427bf247ad15ae55fdaab43eede27da92d/status"
+                      },
+    "actions":  {
+                    "value":  [
+
+                              ],
+                    "Count":  0
+                }
+}

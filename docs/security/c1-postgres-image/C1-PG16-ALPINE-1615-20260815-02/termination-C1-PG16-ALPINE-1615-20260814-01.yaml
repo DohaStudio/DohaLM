@@ -1,0 +1,23 @@
+schema_version: 1
+termination_id: C1-PG16-ALPINE-1615-20260814-01-TERMINATION-20260815
+record_id: C1-PG16-ALPINE-1615-20260814-01
+record_path: ../C1-PG16-ALPINE-1615-20260814-01/risk-decision-record.yaml
+record_mutated: false
+terminated_at: "2026-08-15T02:11:24.0366116+09:00"
+termination_reason: severity_and_advisory_drift_detected_by_fresh_unsuppressed_scan
+former_authorization_reusable: false
+remaining_expiry_reusable: false
+identity_at_termination:
+  pr_head: bb9482427bf247ad15ae55fdaab43eede27da92d
+  manifest_digest: sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
+  scanner: Docker Scout 1.24.0
+  scanner_commit: b1c9331b2166aef7ec690aa16fd655b8798ea4c6
+  fresh_sarif_sha256: 879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c
+severity_delta:
+  - {id: CVE-2026-33818, from: unspecified, to: high}
+  - {id: CVE-2026-56853, from: unspecified, to: high}
+  - {id: CVE-2026-56859, from: unspecified, to: high}
+  - {id: CVE-2026-56862, from: unspecified, to: high}
+  - {id: CVE-2026-56858, from: unspecified, to: medium}
+replacement_record: risk-decision-record.yaml
+replacement_status: proposed

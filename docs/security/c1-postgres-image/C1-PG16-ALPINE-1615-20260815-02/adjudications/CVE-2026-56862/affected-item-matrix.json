@@ -1,0 +1,190 @@
+[
+    {
+        "cve":  "CVE-2026-33818",
+        "advisory":  "GO-2026-5972",
+        "modified":  "2026-08-13T21:43:54Z",
+        "module":  "stdlib",
+        "package":  "encoding/asn1",
+        "installed_go":  "1.24.6",
+        "version_contract_includes_exact_build":  true,
+        "affected_symbols":  [
+                                 "Unmarshal",
+                                 "UnmarshalWithParams",
+                                 "parseField",
+                                 "parseSequenceOf"
+                             ],
+        "affected_symbol_count":  4,
+        "source_dependency_present":  false,
+        "binary_exact_symbol_matches":  [
+
+                                        ],
+        "binary_exact_symbol_match_count":  0,
+        "govulncheck_binary_level":  "note",
+        "govulncheck_binary_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "govulncheck_source_level":  "note",
+        "govulncheck_source_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "vulnerable_call_trace_count":  0,
+        "build":  {
+                      "goos":  "linux",
+                      "goarch":  "amd64",
+                      "cgo_enabled":  false,
+                      "build_tag_condition":  "none in official record"
+                  },
+        "linker_elimination":  "affected package absent from source dependency graph and exact linked binary symbol inventory",
+        "ambiguity":  0
+    },
+    {
+        "cve":  "CVE-2026-56853",
+        "advisory":  "GO-2026-6089",
+        "modified":  "2026-08-13T21:43:54Z",
+        "module":  "stdlib",
+        "package":  "net/http",
+        "installed_go":  "1.24.6",
+        "version_contract_includes_exact_build":  true,
+        "affected_symbols":  [
+                                 "ListenAndServe",
+                                 "ListenAndServeTLS",
+                                 "Serve",
+                                 "ServeTLS",
+                                 "Server.ListenAndServe",
+                                 "Server.ListenAndServeTLS",
+                                 "Server.Serve",
+                                 "Server.ServeTLS",
+                                 "conn.readRequest",
+                                 "conn.serve"
+                             ],
+        "affected_symbol_count":  10,
+        "source_dependency_present":  false,
+        "binary_exact_symbol_matches":  [
+
+                                        ],
+        "binary_exact_symbol_match_count":  0,
+        "govulncheck_binary_level":  "note",
+        "govulncheck_binary_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "govulncheck_source_level":  "note",
+        "govulncheck_source_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "vulnerable_call_trace_count":  0,
+        "build":  {
+                      "goos":  "linux",
+                      "goarch":  "amd64",
+                      "cgo_enabled":  false,
+                      "build_tag_condition":  "none in official record"
+                  },
+        "linker_elimination":  "affected package absent from source dependency graph and exact linked binary symbol inventory",
+        "ambiguity":  0
+    },
+    {
+        "cve":  "CVE-2026-56859",
+        "advisory":  "GO-2026-6088",
+        "modified":  "2026-08-13T21:43:54Z",
+        "module":  "stdlib",
+        "package":  "encoding/xml",
+        "installed_go":  "1.24.6",
+        "version_contract_includes_exact_build":  true,
+        "affected_symbols":  [
+                                 "Decoder.Decode",
+                                 "Decoder.DecodeElement",
+                                 "Decoder.RawToken",
+                                 "Decoder.Skip",
+                                 "Decoder.Token",
+                                 "Decoder.pop",
+                                 "Decoder.push",
+                                 "Decoder.unmarshal",
+                                 "Decoder.unmarshalPath",
+                                 "Unmarshal"
+                             ],
+        "affected_symbol_count":  10,
+        "source_dependency_present":  false,
+        "binary_exact_symbol_matches":  [
+
+                                        ],
+        "binary_exact_symbol_match_count":  0,
+        "govulncheck_binary_level":  "note",
+        "govulncheck_binary_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "govulncheck_source_level":  "note",
+        "govulncheck_source_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "vulnerable_call_trace_count":  0,
+        "build":  {
+                      "goos":  "linux",
+                      "goarch":  "amd64",
+                      "cgo_enabled":  false,
+                      "build_tag_condition":  "none in official record"
+                  },
+        "linker_elimination":  "affected package absent from source dependency graph and exact linked binary symbol inventory",
+        "ambiguity":  0
+    },
+    {
+        "cve":  "CVE-2026-56862",
+        "advisory":  "GO-2026-6090",
+        "modified":  "2026-08-13T21:43:54Z",
+        "module":  "stdlib",
+        "package":  "crypto/tls",
+        "installed_go":  "1.24.6",
+        "version_contract_includes_exact_build":  true,
+        "affected_symbols":  [
+                                 "Conn.Handshake",
+                                 "Conn.HandshakeContext",
+                                 "Conn.Read",
+                                 "Conn.Write",
+                                 "Conn.readRecordOrCCS",
+                                 "Dial",
+                                 "DialWithDialer",
+                                 "Dialer.Dial",
+                                 "Dialer.DialContext",
+                                 "QUICConn.HandleData",
+                                 "QUICConn.Start"
+                             ],
+        "affected_symbol_count":  11,
+        "source_dependency_present":  false,
+        "binary_exact_symbol_matches":  [
+
+                                        ],
+        "binary_exact_symbol_match_count":  0,
+        "govulncheck_binary_level":  "note",
+        "govulncheck_binary_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "govulncheck_source_level":  "note",
+        "govulncheck_source_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "vulnerable_call_trace_count":  0,
+        "build":  {
+                      "goos":  "linux",
+                      "goarch":  "amd64",
+                      "cgo_enabled":  false,
+                      "build_tag_condition":  "none in official record"
+                  },
+        "linker_elimination":  "affected package absent from source dependency graph and exact linked binary symbol inventory",
+        "ambiguity":  0
+    },
+    {
+        "cve":  "CVE-2026-56858",
+        "advisory":  "GO-2026-6091",
+        "modified":  "2026-08-13T21:43:54Z",
+        "module":  "stdlib",
+        "package":  "html/template",
+        "installed_go":  "1.24.6",
+        "version_contract_includes_exact_build":  true,
+        "affected_symbols":  [
+                                 "Template.Execute",
+                                 "Template.ExecuteTemplate",
+                                 "tJS"
+                             ],
+        "affected_symbol_count":  3,
+        "source_dependency_present":  false,
+        "binary_exact_symbol_matches":  [
+
+                                        ],
+        "binary_exact_symbol_match_count":  0,
+        "govulncheck_binary_level":  "note",
+        "govulncheck_binary_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "govulncheck_source_level":  "note",
+        "govulncheck_source_message":  "Your code depends on 1 vulnerable module (stdlib), but doesn\u0027t appear to call any of the vulnerable symbols.",
+        "vulnerable_call_trace_count":  0,
+        "build":  {
+                      "goos":  "linux",
+                      "goarch":  "amd64",
+                      "cgo_enabled":  false,
+                      "build_tag_condition":  "none in official record"
+                  },
+        "linker_elimination":  "affected package absent from source dependency graph and exact linked binary symbol inventory",
+        "ambiguity":  0
+    }
+]

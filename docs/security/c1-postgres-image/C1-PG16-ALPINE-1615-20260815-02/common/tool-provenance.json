@@ -1,0 +1,25 @@
+{
+    "docker_scout":  {
+                         "version":  "1.24.0",
+                         "commit":  "b1c9331b2166aef7ec690aa16fd655b8798ea4c6",
+                         "archive_sha256":  "1b7afb489e9224411fafe848eb5002cdc5c59a5cf2b77d6ccffcb44ffdf4f350",
+                         "executable_sha256":  "48ddfcf97535822e7bb27eed2796fa55728e5e0f163c7490d3fb90e621e8c09a"
+                     },
+    "govulncheck":  {
+                        "module":  "golang.org/x/vuln",
+                        "version":  "v1.7.0",
+                        "executable_sha256":  "743af7c61b6a0f5a496770663398afbecb7102fd34f232bfc03d4cc5d88cdf6a",
+                        "database":  "https://vuln.go.dev",
+                        "database_updated_at":  "2026-08-14T16:22:54Z"
+                    },
+    "go_stable":  {
+                      "version":  "1.26.6",
+                      "archive":  "go1.26.6.windows-amd64.zip",
+                      "sha256":  "5b6c5b556525810463b5c897b50dc7a82d6a3dc0bfaf55d990a7e9f31d6b2318"
+                  },
+    "go_exact_build":  {
+                           "version":  "1.24.6",
+                           "archive":  "go1.24.6.windows-amd64.zip",
+                           "sha256":  "4fbc8af2cfca9e5059019b5150a426eb78e1e57718bf08f0e52b1c942a2782bf"
+                       }
+}

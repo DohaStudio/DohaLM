@@ -1,0 +1,21 @@
+{
+    "schema":  "pr128.cve-adjudication.scanner-provenance/1",
+    "version":  "1.24.0",
+    "commit":  "b1c9331b2166aef7ec690aa16fd655b8798ea4c6",
+    "archive_sha256":  "1b7afb489e9224411fafe848eb5002cdc5c59a5cf2b77d6ccffcb44ffdf4f350",
+    "executable_sha256":  "48ddfcf97535822e7bb27eed2796fa55728e5e0f163c7490d3fb90e621e8c09a",
+    "scan_started_at_utc":  "2026-08-14T17:11:19.4390933Z",
+    "scan_completed_at_utc":  "2026-08-14T17:11:24.0366116Z",
+    "scan_started_at_kst":  "2026-08-15T02:11:19.4390933+09:00",
+    "scan_completed_at_kst":  "2026-08-15T02:11:24.0366116+09:00",
+    "advisory_source":  "Docker Scout service",
+    "advisory_db_build_timestamp":  null,
+    "platform":  "linux/amd64",
+    "manifest":  "sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571",
+    "ignore_suppression_vex_filters":  0,
+    "service_exceptions_observed":  4,
+    "service_exceptions_applied":  0,
+    "exit_code":  0,
+    "sarif_sha256":  "879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c",
+    "sbom_sha256":  "23f41942f898e082efddd3a1e27eeb46bfffa97ef5c921ea0486f44b29fd8a3e"
+}
