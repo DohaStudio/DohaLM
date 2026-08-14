@@ -1,6 +1,6 @@
 {
   "schema": "dohalm.c1.postgresql-security-snapshot/1",
-  "retrieved_at": "2026-08-14T08:26:00Z",
+  "retrieved_at": "2026-08-14T11:36:43.5100626Z",
   "current_postgresql_16_minor": "16.15",
   "release_date": "2026-08-13",
   "release_url": "https://www.postgresql.org/docs/release/16.15/",

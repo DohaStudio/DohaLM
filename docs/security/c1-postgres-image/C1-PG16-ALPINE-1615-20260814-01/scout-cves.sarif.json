@@ -1238,7 +1238,7 @@
           "kind": "fail",
           "level": "none",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39822            \nSeverity         :UNSPECIFIED               \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.12                  \nFixed version    :1.25.12                   \nEPSS Score       :0.002320                  \nEPSS Percentile  :0.142260                  \n"
+            "text": "Vulnerability    :CVE-2026-39822            \nSeverity         :UNSPECIFIED               \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.12                  \nFixed version    :1.25.12                   \nEPSS Score       :0.002320                  \nEPSS Percentile  :0.142300                  \n"
           },
           "locations": [
             {
@@ -1256,7 +1256,7 @@
           "kind": "fail",
           "level": "none",
           "message": {
-            "text": "Vulnerability    :CVE-2026-42505            \nSeverity         :UNSPECIFIED               \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.12                  \nFixed version    :1.25.12                   \nEPSS Score       :0.003820                  \nEPSS Percentile  :0.311800                  \n"
+            "text": "Vulnerability    :CVE-2026-42505            \nSeverity         :UNSPECIFIED               \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.12                  \nFixed version    :1.25.12                   \nEPSS Score       :0.003820                  \nEPSS Percentile  :0.312120                  \n"
           },
           "locations": [
             {
@@ -1364,7 +1364,7 @@
           "kind": "fail",
           "level": "note",
           "message": {
-            "text": "Vulnerability    :CVE-2026-11979                                                   \nSeverity         :LOW                                                              \nPackage          :pkg:apk/alpine/libxml2@2.13.9-r2?os_name=alpine&os_version=3.24  \nAffected range   :<=2.13.9-r2                                                      \nFixed version    :not fixed                                                        \nEPSS Score       :0.001480                                                         \nEPSS Percentile  :0.045400                                                         \n"
+            "text": "Vulnerability    :CVE-2026-11979                                                   \nSeverity         :LOW                                                              \nPackage          :pkg:apk/alpine/libxml2@2.13.9-r2?os_name=alpine&os_version=3.24  \nAffected range   :<=2.13.9-r2                                                      \nFixed version    :not fixed                                                        \nEPSS Score       :0.001480                                                         \nEPSS Percentile  :0.045440                                                         \n"
           },
           "locations": [
             {
@@ -1414,7 +1414,7 @@
           "kind": "fail",
           "level": "note",
           "message": {
-            "text": "Vulnerability    :CVE-2026-27139            \nSeverity         :LOW                       \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.002010                  \nEPSS Percentile  :0.101970                  \n"
+            "text": "Vulnerability    :CVE-2026-27139            \nSeverity         :LOW                       \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.002010                  \nEPSS Percentile  :0.101920                  \n"
           },
           "locations": [
             {
@@ -1432,7 +1432,7 @@
           "kind": "fail",
           "level": "note",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39824                     \nSeverity         :LOW                                \nPackage          :pkg:golang/golang.org/x/sys@0.1.0  \nAffected range   :<0.44.0                            \nFixed version    :0.44.0                             \nEPSS Score       :0.001140                           \nEPSS Percentile  :0.017170                           \n"
+            "text": "Vulnerability    :CVE-2026-39824                     \nSeverity         :LOW                                \nPackage          :pkg:golang/golang.org/x/sys@0.1.0  \nAffected range   :<0.44.0                            \nFixed version    :0.44.0                             \nEPSS Score       :0.001140                           \nEPSS Percentile  :0.017230                           \n"
           },
           "locations": [
             {
@@ -1450,7 +1450,7 @@
           "kind": "fail",
           "level": "note",
           "message": {
-            "text": "Vulnerability    :CVE-2026-0989                                                    \nSeverity         :LOW                                                              \nPackage          :pkg:apk/alpine/libxml2@2.13.9-r2?os_name=alpine&os_version=3.24  \nAffected range   :<=2.13.9-r2                                                      \nFixed version    :not fixed                                                        \nEPSS Score       :0.004380                                                         \nEPSS Percentile  :0.362510                                                         \n"
+            "text": "Vulnerability    :CVE-2026-0989                                                    \nSeverity         :LOW                                                              \nPackage          :pkg:apk/alpine/libxml2@2.13.9-r2?os_name=alpine&os_version=3.24  \nAffected range   :<=2.13.9-r2                                                      \nFixed version    :not fixed                                                        \nEPSS Score       :0.004380                                                         \nEPSS Percentile  :0.362920                                                         \n"
           },
           "locations": [
             {
@@ -1475,7 +1475,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58183            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004130                  \nEPSS Percentile  :0.342370                  \n"
+            "text": "Vulnerability    :CVE-2025-58183            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004130                  \nEPSS Percentile  :0.342740                  \n"
           },
           "locations": [
             {
@@ -1493,7 +1493,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-47912            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004360                  \nEPSS Percentile  :0.361170                  \n"
+            "text": "Vulnerability    :CVE-2025-47912            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004360                  \nEPSS Percentile  :0.361580                  \n"
           },
           "locations": [
             {
@@ -1511,7 +1511,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58185            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005180                  \nEPSS Percentile  :0.414420                  \n"
+            "text": "Vulnerability    :CVE-2025-58185            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005180                  \nEPSS Percentile  :0.414790                  \n"
           },
           "locations": [
             {
@@ -1529,7 +1529,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58186            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005270                  \nEPSS Percentile  :0.419230                  \n"
+            "text": "Vulnerability    :CVE-2025-58186            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005270                  \nEPSS Percentile  :0.419590                  \n"
           },
           "locations": [
             {
@@ -1547,7 +1547,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58189            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004360                  \nEPSS Percentile  :0.361170                  \n"
+            "text": "Vulnerability    :CVE-2025-58189            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.004360                  \nEPSS Percentile  :0.361580                  \n"
           },
           "locations": [
             {
@@ -1565,7 +1565,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61724            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005180                  \nEPSS Percentile  :0.414410                  \n"
+            "text": "Vulnerability    :CVE-2025-61724            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.005180                  \nEPSS Percentile  :0.414790                  \n"
           },
           "locations": [
             {
@@ -1583,7 +1583,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61730            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.002760                  \nEPSS Percentile  :0.198010                  \n"
+            "text": "Vulnerability    :CVE-2025-61730            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.002760                  \nEPSS Percentile  :0.198240                  \n"
           },
           "locations": [
             {
@@ -1601,7 +1601,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39825            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003900                  \nEPSS Percentile  :0.319950                  \n"
+            "text": "Vulnerability    :CVE-2026-39825            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003900                  \nEPSS Percentile  :0.320310                  \n"
           },
           "locations": [
             {
@@ -1619,7 +1619,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-42507            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.003700                  \nEPSS Percentile  :0.299660                  \n"
+            "text": "Vulnerability    :CVE-2026-42507            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.003700                  \nEPSS Percentile  :0.300020                  \n"
           },
           "locations": [
             {
@@ -1637,7 +1637,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32288            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002900                  \nEPSS Percentile  :0.213390                  \n"
+            "text": "Vulnerability    :CVE-2026-32288            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002900                  \nEPSS Percentile  :0.213600                  \n"
           },
           "locations": [
             {
@@ -1655,7 +1655,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-27142            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.003280                  \nEPSS Percentile  :0.254620                  \n"
+            "text": "Vulnerability    :CVE-2026-27142            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.003280                  \nEPSS Percentile  :0.254920                  \n"
           },
           "locations": [
             {
@@ -1673,7 +1673,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32289            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002900                  \nEPSS Percentile  :0.213410                  \n"
+            "text": "Vulnerability    :CVE-2026-32289            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002900                  \nEPSS Percentile  :0.213620                  \n"
           },
           "locations": [
             {
@@ -1691,7 +1691,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39823            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003140                  \nEPSS Percentile  :0.239740                  \n"
+            "text": "Vulnerability    :CVE-2026-39823            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003140                  \nEPSS Percentile  :0.240030                  \n"
           },
           "locations": [
             {
@@ -1709,7 +1709,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39826            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003710                  \nEPSS Percentile  :0.300560                  \n"
+            "text": "Vulnerability    :CVE-2026-39826            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.003710                  \nEPSS Percentile  :0.300910                  \n"
           },
           "locations": [
             {
@@ -1727,7 +1727,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32282            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002920                  \nEPSS Percentile  :0.215200                  \n"
+            "text": "Vulnerability    :CVE-2026-32282            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.002920                  \nEPSS Percentile  :0.215420                  \n"
           },
           "locations": [
             {
@@ -1745,7 +1745,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61727            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.11                  \nFixed version    :1.24.11                   \nEPSS Score       :0.002880                  \nEPSS Percentile  :0.211260                  \n"
+            "text": "Vulnerability    :CVE-2025-61727            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.11                  \nFixed version    :1.24.11                   \nEPSS Score       :0.002880                  \nEPSS Percentile  :0.211490                  \n"
           },
           "locations": [
             {
@@ -1763,7 +1763,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61728            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.006430                  \nEPSS Percentile  :0.475900                  \n"
+            "text": "Vulnerability    :CVE-2025-61728            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.006430                  \nEPSS Percentile  :0.476330                  \n"
           },
           "locations": [
             {
@@ -1781,7 +1781,7 @@
           "kind": "fail",
           "level": "warning",
           "message": {
-            "text": "Vulnerability    :CVE-2026-27145            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.005910                  \nEPSS Percentile  :0.452080                  \n"
+            "text": "Vulnerability    :CVE-2026-27145            \nSeverity         :MEDIUM                    \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.005910                  \nEPSS Percentile  :0.452540                  \n"
           },
           "locations": [
             {
@@ -1799,7 +1799,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58187            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.9                   \nFixed version    :1.24.9                    \nEPSS Score       :0.003790                  \nEPSS Percentile  :0.308100                  \n"
+            "text": "Vulnerability    :CVE-2025-58187            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.9                   \nFixed version    :1.24.9                    \nEPSS Score       :0.003790                  \nEPSS Percentile  :0.308460                  \n"
           },
           "locations": [
             {
@@ -1817,7 +1817,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-58188            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.003560                  \nEPSS Percentile  :0.284920                  \n"
+            "text": "Vulnerability    :CVE-2025-58188            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.003560                  \nEPSS Percentile  :0.285290                  \n"
           },
           "locations": [
             {
@@ -1835,7 +1835,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61723            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.006170                  \nEPSS Percentile  :0.464340                  \n"
+            "text": "Vulnerability    :CVE-2025-61723            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.006170                  \nEPSS Percentile  :0.464790                  \n"
           },
           "locations": [
             {
@@ -1853,7 +1853,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61725            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.006040                  \nEPSS Percentile  :0.458040                  \n"
+            "text": "Vulnerability    :CVE-2025-61725            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.8                   \nFixed version    :1.24.8                    \nEPSS Score       :0.006040                  \nEPSS Percentile  :0.458490                  \n"
           },
           "locations": [
             {
@@ -1871,7 +1871,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61726            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.019450                  \nEPSS Percentile  :0.783370                  \n"
+            "text": "Vulnerability    :CVE-2025-61726            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.12                  \nFixed version    :1.24.12                   \nEPSS Score       :0.019450                  \nEPSS Percentile  :0.783560                  \n"
           },
           "locations": [
             {
@@ -1889,7 +1889,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-61729            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.11                  \nFixed version    :1.24.11                   \nEPSS Score       :0.004640                  \nEPSS Percentile  :0.380550                  \n"
+            "text": "Vulnerability    :CVE-2025-61729            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.11                  \nFixed version    :1.24.11                   \nEPSS Score       :0.004640                  \nEPSS Percentile  :0.380950                  \n"
           },
           "locations": [
             {
@@ -1907,7 +1907,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-25679            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.007280                  \nEPSS Percentile  :0.509440                  \n"
+            "text": "Vulnerability    :CVE-2026-25679            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.8                   \nFixed version    :1.25.8                    \nEPSS Score       :0.007280                  \nEPSS Percentile  :0.509720                  \n"
           },
           "locations": [
             {
@@ -1925,7 +1925,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32280            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.006150                  \nEPSS Percentile  :0.463310                  \n"
+            "text": "Vulnerability    :CVE-2026-32280            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.006150                  \nEPSS Percentile  :0.463770                  \n"
           },
           "locations": [
             {
@@ -1943,7 +1943,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32281            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.003550                  \nEPSS Percentile  :0.284340                  \n"
+            "text": "Vulnerability    :CVE-2026-32281            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.003550                  \nEPSS Percentile  :0.284710                  \n"
           },
           "locations": [
             {
@@ -1961,7 +1961,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-32283            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.006210                  \nEPSS Percentile  :0.466490                  \n"
+            "text": "Vulnerability    :CVE-2026-32283            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.9                   \nFixed version    :1.25.9                    \nEPSS Score       :0.006210                  \nEPSS Percentile  :0.466930                  \n"
           },
           "locations": [
             {
@@ -1979,7 +1979,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-33811            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.008130                  \nEPSS Percentile  :0.537660                  \n"
+            "text": "Vulnerability    :CVE-2026-33811            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.008130                  \nEPSS Percentile  :0.537990                  \n"
           },
           "locations": [
             {
@@ -1997,7 +1997,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-33814            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007810                  \nEPSS Percentile  :0.527260                  \n"
+            "text": "Vulnerability    :CVE-2026-33814            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007810                  \nEPSS Percentile  :0.527570                  \n"
           },
           "locations": [
             {
@@ -2015,7 +2015,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39820            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007840                  \nEPSS Percentile  :0.527990                  \n"
+            "text": "Vulnerability    :CVE-2026-39820            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007840                  \nEPSS Percentile  :0.528280                  \n"
           },
           "locations": [
             {
@@ -2033,7 +2033,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39836            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.005880                  \nEPSS Percentile  :0.450810                  \n"
+            "text": "Vulnerability    :CVE-2026-39836            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.005880                  \nEPSS Percentile  :0.451260                  \n"
           },
           "locations": [
             {
@@ -2051,7 +2051,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-42499            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007980                  \nEPSS Percentile  :0.532500                  \n"
+            "text": "Vulnerability    :CVE-2026-42499            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.10                  \nFixed version    :1.25.10                   \nEPSS Score       :0.007980                  \nEPSS Percentile  :0.532840                  \n"
           },
           "locations": [
             {
@@ -2069,7 +2069,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-42504            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.005600                  \nEPSS Percentile  :0.437090                  \n"
+            "text": "Vulnerability    :CVE-2026-42504            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.11                  \nFixed version    :1.25.11                   \nEPSS Score       :0.005600                  \nEPSS Percentile  :0.437520                  \n"
           },
           "locations": [
             {
@@ -2087,7 +2087,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-46600            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.26.6                   \nFixed version    :1.26.6                    \nEPSS Score       :0.003390                  \nEPSS Percentile  :0.266670                  \n"
+            "text": "Vulnerability    :CVE-2026-46600            \nSeverity         :HIGH                      \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.26.6                   \nFixed version    :1.26.6                    \nEPSS Score       :0.003390                  \nEPSS Percentile  :0.266990                  \n"
           },
           "locations": [
             {
@@ -2105,7 +2105,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2026-39821            \nSeverity         :CRITICAL                  \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.13                  \nFixed version    :1.25.13                   \nEPSS Score       :0.006550                  \nEPSS Percentile  :0.481660                  \n"
+            "text": "Vulnerability    :CVE-2026-39821            \nSeverity         :CRITICAL                  \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.25.13                  \nFixed version    :1.25.13                   \nEPSS Score       :0.006550                  \nEPSS Percentile  :0.482060                  \n"
           },
           "locations": [
             {
@@ -2123,7 +2123,7 @@
           "kind": "fail",
           "level": "error",
           "message": {
-            "text": "Vulnerability    :CVE-2025-68121            \nSeverity         :CRITICAL                  \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.13                  \nFixed version    :1.24.13                   \nEPSS Score       :0.007650                  \nEPSS Percentile  :0.521980                  \n"
+            "text": "Vulnerability    :CVE-2025-68121            \nSeverity         :CRITICAL                  \nPackage          :pkg:golang/stdlib@1.24.6  \nAffected range   :<1.24.13                  \nFixed version    :1.24.13                   \nEPSS Score       :0.007650                  \nEPSS Percentile  :0.522290                  \n"
           },
           "locations": [
             {

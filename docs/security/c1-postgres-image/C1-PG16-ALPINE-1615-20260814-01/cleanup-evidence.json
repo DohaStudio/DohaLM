@@ -1,7 +1,7 @@
 {
   "schema": "dohalm.c1.cleanup-evidence/1",
-  "correlation_id": "C1-PG1615-PROPOSED-20260814",
-  "completed_at": "2026-08-14T08:38:13.6027954Z",
+  "correlation_id": "C1-PG1615-PROPOSED-20260814-CORRECTION",
+  "completed_at": "2026-08-14T11:49:45.5536954Z",
   "pre_inventory": {
     "task_containers": 0,
     "task_volumes": 0,
@@ -16,7 +16,8 @@
     "task_networks": 0,
     "task_image_cache": 0,
     "scanner_temp_cache": 0,
-    "extracted_scanner_archive_or_source": 0
+    "extracted_scanner_archive_or_source": 0,
+    "task_external_temp_artifacts": 0
   },
   "approved_delta": "task-only images, scanner/archive, extracted binary/source and probe environment removed",
   "existing_user_resources_changed": false,

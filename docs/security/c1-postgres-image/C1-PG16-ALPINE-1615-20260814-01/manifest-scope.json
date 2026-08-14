@@ -1,5 +1,5 @@
 {
-  "schema": "dohalm.c1.layered-manifest-scope/1",
+  "schema": "dohalm.c1.layered-manifest-scope/2",
   "parent_manifest": "SHA256SUMS",
   "parent_includes": "all regular files recursively except SHA256SUMS and risk-decision-record.yaml",
   "parent_excludes": ["SHA256SUMS", "risk-decision-record.yaml"],
@@ -11,6 +11,7 @@
   ],
   "commit_binding": "risk record containing_commit/tree=self means the single Git commit and tree that contain this exact repository-relative path",
   "path_normalization": "repository-relative forward slash; no dot or dot-dot segment",
+  "entry_format": "<sha256 lowercase hexadecimal><two spaces><decimal byte length><two spaces><repository-relative path>",
   "hash": "SHA-256 lowercase hexadecimal",
-  "size_binding": "each layered verification also compares regular-file byte length"
+  "size_binding": "decimal byte length is stored in every child and parent entry and verified together with SHA-256"
 }

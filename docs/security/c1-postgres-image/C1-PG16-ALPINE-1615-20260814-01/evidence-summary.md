@@ -12,6 +12,12 @@
 `linux/amd64`다. 새 Docker Scout 1.24.0 unsuppressed scan은 Critical 2, High 17, Medium 18, Low 5,
 Unspecified 8, 전체 50건을 재현했다.
 
+[확정] 이번 correction의 fresh raw SARIF SHA-256은
+`fec111471d556f2e984e72d1017142aeb8146e72d8e761e2862143eaefdcb701`이다. 이전
+`c149af944a83a552ffa445967cd69a0f384fd48033759ac33987b56e9e210a18`과 비교해 43개 finding의 EPSS
+percentile만 변경됐고 CVE 추가·삭제, severity, component/PURL, installed/affected/fixed range, location, EPSS score,
+scanner와 artifact identity 변경은 0이다.
+
 [제안] 세 finding의 exact-artifact adjudication 후 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로
 최대 30일 수용하는 Option B를 검토한다. 사용자는 이 제안을 아직 승인하지 않았다. 이 Draft PR의 작성 또는 병합은 risk
 acceptance, execution authority, C1 구현이나 production activation을 발생시키지 않는다.
@@ -22,6 +28,7 @@ acceptance, execution authority, C1 구현이나 production activation을 발생
 |---|---|
 | OCI identity | [image-identity.json](./image-identity.json), [index](./oci-index.json), [manifest](./oci-manifest.json) |
 | raw SARIF | [scout-cves.sarif.json](./scout-cves.sarif.json) |
+| field-by-field scan delta | [scan-delta.json](./scan-delta.json) |
 | normalized Markdown | [scout-cves.md](./scout-cves.md) |
 | SBOM/package | [SPDX](./sbom.spdx.json), [package summary](./packages.txt) |
 | scanner | [scanner-provenance.json](./scanner-provenance.json) |
@@ -29,18 +36,21 @@ acceptance, execution authority, C1 구현이나 production activation을 발생
 | Alpine secdb | [main](./supporting/alpine-main.json), [community](./supporting/alpine-community.json) |
 
 SARIF는 scanner 원본이고 Markdown derivative는 각 line의 trailing whitespace만 제거하고 LF로 고정했다. SARIF finding은
-삭제·수정하지 않았다. Scout service exception 4건은 관찰됐지만 ignore/suppression/VEX filter는 적용하지 않았다.
+삭제·수정하지 않았다. Scout service exception 4건은 관찰됐지만 적용된 exception과 ignore/suppression/VEX filter는 0이다.
+OCI inspect와 preflight JSON은 Windows PowerShell 기본 writer 대신 explicit UTF-8 no-BOM writer로 새로 생성했다. bundle뿐
+아니라 repository 전체 JSON·SARIF·SPDX가 lenient `utf-8-sig` fallback 없이 strict UTF-8 parser를 통과해야 한다.
 
 ## Adjudication
 
-| Raw finding | 판정 | Child bundle |
-|---|---|---|
-| `CVE-2026-39821` / `GO-2026-5026` Critical | `not_applicable_exact_artifact` | [evidence](./adjudications/CVE-2026-39821/adjudication-summary.md) |
-| `CVE-2026-39836` / `GO-2026-4971` High | `not_affected` | [evidence](./adjudications/CVE-2026-39836/adjudication-summary.md) |
-| `CVE-2026-46600` / `GO-2026-5942` High | `not_applicable_exact_artifact` | [evidence](./adjudications/CVE-2026-46600/adjudication-summary.md) |
+| Raw finding | Current OSV | 판정 | Child bundle |
+|---|---|---|---|
+| `CVE-2026-39821` / `GO-2026-5026` Critical | modified `2026-08-14T10:42:19.830132264Z`; OSV SHA `5fed8bde…a4977` | `not_applicable_exact_artifact` | [evidence](./adjudications/CVE-2026-39821/adjudication-summary.md) |
+| `CVE-2026-39836` / `GO-2026-4971` High | modified `2026-08-01T10:44:51.653864484Z`; OSV SHA `36b46ef5…2142` | `not_affected` | [evidence](./adjudications/CVE-2026-39836/adjudication-summary.md) |
+| `CVE-2026-46600` / `GO-2026-5942` High | modified `2026-08-13T22:00:14.273346398Z`; OSV SHA `b8da7fb2…3bed` | `not_applicable_exact_artifact` | [evidence](./adjudications/CVE-2026-46600/adjudication-summary.md) |
 
-세 child bundle은 current OSV snapshot, exact gosu SHA-256, Go build metadata, complete symbol table search, source dependency graph,
-fresh govulncheck binary/source SARIF와 runtime reachability를 포함한다. 공식 vendor VEX는 없다.
+세 child bundle은 current OSV schema·PURL·range·전체 symbol·related metadata, exact gosu SHA-256, Go build metadata,
+complete symbol table search, source dependency graph, fresh govulncheck binary/source SARIF와 runtime reachability를 포함한다.
+GO-2026-5026의 변경된 `net/http`·HTTP/2 및 `x/net/idna` symbol도 다시 판정했다. 공식 vendor VEX는 없다.
 
 ## Proposed residual set
 
@@ -62,7 +72,8 @@ artifact/advisory drift 조기 종료 조건이 충족됐다. 기존 record는 �
 
 ## Preflight와 cleanup
 
-fresh exact image preflight는 official initdb, PostgreSQL 16.15, linux/amd64, UTF8/UTC, private network/public port 0,
+fresh exact image preflight `C1-PG1615-PROPOSED-20260814-PREFLIGHT-20260814204334`는 official initdb, PostgreSQL 16.15,
+linux/amd64, UTF8/UTC, private network/public port 0,
 NOLOGIN/LOGIN role topology, schema/privilege, SECURITY DEFINER와 고정 search path, PUBLIC EXECUTE revoke, direct DML denial,
 composite FK/CHECK, advisory transaction lock, transactional DDL rollback, graceful shutdown과 restart persistence를 통과했다.
 
@@ -81,4 +92,4 @@ C1-A/B/C, C2/C3, Activation, production/staging/shared/live DB와 actual Trainin
 
 [확정] 각 adjudication child `SHA256SUMS`와 parent [SHA256SUMS](./SHA256SUMS)의 scope는
 [manifest-scope.json](./manifest-scope.json)에 정의한다. risk record와 parent manifest의 circular hash는 명시적 exclusion과
-외부 검증 hash로 차단한다.
+외부 검증 hash로 차단한다. 각 entry는 SHA-256과 decimal byte length를 함께 결속한다.

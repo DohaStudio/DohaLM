@@ -1,10 +1,10 @@
-﻿{
+{
     "schema":  "dohalm.c1.postgres-preflight/1",
-    "correlation_id":  "C1-PG1615-PROPOSED-20260814-PREFLIGHT",
+    "correlation_id":  "C1-PG1615-PROPOSED-20260814-PREFLIGHT-20260814204334",
     "image_manifest":  "sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571",
     "platform":  "linux/amd64",
-    "started_at":  "2026-08-14T08:31:13.9009039+00:00",
-    "completed_at":  "2026-08-14T08:31:19.9608621+00:00",
+    "started_at":  "2026-08-14T11:43:34.1555207Z",
+    "completed_at":  "2026-08-14T11:43:39.5970942Z",
     "published_port_count":  0,
     "synthetic_only":  true,
     "results":  [
@@ -41,7 +41,7 @@
                     {
                         "name":  "nologin-login-role-topology",
                         "status":  "pass",
-                        "detail":  "c1_app:true,c1_fn_owner:false,c1_owner:false,c1_runtime:false"
+                        "detail":  "c1_app:false,c1_fn_owner:false,c1_owner:false,c1_runtime:true"
                     },
                     {
                         "name":  "runtime-membership",
@@ -61,12 +61,12 @@
                     {
                         "name":  "security-definer-owner-search-path",
                         "status":  "pass",
-                        "detail":  "true/search_path=pg_catalog, pg_temp/c1_fn_owner"
+                        "detail":  "t/search_path=pg_catalog, pg_temp/c1_fn_owner"
                     },
                     {
                         "name":  "public-execute-revoked",
                         "status":  "pass",
-                        "detail":  "false"
+                        "detail":  "f"
                     },
                     {
                         "name":  "runtime-direct-dml-denial",

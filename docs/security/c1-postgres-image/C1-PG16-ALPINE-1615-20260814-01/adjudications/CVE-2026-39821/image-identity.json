@@ -19,8 +19,13 @@
   "postgresql": "16.15",
   "alpine": "3.24.1",
   "musl": "1.2.6-r2",
+  "openssl": "3.5.7-r0",
+  "libxml2": "2.13.9-r2",
+  "busybox": "1.37.0-r31",
   "entrypoint": "docker-entrypoint.sh",
-  "command": ["postgres"],
+  "command": [
+    "postgres"
+  ],
   "entrypoint_sha256": "9c440299ae04a0a79d55b8bf03307036d890a40979d2fb698073c9050d4b20a5",
   "gosu": {
     "version": "1.19",

@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "Id": "sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571",
         "RepoTags": [
@@ -55,7 +55,7 @@
             ]
         },
         "Metadata": {
-            "LastTagTime": "2026-08-14T08:24:41.21523608Z"
+            "LastTagTime": "2026-08-14T11:29:03.298152785Z"
         },
         "Descriptor": {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",

@@ -43,7 +43,11 @@ scanner:
   executable_sha256: 48ddfcf97535822e7bb27eed2796fa55728e5e0f163c7490d3fb90e621e8c09a
   advisory_source: Docker Scout service
   advisory_db_build_timestamp: null
-  scanned_at_utc: 2026-08-14T08:25:17.9560059Z
+  scanned_at_utc: 2026-08-14T11:30:25.3368810Z
+  raw_report_sha256: fec111471d556f2e984e72d1017142aeb8146e72d8e761e2862143eaefdcb701
+  previous_raw_report_sha256: c149af944a83a552ffa445967cd69a0f384fd48033759ac33987b56e9e210a18
+  drift_classification: epss_percentile_only
+  epss_percentile_changed_results: 43
   suppression_ignore_vex_filtering: 0
   service_exceptions_observed: 4
   service_exceptions_applied: 0
@@ -58,15 +62,15 @@ adjudicated_findings:
   - id: CVE-2026-39821
     status: not_applicable_exact_artifact
     child_manifest: adjudications/CVE-2026-39821/SHA256SUMS
-    child_manifest_sha256: ac79fba782feee0a5931a606a08ab5c0725fc470463df085f0044962cf9eff2d
+    child_manifest_sha256: bb19ff4fa2a40595af9a5e1acca8ebff844b5229ee4c9a596ffee7051620b249
   - id: CVE-2026-39836
     status: not_affected
     child_manifest: adjudications/CVE-2026-39836/SHA256SUMS
-    child_manifest_sha256: 5352c531b9a3b95f7abe8763c554f7ecaf226e6987226579f78bae931f8d490b
+    child_manifest_sha256: b6516a60cd4ee632041037eec1272b8d76f22ac3d3ce6ebc4bc8b35afa2d6404
   - id: CVE-2026-46600
     status: not_applicable_exact_artifact
     child_manifest: adjudications/CVE-2026-46600/SHA256SUMS
-    child_manifest_sha256: ec80b703f769e96681a05950455aebfcefc74efd2c597c9bbd7f2b81e877d3bd
+    child_manifest_sha256: 725593c67ad2f6b9c6f83b29d0b99df5bdead38f2c7f7bfbea6839ef5e73e51c
 residual_risk_findings:
   critical:
     - CVE-2025-68121
@@ -134,7 +138,7 @@ renewal:
   new_explicit_user_approval_required: true
 evidence:
   parent_manifest: SHA256SUMS
-  parent_manifest_sha256: 0889a6558d91349b77016442a09e111be3c02a0365301c9c2138d998ea9f05ce
+  parent_manifest_sha256: 8d54459f17bef5f9da3d0cc07fc0541a286a674fa256d153da02ceaddd4a0caf
   scope: manifest-scope.json
 authorization_gate:
   before_explicit_approval: fail_closed
