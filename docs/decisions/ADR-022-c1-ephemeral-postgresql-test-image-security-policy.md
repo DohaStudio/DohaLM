@@ -1,14 +1,15 @@
 # ADR-022: C1 Ephemeral PostgreSQL Test Image Security Policy
 
-- 문서 상태: `draft`
+- 문서 상태: `approved`
 - 마지막 검토일: 2026-08-14
-- 결정 상태: `proposed`
-- 실행 영향: 없음
+- 결정 상태: `accepted`
+- 실행 영향: 선택지 B의 exact image를 C1 local/CI ephemeral contract test에만 30일 한시 허용; C1 구현·production activation 없음
 - 관련 문서: [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md),
   [Definition of Ready](../governance/definition-of-ready.md),
   [Definition of Done](../governance/definition-of-done.md),
   [테스트 전략](../quality/test-strategy.md),
-  [테스트 체크리스트](../quality/testing-checklist.md)
+  [테스트 체크리스트](../quality/testing-checklist.md),
+  [선택지 B risk-acceptance record](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml)
 
 ## Context
 
@@ -158,11 +159,10 @@ advisory timestamp와 report hash는 현재 저장소에 영속화되지 않았�
 - 자동 채택 금지: shared live DB, developer-owned persistent DB와 production service는 사용할 수 없다. 별도 infrastructure ADR과
   사용자 승인 없이 managed service 또는 OS package를 선택하지 않는다.
 
-## Proposed recommendation
+## Decision rationale
 
-[제안] C1 schema/dependency 개발용 isolated ephemeral test에 한정해 선택지 B를 우선 검토한다. 이 권고는 production runtime
-image에 적용하지 않으며 risk acceptance 자체가 아니다. 사용자가 선택지 B를 명시 승인하려면 아래 exact record와 최신 scan,
-tracker 및 기능 evidence를 먼저 완성해야 한다.
+[확정] C1 schema/dependency 개발용 isolated ephemeral test에 한정해 선택지 B를 채택한다. 이 결정은 production runtime
+image에 적용하지 않으며 아래 exact record와 최신 scan, tracker 및 기능 evidence가 유효한 동안에만 효력이 있다.
 
 [제안] 선택지 A도 유효한 보수적 선택이다. 개발 속도를 근거로 CVE를 false positive 또는 negligible risk로 축소하지 않는다.
 선택지 C~E는 각각 별도 supply-chain, provider 또는 infrastructure 결정이 필요하다.
@@ -234,12 +234,28 @@ placeholder로 만들 수 없다. evidence가 없으면 cleanup을 PASS로 표�
 5. Container-free test infrastructure ADR 진행
 6. 작업 중단
 
-[검증 필요] 선택지 2는 이 ADR 또는 문서 PR의 병합으로 승인되지 않는다. exact CVE, 최신 evidence, accountable approver와
-만료 조건을 포함한 별도 사용자 명시 승인이 필요하다.
+[확정] 선택지 2는 이 ADR 또는 문서 PR의 병합만으로 승인되지 않는다. 이번 결정은 exact CVE, 최신 evidence,
+accountable approver와 만료 조건을 포함한 별도 사용자 명시 승인과 아래 immutable record로 그 Gate를 충족했다.
+
+## Accepted decision — 선택지 B
+
+[확정] 2026-08-14 사용자는 선택지 2를 명시 승인했고 accountable approver `DDORINY`로서 최신 unsuppressed scan,
+`CVE-2026-39821` package/symbol-level not-applicable adjudication, exact artifact identity, isolated compatibility preflight와
+cleanup evidence를 검토 가능한 immutable record로 고정했다.
+
+[확정] 승인 record는
+[C1-PG16-ALPINE-20260814-01](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml)이다.
+유효 기간은 `2026-08-14T11:46:52.6887955+09:00`부터 `2026-09-13T11:46:52.6887955+09:00`까지이며, fixed official
+image 공개 또는 record의 early termination 조건 발생 시 더 일찍 종료한다. raw scan은 Critical 2 / High 16이고,
+`CVE-2026-39821`을 suppression 없이 exact artifact not-applicable로 분리한 applicable 집합은 Critical 1 / High 16이다.
+
+[확정] 이 승인은 C1 schema·migration·restore contract test를 local/CI isolated ephemeral 환경에서 수행할 수 있게 하는
+image risk decision만 승인한다. C1 구현 자체, C2/C3, production/staging/shared/live DB, production credential/data,
+public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluation을 승인하지 않는다.
 
 ## Scope와 non-goals
 
-- [제외] image risk acceptance 승인 또는 CVE suppression
+- [제외] 승인 record 범위 밖 image risk acceptance 또는 CVE suppression
 - [제외] Dockerfile, Compose, dependency, lockfile, migration, SQL, schema와 workflow 변경
 - [제외] custom/third-party image build·pull·push 또는 자동 채택
 - [제외] live/shared/production PostgreSQL, DSN, credential과 data 접근
@@ -247,13 +263,13 @@ placeholder로 만들 수 없다. evidence가 없으면 cleanup을 PASS로 표�
 
 ## 승인 Gate
 
-이 ADR은 `draft`와 `proposed`이며 실행 영향이 없다. 독립 검증과 사용자 명시 승인 전에는 어느 선택지도 accepted decision이
-아니다. 병합되더라도 Decision Packet의 기록 형식과 선택지를 등록할 뿐 risk acceptance, C1 착수 또는 production 사용을
-승인하지 않는다.
+이 ADR은 `approved`와 `accepted`이며 위 immutable record 범위에서만 선택지 B를 승인한다. 이는 C1 구현 착수나 production 사용
+승인이 아니며, C1 구현은 별도 Draft PR과 독립 검증 Gate를 따라야 한다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-14 | [확정] 사용자 선택지 2 승인, 최신 scan·not-applicable adjudication·preflight·cleanup evidence와 30일 immutable record 고정 |
 | 2026-08-14 | [제안] 선택지 C/D/E의 장점·ownership·C1 재개 증거와 실행 후 `cleanup_evidence` fail-closed 계약 보완 |
 | 2026-08-13 | [제안] ADR-021의 확정 C1 contract와 후속 image Security Gate를 분리하고 다섯 정책 선택지·time-bound exception schema를 등록 |

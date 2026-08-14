@@ -1,0 +1,147 @@
+schema_version: 1
+decision_id: C1-PG16-ALPINE-20260814-01
+decision: accepted
+decision_option: 2
+approval:
+  accountable_approver: DDORINY
+  accountable_approver_role: repository-owner-and-risk-decision-approver
+  provenance: explicit-user-selection-of-ADR-022-option-2-in-current-gate
+  approved_at: "2026-08-14T11:46:52.6887955+09:00"
+validity:
+  starts_at: "2026-08-14T11:46:52.6887955+09:00"
+  expires_at: "2026-09-13T11:46:52.6887955+09:00"
+  maximum_duration_days: 30
+  early_termination:
+    - fixed-official-image-published
+    - tag-index-manifest-config-base-source-or-binary-drift
+    - new-applicable-critical-or-high
+    - severity-exploitability-reachability-vex-or-advisory-change
+    - cleanup-failure-ambiguity-or-missing-evidence
+  renewal_policy: new-scan-new-decision-packet-and-new-explicit-user-approval-required
+artifact:
+  repository: docker.io/library/postgres
+  exact_tag: 16.14-alpine
+  platform: linux/amd64
+  index_digest: sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+  manifest_digest: sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382
+  config_digest: sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28
+  source_revision: 4f9ced003ba58a854656ba150d146243d27ae3ac
+  source_directory: 16/alpine3.24
+  base_digest: sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f
+  postgresql_version: 16.14
+  gosu:
+    path: /usr/local/bin/gosu
+    version: "1.19"
+    go_version: 1.24.6
+    binary_sha256: 52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0
+scanner:
+  name: Docker Scout
+  version: 1.19.0
+  cli_commit: 91fd9f3262322a34537a7a7bbcd5cfd282b93402
+  scanned_at: "2026-08-14T02:41:56.6498368Z"
+  advisory_source: Docker-Scout-advisory-service
+  advisory_database_build_timestamp: not-exposed-by-scanner
+  suppression_or_ignore_options: []
+  scout_exceptions_observed_but_not_filtered: 4
+  official_go_advisory:
+    id: GO-2026-5026
+    alias: CVE-2026-39821
+    source: https://vuln.go.dev/ID/GO-2026-5026.json
+    modified_at: "2026-08-13T21:43:54Z"
+    sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c
+scan_counts:
+  raw:
+    critical: 2
+    high: 16
+    medium: 18
+    low: 5
+    unspecified: 9
+    total: 50
+  applicable_after_adjudication:
+    critical: 1
+    high: 16
+  historical_applicable_baseline:
+    critical: 1
+    high: 16
+  security_drift: false
+shared_residual_risk_analysis:
+  component: pkg:golang/stdlib@1.24.6
+  artifact_binding: /usr/local/bin/gosu
+  reachability: gosu-is-executed-only-for-process-identity-transition-and-exec-in-this-c1-path
+  disposition: accepted-residual-risk
+  rationale: no-official-not-affected-evidence-is-claimed-for-these-items-and-no-item-is-suppressed
+residual_risk_findings:
+  - {id: CVE-2025-68121, severity: CRITICAL, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.13", fixed: 1.24.13, status: accepted_residual_risk}
+  - {id: CVE-2025-58187, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.9", fixed: 1.24.9, status: accepted_residual_risk}
+  - {id: CVE-2025-58188, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61723, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61725, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.8", fixed: 1.24.8, status: accepted_residual_risk}
+  - {id: CVE-2025-61726, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.12", fixed: 1.24.12, status: accepted_residual_risk}
+  - {id: CVE-2025-61729, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.24.11", fixed: 1.24.11, status: accepted_residual_risk}
+  - {id: CVE-2026-25679, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.8", fixed: 1.25.8, status: accepted_residual_risk}
+  - {id: CVE-2026-32280, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-32281, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-32283, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.9", fixed: 1.25.9, status: accepted_residual_risk}
+  - {id: CVE-2026-33811, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-33814, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-39820, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-39836, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-42499, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.10", fixed: 1.25.10, status: accepted_residual_risk}
+  - {id: CVE-2026-42504, severity: HIGH, component: "pkg:golang/stdlib@1.24.6", installed: 1.24.6, affected: "<1.25.11", fixed: 1.25.11, status: accepted_residual_risk}
+not_affected_findings:
+  - id: CVE-2026-39821
+    severity: CRITICAL
+    scanner_component: pkg:golang/stdlib@1.24.6
+    installed: 1.24.6
+    affected: "<1.25.13"
+    fixed: 1.25.13
+    status: not_applicable_exact_artifact
+    scope: exact-manifest-linux-amd64-and-gosu-binary-sha256
+    suppression: false
+    adjudication: C1_CVE_2026_39821_NOT_APPLICABLE_AWAITING_RISK_RECORD_RETRY
+    evidence:
+      adjudication_summary_sha256: 26b438b1df0dacfa528492432b3672eba7c231d41b3f78af0fb6239164b4639f
+      govulncheck_binary_sarif_sha256: b1bfbf0911fd48744947ecd03826e5c10da8137b80d409878f4c987b0a937a84
+      govulncheck_source_sarif_sha256: 99352b48bfe396c2e551c1c87a92fa3a70a029db2d9c005feae4386f09aba563
+      official_osv_sha256: be1a5b9f94efe6c813c4dc3b2ceb9a9da0f681e416f9e9f1a613a8734e4bf26c
+      image_identity_sha256: b8e064d8fbdc7d31c34b72ee5d8b520e07452f621d0398393858331174e967f7
+      adjudication_bundle_sha256: fc5a76b05bd8aa7083f119e359671a844a755cc389f02e3651342cac90fe561e
+    invalidation: any-artifact-go-metadata-symbol-official-record-or-adjudication-evidence-drift
+scope:
+  allowed_environments: [local_ephemeral, ci_ephemeral]
+  allowed_work: [c1_schema_contract_test, c1_migration_contract_test, c1_restore_contract_test]
+  forbidden_environments: [production, staging, shared_database, live_database]
+  forbidden_work: [c2, c3, production_activation, dataset_access, model_access, gpu_access, training, evaluation]
+  network_policy: test-scoped-private-network-only-and-no-public-port-publish
+  credential_policy: disposable-synthetic-test-credential-only-no-production-dsn-or-secret
+  data_policy: synthetic-non-production-only
+  privilege_policy:
+    runtime: postgres-uid-70-gid-70-after-gosu-drop
+    owner_roles: NOLOGIN
+    runtime_direct_dml: denied
+    security_definer_search_path: "pg_catalog, pg_temp"
+cleanup:
+  policy: deterministic-test-scoped-container-volume-network-image-cache-and-credential-fixture-teardown-with-preexisting-resource-preservation
+  evidence: cleanup-evidence.yaml
+  evidence_sha256: f426437ae63c90c7ae491c58195291f4b230f1805cd181d522a5fc854b9c8a35
+ready_revalidation:
+  required: true
+  requirements:
+    - re-resolve-tag-index-and-linux-amd64-manifest
+    - rerun-full-unsuppressed-image-scan
+    - recheck-official-trackers-and-cve-2026-39821-adjudication
+    - rerun-isolated-functional-and-cleanup-verification
+evidence:
+  location: docs/security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/
+  manifest: SHA256SUMS
+  evidence_sha256: 850e5b63912c22a5c6026fbc6185991fcde11a0de2731d0a6f257d53562100d5
+  scout_sarif_sha256: 6d6ba83718d0c53ba70604acfdc8f7d5c550f1809d84e3808d0ad253f0d4afe1
+  scout_markdown_sha256: 251208586ad00e86496b2ce2fe01bf3b9b3e72080bae1b9193a76a26125194a3
+  sbom_spdx_sha256: 4661923e494ca942850d737395a8fd1237962f6bd9366a7262f9d9a7ddaf0063
+  preflight_sha256: 0445e3b99bf199094dfe437caa9fb1f8edaec1f026ab9424cfc6e49bcb6cd75e
+separation_of_authority:
+  c1_implementation_started: false
+  c2_authorized: false
+  c3_authorized: false
+  production_activation_authorized: false
+  actual_training_authorized: false

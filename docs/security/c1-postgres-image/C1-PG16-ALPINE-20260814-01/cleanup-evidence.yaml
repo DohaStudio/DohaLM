@@ -1,0 +1,33 @@
+schema_version: 1
+evidence_id: C1-PG16-ALPINE-20260814-01-CLEANUP
+execution_correlation_id: C1-PG16-ALPINE-20260814-01
+completed_at: "2026-08-14T11:50:16.7656765+09:00"
+verifier_identity: codex-process-boundary/docker-engine-29.2.0
+created_resources:
+  containers: 4
+  named_volumes: 1
+  anonymous_volumes: 3
+  internal_networks: 1
+  pulled_exact_image_events: 2
+  extracted_binaries: 1
+removed_resources:
+  containers: 4
+  named_volumes: 1
+  anonymous_volumes: 3
+  internal_networks: 1
+  pulled_exact_image_events: 2
+  extracted_binaries: 1
+post_cleanup_remaining:
+  task_containers: 0
+  task_volumes: 0
+  task_networks: 0
+  task_images: 0
+  task_binaries: 0
+preserved_preexisting_inventory:
+  volumes: 1
+  default_networks: 3
+sanitized_status: complete
+failure: false
+ambiguity: false
+evidence_reference: preflight-evidence.md
+evidence_sha256: 0445e3b99bf199094dfe437caa9fb1f8edaec1f026ab9424cfc6e49bcb6cd75e
