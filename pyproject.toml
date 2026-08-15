@@ -19,6 +19,7 @@ gpu = [
     "numpy>=1.26,<3",
 ]
 dev = ["pytest>=8,<9"]
+c1 = ["psycopg[binary]==3.3.4"]
 api = [
     "fastapi>=0.115,<1",
     "httpx>=0.27,<1",
@@ -40,10 +41,14 @@ where = ["."]
 include = ["src*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+"src" = ["postgres_migrations/*.sql"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "--basetemp=tests/tmp"
 markers = [
     "gpu: requires the explicitly enabled local CUDA model environment",
+    "integration: requires Docker and the exact isolated PostgreSQL C1 fixture",
 ]

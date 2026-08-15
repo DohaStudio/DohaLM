@@ -1,5 +1,23 @@
 # ADR-023: C1 Repository-Owned PostgreSQL Client Runner Supply Chain
 
+## 2026-08-15 Practical Security Profile amendment
+
+[확정] 사용자의 후속 명시 결정에 따라 이 ADR의 repository-owned compiled runner,
+GHCR publication, SBOM, signature, attestation 및 same-digest parity는 선택적 hardening
+proposal로 유지하되 C1 진입 prerequisite가 아니다. C1은 official
+`psycopg[binary]==3.3.4`와 hash-locked wheel을 직접 사용할 수 있다. High 및 실행 경로에
+도달하지 않는 Critical finding은 C1 warning이며 자동 blocker가 아니다.
+
+[확정] 이 amendment가 아래의 runner 필수 문구와 충돌하면 이 amendment가 우선한다.
+C1 권한은 local/CI isolated ephemeral schema·migration·restore contract test에만 적용되고,
+C2/C3, production/shared/live database, Production Activation 및 실제 Training은 계속 금지된다.
+
+- practical_security_profile: `active`
+- repository_owned_runner_required_for_c1: `false`
+- ghcr_publication_required_for_c1: `false`
+- official_psycopg_binary: `3.3.4`
+- durable_audit_claimed: `false`
+
 - 문서 상태: `approved`
 - 마지막 검토일: 2026-08-15
 - 결정 상태: `accepted`
