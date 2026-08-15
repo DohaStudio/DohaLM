@@ -61,6 +61,22 @@ safe application name과 TLS policy를 명시한다. production은 `verify-full`
 [로컬 단일 사용자 Activation](../training/local-single-user-activation.md)이 소유하며 C1 private fixture나
 local profile을 production TLS로 오인하지 않는다. 모든 `repr`은 credential을 redaction한다.
 
+## Technical readiness와 execution decision
+
+[확정] prerequisite resolver는 "이 exact material/configuration을 사용할 수 있는가"만 답한다. DatasetVersion,
+Manifest, pair, config와 readiness의 identity, fingerprint, currentness, usage scope 및 기술적 blocker를 검증하며
+approver, approval timestamp, acceptance 또는 execution authorization을 요구하지 않는다. canonical readiness report의
+유일한 blocker가 `FULL_PRETRAINING_NOT_APPROVED`이면 material은 기술적으로 ready이고 실행은 계속 금지된 상태다.
+
+[확정] decision resolver는 "이 exact run이 지금 실행될 수 있는가"를 별도로 답한다. missing/not-yet-effective/expired
+decision은 `TRAINING_EXECUTION_DECISION_UNAVAILABLE`, denied decision은
+`TRAINING_EXECUTION_APPROVAL_DENIED`로 fail closed한다. Host는 prerequisite와 approved/current decision을 모두 확인한
+뒤에만 journal claim과 backend lifecycle에 진입한다. pending, denied, expired, binding mismatch에서는 claim, transition,
+approval consume와 backend invocation이 모두 0이다. backend의 기존 `require_full_pretraining_approval()` 재검증은 유지된다.
+
+이 분리는 `training_readiness_authority.readiness_result = READY`를 technical readiness로 해석하므로 schema, migration,
+role 또는 GRANT 변경을 요구하지 않는다.
+
 ## 비활성 경계
 
 [확정] 이 구현에는 composition root, executable, environment activation, production credential,

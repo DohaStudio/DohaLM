@@ -121,6 +121,7 @@ def issuer_context(monkeypatch, tmp_path: Path, published_permission):
         return build_training_execution_request(
             Path("config.yaml"),
             report,
+            readiness_fingerprint=report["readiness_fingerprint"],
             dataset_permission=permission,
             **_target(permission),
         )

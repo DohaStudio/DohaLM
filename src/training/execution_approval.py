@@ -25,7 +25,7 @@ from .dataset_training_entry import (
 from .errors import TrainingError
 from .full_pretraining import (
     FullPretrainingConfig,
-    require_full_pretraining_approval,
+    require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
 from .source_state import _SourceStateInspectionError, _inspect_source_state
@@ -156,6 +156,7 @@ def build_training_execution_request(
     config_path: Path,
     readiness_report: Mapping[str, Any],
     *,
+    readiness_fingerprint: str,
     dataset_permission: DatasetTrainingPermission | None,
     dataset_version_id: str,
     dataset_manifest_id: str,
@@ -172,7 +173,7 @@ def build_training_execution_request(
     if not isinstance(readiness_report, Mapping):
         raise _invalid_request()
     report = dict(readiness_report)
-    require_full_pretraining_approval(report)
+    require_full_pretraining_technical_readiness(report)
     source_commit = report.get("source_commit")
     if (
         not isinstance(source_commit, str)
@@ -180,6 +181,8 @@ def build_training_execution_request(
         or report.get("source_worktree_clean") is not True
         or not isinstance(report.get("readiness_fingerprint"), str)
         or _FINGERPRINT_PATTERN.fullmatch(report["readiness_fingerprint"]) is None
+        or not isinstance(readiness_fingerprint, str)
+        or _FINGERPRINT_PATTERN.fullmatch(readiness_fingerprint) is None
     ):
         raise _invalid_request()
     config = FullPretrainingConfig.from_yaml(config_path)
@@ -194,7 +197,7 @@ def build_training_execution_request(
         "dataset_manifest_id": dataset_manifest_id,
         "dataset_pair_fingerprint": dataset_pair_fingerprint,
         "config_fingerprint": file_checksum(config_path),
-        "readiness_fingerprint": report["readiness_fingerprint"],
+        "readiness_fingerprint": readiness_fingerprint,
         "run_id": output_root.name,
         "output_logical_root": config.output_dir,
         "source_commit": source_commit,
@@ -255,8 +258,6 @@ def require_training_execution_request(
         or request.dataset_manifest_id != dataset_manifest_id
         or request.dataset_pair_fingerprint != dataset_pair_fingerprint
         or request.config_fingerprint != file_checksum(config_path)
-        or request.readiness_fingerprint
-        != readiness_report.get("readiness_fingerprint")
         or request.run_id
         != resolve_full_pretraining_path(config, config.output_dir).name
         or request.output_logical_root != config.output_dir

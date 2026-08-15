@@ -311,7 +311,7 @@ class _Context:
         )
         monkeypatch.setattr(
             seams,
-            "require_full_pretraining_approval",
+            "require_full_pretraining_technical_readiness",
             lambda _value: None,
         )
         monkeypatch.setattr(
@@ -576,7 +576,7 @@ def test_approved_orchestration_has_exact_order_and_no_input_mutation(
     assert repr(result) == "ProductionTrainingHostResult(<redacted>)"
 
 
-def test_denied_decision_is_submitted_but_never_calls_backend(
+def test_denied_decision_prevents_journal_claim_and_backend(
     context: _Context,
 ) -> None:
     context.decision_resolver.decision = TrainingExecutionIssuerDecisionValue.DENIED
@@ -586,10 +586,8 @@ def test_denied_decision_is_submitted_but_never_calls_backend(
     assert result.reason_code == "TRAINING_EXECUTION_APPROVAL_DENIED"
     assert result.backend_entered is False
     assert context.backend_calls == context.consume_calls == context.entry_calls == 0
-    assert context.journal.transitions[-2:] == [
-        TrainingOrchestrationPhase.DECISION_SUBMITTED,
-        TrainingOrchestrationPhase.FAILED,
-    ]
+    assert context.journal.claim_calls == 0
+    assert context.journal.transitions == []
 
 
 @pytest.mark.parametrize(
@@ -609,7 +607,8 @@ def test_decision_unavailable_is_sanitized_and_never_calls_backend(
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_UNAVAILABLE"
     assert str(error) not in str(caught.value)
     assert context.backend_calls == 0
-    assert context.journal.transitions[-1] is TrainingOrchestrationPhase.FAILED
+    assert context.journal.claim_calls == 0
+    assert context.journal.transitions == []
 
 
 def test_decision_request_mismatch_never_submits_or_calls_backend(
@@ -622,7 +621,8 @@ def test_decision_request_mismatch_never_submits_or_calls_backend(
     ):
         host.run(context.intent)
     assert context.backend_calls == 0
-    assert context.journal.transitions[-1] is TrainingOrchestrationPhase.FAILED
+    assert context.journal.claim_calls == 0
+    assert context.journal.transitions == []
 
 
 def test_same_identity_replay_never_resubmits_or_reenters_backend(

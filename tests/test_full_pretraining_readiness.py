@@ -17,6 +17,7 @@ from src.training.full_pretraining import (
     inspect_full_pretraining_readiness,
     probe_full_pretraining_output,
     require_full_pretraining_approval,
+    require_full_pretraining_technical_readiness,
 )
 
 
@@ -140,6 +141,33 @@ def test_unapproved_package_and_pilot_only_approval_are_blocked(tmp_path: Path, 
         require_full_pretraining_approval(report)
 
 
+def test_exact_pending_approval_is_technically_ready_but_not_execution_approved() -> None:
+    report = {
+        "status": "ready_awaiting_final_execution_approval",
+        "execution_allowed": False,
+        "inspection_only": True,
+        "training_started": False,
+        "blocking_codes": ["FULL_PRETRAINING_NOT_APPROVED"],
+    }
+
+    require_full_pretraining_technical_readiness(report)
+    with pytest.raises(TrainingError, match="FULL_PRETRAINING_EXECUTION_BLOCKED"):
+        require_full_pretraining_approval(report)
+
+
+def test_non_approval_blocker_is_not_technical_readiness() -> None:
+    report = {
+        "status": "blocked",
+        "execution_allowed": False,
+        "inspection_only": True,
+        "training_started": False,
+        "blocking_codes": ["FULL_PRETRAINING_STORAGE_NOT_VERIFIED"],
+    }
+
+    with pytest.raises(TrainingError, match="FULL_PRETRAINING_TECHNICAL_READINESS_BLOCKED"):
+        require_full_pretraining_technical_readiness(report)
+
+
 @pytest.mark.parametrize(
     ("section", "key", "code"),
     [
@@ -201,6 +229,7 @@ def test_fully_approved_package_can_only_reach_readiness_not_training(tmp_path: 
     assert report["training_started"] is False
     assert report["source_commit"] == "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
     assert report["source_worktree_clean"] is True
+    require_full_pretraining_technical_readiness(report)
     require_full_pretraining_approval(report)
 
 

@@ -788,10 +788,20 @@ def inspect_local_training_readiness(
             "roles_reachable": False,
         },
         "dataset_mapping": {"configured": False, "current": False},
+        "dataset_authority_available": False,
+        "technical_readiness": False,
+        "decision_available": False,
         "run_package": {"configured": False, "approval_current": False},
         "gpu": _gpu_probe(torch_module),
         "output_root_writable": False,
         "training_backend_invocation_count": 0,
+        "model_weight_load_count": 0,
+        "optimizer_construction_count": 0,
+        "journal_claim_count": 0,
+        "journal_transition_count": 0,
+        "journal_phase_event_count": 0,
+        "checkpoint_creation_count": 0,
+        "approval_consumption_count": 0,
         "journal_mutation_count": 0,
         "local_composition_activation_active": False,
         "production_activation_authorized": False,
@@ -831,6 +841,8 @@ def inspect_local_training_readiness(
         resolved = _resolve_training_prerequisites(
             root._required_prerequisite(), intent
         )
+        result["dataset_authority_available"] = True
+        result["technical_readiness"] = True
         request = _build_training_execution_request_from_prerequisites(intent, resolved)
         decision_request = TrainingDecisionResolutionRequest(
             intent=intent,
@@ -848,6 +860,7 @@ def inspect_local_training_readiness(
         decision = _resolve_trusted_training_decision_resolution(
             root._required_decision(), decision_request
         )
+        result["decision_available"] = True
         record = root._required_journal().read(intent.run_id)
         if record is not None and record.phase not in {
             TrainingOrchestrationPhase.SUCCEEDED,

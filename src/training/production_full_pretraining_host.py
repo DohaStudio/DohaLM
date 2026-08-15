@@ -260,6 +260,44 @@ class ProductionFullPretrainingHost:
             run_id=request.run_id,
             request_fingerprint=request.request_fingerprint,
         )
+        try:
+            existing = self._journal.read(identity.run_id)
+        except Exception:
+            raise _journal_unavailable() from None
+        if existing is not None:
+            if (
+                type(existing) is not TrainingOrchestrationRecord
+                or existing.identity != identity
+            ):
+                raise _journal_conflict()
+            return self._replay_result(existing)
+        decision_request = TrainingDecisionResolutionRequest(
+            intent=intent,
+            decision_authority_id=self._decision_authority_id,
+            request_fingerprint=request.request_fingerprint,
+            dataset_version_id=resolved.dataset_version_id,
+            dataset_manifest_id=resolved.dataset_manifest_id,
+            dataset_pair_authority_id=resolved.dataset_pair_authority_id,
+            dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
+            config_fingerprint=resolved.config_fingerprint,
+            readiness_fingerprint=resolved.readiness_fingerprint,
+            source_commit=resolved.source_commit,
+            prerequisite_policy_reference=resolved.provenance.resolution_policy_reference,
+        )
+        resolution = _resolve_trusted_training_decision_resolution(
+            self._decision_resolver,
+            decision_request,
+        )
+        decision = resolution.decision
+        if decision.decision is TrainingExecutionIssuerDecisionValue.DENIED:
+            return ProductionTrainingHostResult(
+                identity=identity,
+                phase=TrainingOrchestrationPhase.FAILED,
+                backend_entered=False,
+                reconciliation_required=False,
+                replayed=False,
+                reason_code="TRAINING_EXECUTION_APPROVAL_DENIED",
+            )
         claim_request = TrainingOrchestrationClaimRequest(
             identity=identity,
             intent_fingerprint=resolved.intent_fingerprint,
@@ -293,33 +331,6 @@ class ProductionFullPretrainingHost:
                 TrainingOrchestrationPhase.RESOLVED,
                 TrainingOrchestrationPhase.VALIDATED,
             )
-            try:
-                decision_request = TrainingDecisionResolutionRequest(
-                    intent=intent,
-                    decision_authority_id=self._decision_authority_id,
-                    request_fingerprint=request.request_fingerprint,
-                    dataset_version_id=resolved.dataset_version_id,
-                    dataset_manifest_id=resolved.dataset_manifest_id,
-                    dataset_pair_authority_id=resolved.dataset_pair_authority_id,
-                    dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
-                    config_fingerprint=resolved.config_fingerprint,
-                    readiness_fingerprint=resolved.readiness_fingerprint,
-                    source_commit=resolved.source_commit,
-                    prerequisite_policy_reference=resolved.provenance.resolution_policy_reference,
-                )
-                resolution = _resolve_trusted_training_decision_resolution(
-                    self._decision_resolver,
-                    decision_request,
-                )
-                decision = resolution.decision
-            except TrainingError as exc:
-                self._record_known_failure(
-                    identity,
-                    TrainingOrchestrationPhase.VALIDATED,
-                    exc.code,
-                )
-                raise
-
             submission = _TrainingExecutionDecisionSubmission(
                 decision=decision.decision,
                 authorization_id=decision.authorization_id,
@@ -368,14 +379,6 @@ class ProductionFullPretrainingHost:
                     TrainingOrchestrationPhase.VALIDATED,
                     "TRAINING_HOST_DECISION_SUBMISSION_UNCERTAIN",
                 )
-
-            if decision.decision is TrainingExecutionIssuerDecisionValue.DENIED:
-                record = self._record_known_failure(
-                    identity,
-                    TrainingOrchestrationPhase.DECISION_SUBMITTED,
-                    "TRAINING_EXECUTION_APPROVAL_DENIED",
-                )
-                return self._record_result(record, replayed=False)
 
             lifecycle = _HostFullPretrainingBackendLifecycle(self._journal, identity)
             try:

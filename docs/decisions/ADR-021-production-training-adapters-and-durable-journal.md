@@ -785,6 +785,18 @@ C1 전에는 driver/migration implementation을 시작하지 않는다. C2는 C1
 시작한다. 각 PR은 dependency/schema, adapter, composition과 activation 범위를 겹치지 않는다. authority producer workflow와
 writer role은 C2 전 Training Authority Producer Owner가 승인하며 readiness/config mapping fixture도 C2 입력으로 고정한다.
 
+### C2 technical readiness / execution decision alignment
+
+[확정] `training_readiness_authority.readiness_result = READY`는 Dataset, config와 material의 기술적 currentness를
+의미하며 run-specific 실행 승인이 아니다. prerequisite adapter는 canonical inspection report가 fully approved이거나
+유일한 blocker가 `FULL_PRETRAINING_NOT_APPROVED`인 경우 technical readiness를 인정한다. 그 밖의 blocker, stale payload,
+identity/fingerprint mismatch 또는 integrity failure는 계속 prerequisite failure다.
+
+[확정] run-specific approver, acceptance, validity와 authorization은 decision authority와 decision resolver가 소유한다.
+Host는 fresh attempt에서 prerequisite와 exact decision을 모두 검증한 후에만 journal을 claim한다. missing, denied, expired,
+stale 또는 binding-mismatched decision은 journal mutation과 backend invocation 없이 fail closed한다. terminal/non-terminal
+existing journal replay와 reconciliation은 decision 재해석보다 먼저 기존 durable identity로 처리한다.
+
 ### C1.2/C2 contract alignment
 
 [확정] C2 adapter 구현 전에 [C1.2/C2 Contract Alignment](../architecture/c1-2-c2-contract-alignment.md)에서

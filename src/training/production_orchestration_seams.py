@@ -33,7 +33,7 @@ from .execution_approval import (
 from .full_pretraining import (
     FullPretrainingConfig,
     inspect_full_pretraining_readiness,
-    require_full_pretraining_approval,
+    require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
 from .production_host_foundation import (
@@ -432,7 +432,7 @@ def _validate_training_prerequisites(
         report = inspect_full_pretraining_readiness(
             resolved.config_path, resolved.manifest_path
         )
-        require_full_pretraining_approval(report)
+        require_full_pretraining_technical_readiness(report)
         if (
             config.resume_checkpoint is not None
             or config_checksum_before != resolved.config_fingerprint
@@ -440,7 +440,6 @@ def _validate_training_prerequisites(
             or file_checksum(resolved.manifest_path) != manifest_checksum_before
             or _freeze_mapping(config.to_dict()) != resolved.config_snapshot
             or _freeze_mapping(report) != resolved.readiness_report
-            or report.get("readiness_fingerprint") != resolved.readiness_fingerprint
             or report.get("source_commit") != resolved.source_commit
             or report.get("source_worktree_clean") is not True
             or config.output_dir != resolved.output_logical_root
@@ -489,6 +488,7 @@ def _build_training_execution_request_from_prerequisites(
         request = build_training_execution_request(
             material.config_path,
             material.readiness_report,
+            readiness_fingerprint=resolved.readiness_fingerprint,
             dataset_permission=resolved.dataset_permission,
             dataset_version_id=resolved.dataset_version_id,
             dataset_manifest_id=resolved.dataset_manifest_id,

@@ -108,6 +108,7 @@ def approval_context(monkeypatch, tmp_path: Path):
         return build_training_execution_request(
             Path("config.yaml"),
             report,
+            readiness_fingerprint=report["readiness_fingerprint"],
             dataset_permission=permission,
             **_target(permission),
         )
@@ -178,6 +179,23 @@ def test_request_projection_is_exact_deterministic_and_non_mutating(
     assert first.run_id == "RUN-1"
     assert first.output_logical_root == "runs/RUN-1"
     assert approval_context.report == report_before
+
+
+def test_pending_execution_approval_can_build_the_exact_request(
+    approval_context,
+) -> None:
+    approval_context.report.update(
+        status="ready_awaiting_final_execution_approval",
+        execution_allowed=False,
+        inspection_only=True,
+        training_started=False,
+        blocking_codes=["FULL_PRETRAINING_NOT_APPROVED"],
+    )
+
+    request = approval_context.build()
+
+    assert request.request_fingerprint.startswith("sha256:")
+    assert approval_context.report["execution_allowed"] is False
 
 
 def test_request_config_target_and_source_changes_fail_closed(approval_context) -> None:

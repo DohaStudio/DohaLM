@@ -196,7 +196,8 @@ caller request와 resolver-created request는 금지한다. Host는 returned exa
 - request builder가 반환한 registered instance와 그 `request_fingerprint`; Host는 별도 request hash algorithm을 만들지 않음
 
 foundation journal의 claim identity는 처음부터 `(run_id, request_fingerprint)`를 요구하므로, 순서는 **resolve and validate
-prerequisites -> build exact request -> claim exact identity**다. run ID만 먼저 claim하거나 임시 fingerprint를 넣지 않는다.
+prerequisites -> build exact request -> resolve exact decision -> claim exact identity**다. run ID만 먼저 claim하거나 임시
+fingerprint를 넣지 않으며 missing, denied, expired 또는 binding-mismatched decision은 claim 전에 종료한다.
 claim 뒤 `RESOLVED`와 `VALIDATED` transition은 이미 완료된 prerequisite/request evidence를 durable state에 확정한다. claim
 loser와 run-ID conflict는 decision resolver, submission과 backend에 도달하지 않는다.
 

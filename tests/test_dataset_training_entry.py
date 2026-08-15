@@ -36,6 +36,7 @@ def _inputs(tmp_path: Path) -> dict:
         "upstream_objects": fixtures.upstream(),
         "evaluated_at": "2026-08-11T12:00:00Z",
         "readiness_report": {
+            "status": "ready_for_execution",
             "execution_allowed": True,
             "inspection_only": True,
             "training_started": False,
@@ -172,6 +173,21 @@ def test_readiness_split_and_artifact_references_are_explicit(tmp_path: Path):
     )
 
 
+def test_pending_execution_approval_remains_technically_ready(tmp_path: Path):
+    values = _inputs(tmp_path)
+    values["readiness_report"].update(
+        status="ready_awaiting_final_execution_approval",
+        execution_allowed=False,
+        blocking_codes=["FULL_PRETRAINING_NOT_APPROVED"],
+    )
+
+    permission = evaluate_dataset_training_entry(**values)
+
+    assert permission.allowed is True
+    assert permission.reason_codes == ()
+    assert values["readiness_report"]["execution_allowed"] is False
+
+
 def test_malformed_pin_failure_and_errors_are_sanitized(monkeypatch, tmp_path: Path):
     malformed = _inputs(tmp_path / "malformed")
     malformed["dataset_version"] = {"secret": "raw-private-payload"}
@@ -201,7 +217,7 @@ def test_inputs_are_snapshotted_and_validation_order_precedes_readiness(
         "validate_dataset_version",
         "validate_dataset_manifest",
         "validate_dataset_publication_scenario",
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
     ):
         original = getattr(consumer, name)
 
@@ -223,5 +239,5 @@ def test_inputs_are_snapshotted_and_validation_order_precedes_readiness(
         "validate_dataset_version",
         "validate_dataset_manifest",
         "validate_dataset_publication_scenario",
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
     ]

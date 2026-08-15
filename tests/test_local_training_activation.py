@@ -201,6 +201,8 @@ def test_missing_dataset_mapping_returns_not_configured_without_db_or_training(
     assert result["status"] == "NOT_CONFIGURED"
     assert result["training_backend_invocation_count"] == 0
     assert result["journal_mutation_count"] == 0
+    assert result["dataset_authority_available"] is False
+    assert result["technical_readiness"] is False
 
 
 def test_missing_run_package_returns_not_approved_and_always_shuts_down(
@@ -243,6 +245,7 @@ def test_missing_run_package_returns_not_approved_and_always_shuts_down(
     assert result["database"]["host"] == "127.0.0.1"
     assert result["training_backend_invocation_count"] == 0
     assert result["journal_mutation_count"] == 0
+    assert result["decision_available"] is False
     assert root.shutdown_count == 1
 
 
