@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import re
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, fields
-from typing import Callable
+from typing import Callable, Iterator
 
 from src.data.checksums import checksum_value
 
@@ -21,6 +22,7 @@ from .execution_issuer import (
     _TrainingExecutionDecisionSubmission,
     _TrainingExecutionSubmissionCapability,
     _compose_production_training_execution_issuer,
+    _release_production_training_execution_issuer,
     _submit_training_execution_decision_from_trusted_orchestrator,
 )
 from .production_host_foundation import (
@@ -222,6 +224,7 @@ class ProductionFullPretrainingHost:
         "_decision_authority_id",
         "_decision_resolver",
         "_journal",
+        "_lifecycle_lease",
         "_lock",
         "_prerequisite_resolver",
         "_process_boundary_id",
@@ -236,6 +239,14 @@ class ProductionFullPretrainingHost:
 
     def run(self, intent: ProductionTrainingHostIntent) -> ProductionTrainingHostResult:
         """Resolve, claim, submit, and delegate exactly one orchestration attempt."""
+
+        with self._lifecycle_lease.host_operation():
+            return self._run(intent)
+
+    def _run(
+        self, intent: ProductionTrainingHostIntent
+    ) -> ProductionTrainingHostResult:
+        """Execute the existing orchestration while the lifecycle lease is held."""
 
         if type(intent) is not ProductionTrainingHostIntent:
             raise _host_error(
@@ -577,7 +588,7 @@ class ProductionFullPretrainingHost:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class _BootstrapRegistration:
-    dependency_identity: tuple[int, int, int, int, str, str]
+    dependency_identity: tuple[int, int, int, int, int, str, str]
     host: ProductionFullPretrainingHost
 
     def __repr__(self) -> str:
@@ -586,6 +597,17 @@ class _BootstrapRegistration:
 
 _BOOTSTRAP_LOCK = threading.RLock()
 _BOOTSTRAP_REGISTRATION: _BootstrapRegistration | None = None
+
+
+class _UnrestrictedHostLifecycleLease:
+    """Compatibility lease for non-C3 package-private test composition."""
+
+    @contextmanager
+    def host_operation(self) -> Iterator[None]:
+        yield
+
+
+_UNRESTRICTED_HOST_LIFECYCLE_LEASE = _UnrestrictedHostLifecycleLease()
 
 
 def _validate_dependency(value: object, methods: tuple[str, ...]) -> None:
@@ -603,6 +625,7 @@ def _bootstrap_production_full_pretraining_host(
     process_boundary_id: str,
     decision_authority_id: str,
     backend_binding: _HostBackendBinding = _CANONICAL_BACKEND_BINDING,
+    lifecycle_lease: object = _UNRESTRICTED_HOST_LIFECYCLE_LEASE,
 ) -> ProductionFullPretrainingHost:
     """Install one immutable process object graph; identical replay is a no-op."""
 
@@ -611,6 +634,7 @@ def _bootstrap_production_full_pretraining_host(
     _validate_dependency(journal, ("claim", "read", "transition"))
     if (
         type(backend_binding) is not _HostBackendBinding
+        or not callable(getattr(lifecycle_lease, "host_operation", None))
         or type(process_boundary_id) is not str
         or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}", process_boundary_id)
         is None
@@ -622,6 +646,7 @@ def _bootstrap_production_full_pretraining_host(
         id(decision_resolver),
         id(journal),
         id(backend_binding._identity),
+        id(lifecycle_lease),
         process_boundary_id,
         decision_authority_id,
     )
@@ -640,23 +665,42 @@ def _bootstrap_production_full_pretraining_host(
         object.__setattr__(host, "_decision_resolver", decision_resolver)
         object.__setattr__(host, "_journal", journal)
         object.__setattr__(host, "_backend_binding", backend_binding)
+        object.__setattr__(host, "_lifecycle_lease", lifecycle_lease)
         object.__setattr__(host, "_active", set())
         object.__setattr__(host, "_lock", threading.RLock())
 
+        capability: _TrainingExecutionSubmissionCapability | None = None
         try:
             capability = _compose_production_training_execution_issuer()
-        except TrainingError:
-            raise
-        except Exception:
+            if type(capability) is not _TrainingExecutionSubmissionCapability:
+                raise _construction_unauthorized()
+            object.__setattr__(host, "_submission_capability", capability)
+            _BOOTSTRAP_REGISTRATION = _BootstrapRegistration(identity, host)
+            return host
+        except BaseException as error:
+            if capability is not None:
+                _release_production_training_execution_issuer(capability)
+            if isinstance(error, TrainingError) or not isinstance(error, Exception):
+                raise
             raise _host_error(
                 "TRAINING_HOST_BOOTSTRAP_FAILED",
                 "The production training Host could not be installed.",
             ) from None
-        if type(capability) is not _TrainingExecutionSubmissionCapability:
-            raise _construction_unauthorized()
-        object.__setattr__(host, "_submission_capability", capability)
-        _BOOTSTRAP_REGISTRATION = _BootstrapRegistration(identity, host)
-        return host
+
+
+def _release_production_full_pretraining_host(
+    host: ProductionFullPretrainingHost,
+) -> bool:
+    """Compare-and-clear only the registration owned by ``host``."""
+
+    global _BOOTSTRAP_REGISTRATION
+    with _BOOTSTRAP_LOCK:
+        current = _BOOTSTRAP_REGISTRATION
+        if current is None or current.host is not host:
+            return False
+        _BOOTSTRAP_REGISTRATION = None
+        _release_production_training_execution_issuer(host._submission_capability)
+        return True
 
 
 __all__ = ["ProductionFullPretrainingHost", "ProductionTrainingHostResult"]

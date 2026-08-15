@@ -262,6 +262,35 @@ def _compose_production_training_execution_issuer() -> (
     return source._capability
 
 
+def _release_production_training_execution_issuer(
+    capability: _TrainingExecutionSubmissionCapability,
+) -> bool:
+    """Compare-and-clear only the issuer registration owning ``capability``."""
+
+    global _ADAPTER_REGISTRATION
+    with _ISSUER_LOCK:
+        binding = _SUBMISSION_BINDINGS.get(id(capability))
+        registration = _ADAPTER_REGISTRATION
+        if (
+            binding is None
+            or binding.capability is not capability
+            or registration is None
+            or registration.decision_source is not binding.decision_source
+        ):
+            return False
+        _ADAPTER_REGISTRATION = None
+        _SUBMISSION_BINDINGS.pop(id(capability), None)
+        stale = tuple(
+            identity
+            for identity, provenance in _DECISION_PROVENANCE.items()
+            if provenance.adapter is registration.adapter
+        )
+        for identity in stale:
+            _DECISION_PROVENANCE.pop(identity, None)
+        _DECISION_REPLAY_KEYS.clear()
+        return True
+
+
 def _submit_training_execution_decision_from_trusted_orchestrator(
     capability: _TrainingExecutionSubmissionCapability,
     submission: _TrainingExecutionDecisionSubmission,

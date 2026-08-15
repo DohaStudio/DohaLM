@@ -120,6 +120,7 @@
 | [security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md](./security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md) | PostgreSQL 16.15 raw C2/H21, adjudication과 C1 Practical Security Profile | ADR-022·023, fresh Scout/OSV, previous immutable adjudications | C1 exact-image·Psycopg binary contract 구현 | `approved` | C1 실행 전 필수 | 2026-08-15 | C2/C3·Activation·Training 미승인 |
 | [architecture/c1-2-c2-contract-alignment.md](./architecture/c1-2-c2-contract-alignment.md) | trusted configuration부터 typed prerequisite/decision snapshot과 complete journal DTO까지 단일 C2 입력 계약 확정 | ADR-019~021, merged C1/C1.1 | Draft PR 독립 검증·병합 후 C2 PostgreSQL adapter 구현 | `draft` | C2 adapter 구현 전 필수 | 2026-08-15 | adapter·composition·credential·activation·Training 미구현 |
 | [architecture/c2-postgresql-training-adapters.md](./architecture/c2-postgresql-training-adapters.md) | package-private prerequisite/decision/journal adapter, role-scoped UoW와 오류·materialization lifecycle 구현 | ADR-021, merged C1/C1.1/C1.2 | 독립 검증·병합 후 C3 composition | `review` | C3 composition 전 필수 | 2026-08-15 | Draft C2 구현; C3·credential 설치·activation·Training 미승인 |
+| [architecture/c3-postgresql-training-composition.md](./architecture/c3-postgresql-training-composition.md) | 기존 Host에 C2 PostgreSQL adapter를 결속하는 package-private non-CLI composition, activation guard와 lifecycle | ADR-021, merged C1/C1.1/C1.2/C2 | 독립 검증·병합 후 별도 Production Activation Gate | `review` | Production Activation 전 필수 | 2026-08-16 | intent intake·Production Activation·Training 미승인 |
 | [data/dataset-publication-implementation-plan.md](./data/dataset-publication-implementation-plan.md) | ADR-015의 실제 symbol mapping, local storage protocol과 최소 implementation PR·evidence Gate | ADR-014·015, pinned Common Contract authority | Draft PR 독립 검증·병합 후 dependency/adapter 최소 구현 | `draft` | Common Dataset publication 구현 전 필수 | 2026-08-12 | 신규 symbol 이름, Windows/Linux evidence와 외부 backend 요구 미결정 |
 | [data/common-dataset-contract-adapter.md](./data/common-dataset-contract-adapter.md) | 고정 Common package의 DatasetVersion·DatasetManifest·publication scenario fail-closed 검증 경계 | ADR-014·015, Dataset publication implementation plan | producer·publication transaction 후속 구현 | `implemented` | Common Dataset 객체 처리 전 필수 | 2026-08-12 | 저장·publication·training activation은 범위 밖 |
 | [architecture/system-architecture.md](./architecture/system-architecture.md) | Foundation 흐름과 Base Qwen API·UI 시스템 경계 | 프로젝트 범위, 개발 규칙, ADR-001 | 모델·저장소·Service 문서 | `review` | 예 | 2026-08-04 | Adapter Loader·Prompt Engine·metadata schema |
@@ -321,6 +322,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-16 | C3 PostgreSQL composition dependency graph, provider/activation guard, lifecycle와 non-activating preflight 문서 등록 |
 | 2026-08-15 | C2 PostgreSQL prerequisite/decision/journal adapter의 restricted function, transaction, materialization과 비활성 경계 문서 등록 |
 | 2026-08-15 | ADR-023과 current PostgreSQL 16.15 Option B risk record 명시 승인 및 별도 C1 구현 Draft 착수 권한 반영 |
 | 2026-08-15 | ADR-021 Corrective C1.1 reservation architecture, transaction ownership와 upgrade/logical-restore contract 동기화 |
