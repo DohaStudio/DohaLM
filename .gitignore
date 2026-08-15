@@ -8,6 +8,8 @@ configs/pilot-pretraining.yaml
 configs/candidate-b.local.yaml
 configs/candidate-b-resolved.yaml
 configs/candidate-b-approval.yaml
+configs/local-training-activation.json
+configs/local-training-run-package.json
 __pycache__/
 *.py[cod]
 *.egg-info/

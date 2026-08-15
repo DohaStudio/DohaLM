@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "fixture_kind": "local_single_user_activation_mapping",
+  "synthetic_only": true,
+  "canonical_producers": {
+    "activation_profile": "ignored_local_configuration",
+    "database_port": "docker_loopback_publish_inspection",
+    "migration_inventory": "repository_immutable_migrations",
+    "role_credentials": "external_local_credential_directory",
+    "dataset_root": "external_local_environment_mapping",
+    "dataset_version_reference": "approved_run_package",
+    "dataset_manifest_reference": "approved_run_package",
+    "dataset_pair_fingerprint": "approved_run_package",
+    "config_fingerprint": "approved_run_package",
+    "readiness_fingerprint": "approved_run_package",
+    "decision_authority_id": "ignored_local_configuration",
+    "run_id": "approved_run_package",
+    "process_boundary_id": "ignored_local_configuration",
+    "journal_phase": "postgresql_training_execution_journal",
+    "journal_version": "postgresql_training_execution_journal"
+  },
+  "readiness": {
+    "prerequisite": "repeatable_read_read_only",
+    "decision": "repeatable_read_read_only",
+    "journal": "read_committed_read_only",
+    "claim": false,
+    "transition": false,
+    "backend": false
+  },
+  "forbidden": {
+    "tracked_absolute_dataset_path": true,
+    "tracked_credential_or_raw_dsn": true,
+    "runner_generated_authority_value": true,
+    "direct_table_sql": true,
+    "automatic_training_from_configuration": true
+  }
+}

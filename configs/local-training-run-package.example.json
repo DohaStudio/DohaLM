@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "intent": {
+    "action": "full_pretraining",
+    "execution_mode": "fresh",
+    "dataset_version_reference": "dataset-version:replace-with-approved-reference",
+    "dataset_manifest_reference": "dataset-manifest:replace-with-approved-reference",
+    "expected_dataset_pair_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "training_config_reference": "config:replace-with-approved-reference",
+    "expected_config_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "readiness_evidence_reference": "readiness:replace-with-approved-reference",
+    "expected_readiness_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "run_id": "run:replace-with-approved-identity",
+    "output_logical_root": "experiments/replace-with-approved-run",
+    "decision_evidence_reference": "decision:replace-with-approved-reference"
+  }
+}

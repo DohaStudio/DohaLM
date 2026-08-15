@@ -1,0 +1,34 @@
+{
+  "profile": "local_single_user",
+  "provider": "postgresql",
+  "host": "127.0.0.1",
+  "database": "dohalm_training_local",
+  "credential_directory_environment_variable": "DOHALM_LOCAL_CREDENTIAL_DIRECTORY",
+  "run_package_environment_variable": "DOHALM_LOCAL_RUN_PACKAGE",
+  "output_root_environment_variable": "DOHALM_LOCAL_OUTPUT_ROOT",
+  "application_name": "dohalm-local-activation",
+  "process_boundary_id": "process:local-single-user",
+  "decision_authority_id": "00000000-0000-4000-8000-000000000000",
+  "prerequisite_policy_reference": "policy:local-prerequisite-v1",
+  "decision_policy_reference": "policy:local-decision-v1",
+  "activation_authority_reference": "activation:local-single-user-v1",
+  "activation_evidence_reference": "evidence:local-single-user-v1",
+  "connect_timeout_seconds": 5,
+  "statement_timeout_ms": 15000,
+  "transaction_timeout_ms": 30000,
+  "docker": {
+    "container_name": "dohalm-local-postgres",
+    "network_name": "dohalm-local-network",
+    "volume_name": "dohalm-local-volume",
+    "correlation_id": "local-single-user-v1"
+  },
+  "dataset": {
+    "root_environment_variable": "DOHALM_LOCAL_DATASET_ROOT",
+    "manifest_relative_path": "manifest.json",
+    "expected_manifest_sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "train_split_relative_path": "train",
+    "evaluation_split_relative_path": "evaluation",
+    "tokenizer_reference_relative_path": "tokenizer.json",
+    "training_config_reference_relative_path": "training-config.yaml"
+  }
+}

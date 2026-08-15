@@ -56,8 +56,10 @@ adapter-owned root를 삭제한다. 후속 C3 composition은 request 종료와 p
 
 [확정] configuration은 host/port/database, exact role user/password, connect/statement/idle-transaction timeout,
 safe application name과 TLS policy를 명시한다. production은 `verify-full`과 절대 CA path를 요구한다.
-`isolated_test`만 IPv4 loopback과 `sslmode=disable`을 허용하므로 C1 private fixture 설정을 production TLS로
-오인하지 않는다. 모든 `repr`은 credential을 redaction한다.
+`isolated_test`와 명시적 `local_single_user`만 정확한 IPv4 loopback `127.0.0.1`과
+`sslmode=disable`을 허용한다. `local_single_user`는
+[로컬 단일 사용자 Activation](../training/local-single-user-activation.md)이 소유하며 C1 private fixture나
+local profile을 production TLS로 오인하지 않는다. 모든 `repr`은 credential을 redaction한다.
 
 ## 비활성 경계
 
