@@ -108,5 +108,9 @@
                  },
     "automatic_reapproval":  false,
     "remaining_expiry_reused":  false,
-    "next_gate":  "evidence correction, immutable proposed record, independent revalidation, then explicit risk acceptance"
+    "current_risk_decision_status":  "accepted",
+    "approved_by":  "DDORINY",
+    "approved_at":  "2026-08-15T13:45:06.7768148+09:00",
+    "expires_at":  "2026-09-14T13:45:06.7768148+09:00",
+    "next_gate":  "C1 runner and contract implementation Draft PR with independent evidence validation"
 }

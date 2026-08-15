@@ -2,8 +2,8 @@
 
 - 문서 상태: `approved`
 - 마지막 검토일: 2026-08-15
-- 결정 상태: 정책 `approved`; 현재 risk decision `proposed`
-- 실행 영향: 이전 16.15 승인은 종료; 새 Option B risk record는 명시 승인 전 fail closed; C1 구현·production activation 없음
+- 결정 상태: 정책 `approved`; 현재 risk decision `accepted`
+- 실행 영향: 새 Option B risk record의 local/CI isolated ephemeral C1 test 권한 활성; production activation 없음
 - 관련 문서: [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md),
   [Definition of Ready](../governance/definition-of-ready.md),
   [Definition of Done](../governance/definition-of-done.md),
@@ -97,10 +97,11 @@ C1→C2→C3→별도 Production Activation 순서도 변경하지 않는다.
 [termination evidence](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/termination-C1-PG16-ALPINE-1615-20260814-01.yaml)에
 종료를 기록한다. 남은 expiry와 execution authorization은 재사용하지 않는다.
 
-[제안] 최신 raw Critical 2 / High 21, 신규 four-High adjudication, residual Critical 1 / High 15를 결속한 새
+[확정] 최신 raw Critical 2 / High 21, 신규 four-High adjudication, residual Critical 1 / High 15를 결속한 새
 [`C1-PG16-ALPINE-1615-20260815-02`](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/risk-decision-record.yaml)는
-`proposed`, `pending_explicit_approval`, `accepted: false`, `execution_authorized: false`다. 승인 시각과 만료 시각은
-사용자 명시 승인 전 `null`이며 PR의 존재·병합은 승인이 아니다.
+사용자 `DDORINY`가 `2026-08-15T13:45:06.7768148+09:00`에 명시 승인했다. `accepted: true`,
+`execution_authorized: true`이며 만료는 정확히 30일 뒤인 `2026-09-14T13:45:06.7768148+09:00`다. exact manifest의
+local/CI isolated ephemeral C1 schema·migration·restore contract test에만 적용하고 조기 종료 정책을 유지한다.
 
 ### Historical Critical/High 목록
 
@@ -312,9 +313,9 @@ public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluatio
 
 ## 승인 Gate
 
-이 ADR의 분류·재검증 정책은 `approved`지만 이전 Option B risk authorization은 종료됐다. current proposed record는 새 사용자
-명시 승인 전 fail closed다. 별도 승인 뒤에도 C1 구현 착수나 production 사용 승인이 아니며, C1 구현은 별도 Draft PR과
-독립 검증 Gate를 따라야 한다.
+이 ADR의 분류·재검증 정책은 `approved`이고 이전 Option B authorization은 종료 상태를 유지한다. current record는 사용자
+명시 승인으로 exact manifest의 local/CI isolated ephemeral C1 test에 한해 유효하다. C1 구현은 별도 Draft PR과 독립 검증
+Gate를 따라야 하며 production 사용, C2/C3, Production Activation 또는 실제 Training 권한은 없다.
 
 [확정] 위 문장은 종료 전 16.14 historical record의 승인 사실만 보존한다. 별도 16.15 record는 accountable approver
 `DDORINY`가 `2026-08-14T23:45:32.1303728+09:00`에 exact Option B를 명시 승인했으며, 그 승인만이 record에 적힌 제한적
@@ -325,6 +326,7 @@ image test 권한을 부여했다. 그 authorization은 2026-08-15 severity/advi
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [확정] DDORINY가 current raw C2/H21·adjudicated 7·residual C1/H15 Option B record를 정확히 30일간 local/CI isolated ephemeral C1 test로 승인 |
 | 2026-08-15 | [제안] severity drift로 이전 16.15 authorization을 종료하고 raw C2/H21·adjudicated 7·residual C1/H15 새 proposed record 및 A/B/C 재검증 정책을 등록 |
 | 2026-08-14 | [확정] PostgreSQL 16.15 exact Option B를 DDORINY가 명시 승인; local/CI isolated ephemeral image test만 30일 허용하고 C1 구현·Psycopg·production·Training은 계속 차단 |
 | 2026-08-14 | [제안] 16.14 record 조기 종료를 append-only로 기록하고 16.15 exact-image proposed/unapproved Decision Packet과 승인 전 fail-closed Gate를 연결 |

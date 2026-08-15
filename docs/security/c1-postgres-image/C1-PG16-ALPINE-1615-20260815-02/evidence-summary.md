@@ -3,9 +3,12 @@
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-15
 - Decision ID: `C1-PG16-ALPINE-1615-20260815-02`
-- decision: `pending_explicit_approval`
-- accepted: `false`
-- execution authorized: `false`
+- decision: `accepted`
+- accepted: `true`
+- execution authorized: `true`
+- approver: `DDORINY`
+- approved at: `2026-08-15T13:45:06.7768148+09:00`
+- expires at: `2026-09-14T13:45:06.7768148+09:00`
 
 ## 결론
 
@@ -41,9 +44,10 @@ manifest, gosu build, entrypoint 또는 실행 경계로 확대할 수 없다.
 이전 YAML을 수정하거나 남은 만료 기간을 재사용하지 않는다. 종료 시각·identity·delta는
 [termination evidence](./termination-C1-PG16-ALPINE-1615-20260814-01.yaml)에 append-only로 기록했다.
 
-[제안] 새 [risk decision record](./risk-decision-record.yaml)는 `proposed`, `pending_explicit_approval`, `accepted: false`,
-`execution_authorized: false`다. approver와 모든 승인 시각은 `null`이다. 사용자가 승인하면 그 실제 승인 시각부터 정확히
-30일을 계산하며 문서·PR·merge만으로 효력이 생기지 않는다.
+[확정] 새 [risk decision record](./risk-decision-record.yaml)는 사용자 `DDORINY`의 명시 승인으로 `accepted: true`,
+`execution_authorized: true`다. 유효 기간은 `2026-08-15T13:45:06.7768148+09:00`부터 정확히 30일 뒤인
+`2026-09-14T13:45:06.7768148+09:00`까지다. 권한은 exact manifest를 사용하는 local/CI isolated ephemeral C1
+schema·migration·restore contract test에만 적용되며 early-termination 정책을 그대로 따른다.
 
 ## Revalidation policy
 
@@ -78,9 +82,9 @@ evidence가 부족하면 fail closed한다.
 
 - `postgres_image_evidence_ready: true`
 - `postgres_risk_policy_stable: true`
-- `postgres_new_risk_acceptance_required: true`
+- `postgres_new_risk_acceptance_required: false`
 - `psycopg_dependency_candidate_ready: false`
 - `psycopg_dependency_approval_required: true`
-- `c1_implementation_authorized: false`
+- `c1_implementation_authorized: true`
 
 Psycopg 결과와 blocker는 [dependency Decision Packet](./psycopg-dependency-decision.md)에 기록한다.

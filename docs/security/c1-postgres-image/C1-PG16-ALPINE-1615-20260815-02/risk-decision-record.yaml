@@ -1,13 +1,19 @@
 schema_version: 2
 decision_id: C1-PG16-ALPINE-1615-20260815-02
-status: proposed
-decision: pending_explicit_approval
-accepted: false
-execution_authorized: false
-approver: null
-approved_at: null
-starts_at: null
-expires_at: null
+status: accepted
+decision: accepted
+accepted: true
+execution_authorized: true
+approver: DDORINY
+approved_at: "2026-08-15T13:45:06.7768148+09:00"
+starts_at: "2026-08-15T13:45:06.7768148+09:00"
+expires_at: "2026-09-14T13:45:06.7768148+09:00"
+repository_binding:
+  repository: DohaStudio/DohaLM
+  approved_pr_head: cf3807fea14bf43145e372697d8f57880a26c24c
+  containing_commit: self
+  containing_tree: self
+  path: docs/security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/risk-decision-record.yaml
 artifact:
   repository: docker.io/library/postgres
   exact_tag: postgres:16.15-alpine
@@ -69,6 +75,6 @@ validity:
   auto_renewal: false
 authorization_gate:
   explicit_user_approval_required: true
-  c1_implementation_authorized: false
-  psycopg_dependency_approved: false
+  c1_implementation_authorized: true
+  psycopg_dependency_approved: true
   draft_or_merge_grants_acceptance: false

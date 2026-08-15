@@ -1,16 +1,17 @@
 # ADR-023: C1 Repository-Owned PostgreSQL Client Runner Supply Chain
 
-- 문서 상태: `draft`
+- 문서 상태: `approved`
 - 마지막 검토일: 2026-08-15
-- 결정 상태: `proposed`
-- 실행 영향: 없음; 구현·image build/publish·dependency 설치·C1 실행 미승인
-- decision: `pending_explicit_approval`
-- implementation_authorized: `false`
-- registry_publish_authorized: `false`
-- dependency_installation_authorized: `false`
-- c1_implementation_authorized: `false`
-- approver: `null`
-- approved_at: `null`
+- 결정 상태: `accepted`
+- 실행 영향: C1 runner 구현·검증·GHCR 게시, exact dependency 설치와 C1-A/B/C 구현 승인; production activation 미승인
+- decision: `accepted`
+- runner_implementation_authorized: `true`
+- registry_publish_authorized: `true`
+- dependency_installation_authorized: `true`
+- c1_implementation_authorized: `true`
+- production_activation_authorized: `false`
+- approver: `DDORINY`
+- approved_at: `2026-08-15T13:45:06.7768148+09:00`
 - 관련 문서: [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md),
   [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md),
   [Definition of Ready](../governance/definition-of-ready.md),
@@ -21,8 +22,9 @@
 ## Context
 
 [확정] ADR-021은 C1 schema/dependency → C2 adapter → C3 composition → 별도 Production Activation 순서를 승인했다.
-ADR-022의 현재 PostgreSQL 16.15 Option B risk record는 `proposed`, `pending_explicit_approval`, `accepted: false`,
-`execution_authorized: false`다. 이 ADR은 해당 risk를 승인하거나 C1 구현을 시작하지 않는다.
+ADR-022의 현재 PostgreSQL 16.15 Option B risk record는 사용자 `DDORINY`의 명시 승인으로 `accepted`이며,
+`execution_authorized: true`다. 이 권한은 exact manifest의 local/CI isolated ephemeral C1 test와 별도 Draft 구현에만
+적용되며 C2/C3, Production Activation 또는 실제 Training을 승인하지 않는다.
 
 [확정] `psycopg[binary] 3.3.4`의 official Windows wheel은 libpq 18.3·OpenSSL 3.6.2, Linux wheel은 libpq
 18.0을 bundle해 security-fixed libpq 18.4 baseline에 미달했다. pure-Python `psycopg 3.3.4`와 Alpine libpq
@@ -317,9 +319,10 @@ evidence를 덮어쓰거나 삭제하지 않는다. rollback은 기존 digest가
 
 ## 승인 Gate
 
-이 ADR은 `draft`·`proposed`이며 사용자 명시 승인 전 authority가 아니다. PR #128의 merge도 runner 구현·게시,
-PostgreSQL risk acceptance, dependency installation 또는 C1 실행을 승인하지 않는다. 승인 후에도 별도 implementation Draft PR과
-R1~R5 독립 검증, 통합 사용자 승인 전 모든 실행 Gate는 fail closed다.
+이 ADR은 사용자 `DDORINY`가 `2026-08-15T13:45:06.7768148+09:00`에 명시 승인해 `approved`·`accepted`다.
+runner 구현·게시, exact dependency 설치와 C1-A/B/C 구현은 별도 implementation Draft PR에서 허용한다. R1~R5 evidence Gate는
+완화되지 않으며 실패 시 fail closed한다. 이 승인은 C2/C3, Production Activation, 실제 Training 또는 production/staging/shared
+database 접근 권한을 부여하지 않는다.
 
 ## 사용자 Decision Packet
 
@@ -337,4 +340,5 @@ SBOM/provenance/signature, final runtime Critical/High 0과 isolated ephemeral-o
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [확정] DDORINY 명시 승인으로 runner 구현·GHCR 게시·exact dependency 설치·C1-A/B/C를 승인하고 Production Activation은 차단 유지 |
 | 2026-08-15 | [제안] repository-owned compiled Psycopg C client runner, GHCR same-digest parity와 공급망 Gate 초안 등록 |
