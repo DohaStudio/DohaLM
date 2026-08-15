@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.training.errors import TrainingError
-from src.training.postgres_c1 import C1PostgresSettings, load_c1_migrations
+from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
 
 def _settings(**overrides: object) -> C1PostgresSettings:
@@ -33,7 +32,7 @@ def test_settings_are_explicitly_c1_only_and_redacted() -> None:
         {"port": 0},
     )
     for overrides in invalid:
-        with pytest.raises(TrainingError, match="C1_POSTGRES_SETTINGS_INVALID"):
+        with pytest.raises(C1PostgresError, match="C1_POSTGRES_SETTINGS_INVALID"):
             _settings(**overrides)
 
 
@@ -49,5 +48,5 @@ def test_migrations_are_ordered_utf8_and_content_addressed() -> None:
 def test_migration_loader_rejects_an_empty_sequence() -> None:
     from pathlib import Path
 
-    with pytest.raises(TrainingError, match="C1_POSTGRES_MIGRATION_CONFLICT"):
+    with pytest.raises(C1PostgresError, match="C1_POSTGRES_MIGRATION_CONFLICT"):
         load_c1_migrations(Path("tests/fixtures/no-c1-migrations"))

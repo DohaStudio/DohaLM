@@ -6,8 +6,8 @@ on:
       - ".github/workflows/c1-postgres-contract.yml"
       - "pyproject.toml"
       - "requirements-c1.lock"
-      - "src/training/postgres_c1.py"
-      - "src/training/postgres_migrations/**"
+      - "src/postgres_c1.py"
+      - "src/postgres_migrations/**"
       - "tests/test_postgres_c1*.py"
   push:
     branches: [develop]
@@ -15,8 +15,8 @@ on:
       - ".github/workflows/c1-postgres-contract.yml"
       - "pyproject.toml"
       - "requirements-c1.lock"
-      - "src/training/postgres_c1.py"
-      - "src/training/postgres_migrations/**"
+      - "src/postgres_c1.py"
+      - "src/postgres_migrations/**"
       - "tests/test_postgres_c1*.py"
 
 permissions:

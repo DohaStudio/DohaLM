@@ -12,9 +12,9 @@ from typing import Iterator
 
 import pytest
 
-from src.training.errors import TrainingError
-from src.training.postgres_c1 import (
+from src.postgres_c1 import (
     C1PostgresConnectionFactory,
+    C1PostgresError,
     C1PostgresSettings,
     apply_c1_migrations,
     map_c1_postgres_error,
@@ -410,7 +410,7 @@ def test_migration_idempotency_advisory_lock_and_restart(
         try:
             with restart_factory.connection():
                 break
-        except TrainingError:
+        except C1PostgresError:
             if time.monotonic() >= deadline:
                 raise
             time.sleep(0.5)

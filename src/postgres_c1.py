@@ -15,8 +15,6 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
-from .errors import TrainingError
-
 if TYPE_CHECKING:
     from psycopg import Connection
 
@@ -42,11 +40,19 @@ class C1PostgresErrorCode(str, Enum):
     UNKNOWN = "C1_POSTGRES_UNKNOWN"
 
 
-def _failure(code: C1PostgresErrorCode) -> TrainingError:
-    return TrainingError(code.value, "The isolated C1 PostgreSQL operation failed.")
+class C1PostgresError(ValueError):
+    """C1-only failure with a stable code and no database details."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(f"{code}: {message}")
 
 
-def map_c1_postgres_error(error: BaseException) -> TrainingError:
+def _failure(code: C1PostgresErrorCode) -> C1PostgresError:
+    return C1PostgresError(code.value, "The isolated C1 PostgreSQL operation failed.")
+
+
+def map_c1_postgres_error(error: BaseException) -> C1PostgresError:
     """Map Psycopg failures without exposing SQL, paths, DSNs, or credentials."""
 
     try:
@@ -91,7 +97,7 @@ class C1PostgresSettings:
             or type(self.password) is not str
             or not 16 <= len(self.password) <= 128
         ):
-            raise TrainingError(
+            raise C1PostgresError(
                 "C1_POSTGRES_SETTINGS_INVALID",
                 "Valid isolated synthetic C1 PostgreSQL settings are required.",
             )
@@ -212,7 +218,7 @@ def apply_c1_migrations(
                     (migration.version, migration.name, migration.sha256),
                 )
                 applied.append(migration.version)
-    except TrainingError:
+    except C1PostgresError:
         raise
     except Exception as error:
         raise map_c1_postgres_error(error) from None
