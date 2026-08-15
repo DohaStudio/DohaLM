@@ -161,7 +161,7 @@ def test_c2_connection_configuration_is_role_scoped_tls_explicit_and_redacted() 
         password="not-logged",
         role="dohalm_training_resolver",
         application_name="dohalm-c2-resolver",
-        sslrootcert=Path("C:/protected/root.crt"),
+        sslrootcert=Path.cwd() / "protected" / "root.crt",
     )
     assert repr(settings) == "_PostgresTrainingConnectionSettings(<redacted>)"
     assert settings.password not in repr(settings)
