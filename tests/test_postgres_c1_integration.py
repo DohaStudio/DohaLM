@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-import yaml
 
 from src.postgres_c1 import (
     C1PostgresConnectionFactory,
@@ -341,8 +340,8 @@ def _canonical_payload(value: object) -> bytes:
 
 @pytest.fixture(scope="session")
 def c1_1_authority_mapping(c1_postgres: C1Fixture) -> dict[str, object]:
-    mapping = yaml.safe_load(
-        Path("tests/fixtures/c1_1_authority_mapping.yaml").read_text(encoding="utf-8")
+    mapping = json.loads(
+        Path("tests/fixtures/c1_1_authority_mapping.json").read_text(encoding="utf-8")
     )
     assert mapping["schema_version"] == 1
     assert mapping["synthetic_only"] is True

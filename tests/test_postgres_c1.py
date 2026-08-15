@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
-import yaml
 
 from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
@@ -54,8 +54,8 @@ def test_migration_loader_rejects_an_empty_sequence() -> None:
 
 
 def test_c1_1_authoritative_mapping_is_synthetic_and_exact() -> None:
-    fixture = yaml.safe_load(
-        Path("tests/fixtures/c1_1_authority_mapping.yaml").read_text(encoding="utf-8")
+    fixture = json.loads(
+        Path("tests/fixtures/c1_1_authority_mapping.json").read_text(encoding="utf-8")
     )
     assert set(fixture) == {
         "schema_version",
