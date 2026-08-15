@@ -160,21 +160,22 @@ class _PostgresTrainingConnectionSettings:
 
     def __post_init__(self) -> None:
         isolated = self.environment == "isolated_test"
+        local_single_user = self.environment == "local_single_user"
         production = self.environment == "production"
-        loopback = self.host in {"127.0.0.1", "localhost"}
+        loopback = self.host == "127.0.0.1"
         valid_tls = (
             production
             and self.sslmode == "verify-full"
             and isinstance(self.sslrootcert, Path)
             and self.sslrootcert.is_absolute()
         ) or (
-            isolated
+            (isolated or local_single_user)
             and loopback
             and self.sslmode == "disable"
             and self.sslrootcert is None
         )
         if (
-            not (isolated or production)
+            not (isolated or local_single_user or production)
             or not isinstance(self.host, str)
             or not self.host
             or type(self.port) is not int

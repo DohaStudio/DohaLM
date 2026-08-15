@@ -41,7 +41,9 @@ activation authority/evidence reference를 모두 요구한다. raw DSN, environ
 import와 caller-selected adapter는 없다.
 
 [확정] production profile은 `verify-full`과 존재하는 absolute non-symlink CA file을 요구한다.
-`isolated_test`만 loopback과 TLS disable을 허용한다. configuration, root, activation decision의
+`isolated_test`와 명시적 `local_single_user`만 정확한 IPv4 loopback `127.0.0.1`과 TLS disable을
+허용한다. `local_single_user`의 durable Docker, credential, Dataset mapping과 executable ownership은
+[로컬 단일 사용자 Activation](../training/local-single-user-activation.md)에 있다. configuration, root, activation decision의
 `repr`과 모든 composition error는 credential, host, CA path와 raw database exception을 redaction한다.
 
 ## Activation boundary와 Host wiring
@@ -114,5 +116,6 @@ trace를 포함하지 않는다. configuration 오류를 database integrity fail
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-16 | [확정] production TLS를 유지하면서 explicit `local_single_user` loopback profile 소비 경계 연결 |
 | 2026-08-16 | [확정] explicit lifecycle state, Host/factory shared lease, compare-and-clear registration과 credential reference cleanup 보완 |
 | 2026-08-16 | [확정] C3 package-private composition, provider/activation guard, lifecycle와 preflight 구현 계약 기록 |

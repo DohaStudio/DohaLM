@@ -248,9 +248,9 @@ class _PostgresTrainingCompositionConfiguration:
             and self.sslrootcert.is_file()
             and not self.sslrootcert.is_symlink()
         )
-        isolated_tls = (
-            self.environment == "isolated_test"
-            and self.host in {"127.0.0.1", "localhost"}
+        local_tls = (
+            self.environment in {"isolated_test", "local_single_user"}
+            and self.host == "127.0.0.1"
             and self.sslmode == "disable"
             and self.sslrootcert is None
         )
@@ -287,7 +287,7 @@ class _PostgresTrainingCompositionConfiguration:
             or not 1 <= self.statement_timeout_ms <= 300_000
             or type(self.transaction_timeout_ms) is not int
             or not self.statement_timeout_ms <= self.transaction_timeout_ms <= 600_000
-            or not (production_tls or isolated_tls)
+            or not (production_tls or local_tls)
         ):
             raise _configuration_error()
 
