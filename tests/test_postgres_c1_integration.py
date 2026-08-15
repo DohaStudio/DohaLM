@@ -9,6 +9,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterator
@@ -519,6 +520,22 @@ def _claim(connection: object, run_id: str, request: str, correlation: str):
     ).fetchone()
 
 
+@contextmanager
+def _restricted_journal_transaction(c1_postgres: C1Fixture) -> Iterator[object]:
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_journal")
+            yield connection
+
+
+@contextmanager
+def _owner_verification_transaction(c1_postgres: C1Fixture) -> Iterator[object]:
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_owner")
+            yield connection
+
+
 @pytest.mark.integration
 def test_c1_1_claim_architecture_concurrency_matrix(c1_postgres: C1Fixture) -> None:
     def concurrent_claims(
@@ -528,11 +545,9 @@ def test_c1_1_claim_architecture_concurrency_matrix(c1_postgres: C1Fixture) -> N
 
         def worker(values: tuple[str, str, str]) -> tuple[str, object]:
             try:
-                with c1_postgres.factory.connection() as connection:
-                    with connection.transaction():
-                        connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                        barrier.wait(timeout=30)
-                        return "row", _claim(connection, *values)
+                with _restricted_journal_transaction(c1_postgres) as connection:
+                    barrier.wait(timeout=30)
+                    return "row", _claim(connection, *values)
             except Exception as error:
                 return "error", (
                     getattr(error, "sqlstate", None),
@@ -614,36 +629,32 @@ def test_c1_1_claim_architecture_concurrency_matrix(c1_postgres: C1Fixture) -> N
 
     def rolling_back_winner() -> None:
         try:
-            with c1_postgres.factory.connection() as connection:
-                with connection.transaction():
-                    connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                    assert (
-                        _claim(
-                            connection,
-                            "run:c1-1-rollback",
-                            "6",
-                            "correlation:c1-1-rollback",
-                        )[0]
-                        == "acquired"
-                    )
-                    rollback_acquired.set()
-                    assert release_rollback.wait(timeout=30)
-                    raise ExpectedRollback
+            with _restricted_journal_transaction(c1_postgres) as connection:
+                assert (
+                    _claim(
+                        connection,
+                        "run:c1-1-rollback",
+                        "6",
+                        "correlation:c1-1-rollback",
+                    )[0]
+                    == "acquired"
+                )
+                rollback_acquired.set()
+                assert release_rollback.wait(timeout=30)
+                raise ExpectedRollback
         except ExpectedRollback:
             return
 
     def claim_after_rollback() -> object:
         assert rollback_acquired.wait(timeout=30)
-        with c1_postgres.factory.connection() as connection:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                follower_entered.set()
-                return _claim(
-                    connection,
-                    "run:c1-1-rollback",
-                    "6",
-                    "correlation:c1-1-rollback",
-                )
+        with _restricted_journal_transaction(c1_postgres) as connection:
+            follower_entered.set()
+            return _claim(
+                connection,
+                "run:c1-1-rollback",
+                "6",
+                "correlation:c1-1-rollback",
+            )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         winner_future = executor.submit(rolling_back_winner)
@@ -654,129 +665,122 @@ def test_c1_1_claim_architecture_concurrency_matrix(c1_postgres: C1Fixture) -> N
         assert follower_future.result(timeout=30)[0] == "acquired"
     matrix_runs.append("run:c1-1-rollback")
 
-    with c1_postgres.factory.connection() as connection:
-        with pytest.raises(Exception) as repeated:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                _claim(
-                    connection,
-                    "run:c1-1-same",
-                    "2",
-                    "correlation:c1-1-same",
-                )
-        assert getattr(repeated.value, "sqlstate", None) == "40001"
-
-        with connection.transaction():
-            connection.execute("SET LOCAL ROLE dohalm_training_journal")
-            replay_claim = _claim(
+    with pytest.raises(Exception) as repeated:
+        with _restricted_journal_transaction(c1_postgres) as connection:
+            _claim(
                 connection,
-                "run:c1-1-replay",
-                "c",
-                "correlation:c1-1-replay",
+                "run:c1-1-same",
+                "2",
+                "correlation:c1-1-same",
             )
-            assert replay_claim[0] == "acquired"
-        with connection.transaction():
-            connection.execute("SET LOCAL ROLE dohalm_training_journal")
+    assert getattr(repeated.value, "sqlstate", None) == "40001"
+
+    with _restricted_journal_transaction(c1_postgres) as connection:
+        replay_claim = _claim(
+            connection,
+            "run:c1-1-replay",
+            "c",
+            "correlation:c1-1-replay",
+        )
+        assert replay_claim[0] == "acquired"
+    with _restricted_journal_transaction(c1_postgres) as connection:
+        connection.execute(
+            f"SELECT * FROM {SCHEMA}.transition_training_execution_journal(%s,%s,'claimed',1,'failed',%s,%s)",
+            (
+                "run:c1-1-replay",
+                "sha256:" + "c" * 64,
+                "process:c1-1",
+                "SYNTHETIC_TERMINAL",
+            ),
+        )
+    with _restricted_journal_transaction(c1_postgres) as connection:
+        replay = _claim(
+            connection,
+            "run:c1-1-replay",
+            "c",
+            "correlation:c1-1-replay",
+        )
+        assert replay[0] == "replay"
+
+    with pytest.raises(Exception) as partial_failure:
+        with _restricted_journal_transaction(c1_postgres) as connection:
             connection.execute(
-                f"SELECT * FROM {SCHEMA}.transition_training_execution_journal(%s,%s,'claimed',1,'failed',%s,%s)",
+                f"SELECT * FROM {SCHEMA}.claim_training_execution_journal(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
-                    "run:c1-1-replay",
-                    "sha256:" + "c" * 64,
+                    "run:c1-1-partial",
+                    "sha256:" + "d" * 64,
+                    "sha256:" + "e" * 64,
+                    "correlation:c1-1-partial",
+                    "dataset-version:synthetic",
+                    "dataset-manifest:synthetic",
+                    "sha256:" + "1" * 64,
+                    "sha256:" + "2" * 64,
+                    "sha256:" + "3" * 64,
+                    "invalid-source-commit",
+                    "prerequisite-policy:c1-1",
                     "process:c1-1",
-                    "SYNTHETIC_TERMINAL",
                 ),
             )
-        with connection.transaction():
-            connection.execute("SET LOCAL ROLE dohalm_training_journal")
-            replay = _claim(
-                connection,
-                "run:c1-1-replay",
-                "c",
-                "correlation:c1-1-replay",
-            )
-            assert replay[0] == "replay"
-
-        with pytest.raises(Exception) as partial_failure:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                connection.execute(
-                    f"SELECT * FROM {SCHEMA}.claim_training_execution_journal(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (
-                        "run:c1-1-partial",
-                        "sha256:" + "d" * 64,
-                        "sha256:" + "e" * 64,
-                        "correlation:c1-1-partial",
-                        "dataset-version:synthetic",
-                        "dataset-manifest:synthetic",
-                        "sha256:" + "1" * 64,
-                        "sha256:" + "2" * 64,
-                        "sha256:" + "3" * 64,
-                        "invalid-source-commit",
-                        "prerequisite-policy:c1-1",
-                        "process:c1-1",
-                    ),
-                )
-        assert getattr(partial_failure.value, "sqlstate", None) == "23514"
+    assert getattr(partial_failure.value, "sqlstate", None) == "23514"
+    with _owner_verification_transaction(c1_postgres) as connection:
         assert connection.execute(
             f"SELECT count(*) FROM {SCHEMA}.training_execution_claim_reservation "
             "WHERE owner_run_id=%s",
             ("run:c1-1-partial",),
         ).fetchone() == (0,)
 
-        with connection.transaction():
-            connection.execute("SET LOCAL ROLE dohalm_training_journal")
-            assert (
-                _claim(
-                    connection,
-                    "run:c1-1-integrity-a",
-                    "7",
-                    "correlation:c1-1-integrity-a",
-                )[0]
-                == "acquired"
+    with _restricted_journal_transaction(c1_postgres) as connection:
+        assert (
+            _claim(
+                connection,
+                "run:c1-1-integrity-a",
+                "7",
+                "correlation:c1-1-integrity-a",
+            )[0]
+            == "acquired"
+        )
+        assert (
+            _claim(
+                connection,
+                "run:c1-1-integrity-b",
+                "7",
+                "correlation:c1-1-integrity-b",
+            )[0]
+            == "acquired"
+        )
+    with pytest.raises(Exception) as integrity:
+        with _restricted_journal_transaction(c1_postgres) as connection:
+            _claim(
+                connection,
+                "run:c1-1-integrity-a",
+                "7",
+                "correlation:c1-1-integrity-b",
             )
-            assert (
-                _claim(
-                    connection,
-                    "run:c1-1-integrity-b",
-                    "7",
-                    "correlation:c1-1-integrity-b",
-                )[0]
-                == "acquired"
+    assert getattr(integrity.value, "sqlstate", None) == "XX001"
+
+    with pytest.raises(Exception) as unrelated_constraint:
+        with _restricted_journal_transaction(c1_postgres) as connection:
+            connection.execute(
+                f"SELECT * FROM {SCHEMA}.claim_training_execution_journal(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    "run:c1-1-invalid",
+                    "not-a-fingerprint",
+                    "sha256:" + "b" * 64,
+                    "correlation:c1-1-invalid",
+                    "dataset-version:synthetic",
+                    "dataset-manifest:synthetic",
+                    "sha256:" + "c" * 64,
+                    "sha256:" + "d" * 64,
+                    "sha256:" + "e" * 64,
+                    "a" * 40,
+                    "prerequisite-policy:c1-1",
+                    "process:c1-1",
+                ),
             )
-        with pytest.raises(Exception) as integrity:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                _claim(
-                    connection,
-                    "run:c1-1-integrity-a",
-                    "7",
-                    "correlation:c1-1-integrity-b",
-                )
-        assert getattr(integrity.value, "sqlstate", None) == "XX001"
+    assert getattr(unrelated_constraint.value, "sqlstate", None) == "23514"
+    assert getattr(unrelated_constraint.value.diag, "constraint_name", None) is None
 
-        with pytest.raises(Exception) as unrelated_constraint:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                connection.execute(
-                    f"SELECT * FROM {SCHEMA}.claim_training_execution_journal(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (
-                        "run:c1-1-invalid",
-                        "not-a-fingerprint",
-                        "sha256:" + "b" * 64,
-                        "correlation:c1-1-invalid",
-                        "dataset-version:synthetic",
-                        "dataset-manifest:synthetic",
-                        "sha256:" + "c" * 64,
-                        "sha256:" + "d" * 64,
-                        "sha256:" + "e" * 64,
-                        "a" * 40,
-                        "prerequisite-policy:c1-1",
-                        "process:c1-1",
-                    ),
-                )
-        assert getattr(unrelated_constraint.value, "sqlstate", None) == "23514"
-        assert getattr(unrelated_constraint.value.diag, "constraint_name", None) is None
-
+    with _owner_verification_transaction(c1_postgres) as connection:
         collision_winner = connection.execute(
             f"SELECT run_id FROM {SCHEMA}.training_execution_journal "
             "WHERE orchestration_correlation_id=%s",
@@ -809,15 +813,12 @@ def test_c1_1_claim_architecture_concurrency_matrix(c1_postgres: C1Fixture) -> N
         assert len(event_counts) == len(matrix_runs)
         assert all(row[1:] == (1, 1, 1) for row in event_counts)
 
-        with pytest.raises(Exception) as captured:
-            with connection.transaction():
-                connection.execute("SET LOCAL ROLE dohalm_training_journal")
-                connection.execute(
-                    f"UPDATE {SCHEMA}.training_execution_journal SET phase='failed'"
-                )
-        assert "C1_POSTGRES_PERMISSION_DENIED" in str(
-            map_c1_postgres_error(captured.value)
-        )
+    with pytest.raises(Exception) as captured:
+        with _restricted_journal_transaction(c1_postgres) as connection:
+            connection.execute(
+                f"UPDATE {SCHEMA}.training_execution_journal SET phase='failed'"
+            )
+    assert "C1_POSTGRES_PERMISSION_DENIED" in str(map_c1_postgres_error(captured.value))
 
 
 @pytest.mark.integration
