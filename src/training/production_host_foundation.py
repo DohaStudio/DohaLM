@@ -12,6 +12,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import PurePosixPath
 from typing import Protocol
+from uuid import UUID
 
 from .errors import TrainingError
 from .execution_issuer import TrainingExecutionIssuerDecisionValue
@@ -80,6 +81,15 @@ def _is_canonical_timestamp(value: object) -> bool:
         and timestamp.utcoffset() is not None
         and timestamp.isoformat() == value
     )
+
+
+def _is_uuid(value: object) -> bool:
+    if type(value) is not str:
+        return False
+    try:
+        return str(UUID(value)) == value
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True, slots=True, init=False, repr=False)
@@ -217,10 +227,15 @@ class TrustedDecisionProvenance:
 
     source_identity: str
     policy_reference: str
+    decision_authority_id: str
+    issuer_authority_id: str
+    approver_authority_id: str
     bound_authorization_id: str
     bound_issuer_id: str
     bound_approver_reference: str
     bound_evidence_reference: str
+    issuer_current: bool
+    approver_current: bool
     current: bool
 
     def __init__(
@@ -228,10 +243,15 @@ class TrustedDecisionProvenance:
         *,
         source_identity: str,
         policy_reference: str,
+        decision_authority_id: str,
+        issuer_authority_id: str,
+        approver_authority_id: str,
         bound_authorization_id: str,
         bound_issuer_id: str,
         bound_approver_reference: str,
         bound_evidence_reference: str,
+        issuer_current: bool,
+        approver_current: bool,
         current: bool,
     ) -> None:
         references = (
@@ -244,10 +264,34 @@ class TrustedDecisionProvenance:
         )
         if (
             not all(_is_reference(value) for value in references)
-            or type(current) is not bool
+            or not all(
+                _is_uuid(value)
+                for value in (
+                    decision_authority_id,
+                    issuer_authority_id,
+                    approver_authority_id,
+                )
+            )
+            or not all(
+                type(value) is bool
+                for value in (issuer_current, approver_current, current)
+            )
         ):
             raise _decision_invalid()
-        values = (*references, current)
+        values = (
+            source_identity,
+            policy_reference,
+            decision_authority_id,
+            issuer_authority_id,
+            approver_authority_id,
+            bound_authorization_id,
+            bound_issuer_id,
+            bound_approver_reference,
+            bound_evidence_reference,
+            issuer_current,
+            approver_current,
+            current,
+        )
         for item, value in zip(fields(self), values, strict=True):
             object.__setattr__(self, item.name, value)
 
@@ -271,11 +315,58 @@ class TrustedDecisionResolution:
         return "TrustedDecisionResolution(<redacted>)"
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class TrainingDecisionResolutionRequest:
+    """Host-owned binding passed to the trusted decision resolver."""
+
+    intent: ProductionTrainingHostIntent
+    decision_authority_id: str
+    request_fingerprint: str
+    dataset_version_id: str
+    dataset_manifest_id: str
+    dataset_pair_authority_id: str
+    dataset_pair_fingerprint: str
+    config_fingerprint: str
+    readiness_fingerprint: str
+    source_commit: str
+    prerequisite_policy_reference: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.intent) is not ProductionTrainingHostIntent
+            or not _is_uuid(self.decision_authority_id)
+            or not _is_fingerprint(self.request_fingerprint)
+            or not _is_uuid(self.dataset_pair_authority_id)
+            or not all(
+                _is_reference(value)
+                for value in (
+                    self.dataset_version_id,
+                    self.dataset_manifest_id,
+                    self.prerequisite_policy_reference,
+                )
+            )
+            or not all(
+                _is_fingerprint(value)
+                for value in (
+                    self.dataset_pair_fingerprint,
+                    self.config_fingerprint,
+                    self.readiness_fingerprint,
+                )
+            )
+            or type(self.source_commit) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", self.source_commit) is None
+        ):
+            raise _decision_invalid()
+
+    def __repr__(self) -> str:
+        return "TrainingDecisionResolutionRequest(<redacted>)"
+
+
 class TrustedTrainingDecisionResolver(Protocol):
     """Construction-bound resolver; implementations are not caller input."""
 
     def resolve(
-        self, intent: ProductionTrainingHostIntent
+        self, request: TrainingDecisionResolutionRequest
     ) -> TrustedDecisionResolution:
         """Resolve the intent's authoritative immutable decision record."""
         ...
@@ -283,16 +374,19 @@ class TrustedTrainingDecisionResolver(Protocol):
 
 def _resolve_trusted_training_decision(
     resolver: TrustedTrainingDecisionResolver,
-    intent: ProductionTrainingHostIntent,
-    *,
-    canonical_request_fingerprint: str,
+    request: TrainingDecisionResolutionRequest,
 ) -> ResolvedTrainingExecutionDecision:
-    if type(intent) is not ProductionTrainingHostIntent or not _is_fingerprint(
-        canonical_request_fingerprint
-    ):
+    return _resolve_trusted_training_decision_resolution(resolver, request).decision
+
+
+def _resolve_trusted_training_decision_resolution(
+    resolver: TrustedTrainingDecisionResolver,
+    request: TrainingDecisionResolutionRequest,
+) -> TrustedDecisionResolution:
+    if type(request) is not TrainingDecisionResolutionRequest:
         raise _decision_invalid()
     try:
-        resolution = resolver.resolve(intent)
+        resolution = resolver.resolve(request)
         if type(resolution) is not TrustedDecisionResolution:
             raise _decision_invalid()
         decision = resolution.decision
@@ -301,19 +395,22 @@ def _resolve_trusted_training_decision(
             type(decision) is not ResolvedTrainingExecutionDecision
             or type(provenance) is not TrustedDecisionProvenance
             or provenance.current is not True
+            or provenance.issuer_current is not True
+            or provenance.approver_current is not True
+            or provenance.decision_authority_id != request.decision_authority_id
             or decision.authorization_id != provenance.bound_authorization_id
             or decision.issuer_id != provenance.bound_issuer_id
             or decision.approver_reference != provenance.bound_approver_reference
             or decision.evidence_reference != provenance.bound_evidence_reference
-            or decision.evidence_reference != intent.decision_evidence_reference
+            or decision.evidence_reference != request.intent.decision_evidence_reference
         ):
             raise _decision_invalid()
-        if decision.request_fingerprint != canonical_request_fingerprint:
+        if decision.request_fingerprint != request.request_fingerprint:
             raise _error(
                 "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH",
                 "The approval target does not match the execution request.",
             )
-        return decision
+        return resolution
     except TrainingError as exc:
         if type(exc) is TrainingError and exc.code in {
             "TRAINING_EXECUTION_DECISION_INVALID",
@@ -409,9 +506,63 @@ class TrainingOrchestrationIdentity:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
-class TrainingOrchestrationRecord:
+class TrainingOrchestrationClaimRequest:
+    """Complete immutable binding required by the restricted claim function."""
+
     identity: TrainingOrchestrationIdentity
+    intent_fingerprint: str
+    orchestration_correlation_id: str
+    dataset_version_id: str
+    dataset_manifest_id: str
+    dataset_pair_fingerprint: str
+    config_fingerprint: str
+    readiness_fingerprint: str
+    source_commit: str
+    prerequisite_policy_reference: str
+    process_boundary_id: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.identity) is not TrainingOrchestrationIdentity
+            or not _is_fingerprint(self.intent_fingerprint)
+            or not all(
+                _is_reference(value)
+                for value in (
+                    self.orchestration_correlation_id,
+                    self.dataset_version_id,
+                    self.dataset_manifest_id,
+                    self.prerequisite_policy_reference,
+                    self.process_boundary_id,
+                )
+            )
+            or not all(
+                _is_fingerprint(value)
+                for value in (
+                    self.dataset_pair_fingerprint,
+                    self.config_fingerprint,
+                    self.readiness_fingerprint,
+                )
+            )
+            or type(self.source_commit) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", self.source_commit) is None
+        ):
+            raise _journal_conflict()
+
+    def __repr__(self) -> str:
+        return "TrainingOrchestrationClaimRequest(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class TrainingOrchestrationRecord:
+    claim: TrainingOrchestrationClaimRequest
     phase: TrainingOrchestrationPhase
+    journal_version: int
+    reservation_group_id: str
+    authorization_id: str | None = None
+    issuer_id: str | None = None
+    approver_reference: str | None = None
+    evidence_reference: str | None = None
+    decision_policy_reference: str | None = None
     authorization_fingerprint: str | None = None
     decision_evidence_fingerprint: str | None = None
     backend_entered: bool = False
@@ -423,13 +574,31 @@ class TrainingOrchestrationRecord:
             self.authorization_fingerprint,
             self.decision_evidence_fingerprint,
         )
+        decision_binding = (
+            self.authorization_id,
+            self.issuer_id,
+            self.approver_reference,
+            self.evidence_reference,
+            self.decision_policy_reference,
+            self.authorization_fingerprint,
+            self.decision_evidence_fingerprint,
+        )
         if (
-            type(self.identity) is not TrainingOrchestrationIdentity
+            type(self.claim) is not TrainingOrchestrationClaimRequest
             or type(self.phase) is not TrainingOrchestrationPhase
+            or type(self.journal_version) is not int
+            or self.journal_version < 1
+            or not _is_uuid(self.reservation_group_id)
             or any(
                 value is not None and not _is_fingerprint(value)
                 for value in optional_fingerprints
             )
+            or any(
+                value is not None and not _is_reference(value)
+                for value in decision_binding[:5]
+            )
+            or any(value is not None for value in decision_binding)
+            is not all(value is not None for value in decision_binding)
             or type(self.backend_entered) is not bool
             or type(self.reconciliation_required) is not bool
             or (
@@ -455,6 +624,14 @@ class TrainingOrchestrationRecord:
             )
         ):
             raise _journal_conflict()
+
+    @property
+    def identity(self) -> TrainingOrchestrationIdentity:
+        return self.claim.identity
+
+    @property
+    def process_boundary_id(self) -> str:
+        return self.claim.process_boundary_id
 
     def __repr__(self) -> str:
         return "TrainingOrchestrationRecord(<redacted>)"
@@ -484,8 +661,15 @@ class TrainingOrchestrationClaimResult:
 @dataclass(frozen=True, slots=True, repr=False)
 class TrainingOrchestrationTransition:
     identity: TrainingOrchestrationIdentity
+    process_boundary_id: str
     expected_phase: TrainingOrchestrationPhase
+    expected_version: int
     next_phase: TrainingOrchestrationPhase
+    authorization_id: str | None = None
+    issuer_id: str | None = None
+    approver_reference: str | None = None
+    evidence_reference: str | None = None
+    decision_policy_reference: str | None = None
     authorization_fingerprint: str | None = None
     decision_evidence_fingerprint: str | None = None
     reason_code: str | None = None
@@ -493,13 +677,39 @@ class TrainingOrchestrationTransition:
     def __post_init__(self) -> None:
         if (
             type(self.identity) is not TrainingOrchestrationIdentity
+            or not _is_reference(self.process_boundary_id)
             or type(self.expected_phase) is not TrainingOrchestrationPhase
+            or type(self.expected_version) is not int
+            or self.expected_version < 1
             or type(self.next_phase) is not TrainingOrchestrationPhase
             or self.expected_phase in _TERMINAL_PHASES
             or self.next_phase not in _TRANSITIONS.get(self.expected_phase, frozenset())
             or any(
                 value is not None and not _is_fingerprint(value)
                 for value in (
+                    self.authorization_fingerprint,
+                    self.decision_evidence_fingerprint,
+                )
+            )
+            or any(
+                value is not None and not _is_reference(value)
+                for value in (
+                    self.authorization_id,
+                    self.issuer_id,
+                    self.approver_reference,
+                    self.evidence_reference,
+                    self.decision_policy_reference,
+                )
+            )
+            or (self.next_phase is TrainingOrchestrationPhase.DECISION_SUBMITTED)
+            is not all(
+                value is not None
+                for value in (
+                    self.authorization_id,
+                    self.issuer_id,
+                    self.approver_reference,
+                    self.evidence_reference,
+                    self.decision_policy_reference,
                     self.authorization_fingerprint,
                     self.decision_evidence_fingerprint,
                 )
@@ -522,7 +732,7 @@ class DurableTrainingOrchestrationJournal(Protocol):
     """Durable CAS journal port; records never restore approval authority."""
 
     def claim(
-        self, identity: TrainingOrchestrationIdentity
+        self, request: TrainingOrchestrationClaimRequest
     ) -> TrainingOrchestrationClaimResult:
         """Atomically acquire a new run or return its deterministic replay."""
         ...
@@ -547,6 +757,7 @@ def _next_journal_record(
         or type(transition) is not TrainingOrchestrationTransition
         or current.identity != transition.identity
         or current.phase is not transition.expected_phase
+        or current.journal_version != transition.expected_version
         or current.phase in _TERMINAL_PHASES
     ):
         raise _journal_conflict()
@@ -566,8 +777,35 @@ def _next_journal_record(
         TrainingOrchestrationPhase.COMPLETED,
     }
     return TrainingOrchestrationRecord(
-        identity=current.identity,
+        claim=current.claim,
         phase=transition.next_phase,
+        journal_version=current.journal_version + 1,
+        reservation_group_id=current.reservation_group_id,
+        authorization_id=(
+            transition.authorization_id
+            if transition.authorization_id is not None
+            else current.authorization_id
+        ),
+        issuer_id=(
+            transition.issuer_id
+            if transition.issuer_id is not None
+            else current.issuer_id
+        ),
+        approver_reference=(
+            transition.approver_reference
+            if transition.approver_reference is not None
+            else current.approver_reference
+        ),
+        evidence_reference=(
+            transition.evidence_reference
+            if transition.evidence_reference is not None
+            else current.evidence_reference
+        ),
+        decision_policy_reference=(
+            transition.decision_policy_reference
+            if transition.decision_policy_reference is not None
+            else current.decision_policy_reference
+        ),
         authorization_fingerprint=authorization_fingerprint,
         decision_evidence_fingerprint=evidence_fingerprint,
         backend_entered=backend_entered,
@@ -582,11 +820,13 @@ __all__ = [
     "ProductionTrainingHostIntent",
     "ResolvedTrainingExecutionDecision",
     "TrainingOrchestrationClaimResult",
+    "TrainingOrchestrationClaimRequest",
     "TrainingOrchestrationClaimStatus",
     "TrainingOrchestrationIdentity",
     "TrainingOrchestrationPhase",
     "TrainingOrchestrationRecord",
     "TrainingOrchestrationTransition",
+    "TrainingDecisionResolutionRequest",
     "TrustedDecisionProvenance",
     "TrustedDecisionResolution",
     "TrustedTrainingDecisionResolver",

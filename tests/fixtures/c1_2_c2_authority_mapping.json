@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "fixture_kind": "c1_2_c2_authority_mapping",
+  "synthetic_only": true,
+  "canonical_producers": {
+    "run_id": "production_training_host_intent",
+    "request_fingerprint": "training_execution_request_builder",
+    "intent_fingerprint": "production_training_host",
+    "orchestration_correlation_id": "production_training_host",
+    "dataset_version_authority_id": "trusted_configuration",
+    "dataset_manifest_authority_id": "trusted_configuration",
+    "dataset_pair_authority_id": "postgresql_prerequisite_snapshot",
+    "dataset_pair_fingerprint": "postgresql_dataset_pair_authority",
+    "config_fingerprint": "postgresql_training_config_authority",
+    "readiness_fingerprint": "postgresql_training_readiness_authority",
+    "source_commit": "postgresql_authority_snapshot",
+    "prerequisite_policy_reference": "trusted_prerequisite_resolver",
+    "decision_authority_id": "trusted_configuration",
+    "authorization_state": "postgresql_decision_snapshot",
+    "issuer_authority_id": "postgresql_issuer_registry",
+    "approver_authority_id": "postgresql_approver_registry",
+    "process_boundary_id": "composition_root",
+    "journal_phase": "postgresql_training_execution_journal",
+    "journal_version": "postgresql_training_execution_journal",
+    "reservation_group_id": "postgresql_claim_function"
+  },
+  "transactions": {
+    "prerequisite_snapshot": {
+      "role": "dohalm_training_resolver",
+      "isolation": "repeatable_read",
+      "access": "read_only"
+    },
+    "decision_snapshot": {
+      "role": "dohalm_training_resolver",
+      "isolation": "repeatable_read",
+      "access": "read_only"
+    },
+    "journal_claim_transition_read": {
+      "role": "dohalm_training_journal",
+      "isolation": "read_committed",
+      "access": "read_write"
+    }
+  },
+  "forbidden": {
+    "hidden_mutable_context": false,
+    "direct_table_sql": false,
+    "adapter_generated_authority_id": false,
+    "adapter_generated_fingerprint": false
+  }
+}

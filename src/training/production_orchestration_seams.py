@@ -16,6 +16,7 @@ from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Protocol
+from uuid import UUID
 
 from src.data.checksums import checksum_value, file_checksum
 
@@ -156,6 +157,11 @@ class ResolvedTrainingPrerequisites:
     dataset_manifest_reference: str
     training_config_reference: str
     readiness_evidence_reference: str
+    dataset_version_authority_id: str
+    dataset_manifest_authority_id: str
+    dataset_pair_authority_id: str
+    config_authority_id: str
+    readiness_authority_id: str
     config_path: Path
     config_snapshot: Mapping[str, Any]
     manifest_path: Path
@@ -180,6 +186,11 @@ class ResolvedTrainingPrerequisites:
         dataset_manifest_reference: str,
         training_config_reference: str,
         readiness_evidence_reference: str,
+        dataset_version_authority_id: str,
+        dataset_manifest_authority_id: str,
+        dataset_pair_authority_id: str,
+        config_authority_id: str,
+        readiness_authority_id: str,
         config_path: Path,
         config_snapshot: Mapping[str, Any],
         manifest_path: Path,
@@ -204,11 +215,19 @@ class ResolvedTrainingPrerequisites:
             dataset_manifest_id,
             run_id,
         )
+        authority_ids = (
+            dataset_version_authority_id,
+            dataset_manifest_authority_id,
+            dataset_pair_authority_id,
+            config_authority_id,
+            readiness_authority_id,
+        )
         if (
             type(schema_version) is not int
             or schema_version != 1
             or not _is_fingerprint(intent_fingerprint)
             or not all(_is_reference(value) for value in references)
+            or not all(_is_uuid(value) for value in authority_ids)
             or type(config_path) is not _PATH_TYPE
             or not config_path.is_absolute()
             or type(manifest_path) is not _PATH_TYPE
@@ -232,6 +251,7 @@ class ResolvedTrainingPrerequisites:
             schema_version,
             intent_fingerprint,
             *references[:4],
+            *authority_ids,
             config_path,
             _freeze_mapping(config_snapshot),
             manifest_path,
@@ -253,12 +273,79 @@ class ResolvedTrainingPrerequisites:
         return "ResolvedTrainingPrerequisites(<redacted>)"
 
 
+def _is_uuid(value: object) -> bool:
+    if type(value) is not str:
+        return False
+    try:
+        return str(UUID(value)) == value
+    except ValueError:
+        return False
+
+
+def _authority_id(reference: str, namespace: str) -> str:
+    prefix = f"{namespace}:"
+    if type(reference) is not str or not reference.startswith(prefix):
+        raise _prerequisite_invalid()
+    value = reference[len(prefix) :]
+    if not _is_uuid(value):
+        raise _prerequisite_invalid()
+    return value
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class TrainingPrerequisiteResolutionRequest:
+    """Typed identities and expected bindings for one authority snapshot."""
+
+    intent: ProductionTrainingHostIntent
+    intent_fingerprint: str
+    dataset_version_authority_id: str
+    dataset_manifest_authority_id: str
+    config_authority_id: str
+    readiness_authority_id: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.intent) is not ProductionTrainingHostIntent
+            or not _is_fingerprint(self.intent_fingerprint)
+            or not all(
+                _is_uuid(value)
+                for value in (
+                    self.dataset_version_authority_id,
+                    self.dataset_manifest_authority_id,
+                    self.config_authority_id,
+                    self.readiness_authority_id,
+                )
+            )
+        ):
+            raise _prerequisite_invalid()
+
+    def __repr__(self) -> str:
+        return "TrainingPrerequisiteResolutionRequest(<redacted>)"
+
+
+def _build_prerequisite_resolution_request(
+    intent: ProductionTrainingHostIntent,
+) -> TrainingPrerequisiteResolutionRequest:
+    fingerprint = _canonical_training_host_intent_fingerprint(intent)
+    return TrainingPrerequisiteResolutionRequest(
+        intent=intent,
+        intent_fingerprint=fingerprint,
+        dataset_version_authority_id=_authority_id(
+            intent.dataset_version_reference, "dataset-version"
+        ),
+        dataset_manifest_authority_id=_authority_id(
+            intent.dataset_manifest_reference, "dataset-manifest"
+        ),
+        config_authority_id=_authority_id(intent.training_config_reference, "config"),
+        readiness_authority_id=_authority_id(
+            intent.readiness_evidence_reference, "readiness"
+        ),
+    )
+
+
 class _TrustedTrainingPrerequisiteResolver(Protocol):
     def resolve(
-        self,
-        intent: ProductionTrainingHostIntent,
-        *,
-        intent_fingerprint: str,
+        self, request: TrainingPrerequisiteResolutionRequest
     ) -> ResolvedTrainingPrerequisites:
         """Resolve authority objects bound at composition-root construction."""
         ...
@@ -313,6 +400,14 @@ def _validate_training_prerequisites(
             or resolved.training_config_reference != intent.training_config_reference
             or resolved.readiness_evidence_reference
             != intent.readiness_evidence_reference
+            or resolved.dataset_version_authority_id
+            != _authority_id(intent.dataset_version_reference, "dataset-version")
+            or resolved.dataset_manifest_authority_id
+            != _authority_id(intent.dataset_manifest_reference, "dataset-manifest")
+            or resolved.config_authority_id
+            != _authority_id(intent.training_config_reference, "config")
+            or resolved.readiness_authority_id
+            != _authority_id(intent.readiness_evidence_reference, "readiness")
             or resolved.dataset_pair_fingerprint
             != intent.expected_dataset_pair_fingerprint
             or resolved.config_fingerprint != intent.expected_config_fingerprint
@@ -374,9 +469,9 @@ def _resolve_training_prerequisites(
     resolver: _TrustedTrainingPrerequisiteResolver,
     intent: ProductionTrainingHostIntent,
 ) -> ResolvedTrainingPrerequisites:
-    intent_fingerprint = _canonical_training_host_intent_fingerprint(intent)
+    request = _build_prerequisite_resolution_request(intent)
     try:
-        resolved = resolver.resolve(intent, intent_fingerprint=intent_fingerprint)
+        resolved = resolver.resolve(request)
     except BaseException as exc:
         if not isinstance(exc, Exception):
             raise
@@ -503,7 +598,9 @@ class _HostFullPretrainingBackendLifecycle:
         "_durable_phase",
         "_identity",
         "_journal",
+        "_journal_version",
         "_lock",
+        "_process_boundary_id",
         "_started",
     )
 
@@ -529,6 +626,8 @@ class _HostFullPretrainingBackendLifecycle:
         self._journal = journal
         self._identity = identity
         self._durable_phase = TrainingOrchestrationPhase.DECISION_SUBMITTED
+        self._journal_version = record.journal_version
+        self._process_boundary_id = record.process_boundary_id
         self._approval_consumed = False
         self._backend_entered = False
         self._started = False
@@ -552,7 +651,9 @@ class _HostFullPretrainingBackendLifecycle:
     ) -> None:
         transition = TrainingOrchestrationTransition(
             identity=self._identity,
+            process_boundary_id=self._process_boundary_id,
             expected_phase=self._durable_phase,
+            expected_version=self._journal_version,
             next_phase=next_phase,
             reason_code=reason_code,
         )
@@ -567,6 +668,7 @@ class _HostFullPretrainingBackendLifecycle:
         ):
             raise _LifecycleJournalFailure()
         self._durable_phase = next_phase
+        self._journal_version = record.journal_version
 
     def _approval_was_consumed(self) -> None:
         self._approval_consumed = True

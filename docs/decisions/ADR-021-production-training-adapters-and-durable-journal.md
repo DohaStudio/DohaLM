@@ -785,6 +785,14 @@ C1 전에는 driver/migration implementation을 시작하지 않는다. C2는 C1
 시작한다. 각 PR은 dependency/schema, adapter, composition과 activation 범위를 겹치지 않는다. authority producer workflow와
 writer role은 C2 전 Training Authority Producer Owner가 승인하며 readiness/config mapping fixture도 C2 입력으로 고정한다.
 
+### C1.2/C2 contract alignment
+
+[확정] C2 adapter 구현 전에 [C1.2/C2 Contract Alignment](../architecture/c1-2-c2-contract-alignment.md)에서
+trusted configuration identity, typed prerequisite/decision snapshot, complete journal claim/transition/read DTO와 restricted
+function signature를 하나의 선행 계약으로 고정한다. decision authority UUID와 process boundary는 composition root가 주입하며,
+adapter는 fingerprint·authority ID·correlation을 생성하지 않는다. C1.2는 immutable `0003`과 port/DTO 계약만 포함하고 adapter,
+credential, C3 composition, Production Activation과 Training은 포함하지 않는다.
+
 ## Production Activation Gate
 
 [확정] ADR 또는 C1/C2/C3 병합은 production activation 승인이 아니다. 다음이 모두 충족되기 전 future actual run
@@ -827,6 +835,7 @@ exactly-once Training, cross-process capability, automatic restart/retry와 dura
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [확정] C1.2/C2 typed snapshot·complete journal DTO 선행 alignment와 composition-root-owned decision/process identity를 동기화 |
 | 2026-08-15 | [확정] Corrective C1.1 immutable `0002` reservation identity, least-privilege restricted operations, transaction ownership와 upgrade/logical-restore contract를 동기화 |
 | 2026-08-13 | [확정] PR #126 사용자 승인·squash merge provenance에 맞춰 `approved`로 동기화하고 C1 image security policy를 ADR-022로 분리 |
 | 2026-08-13 | [제안] 8개 authority family에 공통 envelope 7개 column의 exact C1 DDL을 56/56으로 명시 |

@@ -23,6 +23,7 @@ from src.training.production_full_pretraining_host import (
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
     ResolvedTrainingExecutionDecision,
+    TrainingOrchestrationClaimRequest,
     TrainingOrchestrationClaimResult,
     TrainingOrchestrationClaimStatus,
     TrainingOrchestrationIdentity,
@@ -39,22 +40,48 @@ READINESS = "sha256:" + "3" * 64
 REQUEST = "sha256:" + "4" * 64
 SOURCE = "5" * 40
 MANIFEST_CHECKSUM = "sha256:" + "6" * 64
+PROCESS_BOUNDARY_ID = "process-boundary-1"
+DECISION_AUTHORITY_ID = "99999999-9999-4999-8999-999999999999"
+DATASET_VERSION_AUTHORITY_ID = "11111111-1111-4111-8111-111111111111"
+DATASET_MANIFEST_AUTHORITY_ID = "22222222-2222-4222-8222-222222222222"
+DATASET_PAIR_AUTHORITY_ID = "33333333-3333-4333-8333-333333333333"
+CONFIG_AUTHORITY_ID = "44444444-4444-4444-8444-444444444444"
+READINESS_AUTHORITY_ID = "55555555-5555-4555-8555-555555555555"
 
 
 def _intent() -> ProductionTrainingHostIntent:
     return ProductionTrainingHostIntent(
         action="full_pretraining",
         execution_mode="fresh",
-        dataset_version_reference="dataset-version-ref",
-        dataset_manifest_reference="dataset-manifest-ref",
+        dataset_version_reference=f"dataset-version:{DATASET_VERSION_AUTHORITY_ID}",
+        dataset_manifest_reference=f"dataset-manifest:{DATASET_MANIFEST_AUTHORITY_ID}",
         expected_dataset_pair_fingerprint=PAIR,
-        training_config_reference="config-ref",
+        training_config_reference=f"config:{CONFIG_AUTHORITY_ID}",
         expected_config_fingerprint=CONFIG,
-        readiness_evidence_reference="readiness-ref",
+        readiness_evidence_reference=f"readiness:{READINESS_AUTHORITY_ID}",
         expected_readiness_fingerprint=READINESS,
         run_id="run-1",
         output_logical_root="experiments/run-1",
         decision_evidence_reference="decision-ref",
+    )
+
+
+def _claim_request() -> TrainingOrchestrationClaimRequest:
+    intent = _intent()
+    return TrainingOrchestrationClaimRequest(
+        identity=TrainingOrchestrationIdentity(
+            run_id=intent.run_id, request_fingerprint=REQUEST
+        ),
+        intent_fingerprint=seams._canonical_training_host_intent_fingerprint(intent),
+        orchestration_correlation_id=intent.run_id,
+        dataset_version_id="dataset-version-1",
+        dataset_manifest_id="dataset-manifest-1",
+        dataset_pair_fingerprint=PAIR,
+        config_fingerprint=CONFIG,
+        readiness_fingerprint=READINESS,
+        source_commit=SOURCE,
+        prerequisite_policy_reference="prerequisite-policy-1",
+        process_boundary_id=PROCESS_BOUNDARY_ID,
     )
 
 
@@ -93,11 +120,12 @@ class _PrerequisiteResolver:
         self.calls = 0
         self.error: BaseException | None = None
 
-    def resolve(self, intent, *, intent_fingerprint):
+    def resolve(self, request):
         self.calls += 1
-        assert type(intent) is ProductionTrainingHostIntent
-        assert intent_fingerprint == seams._canonical_training_host_intent_fingerprint(
-            intent
+        assert type(request.intent) is ProductionTrainingHostIntent
+        assert (
+            request.intent_fingerprint
+            == seams._canonical_training_host_intent_fingerprint(request.intent)
         )
         if self.error is not None:
             raise self.error
@@ -112,8 +140,9 @@ class _DecisionResolver:
         self.request_fingerprint = REQUEST
         self.authorization_id = "authorization-1"
 
-    def resolve(self, intent):
+    def resolve(self, request):
         self.calls += 1
+        assert request.decision_authority_id == DECISION_AUTHORITY_ID
         if self.error is not None:
             raise self.error
         decision = ResolvedTrainingExecutionDecision(
@@ -121,7 +150,7 @@ class _DecisionResolver:
             authorization_id=self.authorization_id,
             issuer_id="issuer-1",
             approver_reference="approver-1",
-            evidence_reference=intent.decision_evidence_reference,
+            evidence_reference=request.intent.decision_evidence_reference,
             request_fingerprint=self.request_fingerprint,
             issued_at="2026-08-13T12:00:00+09:00",
         )
@@ -130,10 +159,15 @@ class _DecisionResolver:
             provenance=TrustedDecisionProvenance(
                 source_identity="decision-store-1",
                 policy_reference="decision-policy-1",
+                decision_authority_id=DECISION_AUTHORITY_ID,
+                issuer_authority_id="77777777-7777-4777-8777-777777777777",
+                approver_authority_id="88888888-8888-4888-8888-888888888888",
                 bound_authorization_id=decision.authorization_id,
                 bound_issuer_id=decision.issuer_id,
                 bound_approver_reference=decision.approver_reference,
                 bound_evidence_reference=decision.evidence_reference,
+                issuer_current=True,
+                approver_current=True,
                 current=True,
             ),
         )
@@ -147,18 +181,21 @@ class _Journal:
         self.fail_at: TrainingOrchestrationPhase | None = None
         self.lock = threading.RLock()
 
-    def claim(self, identity):
+    def claim(self, request):
         with self.lock:
             self.claim_calls += 1
+            identity = request.identity
             current = self.records.get(identity.run_id)
             if current is None:
                 current = TrainingOrchestrationRecord(
-                    identity=identity,
+                    claim=request,
                     phase=TrainingOrchestrationPhase.CLAIMED,
+                    journal_version=1,
+                    reservation_group_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                 )
                 self.records[identity.run_id] = current
                 status = TrainingOrchestrationClaimStatus.ACQUIRED
-            elif current.identity != identity:
+            elif current.claim != request:
                 raise TrainingError(
                     "TRAINING_HOST_JOURNAL_CONFLICT",
                     "conflict",
@@ -200,6 +237,11 @@ class _Context:
             dataset_manifest_reference=self.intent.dataset_manifest_reference,
             training_config_reference=self.intent.training_config_reference,
             readiness_evidence_reference=self.intent.readiness_evidence_reference,
+            dataset_version_authority_id=DATASET_VERSION_AUTHORITY_ID,
+            dataset_manifest_authority_id=DATASET_MANIFEST_AUTHORITY_ID,
+            dataset_pair_authority_id=DATASET_PAIR_AUTHORITY_ID,
+            config_authority_id=CONFIG_AUTHORITY_ID,
+            readiness_authority_id=READINESS_AUTHORITY_ID,
             config_path=self.config_path,
             config_snapshot=_Config().to_dict(),
             manifest_path=self.manifest_path,
@@ -324,6 +366,8 @@ class _Context:
             self.prerequisite_resolver,
             self.decision_resolver,
             self.journal,
+            process_boundary_id=PROCESS_BOUNDARY_ID,
+            decision_authority_id=DECISION_AUTHORITY_ID,
             backend_binding=binding,
         )
 
@@ -368,6 +412,8 @@ def test_bootstrap_is_exact_once_and_identical_replay_returns_same_host(
         context.prerequisite_resolver,
         context.decision_resolver,
         context.journal,
+        process_boundary_id=PROCESS_BOUNDARY_ID,
+        decision_authority_id=DECISION_AUTHORITY_ID,
         backend_binding=binding,
     )
     second_binding = host_module._bind_fake_host_backend_for_tests(
@@ -377,13 +423,16 @@ def test_bootstrap_is_exact_once_and_identical_replay_returns_same_host(
         context.prerequisite_resolver,
         context.decision_resolver,
         context.journal,
+        process_boundary_id=PROCESS_BOUNDARY_ID,
+        decision_authority_id=DECISION_AUTHORITY_ID,
         backend_binding=second_binding,
     )
     assert replay is first
 
 
 @pytest.mark.parametrize(
-    "dependency", ("prerequisite", "decision", "journal", "backend")
+    "dependency",
+    ("prerequisite", "decision", "journal", "backend", "decision_authority"),
 )
 def test_bootstrap_rejects_dependency_replacement_without_partial_mutation(
     context: _Context, dependency: str
@@ -392,6 +441,7 @@ def test_bootstrap_rejects_dependency_replacement_without_partial_mutation(
     prerequisite = context.prerequisite_resolver
     decision = context.decision_resolver
     journal = context.journal
+    decision_authority_id = DECISION_AUTHORITY_ID
     binding = host_module._bind_fake_host_backend_for_tests(context.backend_runner)
     if dependency == "prerequisite":
         prerequisite = _PrerequisiteResolver(context.resolved)
@@ -399,11 +449,18 @@ def test_bootstrap_rejects_dependency_replacement_without_partial_mutation(
         decision = _DecisionResolver()
     elif dependency == "journal":
         journal = _Journal()
-    else:
+    elif dependency == "backend":
         binding = host_module._bind_fake_host_backend_for_tests(lambda *_a, **_k: None)
+    else:
+        decision_authority_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
     with pytest.raises(TrainingError, match="TRAINING_HOST_BOOTSTRAP_CONFLICT"):
         host_module._bootstrap_production_full_pretraining_host(
-            prerequisite, decision, journal, backend_binding=binding
+            prerequisite,
+            decision,
+            journal,
+            process_boundary_id=PROCESS_BOUNDARY_ID,
+            decision_authority_id=decision_authority_id,
+            backend_binding=binding,
         )
     assert host_module._BOOTSTRAP_REGISTRATION.host is host
 
@@ -429,6 +486,8 @@ def test_concurrent_bootstrap_has_one_host_and_one_issuer_composition(
             context.prerequisite_resolver,
             context.decision_resolver,
             context.journal,
+            process_boundary_id=PROCESS_BOUNDARY_ID,
+            decision_authority_id=DECISION_AUTHORITY_ID,
             backend_binding=binding,
         )
 
@@ -681,8 +740,80 @@ def test_restart_active_record_requires_manual_reconciliation(
         run_id="run-1", request_fingerprint=REQUEST
     )
     context.journal.records[identity.run_id] = TrainingOrchestrationRecord(
-        identity=identity,
+        claim=_claim_request(),
         phase=phase,
+        journal_version=1,
+        reservation_group_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        authorization_id=(
+            "authorization-1"
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        issuer_id=(
+            "issuer-1"
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        approver_reference=(
+            "approver-1"
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        evidence_reference=(
+            "decision-ref"
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        decision_policy_reference=(
+            "decision-policy-1"
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        authorization_fingerprint=(
+            "sha256:" + "7" * 64
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
+        decision_evidence_fingerprint=(
+            "sha256:" + "8" * 64
+            if phase
+            in {
+                TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                TrainingOrchestrationPhase.APPROVAL_CONSUMED,
+                TrainingOrchestrationPhase.BACKEND_ENTERED,
+            }
+            else None
+        ),
         backend_entered=phase is TrainingOrchestrationPhase.BACKEND_ENTERED,
     )
     host = context.bootstrap()

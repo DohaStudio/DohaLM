@@ -26,6 +26,8 @@ from .execution_issuer import (
 from .production_host_foundation import (
     DurableTrainingOrchestrationJournal,
     ProductionTrainingHostIntent,
+    TrainingDecisionResolutionRequest,
+    TrainingOrchestrationClaimRequest,
     TrainingOrchestrationClaimResult,
     TrainingOrchestrationClaimStatus,
     TrainingOrchestrationIdentity,
@@ -33,7 +35,8 @@ from .production_host_foundation import (
     TrainingOrchestrationRecord,
     TrainingOrchestrationTransition,
     TrustedTrainingDecisionResolver,
-    _resolve_trusted_training_decision,
+    _is_uuid,
+    _resolve_trusted_training_decision_resolution,
 )
 from .production_orchestration_seams import (
     ResolvedTrainingPrerequisites,
@@ -216,10 +219,12 @@ class ProductionFullPretrainingHost:
     __slots__ = (
         "_active",
         "_backend_binding",
+        "_decision_authority_id",
         "_decision_resolver",
         "_journal",
         "_lock",
         "_prerequisite_resolver",
+        "_process_boundary_id",
         "_submission_capability",
     )
 
@@ -244,10 +249,23 @@ class ProductionFullPretrainingHost:
             run_id=request.run_id,
             request_fingerprint=request.request_fingerprint,
         )
+        claim_request = TrainingOrchestrationClaimRequest(
+            identity=identity,
+            intent_fingerprint=resolved.intent_fingerprint,
+            orchestration_correlation_id=identity.run_id,
+            dataset_version_id=resolved.dataset_version_id,
+            dataset_manifest_id=resolved.dataset_manifest_id,
+            dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
+            config_fingerprint=resolved.config_fingerprint,
+            readiness_fingerprint=resolved.readiness_fingerprint,
+            source_commit=resolved.source_commit,
+            prerequisite_policy_reference=resolved.provenance.resolution_policy_reference,
+            process_boundary_id=self._process_boundary_id,
+        )
 
         acquired = False
         with self._lock:
-            claim = self._claim(identity)
+            claim = self._claim(claim_request)
             if claim.status is TrainingOrchestrationClaimStatus.REPLAY:
                 return self._replay_result(claim.record)
             self._active.add(identity)
@@ -265,11 +283,24 @@ class ProductionFullPretrainingHost:
                 TrainingOrchestrationPhase.VALIDATED,
             )
             try:
-                decision = _resolve_trusted_training_decision(
-                    self._decision_resolver,
-                    intent,
-                    canonical_request_fingerprint=request.request_fingerprint,
+                decision_request = TrainingDecisionResolutionRequest(
+                    intent=intent,
+                    decision_authority_id=self._decision_authority_id,
+                    request_fingerprint=request.request_fingerprint,
+                    dataset_version_id=resolved.dataset_version_id,
+                    dataset_manifest_id=resolved.dataset_manifest_id,
+                    dataset_pair_authority_id=resolved.dataset_pair_authority_id,
+                    dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
+                    config_fingerprint=resolved.config_fingerprint,
+                    readiness_fingerprint=resolved.readiness_fingerprint,
+                    source_commit=resolved.source_commit,
+                    prerequisite_policy_reference=resolved.provenance.resolution_policy_reference,
                 )
+                resolution = _resolve_trusted_training_decision_resolution(
+                    self._decision_resolver,
+                    decision_request,
+                )
+                decision = resolution.decision
             except TrainingError as exc:
                 self._record_known_failure(
                     identity,
@@ -310,6 +341,11 @@ class ProductionFullPretrainingHost:
                     identity,
                     TrainingOrchestrationPhase.VALIDATED,
                     TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                    authorization_id=decision.authorization_id,
+                    issuer_id=decision.issuer_id,
+                    approver_reference=decision.approver_reference,
+                    evidence_reference=decision.evidence_reference,
+                    decision_policy_reference=resolution.provenance.policy_reference,
                     authorization_fingerprint=checksum_value(decision.authorization_id),
                     decision_evidence_fingerprint=checksum_value(
                         decision.evidence_reference
@@ -357,10 +393,10 @@ class ProductionFullPretrainingHost:
                     self._active.discard(identity)
 
     def _claim(
-        self, identity: TrainingOrchestrationIdentity
+        self, request: TrainingOrchestrationClaimRequest
     ) -> TrainingOrchestrationClaimResult:
         try:
-            claim = self._journal.claim(identity)
+            claim = self._journal.claim(request)
         except TrainingError as exc:
             if (
                 type(exc) is TrainingError
@@ -373,7 +409,8 @@ class ProductionFullPretrainingHost:
         if (
             type(claim) is not TrainingOrchestrationClaimResult
             or type(claim.record) is not TrainingOrchestrationRecord
-            or claim.record.identity != identity
+            or claim.record.identity != request.identity
+            or claim.record.claim != request
             or (
                 claim.status is TrainingOrchestrationClaimStatus.ACQUIRED
                 and claim.record.phase is not TrainingOrchestrationPhase.CLAIMED
@@ -402,14 +439,29 @@ class ProductionFullPretrainingHost:
         expected: TrainingOrchestrationPhase,
         next_phase: TrainingOrchestrationPhase,
         *,
+        authorization_id: str | None = None,
+        issuer_id: str | None = None,
+        approver_reference: str | None = None,
+        evidence_reference: str | None = None,
+        decision_policy_reference: str | None = None,
         authorization_fingerprint: str | None = None,
         decision_evidence_fingerprint: str | None = None,
         reason_code: str | None = None,
     ) -> TrainingOrchestrationRecord:
+        current = self._read_record(identity)
+        if current.phase is not expected:
+            raise _journal_conflict()
         transition = TrainingOrchestrationTransition(
             identity=identity,
+            process_boundary_id=self._process_boundary_id,
             expected_phase=expected,
+            expected_version=current.journal_version,
             next_phase=next_phase,
+            authorization_id=authorization_id,
+            issuer_id=issuer_id,
+            approver_reference=approver_reference,
+            evidence_reference=evidence_reference,
+            decision_policy_reference=decision_policy_reference,
             authorization_fingerprint=authorization_fingerprint,
             decision_evidence_fingerprint=decision_evidence_fingerprint,
             reason_code=reason_code,
@@ -525,7 +577,7 @@ class ProductionFullPretrainingHost:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class _BootstrapRegistration:
-    dependency_identity: tuple[int, int, int, int]
+    dependency_identity: tuple[int, int, int, int, str, str]
     host: ProductionFullPretrainingHost
 
     def __repr__(self) -> str:
@@ -548,6 +600,8 @@ def _bootstrap_production_full_pretraining_host(
     decision_resolver: TrustedTrainingDecisionResolver,
     journal: DurableTrainingOrchestrationJournal,
     *,
+    process_boundary_id: str,
+    decision_authority_id: str,
     backend_binding: _HostBackendBinding = _CANONICAL_BACKEND_BINDING,
 ) -> ProductionFullPretrainingHost:
     """Install one immutable process object graph; identical replay is a no-op."""
@@ -555,13 +609,21 @@ def _bootstrap_production_full_pretraining_host(
     _validate_dependency(prerequisite_resolver, ("resolve",))
     _validate_dependency(decision_resolver, ("resolve",))
     _validate_dependency(journal, ("claim", "read", "transition"))
-    if type(backend_binding) is not _HostBackendBinding:
+    if (
+        type(backend_binding) is not _HostBackendBinding
+        or type(process_boundary_id) is not str
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}", process_boundary_id)
+        is None
+        or not _is_uuid(decision_authority_id)
+    ):
         raise _construction_unauthorized()
     identity = (
         id(prerequisite_resolver),
         id(decision_resolver),
         id(journal),
         id(backend_binding._identity),
+        process_boundary_id,
+        decision_authority_id,
     )
     global _BOOTSTRAP_REGISTRATION
     with _BOOTSTRAP_LOCK:
@@ -573,6 +635,8 @@ def _bootstrap_production_full_pretraining_host(
 
         host = object.__new__(ProductionFullPretrainingHost)
         object.__setattr__(host, "_prerequisite_resolver", prerequisite_resolver)
+        object.__setattr__(host, "_process_boundary_id", process_boundary_id)
+        object.__setattr__(host, "_decision_authority_id", decision_authority_id)
         object.__setattr__(host, "_decision_resolver", decision_resolver)
         object.__setattr__(host, "_journal", journal)
         object.__setattr__(host, "_backend_binding", backend_binding)

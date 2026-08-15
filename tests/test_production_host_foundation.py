@@ -13,6 +13,8 @@ from src.training.execution_issuer import TrainingExecutionIssuerDecisionValue
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
     ResolvedTrainingExecutionDecision,
+    TrainingDecisionResolutionRequest,
+    TrainingOrchestrationClaimRequest,
     TrainingOrchestrationClaimResult,
     TrainingOrchestrationClaimStatus,
     TrainingOrchestrationIdentity,
@@ -71,10 +73,15 @@ def _provenance_values() -> dict[str, object]:
     return {
         "source_identity": "decision-store-1",
         "policy_reference": "policy-1",
+        "decision_authority_id": "99999999-9999-4999-8999-999999999999",
+        "issuer_authority_id": "66666666-6666-4666-8666-666666666666",
+        "approver_authority_id": "77777777-7777-4777-8777-777777777777",
         "bound_authorization_id": "authorization-1",
         "bound_issuer_id": "issuer-1",
         "bound_approver_reference": "approver-1",
         "bound_evidence_reference": "decision-evidence-1",
+        "issuer_current": True,
+        "approver_current": True,
         "current": True,
     }
 
@@ -94,12 +101,12 @@ class FakeResolver:
     ):
         self.result = _resolution() if result is _DEFAULT_RESULT else result
         self.error = error
-        self.calls: list[ProductionTrainingHostIntent] = []
+        self.calls: list[TrainingDecisionResolutionRequest] = []
 
     def resolve(
-        self, intent: ProductionTrainingHostIntent
+        self, request: TrainingDecisionResolutionRequest
     ) -> TrustedDecisionResolution:
-        self.calls.append(intent)
+        self.calls.append(request)
         if self.error is not None:
             raise self.error
         return self.result  # type: ignore[return-value]
@@ -115,23 +122,26 @@ class InMemoryJournal:
         self._records = dict(records or {})
 
     def claim(
-        self, identity: TrainingOrchestrationIdentity
+        self, request: TrainingOrchestrationClaimRequest
     ) -> TrainingOrchestrationClaimResult:
-        if type(identity) is not TrainingOrchestrationIdentity:
+        if type(request) is not TrainingOrchestrationClaimRequest:
             raise TrainingError(
                 "TRAINING_HOST_JOURNAL_CONFLICT",
                 "The training orchestration journal state conflicts with this operation.",
             )
         with self._lock:
+            identity = request.identity
             current = self._records.get(identity.run_id)
             if current is None:
                 record = TrainingOrchestrationRecord(
-                    identity=identity,
+                    claim=request,
                     phase=TrainingOrchestrationPhase.CLAIMED,
+                    journal_version=1,
+                    reservation_group_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                 )
                 self._records[identity.run_id] = record
                 status = TrainingOrchestrationClaimStatus.ACQUIRED
-            elif current.identity != identity:
+            elif current.claim != request:
                 raise TrainingError(
                     "TRAINING_HOST_JOURNAL_CONFLICT",
                     "The training orchestration journal state conflicts with this operation.",
@@ -166,6 +176,58 @@ def _identity(fingerprint: str = FINGERPRINT) -> TrainingOrchestrationIdentity:
     )
 
 
+def _decision_request(
+    fingerprint: str = FINGERPRINT,
+) -> TrainingDecisionResolutionRequest:
+    return TrainingDecisionResolutionRequest(
+        intent=_intent(),
+        decision_authority_id="99999999-9999-4999-8999-999999999999",
+        request_fingerprint=fingerprint,
+        dataset_version_id="dataset-version-1",
+        dataset_manifest_id="dataset-manifest-1",
+        dataset_pair_authority_id="88888888-8888-4888-8888-888888888888",
+        dataset_pair_fingerprint="sha256:" + "4" * 64,
+        config_fingerprint="sha256:" + "5" * 64,
+        readiness_fingerprint="sha256:" + "6" * 64,
+        source_commit="a" * 40,
+        prerequisite_policy_reference="policy-1",
+    )
+
+
+def _claim_request(
+    fingerprint: str = FINGERPRINT,
+) -> TrainingOrchestrationClaimRequest:
+    return TrainingOrchestrationClaimRequest(
+        identity=_identity(fingerprint),
+        intent_fingerprint="sha256:" + "7" * 64,
+        orchestration_correlation_id="run-1",
+        dataset_version_id="dataset-version-1",
+        dataset_manifest_id="dataset-manifest-1",
+        dataset_pair_fingerprint="sha256:" + "4" * 64,
+        config_fingerprint="sha256:" + "5" * 64,
+        readiness_fingerprint="sha256:" + "6" * 64,
+        source_commit="a" * 40,
+        prerequisite_policy_reference="policy-1",
+        process_boundary_id="process-boundary-1",
+    )
+
+
+def _record(
+    phase: TrainingOrchestrationPhase,
+    *,
+    fingerprint: str = FINGERPRINT,
+    version: int = 1,
+    **kwargs: object,
+) -> TrainingOrchestrationRecord:
+    return TrainingOrchestrationRecord(
+        claim=_claim_request(fingerprint),
+        phase=phase,
+        journal_version=version,
+        reservation_group_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
 def _transition(
     identity: TrainingOrchestrationIdentity,
     expected: TrainingOrchestrationPhase,
@@ -174,7 +236,9 @@ def _transition(
 ) -> TrainingOrchestrationTransition:
     return TrainingOrchestrationTransition(
         identity=identity,
+        process_boundary_id="process-boundary-1",
         expected_phase=expected,
+        expected_version=int(kwargs.pop("expected_version", 1)),
         next_phase=next_phase,
         **kwargs,  # type: ignore[arg-type]
     )
@@ -325,13 +389,55 @@ def test_each_decision_field_rejects_wrong_or_noncanonical_values(
 
 
 def test_resolver_valid_result_is_exact_and_request_bound() -> None:
-    intent = _intent()
+    request = _decision_request()
     resolver = FakeResolver()
-    result = foundation._resolve_trusted_training_decision(
-        resolver, intent, canonical_request_fingerprint=FINGERPRINT
-    )
+    result = foundation._resolve_trusted_training_decision(resolver, request)
     assert result is resolver.result.decision
-    assert resolver.calls == [intent]
+    assert resolver.calls == [request]
+
+
+def test_c1_2_decision_and_journal_dtos_are_explicit_and_complete() -> None:
+    assert [item.name for item in fields(TrainingDecisionResolutionRequest)] == [
+        "intent",
+        "decision_authority_id",
+        "request_fingerprint",
+        "dataset_version_id",
+        "dataset_manifest_id",
+        "dataset_pair_authority_id",
+        "dataset_pair_fingerprint",
+        "config_fingerprint",
+        "readiness_fingerprint",
+        "source_commit",
+        "prerequisite_policy_reference",
+    ]
+    assert [item.name for item in fields(TrainingOrchestrationClaimRequest)] == [
+        "identity",
+        "intent_fingerprint",
+        "orchestration_correlation_id",
+        "dataset_version_id",
+        "dataset_manifest_id",
+        "dataset_pair_fingerprint",
+        "config_fingerprint",
+        "readiness_fingerprint",
+        "source_commit",
+        "prerequisite_policy_reference",
+        "process_boundary_id",
+    ]
+    record_names = {item.name for item in fields(TrainingOrchestrationRecord)}
+    assert {
+        "claim",
+        "phase",
+        "journal_version",
+        "reservation_group_id",
+        "authorization_id",
+        "issuer_id",
+        "approver_reference",
+        "evidence_reference",
+        "decision_policy_reference",
+        "backend_entered",
+        "reconciliation_required",
+    } <= record_names
+    assert {"context", "cache", "connection", "dsn"}.isdisjoint(record_names)
 
 
 def test_resolver_resolution_and_provenance_are_immutable() -> None:
@@ -351,6 +457,9 @@ def test_resolver_resolution_and_provenance_are_immutable() -> None:
         ("bound_issuer_id", "issuer-2"),
         ("bound_approver_reference", "approver-2"),
         ("bound_evidence_reference", "decision-evidence-2"),
+        ("decision_authority_id", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        ("issuer_current", False),
+        ("approver_current", False),
         ("current", False),
     ],
 )
@@ -368,9 +477,7 @@ def test_resolver_rejects_stale_and_wrong_authority_bindings(
         )
     )
     with pytest.raises(TrainingError) as caught:
-        foundation._resolve_trusted_training_decision(
-            resolver, _intent(), canonical_request_fingerprint=FINGERPRINT
-        )
+        foundation._resolve_trusted_training_decision(resolver, _decision_request())
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_INVALID"
 
 
@@ -390,15 +497,12 @@ def test_resolver_rejects_evidence_reference_and_request_mismatch() -> None:
         )
     )
     with pytest.raises(TrainingError, match="TRAINING_EXECUTION_DECISION_INVALID"):
-        foundation._resolve_trusted_training_decision(
-            resolver, _intent(), canonical_request_fingerprint=FINGERPRINT
-        )
+        foundation._resolve_trusted_training_decision(resolver, _decision_request())
 
     with pytest.raises(TrainingError) as caught:
         foundation._resolve_trusted_training_decision(
             FakeResolver(),
-            _intent(),
-            canonical_request_fingerprint="sha256:" + "9" * 64,
+            _decision_request("sha256:" + "9" * 64),
         )
     assert caught.value.code == "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH"
 
@@ -410,9 +514,7 @@ def test_resolver_rejects_evidence_reference_and_request_mismatch() -> None:
 def test_resolver_missing_and_duck_typed_results_fail_closed(result: object) -> None:
     resolver = FakeResolver(result=result)
     with pytest.raises(TrainingError) as caught:
-        foundation._resolve_trusted_training_decision(
-            resolver, _intent(), canonical_request_fingerprint=FINGERPRINT
-        )
+        foundation._resolve_trusted_training_decision(resolver, _decision_request())
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_INVALID"
 
 
@@ -424,8 +526,7 @@ def test_resolver_exception_is_sanitized(error: BaseException) -> None:
     with pytest.raises(TrainingError) as caught:
         foundation._resolve_trusted_training_decision(
             FakeResolver(error=error),
-            _intent(),
-            canonical_request_fingerprint=FINGERPRINT,
+            _decision_request(),
         )
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_UNAVAILABLE"
     assert str(error) not in str(caught.value)
@@ -434,7 +535,7 @@ def test_resolver_exception_is_sanitized(error: BaseException) -> None:
 
 def test_resolved_evidence_grants_no_execution_or_issuance_authority() -> None:
     result = foundation._resolve_trusted_training_decision(
-        FakeResolver(), _intent(), canonical_request_fingerprint=FINGERPRINT
+        FakeResolver(), _decision_request()
     )
     names = {item.name for item in fields(result)}
     assert {
@@ -451,9 +552,9 @@ def test_resolved_evidence_grants_no_execution_or_issuance_authority() -> None:
 
 def test_journal_first_claim_and_same_identity_replay() -> None:
     journal = InMemoryJournal()
-    identity = _identity()
-    first = journal.claim(identity)
-    replay = journal.claim(identity)
+    request = _claim_request()
+    first = journal.claim(request)
+    replay = journal.claim(request)
     assert first.status is TrainingOrchestrationClaimStatus.ACQUIRED
     assert replay.status is TrainingOrchestrationClaimStatus.REPLAY
     assert replay.record is first.record
@@ -461,21 +562,21 @@ def test_journal_first_claim_and_same_identity_replay() -> None:
 
 def test_journal_same_run_different_fingerprint_is_conflict_without_mutation() -> None:
     journal = InMemoryJournal()
-    original = journal.claim(_identity()).record
+    original = journal.claim(_claim_request()).record
     with pytest.raises(TrainingError, match="TRAINING_HOST_JOURNAL_CONFLICT"):
-        journal.claim(_identity("sha256:" + "9" * 64))
+        journal.claim(_claim_request("sha256:" + "9" * 64))
     assert journal.read("run-1") is original
 
 
 def test_journal_concurrent_claim_has_single_winner() -> None:
     journal = InMemoryJournal()
-    identity = _identity()
+    request = _claim_request()
     barrier = threading.Barrier(9)
     outcomes: list[TrainingOrchestrationClaimStatus] = []
 
     def worker() -> None:
         barrier.wait()
-        outcomes.append(journal.claim(identity).status)
+        outcomes.append(journal.claim(request).status)
 
     threads = [threading.Thread(target=worker) for _ in range(8)]
     for thread in threads:
@@ -490,7 +591,8 @@ def test_journal_concurrent_claim_has_single_winner() -> None:
 def test_journal_valid_cas_lifecycle_and_manual_reconciliation() -> None:
     journal = InMemoryJournal()
     identity = _identity()
-    journal.claim(identity)
+    request = _claim_request()
+    journal.claim(request)
     phases = (
         TrainingOrchestrationPhase.RESOLVED,
         TrainingOrchestrationPhase.VALIDATED,
@@ -505,34 +607,37 @@ def test_journal_valid_cas_lifecycle_and_manual_reconciliation() -> None:
         kwargs = {}
         if next_phase is TrainingOrchestrationPhase.DECISION_SUBMITTED:
             kwargs = {
+                "authorization_id": "authorization-1",
+                "issuer_id": "issuer-1",
+                "approver_reference": "approver-1",
+                "evidence_reference": "decision-evidence-1",
+                "decision_policy_reference": "policy-1",
                 "authorization_fingerprint": AUTHORIZATION_FINGERPRINT,
                 "decision_evidence_fingerprint": EVIDENCE_FINGERPRINT,
             }
+        assert record is not None
         record = journal.transition(
-            _transition(identity, expected, next_phase, **kwargs)
+            _transition(
+                identity,
+                expected,
+                next_phase,
+                expected_version=record.journal_version,
+                **kwargs,
+            )
         )
         expected = next_phase
     assert record is not None
     assert record.backend_entered is True
     assert record.reconciliation_required is True
     assert record.phase is TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED
-    assert journal.claim(identity).status is TrainingOrchestrationClaimStatus.REPLAY
+    assert journal.claim(request).status is TrainingOrchestrationClaimStatus.REPLAY
 
 
 def test_approval_consumed_record_is_not_backend_entered() -> None:
-    identity = _identity()
-    consumed = TrainingOrchestrationRecord(
-        identity=identity,
-        phase=TrainingOrchestrationPhase.APPROVAL_CONSUMED,
-        backend_entered=False,
-    )
+    consumed = _record(TrainingOrchestrationPhase.APPROVAL_CONSUMED)
     assert consumed.backend_entered is False
     with pytest.raises(TrainingError, match="TRAINING_HOST_JOURNAL_CONFLICT"):
-        TrainingOrchestrationRecord(
-            identity=identity,
-            phase=TrainingOrchestrationPhase.APPROVAL_CONSUMED,
-            backend_entered=True,
-        )
+        _record(TrainingOrchestrationPhase.APPROVAL_CONSUMED, backend_entered=True)
 
 
 @pytest.mark.parametrize(
@@ -547,13 +652,14 @@ def test_pre_submission_active_phase_can_require_restart_reconciliation(
     phase: TrainingOrchestrationPhase,
 ) -> None:
     identity = _identity()
-    record = TrainingOrchestrationRecord(identity=identity, phase=phase)
+    record = _record(phase)
     reconciled = foundation._next_journal_record(
         record,
         _transition(
             identity,
             phase,
             TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+            expected_version=record.journal_version,
             reason_code="PROCESS_RESTART",
         ),
     )
@@ -564,7 +670,7 @@ def test_pre_submission_active_phase_can_require_restart_reconciliation(
 def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> None:
     journal = InMemoryJournal()
     identity = _identity()
-    original = journal.claim(identity).record
+    original = journal.claim(_claim_request()).record
     stale = _transition(
         identity,
         TrainingOrchestrationPhase.RESOLVED,
@@ -579,6 +685,7 @@ def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> Non
             identity,
             TrainingOrchestrationPhase.CLAIMED,
             TrainingOrchestrationPhase.RESOLVED,
+            expected_version=1,
         )
     )
     validated = journal.transition(
@@ -586,6 +693,7 @@ def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> Non
             identity,
             TrainingOrchestrationPhase.RESOLVED,
             TrainingOrchestrationPhase.VALIDATED,
+            expected_version=2,
         )
     )
     with pytest.raises(TrainingError, match="TRAINING_HOST_JOURNAL_CONFLICT"):
@@ -594,6 +702,7 @@ def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> Non
                 identity,
                 TrainingOrchestrationPhase.VALIDATED,
                 TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                expected_version=3,
             )
         )
     assert journal.read("run-1") is validated
@@ -601,13 +710,14 @@ def test_journal_stale_and_invalid_transition_has_zero_partial_mutation() -> Non
 
 def test_journal_terminal_record_cannot_be_overwritten() -> None:
     identity = _identity()
-    terminal = TrainingOrchestrationRecord(
-        identity=identity,
-        phase=TrainingOrchestrationPhase.FAILED,
-        reason_code="DECISION_INVALID",
+    terminal = _record(
+        TrainingOrchestrationPhase.FAILED, reason_code="DECISION_INVALID"
     )
     journal = InMemoryJournal({identity.run_id: terminal})
-    assert journal.claim(identity).status is TrainingOrchestrationClaimStatus.REPLAY
+    assert (
+        journal.claim(_claim_request()).status
+        is TrainingOrchestrationClaimStatus.REPLAY
+    )
     with pytest.raises(TrainingError, match="TRAINING_HOST_JOURNAL_CONFLICT"):
         foundation._next_journal_record(
             terminal,
@@ -618,9 +728,13 @@ def test_journal_terminal_record_cannot_be_overwritten() -> None:
 
 def test_restart_record_restores_no_approval_or_capability() -> None:
     identity = _identity()
-    record = TrainingOrchestrationRecord(
-        identity=identity,
-        phase=TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+    record = _record(
+        TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED,
+        authorization_id="authorization-1",
+        issuer_id="issuer-1",
+        approver_reference="approver-1",
+        evidence_reference="decision-evidence-1",
+        decision_policy_reference="policy-1",
         authorization_fingerprint=AUTHORIZATION_FINGERPRINT,
         decision_evidence_fingerprint=EVIDENCE_FINGERPRINT,
         backend_entered=True,
@@ -628,15 +742,22 @@ def test_restart_record_restores_no_approval_or_capability() -> None:
         reason_code="OUTCOME_UNKNOWN",
     )
     restarted = InMemoryJournal({identity.run_id: record})
-    replay = restarted.claim(identity)
+    replay = restarted.claim(_claim_request())
     assert replay.status is TrainingOrchestrationClaimStatus.REPLAY
     assert (
         replay.record.phase is TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED
     )
     names = {item.name for item in fields(replay.record)}
     assert names == {
-        "identity",
+        "claim",
         "phase",
+        "journal_version",
+        "reservation_group_id",
+        "authorization_id",
+        "issuer_id",
+        "approver_reference",
+        "evidence_reference",
+        "decision_policy_reference",
         "authorization_fingerprint",
         "decision_evidence_fingerprint",
         "backend_entered",
@@ -647,11 +768,9 @@ def test_restart_record_restores_no_approval_or_capability() -> None:
         "decision",
         "approval",
         "capability",
-        "evidence",
-        "authorization_id",
-        "issuer_id",
-        "approver_reference",
-        "evidence_reference",
+        "execute",
+        "submit",
+        "backend",
     }.isdisjoint(names)
     with pytest.raises(FrozenInstanceError):
         replay.record.phase = TrainingOrchestrationPhase.CLAIMED  # type: ignore[misc]
