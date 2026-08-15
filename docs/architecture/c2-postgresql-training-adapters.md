@@ -64,3 +64,31 @@ safe application name과 TLS policy를 명시한다. production은 `verify-full`
 [확정] 이 구현에는 composition root, executable, environment activation, production credential,
 Dataset content 접근 승인, GPU, Training 또는 Evaluation이 없다. C3 composition과 별도 Production Activation
 Gate 전에는 실제 backend invocation 권한이 생기지 않는다.
+
+## Dependency와 CI 소유권
+
+[확정] C1 workflow는 `requirements-c1.lock`과 `tests/test_postgres_c1.py`,
+`tests/test_postgres_c1_integration.py`의 17개 계약만 소유한다. C1 test는 C2 adapter package를 import하지 않으며
+Torch, YAML 또는 synthetic module 주입에 의존하지 않는다.
+
+[확정] C2 workflow는 `requirements-c2.lock`을 `pip --require-hashes`로 설치하고 C2 전용 11개 계약과 명시적인
+C1 17개 regression을 실행한다. lock은 Common AI Contracts 0.1.0 release wheel URL과 SHA-256,
+`psycopg[binary] 3.3.4`, PyYAML, SentencePiece, PyTorch `2.7.1+cpu`, pytest, Ruff 및 전체 transitive
+closure를 exact version과 artifact hash로 고정한다. CPU wheel은 CI import/contract 용도이며 Production CUDA
+runtime 또는 Training 활성화를 의미하지 않는다.
+
+[확정] lock 갱신은 Python 3.12에서 다음 명령으로 수행하고, 생성된 diff와 Windows/Linux fresh install을 함께
+검증한다.
+
+```text
+uv pip compile requirements-c2.in --universal --python-version 3.12 --generate-hashes --only-binary=:all: --emit-index-url --emit-find-links
+```
+
+[확정] PyPI는 유일한 package index이고 PyTorch CPU 저장소는 `torch/` wheel 목록만 `--find-links`로 노출한다.
+따라서 PyTorch 저장소가 제공하는 unrelated dependency artifact는 resolver 후보가 아니다. universal output에서 platform
+wheel hash가 축약된 package는 PyPI release metadata의 Python 3.12 Windows/Linux wheel SHA-256을 대조·보존한 뒤 두
+platform의 cache-free `pip --require-hashes` 설치로 검증한다.
+
+[확정] production adapter import는 실제 dependency graph에서 수행한다. fake Torch/YAML module, `sys.modules`
+주입, `__spec__` 조작 또는 broad import fallback은 허용하지 않는다. import와 adapter construction은 DB 연결,
+GPU 실행, model load 또는 Training을 시작하지 않는다.
