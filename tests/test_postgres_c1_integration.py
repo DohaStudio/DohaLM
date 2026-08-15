@@ -82,8 +82,8 @@ def _assert_loopback_listener(container: str, port: int) -> None:
         )
         listeners = [line for line in result.stdout.splitlines() if line.strip()]
         assert listeners
-        assert all("127.0.0.1:" in line for line in listeners)
-        assert all("0.0.0.0:" not in line and "[::]:" not in line for line in listeners)
+        local_addresses = [line.split()[3] for line in listeners]
+        assert local_addresses == [f"127.0.0.1:{port}"]
 
 
 @dataclass(frozen=True)
