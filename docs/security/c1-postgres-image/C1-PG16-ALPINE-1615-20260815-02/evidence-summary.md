@@ -83,8 +83,18 @@ evidence가 부족하면 fail closed한다.
 - `postgres_image_evidence_ready: true`
 - `postgres_risk_policy_stable: true`
 - `postgres_new_risk_acceptance_required: false`
-- `psycopg_dependency_candidate_ready: false`
-- `psycopg_dependency_approval_required: true`
+- `psycopg_dependency_candidate_ready: true`
+- `psycopg_dependency_approval_required: false`
 - `c1_implementation_authorized: true`
 
-Psycopg 결과와 blocker는 [dependency Decision Packet](./psycopg-dependency-decision.md)에 기록한다.
+Psycopg의 historical blocker 분석과 후속 Practical Security Profile 결정은
+[dependency Decision Packet](./psycopg-dependency-decision.md)에 함께 보존한다.
+
+## C1 implementation final scan
+
+[확정] 2026-08-15 고정 artifact의 최종 scan을 각각 한 번 실행했다. Docker Scout 1.19.0은
+동일 PostgreSQL manifest에서 Critical 2 / High 20을 보고했고 digest drift는 없었다. 승인된
+Practical Security Profile에 따라 `gosu`의 C1 비도달 Go 표준 라이브러리 finding은 warning이다.
+`pip-audit 2.10.1`은 C1 runtime dependency인 Psycopg에서 finding을 보고하지 않았고, 격리 venv의
+installer `pip 24.2`에서 6건을 보고했다. installer는 C1 runtime/import surface가 아니며 warning으로
+기록한다. 이 판정은 production 사용이나 durable audit persistence를 주장하지 않는다.

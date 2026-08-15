@@ -1,5 +1,19 @@
 # ADR-022: C1 Ephemeral PostgreSQL Test Image Security Policy
 
+## 2026-08-15 Practical Security Profile amendment
+
+[확정] C1은 exact official image
+`postgres:16.15-alpine@sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571`과
+official `psycopg[binary]==3.3.4`를 사용한다. High와 실행 경로에 도달하지 않는 Critical
+finding은 warning으로 기록하되 C1 자동 blocker로 사용하지 않는다. 한 번의 최종 scan과
+정적·동적 contract 검증으로 이 bounded profile의 Gate를 판정한다.
+
+[확정] local Docker Desktop에서는 전용 bridge network·volume·correlation label을 사용하고
+PostgreSQL을 host IPv4 `127.0.0.1`의 동적 포트에만 게시할 수 있다. `docker port`, container
+inspect 및 host listener가 모두 loopback-only임을 증명해야 하며, `0.0.0.0`, `[::]`, 고정
+외부 포트, synthetic 이외 credential/data 또는 cleanup residue는 Gate 실패다. CI는 runner의
+private service-network 방식을 사용할 수 있다.
+
 - 문서 상태: `approved`
 - 마지막 검토일: 2026-08-15
 - 결정 상태: 정책 `approved`; 현재 risk decision `accepted`

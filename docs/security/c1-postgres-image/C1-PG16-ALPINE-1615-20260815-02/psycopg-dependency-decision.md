@@ -2,10 +2,18 @@
 
 - 문서 상태: `review`
 - 마지막 검토일: 2026-08-15
-- status: `blocked`
-- decision: `pending_additional_provenance`
-- dependency installation authorized: `false`
-- C1 implementation authorized: `false`
+- status: `accepted_for_c1_practical_profile`
+- decision: `official_binary_3_3_4`
+- dependency installation authorized: `true`
+- C1 implementation authorized: `true`
+
+## Practical Security Profile override
+
+[확정] 사용자의 2026-08-15 후속 명시 결정은 아래 historical blocker 분석을 C1 warning으로
+재분류한다. official `psycopg[binary]==3.3.4`를 exact wheel hash와 함께 local/CI isolated
+ephemeral C1에서 사용할 수 있다. repository-owned runner, GHCR, SBOM, signature,
+attestation 및 reproducibility는 C1 prerequisite가 아니다. 이 결정은 C2/C3, production
+database, activation 또는 Training을 승인하지 않는다.
 
 ## Repository consumer contract
 
@@ -60,5 +68,6 @@ wheel filesystem Scout는 shared library package를 식별하지 못해 `indexed
 2. libpq 18.4+와 OpenSSL 3.6.3+를 번들한 새 official Psycopg binary release를 기다리고 fresh scan·probe하거나,
 3. exact binary wheel의 client/TLS High를 별도 symbol/runtime adjudication하되 사용자 승인 전 accepted로 만들지 않는다.
 
-`psycopg_dependency_candidate_ready: false`, `psycopg_dependency_approval_required: true`이며 dependency/lockfile, migration,
+아래 historical 결론은 Practical Security Profile amendment로 대체되었다:
+`psycopg_dependency_candidate_ready: true`, `psycopg_dependency_approval_required: false`. dependency/lockfile, migration,
 SQL, schema와 production activation 변경은 0이다.
