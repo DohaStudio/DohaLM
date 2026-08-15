@@ -1,7 +1,7 @@
 # DohaLM Architecture Decision Records
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-14
+- 마지막 검토일: 2026-08-15
 
 ## 목적
 
@@ -34,8 +34,9 @@
 | ADR-020 | [Production Training Orchestration Ownership Seams](./ADR-020-production-training-orchestration-ownership-seams.md) | `draft` | 미결정 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [Full Pretraining 실행 계획](../training/full-pretraining-execution-plan.md) | construction-bound prerequisite resolver·immutable resolved schema·package-private backend lifecycle seam 제안; 실행 영향 없음 | PR S 구현·production adapters·별도 activation 승인 전 |
 | ADR-021 | [Production Training Adapters와 Durable Journal Authority](./ADR-021-production-training-adapters-and-durable-journal.md) | `approved` | 2026-08-13 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [ADR-020](./ADR-020-production-training-orchestration-ownership-seams.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | supported PostgreSQL authority event/projection·approved/denied decision·durable journal과 C1→C2→C3→Activation 순서 승인; 구현·activation 없음 | C1/C2/C3 독립 Gate, image security 결정과 별도 activation 승인 시 |
 | ADR-022 | [C1 Ephemeral PostgreSQL Test Image Security Policy](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | `approved` | 2026-08-15 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [종료된 16.15 record](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md), [새 proposed Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md) | A/B/C drift 정책 승인; 이전 16.15 authorization 종료; raw C2/H21·adjudicated 7·residual C1/H15 새 Option B는 승인 대기 | 새 risk 승인·Psycopg provenance·별도 C1 구현 Gate |
+| ADR-023 | [C1 Repository-Owned PostgreSQL Client Runner Supply Chain](./ADR-023-c1-repository-owned-postgresql-client-runner-supply-chain.md) | `draft` | 미결정 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | compiled Psycopg C minimal runner·trusted GHCR publication·same-digest parity 제안; 구현·게시·C1 실행 영향 없음 | 사용자 ADR 승인 뒤 별도 C1-R1~R5 implementation Draft PR과 통합 승인 시 |
 
-- [확정] 승인 ADR-001부터 ADR-010과 ADR-021·022, draft ADR-011·013~020을 등록했다.
+- [확정] 승인 ADR-001부터 ADR-010과 ADR-021·022, draft ADR-011·013~020·023을 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
 - [제안] ADR-014는 특정 Common resource를 선택하지 않고 ADR-013에 선행하는 Dataset product governance ownership을 제안한다.
 - [제안] ADR-015는 ADR-014의 첫 Gate로 DatasetVersion·DatasetManifest resource pair와 publication transaction을 설계하며 구현·consumer 활성화는 승인하지 않는다.
@@ -49,6 +50,8 @@
 - [확정] 16.15의 이전 accepted record는 severity/advisory drift로 종료됐고 재사용할 수 없다.
 - [제안] 새 Option B record는 raw C2/H21·adjudicated 7·residual C1/H15를 결속하지만 `pending_explicit_approval`이다.
   Psycopg patched cross-platform libpq provenance와 C1 구현은 별도 Gate로 계속 차단된다.
+- [제안] ADR-023은 repository-owned compiled Psycopg C runner와 trusted GHCR same-digest 소비 계약을 정의하지만
+  runner 구현·게시, PostgreSQL risk acceptance, dependency 설치와 C1 실행을 승인하지 않는다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -57,6 +60,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [제안] ADR-023 repository-owned C1 PostgreSQL client runner 공급망과 GHCR same-digest parity 계약 등록 |
 | 2026-08-15 | [제안] 이전 16.15 authorization 종료, raw C2/H21·adjudicated 7·residual C1/H15 새 proposed record와 Psycopg provenance blocker 등록 |
 | 2026-08-14 | [확정] PostgreSQL 16.15 exact Option B 승인과 30일 local/CI ephemeral image test 범위 동기화; C1 구현·Psycopg는 별도 Gate 유지 |
 | 2026-08-14 | [제안] 16.14 record 조기 종료와 16.15 proposed/unapproved Decision Packet·승인 전 fail-closed Gate 동기화 |
