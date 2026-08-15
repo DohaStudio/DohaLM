@@ -1,0 +1,10 @@
+--index-url https://pypi.org/simple
+--find-links https://download.pytorch.org/whl/cpu/torch/
+
+dohastudio-common-ai-contracts @ https://github.com/DohaStudio/.github/releases/download/dohastudio-common-ai-contracts-v0.1.0/dohastudio_common_ai_contracts-0.1.0-py3-none-any.whl
+psycopg[binary]==3.3.4
+PyYAML==6.0.3
+sentencepiece==0.2.2
+torch==2.7.1+cpu
+pytest==8.4.2
+ruff==0.15.22
