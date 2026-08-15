@@ -172,7 +172,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2)]
+        assert sorted(results, key=len) == [(), (1, 2, 3)]
         yield C1Fixture(
             correlation,
             container,
@@ -497,6 +497,337 @@ def test_c1_1_repeatable_read_only_snapshot_and_direct_table_denial(
         assert "C1_POSTGRES_PERMISSION_DENIED" in str(
             map_c1_postgres_error(captured.value)
         )
+
+
+@pytest.mark.integration
+def test_c1_2_typed_snapshots_and_complete_journal_contract(
+    c1_postgres: C1Fixture, c1_1_authority_mapping: dict[str, object]
+) -> None:
+    authority_ids = {
+        "version": "33333333-3333-4333-8333-333333333333",
+        "manifest": "44444444-4444-4444-8444-444444444444",
+        "pair": "55555555-5555-4555-8555-555555555555",
+        "issuer": "66666666-6666-4666-8666-666666666666",
+        "approver": "77777777-7777-4777-8777-777777777777",
+        "decision": "88888888-8888-4888-8888-888888888888",
+    }
+    source_commit = "a" * 40
+    request_fingerprint = "sha256:" + "7" * 64
+    pair_fingerprint = c1_1_authority_mapping["mappings"]["readiness"][
+        "dataset_pair_fingerprint"
+    ]
+    config_id = c1_1_authority_mapping["mappings"]["config"]["authority_id"]
+    readiness_id = c1_1_authority_mapping["mappings"]["readiness"]["authority_id"]
+    config_fingerprint = c1_1_authority_mapping["computed"]["config_fingerprint"]
+    readiness_fingerprint = c1_1_authority_mapping["computed"]["readiness_fingerprint"]
+
+    def payload(name: str) -> tuple[bytes, str]:
+        raw = _canonical_payload({"fixture": "c1-2", "kind": name})
+        return raw, "sha256:" + hashlib.sha256(raw).hexdigest()
+
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+            identities = [
+                (authority_ids["version"], "dataset_version", "dataset-version:c1-2"),
+                (
+                    authority_ids["manifest"],
+                    "dataset_manifest",
+                    "dataset-manifest:c1-2",
+                ),
+                (authority_ids["pair"], "dataset_pair", "dataset-pair:c1-2"),
+                (authority_ids["issuer"], "issuer", "issuer:c1-2"),
+                (authority_ids["approver"], "approver", "approver:c1-2"),
+                (authority_ids["decision"], "decision", "decision:c1-2"),
+            ]
+            for identity in identities:
+                connection.execute(
+                    f"INSERT INTO {SCHEMA}.training_authority_identity "
+                    "(authority_id, subject_family, domain_key) VALUES (%s,%s,%s)",
+                    identity,
+                )
+            version_payload = payload("dataset_version")
+            manifest_payload = payload("dataset_manifest")
+            pair_payload = payload("dataset_pair")
+            issuer_payload = payload("issuer")
+            approver_payload = payload("approver")
+            decision_payload = payload("decision")
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_version_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'dataset-version-object:c1-2')",
+                (authority_ids["version"], *version_payload, source_commit),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_manifest_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'dataset-manifest-object:c1-2')",
+                (authority_ids["manifest"], *manifest_payload, source_commit),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_pair_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,"
+                "dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,%s,%s,%s,'synthetic-contract')",
+                (
+                    authority_ids["pair"],
+                    *pair_payload,
+                    source_commit,
+                    authority_ids["version"],
+                    authority_ids["manifest"],
+                    pair_fingerprint,
+                ),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_issuer_registry "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,issuer_id,adapter_kind,active_from) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'issuer:c1-2',"
+                "'same_process_training_execution_issuer','2090-01-01T00:00:00Z')",
+                (authority_ids["issuer"], *issuer_payload, source_commit),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_approver_registry "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,approver_reference,active_from) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'approver:c1-2','2090-01-01T00:00:00Z')",
+                (authority_ids["approver"], *approver_payload, source_commit),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_execution_decision_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,valid_until,source_commit,decision,"
+                "authorization_id,issuer_authority_id,issuer_id,approver_authority_id,approver_reference,"
+                "evidence_reference,request_fingerprint,issued_at) VALUES "
+                "(%s,%s,%s,'2090-01-01T00:00:00Z','2090-01-02T00:00:00Z',%s,'approved',"
+                "%s,%s,'issuer:c1-2',%s,'approver:c1-2',%s,%s,'2090-01-01T00:00:00Z')",
+                (
+                    authority_ids["decision"],
+                    *decision_payload,
+                    source_commit,
+                    "authorization:c1-2",
+                    authority_ids["issuer"],
+                    authority_ids["approver"],
+                    "decision:99999999-9999-4999-8999-999999999999",
+                    request_fingerprint,
+                ),
+            )
+            for family, authority_id in (
+                ("dataset_version", authority_ids["version"]),
+                ("dataset_manifest", authority_ids["manifest"]),
+                ("dataset_pair", authority_ids["pair"]),
+                ("issuer", authority_ids["issuer"]),
+                ("approver", authority_ids["approver"]),
+                ("decision", authority_ids["decision"]),
+            ):
+                connection.execute(
+                    f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,%s,0,'published',NULL,"
+                    "'2090-01-01T00:00:00Z',%s,%s)).state",
+                    (
+                        uuid.uuid4(),
+                        authority_id,
+                        family,
+                        f"correlation:{family}",
+                        f"evidence:{family}",
+                    ),
+                )
+
+    def named(cursor: object) -> dict[str, object]:
+        row = cursor.fetchone()
+        assert row is not None
+        names = [column.name for column in cursor.description]
+        assert len(names) == len(set(names))
+        return dict(zip(names, row, strict=True))
+
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+            )
+            connection.execute("SET LOCAL ROLE dohalm_training_resolver")
+            prerequisite = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.read_c2_training_prerequisite_snapshot(%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        authority_ids["version"],
+                        authority_ids["manifest"],
+                        config_id,
+                        readiness_id,
+                        pair_fingerprint,
+                        config_fingerprint,
+                        readiness_fingerprint,
+                    ),
+                )
+            )
+            assert (
+                str(prerequisite["dataset_pair_authority_id"]) == authority_ids["pair"]
+            )
+            assert prerequisite["dataset_pair_fingerprint"].strip() == pair_fingerprint
+            assert prerequisite["config_payload_sha256"].strip() == config_fingerprint
+            assert (
+                prerequisite["readiness_payload_sha256"].strip()
+                == readiness_fingerprint
+            )
+            assert {
+                prerequisite["dataset_version_state"],
+                prerequisite["dataset_manifest_state"],
+                prerequisite["dataset_pair_state"],
+                prerequisite["config_state"],
+                prerequisite["readiness_state"],
+            } == {"scheduled"}
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+            )
+            connection.execute("SET LOCAL ROLE dohalm_training_resolver")
+            missing = connection.execute(
+                f"SELECT * FROM {SCHEMA}.read_c2_training_prerequisite_snapshot(%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    authority_ids["version"],
+                    authority_ids["manifest"],
+                    config_id,
+                    readiness_id,
+                    "sha256:" + "0" * 64,
+                    config_fingerprint,
+                    readiness_fingerprint,
+                ),
+            ).fetchall()
+            assert missing == []
+        conflicting_pair_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+        conflicting_payload = payload("dataset_pair_conflict")
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_authority_identity "
+                "(authority_id,subject_family,domain_key) VALUES (%s,'dataset_pair','dataset-pair:c1-2-conflict')",
+                (conflicting_pair_id,),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_pair_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,"
+                "dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
+                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,%s,%s,%s,'synthetic-conflict')",
+                (
+                    conflicting_pair_id,
+                    *conflicting_payload,
+                    source_commit,
+                    authority_ids["version"],
+                    authority_ids["manifest"],
+                    pair_fingerprint,
+                ),
+            )
+            connection.execute(
+                f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,'dataset_pair',0,'published',NULL,"
+                "'2090-01-01T00:00:00Z','correlation:pair-conflict','evidence:pair-conflict')).state",
+                (uuid.uuid4(), conflicting_pair_id),
+            )
+        with pytest.raises(Exception) as captured:
+            with connection.transaction():
+                connection.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+                )
+                connection.execute("SET LOCAL ROLE dohalm_training_resolver")
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.read_c2_training_prerequisite_snapshot(%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        authority_ids["version"],
+                        authority_ids["manifest"],
+                        config_id,
+                        readiness_id,
+                        pair_fingerprint,
+                        config_fingerprint,
+                        readiness_fingerprint,
+                    ),
+                ).fetchall()
+        assert captured.value.sqlstate == "21000"
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+            )
+            connection.execute("SET LOCAL ROLE dohalm_training_resolver")
+            decision = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.read_c2_training_decision_snapshot(%s,%s,%s)",
+                    (
+                        authority_ids["decision"],
+                        request_fingerprint,
+                        "decision-policy:c1-2",
+                    ),
+                )
+            )
+            assert decision["decision_value"] == "approved"
+            assert str(decision["issuer_authority_id"]) == authority_ids["issuer"]
+            assert str(decision["approver_authority_id"]) == authority_ids["approver"]
+            assert decision["request_fingerprint"].strip() == request_fingerprint
+            assert decision["decision_policy_reference"] == "decision-policy:c1-2"
+            assert {
+                decision["decision_state"],
+                decision["issuer_state"],
+                decision["approver_state"],
+            } == {"scheduled"}
+
+    run_id = "run:c1-2-contract"
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_journal")
+            claim = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.claim_c2_training_execution_journal("
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        run_id,
+                        request_fingerprint,
+                        "sha256:" + "8" * 64,
+                        run_id,
+                        "dataset-version:c1-2",
+                        "dataset-manifest:c1-2",
+                        pair_fingerprint,
+                        config_fingerprint,
+                        readiness_fingerprint,
+                        source_commit,
+                        "prerequisite-policy:c1-2",
+                        "process:c1-2",
+                    ),
+                )
+            )
+            assert claim["claim_status"] == "acquired"
+            assert claim["journal_run_id"] == run_id
+            assert claim["journal_phase"] == "claimed"
+            assert claim["journal_version"] == 1
+            assert claim["journal_reservation_group_id"] is not None
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_journal")
+            transitioned = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.transition_c2_training_execution_journal("
+                    "%s,%s,'claimed',1,'resolved',%s)",
+                    (run_id, request_fingerprint, "process:c1-2"),
+                )
+            )
+            assert transitioned["phase"] == "resolved"
+            assert transitioned["journal_version"] == 2
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_journal")
+            journal = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.read_c2_training_execution_journal(%s)",
+                    (run_id,),
+                )
+            )
+            assert journal["phase"] == "resolved"
+            assert journal["journal_version"] == 2
+            assert journal["process_boundary_id"] == "process:c1-2"
+            assert (
+                journal["reservation_group_id"] == claim["journal_reservation_group_id"]
+            )
+            grants = connection.execute(
+                "SELECT has_function_privilege(current_user, %s, 'EXECUTE'), "
+                "has_table_privilege(current_user, %s, 'SELECT')",
+                (
+                    f"{SCHEMA}.read_c2_training_execution_journal(character varying)",
+                    f"{SCHEMA}.training_execution_journal",
+                ),
+            ).fetchone()
+            assert grants == (True, False)
 
 
 def _claim(connection: object, run_id: str, request: str, correlation: str):
@@ -1061,7 +1392,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2,)
+            assert apply_c1_migrations(connection) == (2, 3)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -1112,6 +1443,16 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root
                         / "0002_c1_1_prerequisite_restricted_operations.sql"
+                    ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                3,
+                "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql",
+                hashlib.sha256(
+                    (
+                        migration_root
+                        / "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"
                     ).read_bytes()
                 ).hexdigest(),
             ),
@@ -1548,6 +1889,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
             assert [(row[0], row[1]) for row in rows] == [
                 (1, "0001_training_authority_and_journal.sql"),
                 (2, "0002_c1_1_prerequisite_restricted_operations.sql"),
+                (3, "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()

@@ -22,6 +22,7 @@ from src.training.errors import TrainingError
 from src.training.execution_approval import TrainingExecutionRequest
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
+    TrainingOrchestrationClaimRequest,
     TrainingOrchestrationIdentity,
     TrainingOrchestrationPhase,
     TrainingOrchestrationRecord,
@@ -32,18 +33,23 @@ PAIR = "sha256:" + "1" * 64
 CONFIG = "sha256:" + "2" * 64
 READINESS = "sha256:" + "3" * 64
 SOURCE = "4" * 40
+DATASET_VERSION_AUTHORITY_ID = "11111111-1111-4111-8111-111111111111"
+DATASET_MANIFEST_AUTHORITY_ID = "22222222-2222-4222-8222-222222222222"
+DATASET_PAIR_AUTHORITY_ID = "33333333-3333-4333-8333-333333333333"
+CONFIG_AUTHORITY_ID = "44444444-4444-4444-8444-444444444444"
+READINESS_AUTHORITY_ID = "55555555-5555-4555-8555-555555555555"
 
 
 def _intent() -> ProductionTrainingHostIntent:
     return ProductionTrainingHostIntent(
         action="full_pretraining",
         execution_mode="fresh",
-        dataset_version_reference="dataset-version-ref",
-        dataset_manifest_reference="dataset-manifest-ref",
+        dataset_version_reference=f"dataset-version:{DATASET_VERSION_AUTHORITY_ID}",
+        dataset_manifest_reference=f"dataset-manifest:{DATASET_MANIFEST_AUTHORITY_ID}",
         expected_dataset_pair_fingerprint=PAIR,
-        training_config_reference="config-ref",
+        training_config_reference=f"config:{CONFIG_AUTHORITY_ID}",
         expected_config_fingerprint=CONFIG,
-        readiness_evidence_reference="readiness-ref",
+        readiness_evidence_reference=f"readiness:{READINESS_AUTHORITY_ID}",
         expected_readiness_fingerprint=READINESS,
         run_id="run-1",
         output_logical_root="experiments/run-1",
@@ -118,10 +124,15 @@ def _resolved(
     return seams.ResolvedTrainingPrerequisites(
         schema_version=1,
         intent_fingerprint=seams._canonical_training_host_intent_fingerprint(_intent()),
-        dataset_version_reference="dataset-version-ref",
-        dataset_manifest_reference="dataset-manifest-ref",
-        training_config_reference="config-ref",
-        readiness_evidence_reference="readiness-ref",
+        dataset_version_reference=f"dataset-version:{DATASET_VERSION_AUTHORITY_ID}",
+        dataset_manifest_reference=f"dataset-manifest:{DATASET_MANIFEST_AUTHORITY_ID}",
+        training_config_reference=f"config:{CONFIG_AUTHORITY_ID}",
+        readiness_evidence_reference=f"readiness:{READINESS_AUTHORITY_ID}",
+        dataset_version_authority_id=DATASET_VERSION_AUTHORITY_ID,
+        dataset_manifest_authority_id=DATASET_MANIFEST_AUTHORITY_ID,
+        dataset_pair_authority_id=DATASET_PAIR_AUTHORITY_ID,
+        config_authority_id=CONFIG_AUTHORITY_ID,
+        readiness_authority_id=READINESS_AUTHORITY_ID,
         config_path=(tmp_path / "config.yaml").resolve(),
         config_snapshot=config.to_dict()
         if config_snapshot is None
@@ -193,11 +204,12 @@ class _Resolver:
         self.error = error
         self.calls = 0
 
-    def resolve(self, intent, *, intent_fingerprint):
+    def resolve(self, request):
         self.calls += 1
-        assert intent is _INTENT
-        assert intent_fingerprint == seams._canonical_training_host_intent_fingerprint(
-            intent
+        assert request.intent is _INTENT
+        assert (
+            request.intent_fingerprint
+            == seams._canonical_training_host_intent_fingerprint(request.intent)
         )
         if self.error is not None:
             raise self.error
@@ -227,6 +239,18 @@ def test_exact_prerequisite_result_is_deeply_immutable_and_redacted(
         resolved.run_id = "forged"  # type: ignore[misc]
     assert repr(resolved) == "ResolvedTrainingPrerequisites(<redacted>)"
     assert "D:\\" not in repr(resolved)
+    assert {
+        "dataset_version_authority_id",
+        "dataset_manifest_authority_id",
+        "dataset_pair_authority_id",
+        "config_authority_id",
+        "readiness_authority_id",
+        "dataset_pair_fingerprint",
+        "config_fingerprint",
+        "readiness_fingerprint",
+        "source_commit",
+        "provenance",
+    } <= {item.name for item in fields(resolved)}
 
 
 def test_stale_provenance_fails_before_authority_inspection(
@@ -384,8 +408,29 @@ def test_validated_result_uses_canonical_builder_once_without_mutation(
 class _Journal:
     def __init__(self, identity: TrainingOrchestrationIdentity) -> None:
         self.record = TrainingOrchestrationRecord(
-            identity=identity,
+            claim=TrainingOrchestrationClaimRequest(
+                identity=identity,
+                intent_fingerprint="sha256:" + "7" * 64,
+                orchestration_correlation_id=identity.run_id,
+                dataset_version_id="dataset-version-1",
+                dataset_manifest_id="dataset-manifest-1",
+                dataset_pair_fingerprint=PAIR,
+                config_fingerprint=CONFIG,
+                readiness_fingerprint=READINESS,
+                source_commit=SOURCE,
+                prerequisite_policy_reference="policy-1",
+                process_boundary_id="process-boundary-1",
+            ),
             phase=TrainingOrchestrationPhase.DECISION_SUBMITTED,
+            journal_version=4,
+            reservation_group_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            authorization_id="authorization-1",
+            issuer_id="issuer-1",
+            approver_reference="approver-1",
+            evidence_reference="decision-ref",
+            decision_policy_reference="policy-1",
+            authorization_fingerprint="sha256:" + "8" * 64,
+            decision_evidence_fingerprint="sha256:" + "9" * 64,
         )
         self.transitions: list[TrainingOrchestrationPhase] = []
         self.fail_once_at: TrainingOrchestrationPhase | None = None
