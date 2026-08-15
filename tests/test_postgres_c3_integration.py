@@ -126,8 +126,19 @@ def test_c3_composition_preflights_and_wires_existing_host_without_mutation(
         assert after == before
     finally:
         if root is not None:
+            resolver_factory = root._resolver_factory
+            journal_factory = root._journal_factory
             root.shutdown()
             root.shutdown()
+            assert resolver_factory._delegate is None
+            assert journal_factory._delegate is None
+            assert root._configuration is None
+            assert root._host is None
+            import src.training.execution_issuer as issuer
+            import src.training.production_full_pretraining_host as host_module
+
+            assert host_module._BOOTSTRAP_REGISTRATION is None
+            assert issuer._ADAPTER_REGISTRATION is None
         with c1_postgres.factory.connection() as owner:
             owner.execute("ALTER ROLE dohalm_training_resolver PASSWORD NULL")
             owner.execute("ALTER ROLE dohalm_training_journal PASSWORD NULL")

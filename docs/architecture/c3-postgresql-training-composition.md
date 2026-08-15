@@ -68,9 +68,24 @@ side effect가 0이다. preflight 시에만 C2 adapter가 short-lived connection
 missing probe와 journal read를 수행한다. claim, transition, authority write와 direct table SQL은 없다.
 
 [확정] resolver와 journal factory는 credential, role과 transaction ownership을 공유하지 않는다.
-shutdown은 prerequisite materialization root를 정리하며 idempotent하다. partial construction은 이미
-생성한 materialization owner를 닫고 Host bootstrap 전에 실패한다. C2 factory는 호출별 connection을
-열고 transaction 종료 후 닫으므로 보존할 pool 또는 credential rotation state가 없다.
+composition은 `NEW → STARTING → ACTIVE`와 `STARTING → FAILED → SHUTDOWN`,
+`ACTIVE → SHUTTING_DOWN → SHUTDOWN`의 단일 explicit state machine과 revocable lease를 소유한다.
+preflight connection은 `STARTING`, Host 실행과 runtime connection은 `ACTIVE`에서만 lease를 획득한다.
+Host 진입과 resolver/journal connection factory 양쪽에서 lease를 검사하므로 Host-only TOCTOU guard에
+의존하지 않는다.
+
+[확정] shutdown은 lease를 가장 먼저 revoke해 새 Host 실행과 connection을 차단한다. revoke 전에 lease를
+획득한 작업만 완료될 때까지 drain한 뒤, 해당 Host identity와 capability가 소유한 Host/issuer global
+registration을 compare-and-clear한다. 이전 composition의 중복 shutdown은 더 새로운 registration을 제거하지
+않는다. 이어 두 factory의 credential-bearing delegate, configuration, adapter와 Host의 composition strong
+reference를 제거하고 prerequisite materialization root를 닫는다. Python 문자열의 물리적 zeroization은
+주장하지 않는다.
+
+[확정] configuration/factory/adapter/preflight/bootstrap/registration 실패는 lease를 `FAILED`로 revoke하고
+같은 cleanup 경계를 거쳐 `SHUTDOWN`으로 끝난다. 실패한 composition과 shutdown된 retained Host는 재사용할
+수 없고 startup을 다시 호출할 수 없다. cleanup 오류는 원래 실패를 덮지 않으며 별도의 redacted cleanup
+오류로만 분류한다. shutdown은 동시 호출에도 idempotent하다. C2 factory는 호출별 connection을 열고
+transaction 종료 후 닫으므로 보존할 pool은 없다.
 
 ## Error contract
 
@@ -83,7 +98,8 @@ shutdown은 prerequisite materialization root를 정리하며 idempotent하다. 
 | timeout | `TRAINING_COMPOSITION_TIMEOUT` |
 | dependency unavailable | `TRAINING_COMPOSITION_DEPENDENCY_UNAVAILABLE` |
 | other preflight failure | `TRAINING_COMPOSITION_PREFLIGHT_FAILED` |
-| shutdown root use | `TRAINING_COMPOSITION_SHUTDOWN` |
+| revoked/failed lifecycle | `TRAINING_COMPOSITION_LIFECYCLE_REVOKED` |
+| cleanup failure | `TRAINING_COMPOSITION_CLEANUP_FAILED` |
 
 [확정] error에는 raw SQL, parameter, DSN, credential, host, CA path, exception representation과 stack
 trace를 포함하지 않는다. configuration 오류를 database integrity failure로 바꾸지 않는다.
@@ -98,4 +114,5 @@ trace를 포함하지 않는다. configuration 오류를 database integrity fail
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-16 | [확정] explicit lifecycle state, Host/factory shared lease, compare-and-clear registration과 credential reference cleanup 보완 |
 | 2026-08-16 | [확정] C3 package-private composition, provider/activation guard, lifecycle와 preflight 구현 계약 기록 |

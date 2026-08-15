@@ -8,6 +8,8 @@ on:
       - "requirements-c2.lock"
       - "src/training/postgres_training_adapters.py"
       - "src/training/production_composition.py"
+      - "src/training/production_full_pretraining_host.py"
+      - "src/training/execution_issuer.py"
       - "src/training/dataset_training_entry.py"
       - "src/training/production_host_foundation.py"
       - "src/training/production_orchestration_seams.py"
@@ -15,6 +17,10 @@ on:
       - "tests/test_postgres_c1*.py"
       - "tests/test_postgres_c2*.py"
       - "tests/test_postgres_c3*.py"
+      - "tests/test_production_host_foundation.py"
+      - "tests/test_production_orchestration_seams.py"
+      - "tests/test_production_full_pretraining_host.py"
+      - "tests/test_training_execution_issuer.py"
   push:
     branches: [develop]
     paths:
@@ -23,6 +29,8 @@ on:
       - "requirements-c2.lock"
       - "src/training/postgres_training_adapters.py"
       - "src/training/production_composition.py"
+      - "src/training/production_full_pretraining_host.py"
+      - "src/training/execution_issuer.py"
       - "src/training/dataset_training_entry.py"
       - "src/training/production_host_foundation.py"
       - "src/training/production_orchestration_seams.py"
@@ -30,6 +38,10 @@ on:
       - "tests/test_postgres_c1*.py"
       - "tests/test_postgres_c2*.py"
       - "tests/test_postgres_c3*.py"
+      - "tests/test_production_host_foundation.py"
+      - "tests/test_production_orchestration_seams.py"
+      - "tests/test_production_full_pretraining_host.py"
+      - "tests/test_training_execution_issuer.py"
 
 permissions:
   contents: read
@@ -63,8 +75,8 @@ jobs:
           python -c "import src.training.production_composition"
       - name: Verify C2 Ruff contract
         run: |
-          python -m ruff check src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
-          python -m ruff format --check src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
+          python -m ruff check src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
+          python -m ruff format --check src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
       - name: Run C2 unit contracts
         run: python -m pytest tests/test_postgres_c2.py -q
       - name: Run C2 PostgreSQL integration contracts
@@ -73,10 +85,12 @@ jobs:
         run: python -m pytest tests/test_postgres_c3.py -q
       - name: Run C3 PostgreSQL composition contracts
         run: python -m pytest tests/test_postgres_c3_integration.py -q
+      - name: Run C3 Host lifecycle regressions
+        run: python -m pytest tests/test_production_host_foundation.py tests/test_production_orchestration_seams.py tests/test_production_full_pretraining_host.py tests/test_training_execution_issuer.py -q
       - name: Run explicit C1 regression
         run: python -m pytest tests/test_postgres_c1.py tests/test_postgres_c1_integration.py -q
       - name: Compile C2 Python boundary
-        run: python -m compileall -q src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
+        run: python -m compileall -q src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
       - name: Verify disposable resource cleanup
         if: always()
         shell: bash
