@@ -739,6 +739,29 @@ active journal은 startup에서 자동 재개하지 않는다.
 
 production credential, production data, actual backend, Dataset content, Model, GPU, output과 Training은 test input이 아니다.
 
+### Corrective C1.1 reservation·transaction·restore 계약
+
+[확정] C1.1은 C1 schema를 변경하는 새 immutable `0002` migration이다. 기존 `0001`은 byte-for-byte로
+보존한다. journal claim은 `run_id`, `orchestration_correlation_id`, canonical
+`run_id + request_fingerprint`를 각각 정규화한 reservation으로 표현하고,
+`(identity_kind, identity_value)` composite primary key에 수렴시킨다. 세 reservation은 하나의
+`reservation_group_id`로 journal row를 소유하며 deterministic identity 순서로 획득한다. reservation 획득과
+journal/event 생성은 같은 READ COMMITTED transaction과 PostgreSQL unique-index lock owner 아래 원자적으로 수행한다.
+partial reservation, split ownership, orphan, journal/reservation binding 불일치는 conflict나 replay가 아니라
+integrity failure다.
+
+[확정] authority snapshot reader는 REPEATABLE READ READ ONLY transaction을 요구한다. journal claim·phase/version
+CAS는 READ COMMITTED transaction을 요구한다. authority producer, resolver, journal role은 restricted function만
+호출하며 runtime direct table DML과 role membership 확대는 허용하지 않는다. ambiguous commit outcome은 자동 retry가
+아니라 manual reconciliation으로 전이한다. 이 단계는 prerequisite mapping fixture와 restricted operations만 제공하며
+production adapter, composition root, credential 설치, activation과 Training은 포함하지 않는다.
+
+[확정] upgrade contract는 `0001` 상태의 기존 journal/event 의미를 보존하면서 세 reservation을 backfill하고
+partial/split/orphan 0을 검증한다. logical restore contract는 source와 restored disposable DB에서 동일한 named-result
+helper를 사용해 restricted `claim → transition → read`를 수행한다. 함수 cursor metadata를 canonical column mapping으로
+검증하고, claim이 확정한 run/fingerprint/process boundary/phase/version을 transition과 read에 그대로 전달한다. restore는
+schema, FK, trigger, function, GRANT, migration checksum, reservation ownership과 event progression을 함께 보존해야 한다.
+
 ## Implementation PR 순서
 
 1. **ADR-021 승인·병합**: 설계만 확정하며 구현·activation 없음.
@@ -747,13 +770,16 @@ production credential, production data, actual backend, Dataset content, Model, 
    exact producer literal/GRANT, state timestamp rebuild와 same-family supersession constraint, family envelope NOT NULL 및
    isolated migration/restore contract tests.
    adapter·production credential·activation 없음.
-3. **Adapter PR C2**: production prerequisite/decision/journal adapters, restricted DB operations, non-activating preflight와
+3. **Corrective C1.1 PR**: immutable `0002`, producer/resolver/journal least-privilege role, restricted authority/snapshot/
+   reservation claim/journal CAS function, authoritative mapping fixture와 upgrade/restore contract tests. production adapter와
+   activation 없음.
+4. **Adapter PR C2**: production prerequisite/decision/journal adapters, restricted DB operations, non-activating preflight와
    isolated DB contract tests. prerequisite adapter는 exact `resolution_policy_reference`를 claim input으로, decision adapter는
    exact provenance policy를 decision-submitted input으로만 제공한다. caller policy input, fallback과 placeholder는 없다.
    executable·runtime activation 없음.
-4. **Composition PR C3**: exact non-CLI process symbol, object graph/pool/bootstrap/shutdown/restart contract와 fake/bounded
+5. **Composition PR C3**: exact non-CLI process symbol, object graph/pool/bootstrap/shutdown/restart contract와 fake/bounded
    integration. production intent intake와 actual Training은 비활성.
-5. **Production Activation Gate**: 별도 운영 증거와 사용자 명시 승인.
+6. **Production Activation Gate**: 별도 운영 증거와 사용자 명시 승인.
 
 C1 전에는 driver/migration implementation을 시작하지 않는다. C2는 C1 독립 검증·병합 뒤, C3는 C2 독립 검증·병합 뒤에만
 시작한다. 각 PR은 dependency/schema, adapter, composition과 activation 범위를 겹치지 않는다. authority producer workflow와
@@ -801,6 +827,7 @@ exactly-once Training, cross-process capability, automatic restart/retry와 dura
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [확정] Corrective C1.1 immutable `0002` reservation identity, least-privilege restricted operations, transaction ownership와 upgrade/logical-restore contract를 동기화 |
 | 2026-08-13 | [확정] PR #126 사용자 승인·squash merge provenance에 맞춰 `approved`로 동기화하고 C1 image security policy를 ADR-022로 분리 |
 | 2026-08-13 | [제안] 8개 authority family에 공통 envelope 7개 column의 exact C1 DDL을 56/56으로 명시 |
 | 2026-08-13 | [제안] C1 잔여 Gate의 policy provenance ordering, exact producer identifier, 5-state effective-time·same-family supersession, family envelope NOT NULL 계약 확정 |
