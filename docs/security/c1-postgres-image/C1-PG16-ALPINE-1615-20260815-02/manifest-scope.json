@@ -1,0 +1,17 @@
+{
+  "schema": "dohalm.c1.layered-manifest-scope/3",
+  "parent_manifest": "SHA256SUMS",
+  "parent_includes": "all regular files recursively except SHA256SUMS and risk-decision-record.yaml",
+  "parent_excludes": ["SHA256SUMS", "risk-decision-record.yaml"],
+  "risk_record_circularity_rule": "risk-decision-record.yaml is bound by repository commit/tree/path; the parent manifest excludes itself and the proposed record",
+  "child_manifests": [
+    "adjudications/CVE-2026-33818/SHA256SUMS",
+    "adjudications/CVE-2026-56853/SHA256SUMS",
+    "adjudications/CVE-2026-56859/SHA256SUMS",
+    "adjudications/CVE-2026-56862/SHA256SUMS",
+    "medium-delta/CVE-2026-56858/SHA256SUMS"
+  ],
+  "historical_adjudication_references": "the three 20260814 child manifests are immutable cross-record evidence and are not copied",
+  "path_normalization": "repository-relative forward slash; no dot or dot-dot segment",
+  "entry_format": "<sha256 lowercase hexadecimal><two spaces><decimal byte length><two spaces><bundle-relative path>"
+}

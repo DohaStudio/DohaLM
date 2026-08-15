@@ -1,0 +1,19 @@
+{
+    "schema":  "pr128.cve-adjudication.cleanup/1",
+    "completed_at_utc":  "2026-08-14T17:33:45.4105724Z",
+    "task_container_remaining":  0,
+    "task_volume_created":  0,
+    "task_network_created":  0,
+    "exact_image_preexisting":  false,
+    "exact_image_absent":  true,
+    "fresh_clone_absent":  true,
+    "extracted_source_absent":  true,
+    "scout_digest_cache_absent":  true,
+    "tool_archives_and_executables_absent":  true,
+    "extracted_binary_workspace_absent":  true,
+    "existing_container_inventory_unchanged":  true,
+    "existing_volume_inventory_unchanged":  true,
+    "existing_network_inventory_unchanged":  true,
+    "ambiguity":  0,
+    "status":  "pass"
+}

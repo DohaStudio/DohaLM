@@ -1,0 +1,329 @@
+{
+    "schema":  "pr128.cve-adjudication.scan-summary/1",
+    "total":  50,
+    "severity":  {
+                     "LOW":  5,
+                     "CRITICAL":  2,
+                     "MEDIUM":  19,
+                     "UNSPECIFIED":  3,
+                     "HIGH":  21
+                 },
+    "critical_high_ids":  [
+                              "CVE-2025-58187",
+                              "CVE-2025-58188",
+                              "CVE-2025-61723",
+                              "CVE-2025-61725",
+                              "CVE-2025-61726",
+                              "CVE-2025-61729",
+                              "CVE-2025-68121",
+                              "CVE-2026-25679",
+                              "CVE-2026-32280",
+                              "CVE-2026-32281",
+                              "CVE-2026-32283",
+                              "CVE-2026-33811",
+                              "CVE-2026-33814",
+                              "CVE-2026-33818",
+                              "CVE-2026-39820",
+                              "CVE-2026-39821",
+                              "CVE-2026-39836",
+                              "CVE-2026-42499",
+                              "CVE-2026-42504",
+                              "CVE-2026-46600",
+                              "CVE-2026-56853",
+                              "CVE-2026-56859",
+                              "CVE-2026-56862"
+                          ],
+    "targets":  [
+                    {
+                        "id":  "CVE-2026-33818",
+                        "severity":  "HIGH",
+                        "cvss":  "7.5",
+                        "epss_score":  "",
+                        "epss_percentile":  "",
+                        "purls":  [
+                                      "pkg:golang/stdlib@1.24.6"
+                                  ],
+                        "installed_version":  "1.24.6",
+                        "affected_range":  "\u003c1.25.13",
+                        "fixed_version":  "1.25.13",
+                        "locations":  [
+                                          "/usr/local/bin/gosu"
+                                      ],
+                        "help_uri":  "https://scout.docker.com/v/CVE-2026-33818?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                        "level":  "error"
+                    },
+                    {
+                        "id":  "CVE-2026-56853",
+                        "severity":  "HIGH",
+                        "cvss":  "7.5",
+                        "epss_score":  "",
+                        "epss_percentile":  "",
+                        "purls":  [
+                                      "pkg:golang/stdlib@1.24.6"
+                                  ],
+                        "installed_version":  "1.24.6",
+                        "affected_range":  "\u003c1.25.13",
+                        "fixed_version":  "1.25.13",
+                        "locations":  [
+                                          "/usr/local/bin/gosu"
+                                      ],
+                        "help_uri":  "https://scout.docker.com/v/CVE-2026-56853?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                        "level":  "error"
+                    },
+                    {
+                        "id":  "CVE-2026-56858",
+                        "severity":  "MEDIUM",
+                        "cvss":  "6.1",
+                        "epss_score":  "",
+                        "epss_percentile":  "",
+                        "purls":  [
+                                      "pkg:golang/stdlib@1.24.6"
+                                  ],
+                        "installed_version":  "1.24.6",
+                        "affected_range":  "\u003c1.25.13",
+                        "fixed_version":  "1.25.13",
+                        "locations":  [
+                                          "/usr/local/bin/gosu"
+                                      ],
+                        "help_uri":  "https://scout.docker.com/v/CVE-2026-56858?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                        "level":  "warning"
+                    },
+                    {
+                        "id":  "CVE-2026-56859",
+                        "severity":  "HIGH",
+                        "cvss":  "7.5",
+                        "epss_score":  "",
+                        "epss_percentile":  "",
+                        "purls":  [
+                                      "pkg:golang/stdlib@1.24.6"
+                                  ],
+                        "installed_version":  "1.24.6",
+                        "affected_range":  "\u003c1.25.13",
+                        "fixed_version":  "1.25.13",
+                        "locations":  [
+                                          "/usr/local/bin/gosu"
+                                      ],
+                        "help_uri":  "https://scout.docker.com/v/CVE-2026-56859?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                        "level":  "error"
+                    },
+                    {
+                        "id":  "CVE-2026-56862",
+                        "severity":  "HIGH",
+                        "cvss":  "7.5",
+                        "epss_score":  "",
+                        "epss_percentile":  "",
+                        "purls":  [
+                                      "pkg:golang/stdlib@1.24.6"
+                                  ],
+                        "installed_version":  "1.24.6",
+                        "affected_range":  "\u003c1.25.13",
+                        "fixed_version":  "1.25.13",
+                        "locations":  [
+                                          "/usr/local/bin/gosu"
+                                      ],
+                        "help_uri":  "https://scout.docker.com/v/CVE-2026-56862?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                        "level":  "error"
+                    }
+                ],
+    "committed_sha256":  "fec111471d556f2e984e72d1017142aeb8146e72d8e761e2862143eaefdcb701",
+    "fresh_sha256":  "879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c",
+    "previous_fresh_sha256":  "879efbff5dd39a76f98534ada53b161ee62187a45c9b223c34c6a6f148fbc40c",
+    "previous_fresh_byte_identity_by_sha256":  true,
+    "field_deltas":  [
+                         {
+                             "id":  "CVE-2026-56858",
+                             "old":  {
+                                         "id":  "CVE-2026-56858",
+                                         "severity":  "UNSPECIFIED",
+                                         "cvss":  "3.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56858?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "none"
+                                     },
+                             "new":  {
+                                         "id":  "CVE-2026-56858",
+                                         "severity":  "MEDIUM",
+                                         "cvss":  "6.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56858?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "warning"
+                                     }
+                         },
+                         {
+                             "id":  "CVE-2026-33818",
+                             "old":  {
+                                         "id":  "CVE-2026-33818",
+                                         "severity":  "UNSPECIFIED",
+                                         "cvss":  "3.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-33818?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "none"
+                                     },
+                             "new":  {
+                                         "id":  "CVE-2026-33818",
+                                         "severity":  "HIGH",
+                                         "cvss":  "7.5",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-33818?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "error"
+                                     }
+                         },
+                         {
+                             "id":  "CVE-2026-56853",
+                             "old":  {
+                                         "id":  "CVE-2026-56853",
+                                         "severity":  "UNSPECIFIED",
+                                         "cvss":  "3.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56853?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "none"
+                                     },
+                             "new":  {
+                                         "id":  "CVE-2026-56853",
+                                         "severity":  "HIGH",
+                                         "cvss":  "7.5",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56853?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "error"
+                                     }
+                         },
+                         {
+                             "id":  "CVE-2026-56859",
+                             "old":  {
+                                         "id":  "CVE-2026-56859",
+                                         "severity":  "UNSPECIFIED",
+                                         "cvss":  "3.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56859?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "none"
+                                     },
+                             "new":  {
+                                         "id":  "CVE-2026-56859",
+                                         "severity":  "HIGH",
+                                         "cvss":  "7.5",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56859?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "error"
+                                     }
+                         },
+                         {
+                             "id":  "CVE-2026-56862",
+                             "old":  {
+                                         "id":  "CVE-2026-56862",
+                                         "severity":  "UNSPECIFIED",
+                                         "cvss":  "3.1",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56862?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "none"
+                                     },
+                             "new":  {
+                                         "id":  "CVE-2026-56862",
+                                         "severity":  "HIGH",
+                                         "cvss":  "7.5",
+                                         "epss_score":  "",
+                                         "epss_percentile":  "",
+                                         "purls":  [
+                                                       "pkg:golang/stdlib@1.24.6"
+                                                   ],
+                                         "installed_version":  "1.24.6",
+                                         "affected_range":  "\u003c1.25.13",
+                                         "fixed_version":  "1.25.13",
+                                         "locations":  [
+                                                           "/usr/local/bin/gosu"
+                                                       ],
+                                         "help_uri":  "https://scout.docker.com/v/CVE-2026-56862?s=golang\u0026n=stdlib\u0026t=golang\u0026vr=%3C1.25.13",
+                                         "level":  "error"
+                                     }
+                         }
+                     ]
+}

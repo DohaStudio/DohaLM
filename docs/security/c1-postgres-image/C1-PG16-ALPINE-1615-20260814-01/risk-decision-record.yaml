@@ -1,0 +1,151 @@
+schema_version: 1
+decision_id: C1-PG16-ALPINE-1615-20260814-01
+status: accepted
+decision: accepted
+accepted: true
+approver: DDORINY
+approved_at: "2026-08-14T23:45:32.1303728+09:00"
+starts_at: "2026-08-14T23:45:32.1303728+09:00"
+expires_at: "2026-09-13T23:45:32.1303728+09:00"
+execution_authorized: true
+repository_binding:
+  repository: DohaStudio/DohaLM
+  base_commit: 082f6fa14964f21fb8af1ca55efd3cb3b607f2b3
+  base_tree: 4423eeed9d591e09e5c2f7ecab81e7e7939a0f3b
+  containing_commit: self
+  containing_tree: self
+  path: docs/security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/risk-decision-record.yaml
+artifact:
+  repository: docker.io/library/postgres
+  exact_tag: postgres:16.15-alpine
+  platform: linux/amd64
+  index_digest: sha256:ab5c955e9e57ae9879d4411ab49a912be9d162455676f7bf56e951b11ac73785
+  manifest_digest: sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571
+  config_digest: sha256:75f5a96988cdf694a215073c3e9c001b706b371e2f94df3967f2efdec2787f6b
+  base_name: alpine:3.24
+  base_digest: sha256:79ff19e9084a00eece421b2523fb93e22d730e2c0e525905de047e848e56d95f
+  source_repository: docker-library/postgres
+  source_revision: 9d15534160ade17f2b6c455a39ee967c49b1937d
+  source_directory: 16/alpine3.24
+  created_at: 2026-08-13T19:16:04Z
+components:
+  postgresql: 16.15
+  alpine: 3.24.1
+  musl: 1.2.6-r2
+  gosu: 1.19
+  gosu_go: 1.24.6
+  gosu_cgo_enabled: false
+  gosu_sha256: 52c8749d0142edd234e9d6bd5237dff2d81e71f43537e2f4f66f75dd4b243dd0
+scanner:
+  name: Docker Scout
+  version: 1.24.0
+  commit: b1c9331b2166aef7ec690aa16fd655b8798ea4c6
+  executable_sha256: 48ddfcf97535822e7bb27eed2796fa55728e5e0f163c7490d3fb90e621e8c09a
+  advisory_source: Docker Scout service
+  advisory_db_build_timestamp: null
+  scanned_at_utc: 2026-08-14T11:30:25.3368810Z
+  raw_report_sha256: fec111471d556f2e984e72d1017142aeb8146e72d8e761e2862143eaefdcb701
+  previous_raw_report_sha256: c149af944a83a552ffa445967cd69a0f384fd48033759ac33987b56e9e210a18
+  drift_classification: epss_percentile_only
+  epss_percentile_changed_results: 43
+  suppression_ignore_vex_filtering: 0
+  service_exceptions_observed: 4
+  service_exceptions_applied: 0
+raw_findings:
+  critical: 2
+  high: 17
+  medium: 18
+  low: 5
+  unspecified: 8
+  total: 50
+adjudicated_findings:
+  - id: CVE-2026-39821
+    status: not_applicable_exact_artifact
+    child_manifest: adjudications/CVE-2026-39821/SHA256SUMS
+    child_manifest_sha256: bb19ff4fa2a40595af9a5e1acca8ebff844b5229ee4c9a596ffee7051620b249
+  - id: CVE-2026-39836
+    status: not_affected
+    child_manifest: adjudications/CVE-2026-39836/SHA256SUMS
+    child_manifest_sha256: b6516a60cd4ee632041037eec1272b8d76f22ac3d3ce6ebc4bc8b35afa2d6404
+  - id: CVE-2026-46600
+    status: not_applicable_exact_artifact
+    child_manifest: adjudications/CVE-2026-46600/SHA256SUMS
+    child_manifest_sha256: 725593c67ad2f6b9c6f83b29d0b99df5bdead38f2c7f7bfbea6839ef5e73e51c
+residual_risk_findings:
+  critical:
+    - CVE-2025-68121
+  high:
+    - CVE-2025-58187
+    - CVE-2025-58188
+    - CVE-2025-61723
+    - CVE-2025-61725
+    - CVE-2025-61726
+    - CVE-2025-61729
+    - CVE-2026-25679
+    - CVE-2026-32280
+    - CVE-2026-32281
+    - CVE-2026-32283
+    - CVE-2026-33811
+    - CVE-2026-33814
+    - CVE-2026-39820
+    - CVE-2026-42499
+    - CVE-2026-42504
+set_contract:
+  raw_critical_high_equals_residual_union_adjudicated: true
+  residual_adjudicated_overlap: 0
+scope:
+  environments:
+    - local_ephemeral
+    - ci_ephemeral
+  allowed_work:
+    - c1_schema_contract_test
+    - c1_migration_contract_test
+    - c1_restore_contract_test
+  synthetic_credentials_only: true
+  synthetic_data_only: true
+  private_task_network_only: true
+  public_port_publish_allowed: false
+  forbidden:
+    - production
+    - staging
+    - shared_database
+    - live_data
+    - production_credentials
+    - C2
+    - C3
+    - Production_Activation
+    - Dataset
+    - Model
+    - GPU
+    - Training
+    - Evaluation
+validity:
+  maximum_days: 30
+  calculation: explicit_approval_timestamp_plus_exactly_30_days
+  auto_start: false
+  auto_renewal: false
+early_termination:
+  - fixed_official_image
+  - image_or_digest_drift
+  - advisory_or_exploitability_drift
+  - new_applicable_critical_or_high
+  - cleanup_failure_or_ambiguity
+ready_gate:
+  full_rescan_required: true
+  exact_digest_recheck_required: true
+  explicit_user_approval_required: true
+cleanup:
+  policy: cleanup-policy.md
+  evidence: cleanup-evidence.json
+renewal:
+  new_decision_packet_required: true
+  new_explicit_user_approval_required: true
+evidence:
+  parent_manifest: SHA256SUMS
+  parent_manifest_sha256: d6fa35a27e3b12bcb6f613d1ecdd68ed545fa58c607a4d575bd0905a67dd245a
+  scope: manifest-scope.json
+authorization_gate:
+  before_explicit_approval: fail_closed
+  draft_pr_merge_grants_acceptance: false
+  c1_implementation_authorized: false
+  psycopg_dependency_blocker_resolved: false

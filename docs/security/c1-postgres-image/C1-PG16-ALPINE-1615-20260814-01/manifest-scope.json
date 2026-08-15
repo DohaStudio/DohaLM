@@ -1,0 +1,17 @@
+{
+  "schema": "dohalm.c1.layered-manifest-scope/2",
+  "parent_manifest": "SHA256SUMS",
+  "parent_includes": "all regular files recursively except SHA256SUMS and risk-decision-record.yaml",
+  "parent_excludes": ["SHA256SUMS", "risk-decision-record.yaml"],
+  "risk_record_circularity_rule": "risk-decision-record.yaml references the parent manifest path and its externally verified SHA-256; the parent manifest intentionally excludes the risk record and itself",
+  "child_manifests": [
+    "adjudications/CVE-2026-39821/SHA256SUMS",
+    "adjudications/CVE-2026-39836/SHA256SUMS",
+    "adjudications/CVE-2026-46600/SHA256SUMS"
+  ],
+  "commit_binding": "risk record containing_commit/tree=self means the single Git commit and tree that contain this exact repository-relative path",
+  "path_normalization": "repository-relative forward slash; no dot or dot-dot segment",
+  "entry_format": "<sha256 lowercase hexadecimal><two spaces><decimal byte length><two spaces><repository-relative path>",
+  "hash": "SHA-256 lowercase hexadecimal",
+  "size_binding": "decimal byte length is stored in every child and parent entry and verified together with SHA-256"
+}

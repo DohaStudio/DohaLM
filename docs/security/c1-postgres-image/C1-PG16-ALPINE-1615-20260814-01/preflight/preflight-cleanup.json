@@ -1,0 +1,12 @@
+{
+    "schema":  "dohalm.c1.preflight-cleanup/1",
+    "correlation_id":  "C1-PG1615-PROPOSED-20260814-PREFLIGHT-20260814204334",
+    "completed_at":  "2026-08-14T11:43:39.5970942Z",
+    "task_container_count":  0,
+    "task_volume_count":  0,
+    "task_network_count":  0,
+    "status":  "clean",
+    "failure":  null,
+    "ambiguity":  null,
+    "verifier_boundary":  "DDORINY local Docker process"
+}

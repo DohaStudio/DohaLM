@@ -1,15 +1,17 @@
 # ADR-022: C1 Ephemeral PostgreSQL Test Image Security Policy
 
 - 문서 상태: `approved`
-- 마지막 검토일: 2026-08-14
-- 결정 상태: `accepted`
-- 실행 영향: 선택지 B의 exact image를 C1 local/CI ephemeral contract test에만 30일 한시 허용; C1 구현·production activation 없음
+- 마지막 검토일: 2026-08-15
+- 결정 상태: 정책 `approved`; 현재 risk decision `accepted`
+- 실행 영향: 새 Option B risk record의 local/CI isolated ephemeral C1 test 권한 활성; production activation 없음
 - 관련 문서: [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md),
   [Definition of Ready](../governance/definition-of-ready.md),
   [Definition of Done](../governance/definition-of-done.md),
   [테스트 전략](../quality/test-strategy.md),
   [테스트 체크리스트](../quality/testing-checklist.md),
-  [선택지 B risk-acceptance record](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml)
+  [종료된 16.14 risk-acceptance record](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/risk-acceptance-record.yaml),
+  [종료된 16.15 Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md),
+  [새 proposed Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md)
 
 ## Context
 
@@ -70,6 +72,36 @@ tag는 아래 동일 artifact를 가리켰다.
 
 [확정] evidence correction에서 동일 digest를 pull하고 Docker Scout 1.24.0으로 full unsuppressed scan을 재실행했다.
 raw SARIF, normalized Markdown derivative, SPDX SBOM과 report hash를 immutable evidence directory에 영속화했다.
+
+### PostgreSQL 16.15 currentness update
+
+[확정] 2026-08-13 PostgreSQL 16.15 official Alpine image가 공개되면서 기존 16.14 record의 fixed-image,
+artifact/advisory drift 조기 종료 조건이 충족됐다. 기존 immutable approval을 덮어쓰지 않고
+[termination evidence](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/termination-C1-PG16-ALPINE-20260814-01.yaml)로
+append-only 기록한다. `C1-PG16-ALPINE-20260814-01`은 16.15 authorization으로 재사용할 수 없다.
+
+[확정] 새 `linux/amd64` manifest
+`sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571`에 대한
+[`C1-PG16-ALPINE-1615-20260814-01`](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/risk-decision-record.yaml)은
+당시 scan과 세 adjudication 뒤 residual Critical 1 / High 15를 local/CI isolated ephemeral-only로 정확히 30일 허용했던
+historical accepted record다.
+Accountable approver `DDORINY`가 Option B를 `2026-08-14T23:45:32.1303728+09:00`에 명시 승인했다.
+
+[확정] 이 historical record의 `accepted`와 `execution_authorized`는 true였고 승인 시작은 `2026-08-14T23:45:32.1303728+09:00`,
+만료는 정확히 30일 뒤인 `2026-09-13T23:45:32.1303728+09:00`이다. 실행 권한은 exact manifest의 local/CI isolated
+ephemeral test에만 적용된다. Psycopg binary/system-libpq provenance blocker는 유지하며 C1-A/B/C는 미구현이다.
+C1→C2→C3→별도 Production Activation 순서도 변경하지 않는다.
+
+[확정] 2026-08-15 fresh unsuppressed scan에서 네 finding이 Unspecified에서 High로, 한 finding이 Medium으로 바뀌어
+위 16.15 accepted record의 당시 조기 종료 조건이 충족됐다. 기존 record와 evidence는 수정하지 않고 새
+[termination evidence](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/termination-C1-PG16-ALPINE-1615-20260814-01.yaml)에
+종료를 기록한다. 남은 expiry와 execution authorization은 재사용하지 않는다.
+
+[확정] 최신 raw Critical 2 / High 21, 신규 four-High adjudication, residual Critical 1 / High 15를 결속한 새
+[`C1-PG16-ALPINE-1615-20260815-02`](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/risk-decision-record.yaml)는
+사용자 `DDORINY`가 `2026-08-15T13:45:06.7768148+09:00`에 명시 승인했다. `accepted: true`,
+`execution_authorized: true`이며 만료는 정확히 30일 뒤인 `2026-09-14T13:45:06.7768148+09:00`다. exact manifest의
+local/CI isolated ephemeral C1 schema·migration·restore contract test에만 적용하고 조기 종료 정책을 유지한다.
 
 ### Historical Critical/High 목록
 
@@ -213,16 +245,30 @@ placeholder로 만들 수 없다. evidence가 없으면 cleanup을 PASS로 표�
 
 ## 재검증과 fail-closed 조건
 
-선택지 B가 별도 승인되더라도 다음을 모두 적용한다.
+선택지 B가 별도 승인되더라도 변화는 다음 세 범주로 판정한다.
 
-1. C1 구현 시작 직전 tag/index/platform manifest digest를 재조회한다.
-2. C1 Draft PR 생성 직전과 Ready 전 전체 image scan을 실행한다.
-3. Critical/High 전체와 Alpine, Go, Docker Official Image 및 PostgreSQL official tracker를 교차 검증한다.
-4. digest, component, CVE, exploitability, VEX 또는 official provenance가 바뀌면 기존 exception을 사용하지 않는다.
-5. fixed official image가 공개되면 exception을 즉시 종료하고 새 immutable candidate를 독립 검증한다.
-6. cleanup 실패, 결과 ambiguity, evidence 부재, public exposure 또는 production credential/data 접촉은 Gate 실패다.
-7. unresolved cleanup은 manual review와 cleanup 완료 전 새 C1 integration run을 차단하며, 기존 risk acceptance로 다음 실행을
-   자동 허용하지 않는다.
+### A. 즉시 authorization 종료
+
+- exact manifest/config/base/source identity drift 또는 새 raw Critical/High CVE ID
+- adjudicated finding의 applicable 전환, residual affected range/component/location 확대·변경, official VEX 철회
+- vulnerable symbol/call/runtime reachability의 새 확인
+- isolation, credential, network, privilege, cleanup 계약 실패
+- fixed official image 공개와 compatibility Gate 통과 또는 승인 만료
+
+### B. 실행 중지와 semantic 재검증
+
+- 동일 CVE·component·range·location의 severity 변경 또는 EPSS 변경
+- OSV modified timestamp·비의미 metadata, raw JSON ordering/serialization 변화
+- scanner advisory DB freshness 미확인
+
+이 범주는 다음 C1 run 전에 재검증하되 자동 risk-set 확대나 영구 종료로 처리하지 않는다. exact-artifact
+not-applicable 판정은 package/symbol/reachability가 불변이면 새 사용자 risk acceptance 없이 유지할 수 있다.
+
+### C. 정보성 변화
+
+문구, URL, related reference, transport ordering 또는 artifact/affected contract와 무관한 metadata 변화는 기록만 한다.
+어느 범주인지 판정할 evidence가 부족하면 fail closed로 실행을 중지하고 새 Decision Packet을 연다. 이 정책은 이미 종료된
+승인을 소급 복구하지 않는다.
 
 ## Decision Packet
 
@@ -238,7 +284,7 @@ placeholder로 만들 수 없다. evidence가 없으면 cleanup을 PASS로 표�
 [확정] 선택지 2는 이 ADR 또는 문서 PR의 병합만으로 승인되지 않는다. 이번 결정은 exact CVE, 최신 evidence,
 accountable approver와 만료 조건을 포함한 별도 사용자 명시 승인과 아래 immutable record로 그 Gate를 충족했다.
 
-## Accepted decision — 선택지 B
+## Historical accepted decision과 current proposed decision
 
 [확정] 2026-08-14 사용자는 선택지 2를 명시 승인했고 accountable approver `DDORINY`로서 최신 unsuppressed scan,
 세 개의 독립 adjudication(`CVE-2026-39821` exact-artifact not-applicable, `CVE-2026-39836` linux/amd64 not-affected,
@@ -253,7 +299,7 @@ image 공개 또는 record의 early termination 조건 발생 시 더 일찍 종
 삭제하거나 severity를 변경하지 않았다. 상세 evidence와 layered manifest는
 [evidence summary](../security/c1-postgres-image/C1-PG16-ALPINE-20260814-01/evidence-summary.md)에 고정한다.
 
-[확정] 이 승인은 C1 schema·migration·restore contract test를 local/CI isolated ephemeral 환경에서 수행할 수 있게 하는
+[확정] 이 승인은 당시 C1 schema·migration·restore contract test를 local/CI isolated ephemeral 환경에서 수행할 수 있게 하는
 image risk decision만 승인한다. C1 구현 자체, C2/C3, production/staging/shared/live DB, production credential/data,
 public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluation을 승인하지 않는다.
 
@@ -267,13 +313,23 @@ public port, Production Activation, Dataset/Model/GPU, Training 또는 Evaluatio
 
 ## 승인 Gate
 
-이 ADR은 `approved`와 `accepted`이며 위 immutable record 범위에서만 선택지 B를 승인한다. 이는 C1 구현 착수나 production 사용
-승인이 아니며, C1 구현은 별도 Draft PR과 독립 검증 Gate를 따라야 한다.
+이 ADR의 분류·재검증 정책은 `approved`이고 이전 Option B authorization은 종료 상태를 유지한다. current record는 사용자
+명시 승인으로 exact manifest의 local/CI isolated ephemeral C1 test에 한해 유효하다. C1 구현은 별도 Draft PR과 독립 검증
+Gate를 따라야 하며 production 사용, C2/C3, Production Activation 또는 실제 Training 권한은 없다.
+
+[확정] 위 문장은 종료 전 16.14 historical record의 승인 사실만 보존한다. 별도 16.15 record는 accountable approver
+`DDORINY`가 `2026-08-14T23:45:32.1303728+09:00`에 exact Option B를 명시 승인했으며, 그 승인만이 record에 적힌 제한적
+image test 권한을 부여했다. 그 authorization은 2026-08-15 severity/advisory drift로 종료됐고 새 Draft PR의 merge, 문서 존재
+또는 preflight 성공은 추가 권한을 부여하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-15 | [확정] DDORINY가 current raw C2/H21·adjudicated 7·residual C1/H15 Option B record를 정확히 30일간 local/CI isolated ephemeral C1 test로 승인 |
+| 2026-08-15 | [제안] severity drift로 이전 16.15 authorization을 종료하고 raw C2/H21·adjudicated 7·residual C1/H15 새 proposed record 및 A/B/C 재검증 정책을 등록 |
+| 2026-08-14 | [확정] PostgreSQL 16.15 exact Option B를 DDORINY가 명시 승인; local/CI isolated ephemeral image test만 30일 허용하고 C1 구현·Psycopg·production·Training은 계속 차단 |
+| 2026-08-14 | [제안] 16.14 record 조기 종료를 append-only로 기록하고 16.15 exact-image proposed/unapproved Decision Packet과 승인 전 fail-closed Gate를 연결 |
 | 2026-08-14 | [확정] Scout 1.24.0 raw C2/H17과 세 독립 adjudication을 반영하고 residual C1/H15 및 layered manifest를 동기화 |
 | 2026-08-14 | [확정] 사용자 선택지 2 승인, 최신 scan·not-applicable adjudication·preflight·cleanup evidence와 30일 immutable record 고정 |
 | 2026-08-14 | [제안] 선택지 C/D/E의 장점·ownership·C1 재개 증거와 실행 후 `cleanup_evidence` fail-closed 계약 보완 |

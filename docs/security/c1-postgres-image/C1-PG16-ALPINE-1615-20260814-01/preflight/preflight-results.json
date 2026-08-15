@@ -1,0 +1,102 @@
+{
+    "schema":  "dohalm.c1.postgres-preflight/1",
+    "correlation_id":  "C1-PG1615-PROPOSED-20260814-PREFLIGHT-20260814204334",
+    "image_manifest":  "sha256:075f7ba66bc9b3ce7d6b8b635208ff61cd7cf1a67d71ec530eec5d7ae0cbe571",
+    "platform":  "linux/amd64",
+    "started_at":  "2026-08-14T11:43:34.1555207Z",
+    "completed_at":  "2026-08-14T11:43:39.5970942Z",
+    "published_port_count":  0,
+    "synthetic_only":  true,
+    "results":  [
+                    {
+                        "name":  "official-entrypoint-initdb",
+                        "status":  "pass",
+                        "detail":  "fresh named volume initialized and ready"
+                    },
+                    {
+                        "name":  "postgres-version",
+                        "status":  "pass",
+                        "detail":  "16.15"
+                    },
+                    {
+                        "name":  "platform",
+                        "status":  "pass",
+                        "detail":  "linux/amd64 (x86_64)"
+                    },
+                    {
+                        "name":  "encoding-timezone-locale",
+                        "status":  "pass",
+                        "detail":  "UTF8/UTC"
+                    },
+                    {
+                        "name":  "private-network-public-port-zero",
+                        "status":  "pass",
+                        "detail":  "task-private network; published bindings 0"
+                    },
+                    {
+                        "name":  "synthetic-disposable-input",
+                        "status":  "pass",
+                        "detail":  "synthetic credential and data only"
+                    },
+                    {
+                        "name":  "nologin-login-role-topology",
+                        "status":  "pass",
+                        "detail":  "c1_app:false,c1_fn_owner:false,c1_owner:false,c1_runtime:true"
+                    },
+                    {
+                        "name":  "runtime-membership",
+                        "status":  "pass",
+                        "detail":  "LOGIN runtime is member of NOLOGIN group"
+                    },
+                    {
+                        "name":  "schema-ownership",
+                        "status":  "pass",
+                        "detail":  "c1_owner"
+                    },
+                    {
+                        "name":  "selective-privilege",
+                        "status":  "pass",
+                        "detail":  "schema usage/select true; direct insert false"
+                    },
+                    {
+                        "name":  "security-definer-owner-search-path",
+                        "status":  "pass",
+                        "detail":  "t/search_path=pg_catalog, pg_temp/c1_fn_owner"
+                    },
+                    {
+                        "name":  "public-execute-revoked",
+                        "status":  "pass",
+                        "detail":  "f"
+                    },
+                    {
+                        "name":  "runtime-direct-dml-denial",
+                        "status":  "pass",
+                        "detail":  "permission denied"
+                    },
+                    {
+                        "name":  "composite-fk-check",
+                        "status":  "pass",
+                        "detail":  "valid accepted; invalid FK/CHECK rejected"
+                    },
+                    {
+                        "name":  "advisory-transaction-lock",
+                        "status":  "pass",
+                        "detail":  "acquired"
+                    },
+                    {
+                        "name":  "transactional-ddl-rollback",
+                        "status":  "pass",
+                        "detail":  "probe absent after rollback"
+                    },
+                    {
+                        "name":  "graceful-shutdown",
+                        "status":  "pass",
+                        "detail":  "clean shutdown logged"
+                    },
+                    {
+                        "name":  "restart-volume-persistence",
+                        "status":  "pass",
+                        "detail":  "marker preserved"
+                    }
+                ]
+}

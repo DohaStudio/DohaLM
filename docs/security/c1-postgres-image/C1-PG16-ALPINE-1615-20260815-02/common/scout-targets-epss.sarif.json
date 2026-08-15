@@ -1,0 +1,230 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Docker Scout",
+          "informationUri": "https://docker.com/products/docker-scout",
+          "name": "docker scout",
+          "rules": [
+            {
+              "id": "CVE-2026-56858",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-56858"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-56858?s=golang&n=stdlib&t=golang&vr=%3C1.25.13",
+              "help": {
+                "text": "Previously, pathological inputs could close an unescaped '/' early, allowing for attack-controlled data to inject arbitrary content, potentially leading to XSS.\n",
+                "markdown": "> Previously, pathological inputs could close an unescaped '/' early, allowing for attack-controlled data to inject arbitrary content, potentially leading to XSS.\n\n|                                          |\n|Package         pkg:golang/stdlib@1.24.6  |\n|Affected range  <1.25.13                  |\n|Fixed version   1.25.13                   |\n"
+              },
+              "properties": {
+                "affected_version": "<1.25.13",
+                "cvssV3_severity": "MEDIUM",
+                "fixed_version": "1.25.13",
+                "purls": [
+                  "pkg:golang/stdlib@1.24.6"
+                ],
+                "security-severity": "6.1",
+                "tags": [
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-33818",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-33818"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-33818?s=golang&n=stdlib&t=golang&vr=%3C1.25.13",
+              "help": {
+                "text": "Enforce a recursion limit in Unmarshal to prevent stack exhaustion when parsing deeply-nested, recursive structures.\n",
+                "markdown": "> Enforce a recursion limit in Unmarshal to prevent stack exhaustion when parsing deeply-nested, recursive structures.\n\n|                                          |\n|Package         pkg:golang/stdlib@1.24.6  |\n|Affected range  <1.25.13                  |\n|Fixed version   1.25.13                   |\n"
+              },
+              "properties": {
+                "affected_version": "<1.25.13",
+                "cvssV3_severity": "HIGH",
+                "fixed_version": "1.25.13",
+                "purls": [
+                  "pkg:golang/stdlib@1.24.6"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-56853",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-56853"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-56853?s=golang&n=stdlib&t=golang&vr=%3C1.25.13",
+              "help": {
+                "text": "When a server is configured to support unencrypted HTTP/2, it reads a few bytes from each new connection to see if they contain the HTTP/2 client preface. ReadHeaderTimeout is unexpectedly not being applied when doing this.\n",
+                "markdown": "> When a server is configured to support unencrypted HTTP/2, it reads a few bytes from each new connection to see if they contain the HTTP/2 client preface. ReadHeaderTimeout is unexpectedly not being applied when doing this.\n\n|                                          |\n|Package         pkg:golang/stdlib@1.24.6  |\n|Affected range  <1.25.13                  |\n|Fixed version   1.25.13                   |\n"
+              },
+              "properties": {
+                "affected_version": "<1.25.13",
+                "cvssV3_severity": "HIGH",
+                "fixed_version": "1.25.13",
+                "purls": [
+                  "pkg:golang/stdlib@1.24.6"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-56859",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-56859"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-56859?s=golang&n=stdlib&t=golang&vr=%3C1.25.13",
+              "help": {
+                "text": "Previously, DecodeElement would reset the depth counter causing it to never fire; this could lead to stack exhaustion.\n",
+                "markdown": "> Previously, DecodeElement would reset the depth counter causing it to never fire; this could lead to stack exhaustion.\n\n|                                          |\n|Package         pkg:golang/stdlib@1.24.6  |\n|Affected range  <1.25.13                  |\n|Fixed version   1.25.13                   |\n"
+              },
+              "properties": {
+                "affected_version": "<1.25.13",
+                "cvssV3_severity": "HIGH",
+                "fixed_version": "1.25.13",
+                "purls": [
+                  "pkg:golang/stdlib@1.24.6"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-56862",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-56862"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-56862?s=golang&n=stdlib&t=golang&vr=%3C1.25.13",
+              "help": {
+                "text": "Handshake messages, such as KeyUpdate, are always considered as state-advancing, regardless of whether a handshake has been completed or not. As a result, a malicious client can keep sending KeyUpdate messages to force the server to keep performing key derivation operations indefinitely.\n",
+                "markdown": "> Handshake messages, such as KeyUpdate, are always considered as state-advancing, regardless of whether a handshake has been completed or not. As a result, a malicious client can keep sending KeyUpdate messages to force the server to keep performing key derivation operations indefinitely.\n\n|                                          |\n|Package         pkg:golang/stdlib@1.24.6  |\n|Affected range  <1.25.13                  |\n|Fixed version   1.25.13                   |\n"
+              },
+              "properties": {
+                "affected_version": "<1.25.13",
+                "cvssV3_severity": "HIGH",
+                "fixed_version": "1.25.13",
+                "purls": [
+                  "pkg:golang/stdlib@1.24.6"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            }
+          ],
+          "version": "1.24.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2026-56858",
+          "ruleIndex": 0,
+          "kind": "fail",
+          "level": "warning",
+          "message": {
+            "text": "Vulnerability   :CVE-2026-56858            \nSeverity        :MEDIUM                    \nPackage         :pkg:golang/stdlib@1.24.6  \nAffected range  :<1.25.13                  \nFixed version   :1.25.13                   \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/local/bin/gosu"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-33818",
+          "ruleIndex": 1,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "Vulnerability   :CVE-2026-33818            \nSeverity        :HIGH                      \nPackage         :pkg:golang/stdlib@1.24.6  \nAffected range  :<1.25.13                  \nFixed version   :1.25.13                   \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/local/bin/gosu"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-56853",
+          "ruleIndex": 2,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "Vulnerability   :CVE-2026-56853            \nSeverity        :HIGH                      \nPackage         :pkg:golang/stdlib@1.24.6  \nAffected range  :<1.25.13                  \nFixed version   :1.25.13                   \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/local/bin/gosu"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-56859",
+          "ruleIndex": 3,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "Vulnerability   :CVE-2026-56859            \nSeverity        :HIGH                      \nPackage         :pkg:golang/stdlib@1.24.6  \nAffected range  :<1.25.13                  \nFixed version   :1.25.13                   \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/local/bin/gosu"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-56862",
+          "ruleIndex": 4,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "Vulnerability   :CVE-2026-56862            \nSeverity        :HIGH                      \nPackage         :pkg:golang/stdlib@1.24.6  \nAffected range  :<1.25.13                  \nFixed version   :1.25.13                   \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/local/bin/gosu"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
