@@ -12,29 +12,25 @@ from uuid import UUID
 
 import pytest
 
-from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
-from src.training.dataset_training_entry import DatasetTrainingPermission
-from src.training.errors import TrainingError
-from src.training.postgres_training_adapters import (
+from _postgres_c2_minimal_imports import (
+    DatasetTrainingPermission,
+    ProductionTrainingHostIntent,
+    TrainingDecisionResolutionRequest,
+    TrainingError,
+    TrainingOrchestrationClaimRequest,
+    TrainingOrchestrationIdentity,
+    TrainingOrchestrationPhase,
+    TrainingOrchestrationTransition,
+    TrainingPrerequisiteResolutionRequest,
     _CLAIM_JOURNAL_COLUMN_MAP,
+    _map_journal_error,
     _PostgresTrainingConnectionFactory,
     _PostgresTrainingConnectionSettings,
     _PostgresTrainingDecisionResolver,
     _PostgresTrainingExecutionJournal,
     _PostgresTrainingPrerequisiteResolver,
-    _map_journal_error,
 )
-from src.training.production_host_foundation import (
-    ProductionTrainingHostIntent,
-    TrainingDecisionResolutionRequest,
-    TrainingOrchestrationClaimRequest,
-    TrainingOrchestrationIdentity,
-    TrainingOrchestrationPhase,
-    TrainingOrchestrationTransition,
-)
-from src.training.production_orchestration_seams import (
-    TrainingPrerequisiteResolutionRequest,
-)
+from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
 
 def _settings(**overrides: object) -> C1PostgresSettings:

@@ -16,31 +16,27 @@ from typing import Iterator
 
 import pytest
 
-from src.postgres_c1 import (
-    C1PostgresConnectionFactory,
-    C1PostgresError,
-    C1PostgresSettings,
-    apply_c1_migrations,
-    map_c1_postgres_error,
-)
-from src.training.postgres_training_adapters import (
+from _postgres_c2_minimal_imports import (
+    ProductionTrainingHostIntent,
+    TrainingDecisionResolutionRequest,
+    TrainingError,
+    TrainingOrchestrationClaimRequest,
+    TrainingOrchestrationIdentity,
+    TrainingOrchestrationPhase,
+    TrainingOrchestrationTransition,
+    TrainingPrerequisiteResolutionRequest,
     _PostgresTrainingConnectionFactory,
     _PostgresTrainingConnectionSettings,
     _PostgresTrainingDecisionResolver,
     _PostgresTrainingExecutionJournal,
     _PostgresTrainingPrerequisiteResolver,
 )
-from src.training.errors import TrainingError
-from src.training.production_host_foundation import (
-    TrainingOrchestrationClaimRequest,
-    TrainingOrchestrationIdentity,
-    TrainingOrchestrationPhase,
-    TrainingOrchestrationTransition,
-    ProductionTrainingHostIntent,
-    TrainingDecisionResolutionRequest,
-)
-from src.training.production_orchestration_seams import (
-    TrainingPrerequisiteResolutionRequest,
+from src.postgres_c1 import (
+    C1PostgresConnectionFactory,
+    C1PostgresError,
+    C1PostgresSettings,
+    apply_c1_migrations,
+    map_c1_postgres_error,
 )
 
 
