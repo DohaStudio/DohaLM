@@ -4,6 +4,7 @@ import hashlib
 import json
 import secrets
 import subprocess
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -33,11 +34,19 @@ def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[
     )
 
 
+@pytest.fixture
+def external_credential_root() -> object:
+    with tempfile.TemporaryDirectory(prefix="dohalm-local-integration-") as root:
+        yield Path(root)
+
+
 @pytest.mark.integration
-def test_local_durable_bootstrap_readiness_and_explicit_cleanup(tmp_path: Path) -> None:
+def test_local_durable_bootstrap_readiness_and_explicit_cleanup(
+    tmp_path: Path, external_credential_root: Path
+) -> None:
     suffix = uuid.uuid4().hex[:12]
     correlation = f"activation-{suffix}"
-    credential_directory = tmp_path / "credentials"
+    credential_directory = external_credential_root / "credentials"
     credential_directory.mkdir()
     credential_values = {
         "migration_owner": secrets.token_urlsafe(32),
@@ -59,7 +68,7 @@ def test_local_durable_bootstrap_readiness_and_explicit_cleanup(tmp_path: Path) 
         "synthetic: true\n", encoding="utf-8"
     )
     manifest_checksum = "sha256:" + hashlib.sha256(manifest.read_bytes()).hexdigest()
-    output_root = tmp_path / "output"
+    output_root = external_credential_root / "output"
     configuration = LocalSingleUserActivationConfiguration(
         profile="local_single_user",
         provider="postgresql",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -77,6 +78,12 @@ def _credential_directory(tmp_path: Path) -> tuple[Path, LocalRoleCredentials]:
     for role, value in values.items():
         (directory / f"{role}.password").write_text(value, encoding="utf-8")
     return directory, LocalRoleCredentials(**values)
+
+
+@pytest.fixture
+def external_credential_root() -> object:
+    with tempfile.TemporaryDirectory(prefix="dohalm-local-credentials-") as root:
+        yield Path(root)
 
 
 def _dataset(
@@ -164,8 +171,10 @@ def test_json_configuration_rejects_duplicate_keys_and_redacts(tmp_path: Path) -
     assert "127.0.0.1" not in repr(_configuration())
 
 
-def test_credentials_are_role_separated_outside_repository(tmp_path: Path) -> None:
-    directory, credentials = _credential_directory(tmp_path)
+def test_credentials_are_role_separated_outside_repository(
+    external_credential_root: Path,
+) -> None:
+    directory, credentials = _credential_directory(external_credential_root)
     loaded, source = load_local_role_credentials(
         _configuration(), {"DOHALM_LOCAL_CREDENTIAL_DIRECTORY": str(directory)}
     )
@@ -175,9 +184,9 @@ def test_credentials_are_role_separated_outside_repository(tmp_path: Path) -> No
 
 
 def test_missing_dataset_mapping_returns_not_configured_without_db_or_training(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    external_credential_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    directory, _ = _credential_directory(tmp_path)
+    directory, _ = _credential_directory(external_credential_root)
     monkeypatch.setattr(
         "src.training.local_activation._compose_postgres_training_host",
         lambda *_: (_ for _ in ()).throw(
@@ -195,12 +204,14 @@ def test_missing_dataset_mapping_returns_not_configured_without_db_or_training(
 
 
 def test_missing_run_package_returns_not_approved_and_always_shuts_down(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    external_credential_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configuration = _configuration()
-    directory, _ = _credential_directory(tmp_path)
+    directory, _ = _credential_directory(external_credential_root)
     dataset = _dataset(tmp_path, configuration)
-    output = tmp_path / "output"
+    output = external_credential_root / "output"
 
     class Root:
         shutdown_count = 0
@@ -236,9 +247,9 @@ def test_missing_run_package_returns_not_approved_and_always_shuts_down(
 
 
 def test_execute_without_exact_run_package_fails_before_db(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    external_credential_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    directory, _ = _credential_directory(tmp_path)
+    directory, _ = _credential_directory(external_credential_root)
     monkeypatch.setattr(
         "src.training.local_activation._resolve_container_port",
         lambda *_: (_ for _ in ()).throw(AssertionError("DB must not be reached")),
@@ -251,9 +262,9 @@ def test_execute_without_exact_run_package_fails_before_db(
 
 
 def test_gpu_probe_reports_metadata_without_loading_training_backend(
-    tmp_path: Path,
+    external_credential_root: Path,
 ) -> None:
-    directory, _ = _credential_directory(tmp_path)
+    directory, _ = _credential_directory(external_credential_root)
     fake_cuda = SimpleNamespace(
         is_available=lambda: True,
         get_device_properties=lambda _index: SimpleNamespace(
