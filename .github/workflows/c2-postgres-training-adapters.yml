@@ -7,12 +7,14 @@ on:
       - "requirements-c2.in"
       - "requirements-c2.lock"
       - "src/training/postgres_training_adapters.py"
+      - "src/training/production_composition.py"
       - "src/training/dataset_training_entry.py"
       - "src/training/production_host_foundation.py"
       - "src/training/production_orchestration_seams.py"
       - "src/postgres_migrations/**"
       - "tests/test_postgres_c1*.py"
       - "tests/test_postgres_c2*.py"
+      - "tests/test_postgres_c3*.py"
   push:
     branches: [develop]
     paths:
@@ -20,12 +22,14 @@ on:
       - "requirements-c2.in"
       - "requirements-c2.lock"
       - "src/training/postgres_training_adapters.py"
+      - "src/training/production_composition.py"
       - "src/training/dataset_training_entry.py"
       - "src/training/production_host_foundation.py"
       - "src/training/production_orchestration_seams.py"
       - "src/postgres_migrations/**"
       - "tests/test_postgres_c1*.py"
       - "tests/test_postgres_c2*.py"
+      - "tests/test_postgres_c3*.py"
 
 permissions:
   contents: read
@@ -51,22 +55,28 @@ jobs:
         run: python -m pip install --disable-pip-version-check --require-hashes -r requirements-c2.lock
       - name: Verify dependency consistency
         run: python -m pip check
-      - name: Smoke import production C2 adapter
+      - name: Smoke import production C2 and C3 boundaries
         run: |
           python -c "import importlib; import src.training.postgres_training_adapters as adapter; importlib.reload(adapter)"
           python -c "import src.training.postgres_training_adapters"
+          python -c "import importlib; import src.training.production_composition as composition; importlib.reload(composition)"
+          python -c "import src.training.production_composition"
       - name: Verify C2 Ruff contract
         run: |
-          python -m ruff check src/training/postgres_training_adapters.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py
-          python -m ruff format --check src/training/postgres_training_adapters.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py
+          python -m ruff check src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
+          python -m ruff format --check src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
       - name: Run C2 unit contracts
         run: python -m pytest tests/test_postgres_c2.py -q
       - name: Run C2 PostgreSQL integration contracts
         run: python -m pytest tests/test_postgres_c2_integration.py -q
+      - name: Run C3 composition unit contracts
+        run: python -m pytest tests/test_postgres_c3.py -q
+      - name: Run C3 PostgreSQL composition contracts
+        run: python -m pytest tests/test_postgres_c3_integration.py -q
       - name: Run explicit C1 regression
         run: python -m pytest tests/test_postgres_c1.py tests/test_postgres_c1_integration.py -q
       - name: Compile C2 Python boundary
-        run: python -m compileall -q src/training/postgres_training_adapters.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py
+        run: python -m compileall -q src/training/postgres_training_adapters.py src/training/production_composition.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
       - name: Verify disposable resource cleanup
         if: always()
         shell: bash
