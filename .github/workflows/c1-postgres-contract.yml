@@ -38,12 +38,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: |
-            requirements-dev.txt
-            requirements-c1.lock
+          cache-dependency-path: requirements-c1.lock
       - name: Install test and hash-locked C1 dependencies
         run: |
-          python -m pip install --disable-pip-version-check -r requirements-dev.txt
+          python -m pip install --disable-pip-version-check pytest==8.4.2
           python -m pip install --disable-pip-version-check --require-hashes -r requirements-c1.lock
       - name: Run C1 PostgreSQL contracts
         run: python -m pytest tests/test_postgres_c1.py tests/test_postgres_c1_integration.py -q
