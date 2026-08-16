@@ -14,7 +14,10 @@ from src.training import production_host_foundation as foundation
 from src.training import production_orchestration_seams as seams
 from src.training.dataset_training_entry import DatasetTrainingPermission
 from src.training.errors import TrainingError
-from src.training.execution_approval import TrainingExecutionRequest
+from src.training.execution_approval import (
+    TrainingExecutionApproval,
+    TrainingExecutionRequest,
+)
 from src.training.execution_issuer import TrainingExecutionIssuerDecisionValue
 from src.training.production_full_pretraining_host import (
     ProductionFullPretrainingHost,
@@ -32,7 +35,6 @@ from src.training.production_host_foundation import (
     TrustedDecisionProvenance,
     TrustedDecisionResolution,
 )
-
 
 PAIR = "sha256:" + "1" * 64
 CONFIG = "sha256:" + "2" * 64
@@ -281,7 +283,16 @@ class _Context:
             execution_mode="fresh",
             request_fingerprint=REQUEST,
         )
+        self.execution_approval = TrainingExecutionApproval(
+            authorization_id="authorization-1",
+            issuer_id="issuer-1",
+            approver_reference="approver-1",
+            evidence_reference="decision-ref",
+            request_fingerprint=REQUEST,
+            issued_at="2026-08-13T12:00:00+09:00",
+        )
         self.builder_calls = 0
+        self.approval_calls = 0
         self.backend_calls = 0
         self.consume_calls = 0
         self.entry_calls = 0
@@ -327,6 +338,13 @@ class _Context:
 
         monkeypatch.setattr(seams, "build_training_execution_request", build)
 
+        def issue(request):
+            assert request is self.request
+            self.approval_calls += 1
+            return self.execution_approval
+
+        monkeypatch.setattr(host_module, "issue_training_execution_approval", issue)
+
     def backend(
         self, lifecycle, config_path, manifest_path, readiness_report, **kwargs
     ):
@@ -336,6 +354,7 @@ class _Context:
         assert type(readiness_report) is dict
         assert type(readiness_report["nested"]) is dict
         assert kwargs["execution_request"] is self.request
+        assert kwargs["execution_approval"] is self.execution_approval
         if self.backend_barrier is not None:
             self.backend_barrier.wait()
         if self.backend_mode == "raw-error":
@@ -559,6 +578,7 @@ def test_approved_orchestration_has_exact_order_and_no_input_mutation(
     assert context.builder_calls == 1
     assert context.decision_resolver.calls == 1
     assert context.backend_calls == 1
+    assert context.approval_calls == 1
     assert context.consume_calls == context.entry_calls == 1
     assert context.journal.transitions == [
         TrainingOrchestrationPhase.RESOLVED,
@@ -607,6 +627,7 @@ def test_decision_unavailable_is_sanitized_and_never_calls_backend(
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_UNAVAILABLE"
     assert str(error) not in str(caught.value)
     assert context.backend_calls == 0
+    assert context.approval_calls == 0
     assert context.journal.claim_calls == 0
     assert context.journal.transitions == []
 
@@ -685,6 +706,30 @@ def test_submission_cas_failure_is_manual_and_never_calls_backend(
         context.journal.transitions[-1]
         is TrainingOrchestrationPhase.MANUAL_RECONCILIATION_REQUIRED
     )
+
+
+def test_capability_issuance_failure_is_terminal_before_backend(
+    context: _Context, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        host_module,
+        "issue_training_execution_approval",
+        lambda _request: (_ for _ in ()).throw(
+            TrainingError("TRAINING_EXECUTION_DECISION_REPLAYED", "redacted")
+        ),
+    )
+    host = context.bootstrap()
+    with pytest.raises(TrainingError) as caught:
+        host.run(context.intent)
+    assert caught.value.code == "TRAINING_EXECUTION_DECISION_REPLAYED"
+    assert context.backend_calls == 0
+    assert context.journal.transitions[-2:] == [
+        TrainingOrchestrationPhase.DECISION_SUBMITTED,
+        TrainingOrchestrationPhase.FAILED,
+    ]
+    record = context.journal.read(context.intent.run_id)
+    assert record is not None
+    assert record.reason_code == "TRAINING_EXECUTION_DECISION_REPLAYED"
 
 
 @pytest.mark.parametrize(

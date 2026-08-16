@@ -24,7 +24,6 @@ from src.training.execution_approval import (
     build_training_execution_request,
 )
 
-
 COMMIT = "a" * 40
 FINGERPRINT = "sha256:" + "1" * 64
 
@@ -195,13 +194,18 @@ def _prepare_backend_boundary(issuer_context, monkeypatch, tmp_path: Path) -> li
     return calls
 
 
-def _run_backend(issuer_context, request: TrainingExecutionRequest) -> None:
-    backend.run_full_pretraining(
+def _run_backend(
+    issuer_context,
+    request: TrainingExecutionRequest,
+    approval: TrainingExecutionApproval | None,
+) -> None:
+    backend._run_full_pretraining(
         Path("config.yaml"),
         Path("manifest.yaml"),
         issuer_context.report,
         dataset_permission=issuer_context.permission,
         execution_request=request,
+        execution_approval=approval,
         **_target(issuer_context.permission),
     )
 
@@ -761,6 +765,7 @@ def test_backend_consumes_only_production_issued_approval(
     permission_snapshot = issuer_context.permission.__dict__.copy()
     capability = issuer._compose_production_training_execution_issuer()
     _submit(capability, _submission(request))
+    approval = issuer.issue_training_execution_approval(request)
     calls = _prepare_backend_boundary(issuer_context, monkeypatch, tmp_path)
     approvals: list[TrainingExecutionApproval] = []
     original_consume = backend.consume_training_execution_approval
@@ -772,7 +777,7 @@ def test_backend_consumes_only_production_issued_approval(
     monkeypatch.setattr(backend, "consume_training_execution_approval", consume)
 
     with pytest.raises(TrainingError, match="SYNTHETIC_EXECUTION_BOUNDARY"):
-        _run_backend(issuer_context, request)
+        _run_backend(issuer_context, request, approval)
 
     assert calls == ["backend"]
     assert request.__dict__ == request_snapshot
@@ -810,7 +815,7 @@ def test_backend_denied_and_unavailable_have_zero_downstream_calls(
     approval_registry = dict(approval_boundary._APPROVAL_REGISTRY)
 
     with pytest.raises(TrainingError) as caught:
-        _run_backend(issuer_context, request)
+        issuer.issue_training_execution_approval(request)
 
     assert caught.value.code == code
     assert calls == []
@@ -832,7 +837,7 @@ def test_backend_forged_decision_has_zero_downstream_calls(
     )
 
     with pytest.raises(TrainingError) as caught:
-        _run_backend(issuer_context, request)
+        issuer.issue_training_execution_approval(request)
 
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_INVALID"
     assert calls == []
@@ -863,7 +868,7 @@ def test_backend_mismatched_decision_has_zero_downstream_calls(
     )
 
     with pytest.raises(TrainingError) as caught:
-        _run_backend(issuer_context, request)
+        issuer.issue_training_execution_approval(request)
 
     assert caught.value.code == "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH"
     assert calls == []
@@ -877,11 +882,12 @@ def test_backend_replay_reaches_execution_boundary_exactly_once(
     capability = issuer._compose_production_training_execution_issuer()
     _submit(capability, _submission(request, authorization_id="authorization-replay"))
     calls = _prepare_backend_boundary(issuer_context, monkeypatch, tmp_path)
+    approval = issuer.issue_training_execution_approval(request)
 
     with pytest.raises(TrainingError, match="SYNTHETIC_EXECUTION_BOUNDARY"):
-        _run_backend(issuer_context, request)
+        _run_backend(issuer_context, request, approval)
     with pytest.raises(TrainingError) as caught:
-        _run_backend(issuer_context, request)
+        issuer.issue_training_execution_approval(request)
 
     assert caught.value.code == "TRAINING_EXECUTION_DECISION_REPLAYED"
     assert calls == ["backend"]
@@ -899,19 +905,10 @@ def test_invalid_request_stops_before_decision_source_and_backend(
     else:
         object.__setattr__(request, "action", "evaluation")
     calls = _prepare_backend_boundary(issuer_context, monkeypatch, tmp_path)
-    issuer_calls = 0
-
-    def forbidden_issuer(_request):
-        nonlocal issuer_calls
-        issuer_calls += 1
-        raise AssertionError("invalid request must not reach the decision source")
-
-    monkeypatch.setattr(backend, "issue_training_execution_approval", forbidden_issuer)
     with pytest.raises(TrainingError) as caught:
-        _run_backend(issuer_context, request)
+        _run_backend(issuer_context, request, None)
 
     assert caught.value.code == "TRAINING_EXECUTION_REQUEST_INVALID"
-    assert issuer_calls == 0
     assert calls == []
 
 

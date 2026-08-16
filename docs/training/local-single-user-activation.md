@@ -17,6 +17,12 @@ package와 PostgreSQL decision/issuer/approver snapshot이 exact match할 때만
 approval을 소비하거나 journal claim/transition 또는 backend 호출을 하지 않는다. 이번 구현 및 검증에서 실제
 Training, Evaluation, checkpoint와 publication은 수행하지 않는다.
 
+[확정] 실행 시 PostgreSQL의 exact decision snapshot이 유일한 run-specific 승인 authority다. Host는
+decision 제출과 durable journal 전이 뒤 동일 request에 결속된 process-local single-use capability를 한 번
+발급하여 backend에 명시적으로 전달한다. backend는 technical readiness를 다시 실행 승인으로 해석하거나
+issuer를 재조회하지 않으며 전달된 capability를 실행 경계 직전에 한 번 소비한다. public standalone backend와
+legacy CLI는 capability를 만들거나 주입할 수 없어 fail closed다.
+
 ## 로컬 상태와 credential
 
 [확정] tracked example은 `configs/local-training-activation.example.json`과
@@ -122,4 +128,5 @@ current이고 canonical inspection의 유일한 blocker가 `FULL_PRETRAINING_NOT
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-16 | [확정] canonical PostgreSQL decision → Host-issued capability → backend single consumption 책임 경계 기록 |
 | 2026-08-16 | [확정] 로컬 단일 사용자 Activation, durable PostgreSQL bootstrap, run package와 non-training readiness 구현 계약 기록 |

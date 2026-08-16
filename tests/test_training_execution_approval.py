@@ -30,7 +30,6 @@ from src.training.execution_approval import (
     require_training_execution_request,
 )
 
-
 COMMIT = "a" * 40
 FINGERPRINT = "sha256:" + "1" * 64
 
@@ -510,9 +509,6 @@ def test_valid_backend_path_stops_at_post_consume_sentinel(
         backend.shutil, "disk_usage", lambda _p: SimpleNamespace(free=1)
     )
     monkeypatch.setattr(
-        backend, "issue_training_execution_approval", lambda _request: approval
-    )
-    monkeypatch.setattr(
         backend,
         "_enter_execution_boundary",
         lambda: (_ for _ in ()).throw(
@@ -533,6 +529,47 @@ def test_valid_backend_path_stops_at_post_consume_sentinel(
             lambda *_a, _name=name, **_k: calls.append(_name),
         )
     with pytest.raises(TrainingError, match="SYNTHETIC_EXECUTION_BOUNDARY"):
+        technical_report = {
+            **approval_context.report,
+            "status": "ready_awaiting_final_execution_approval",
+            "execution_allowed": False,
+            "inspection_only": True,
+            "training_started": False,
+            "blocking_codes": ["FULL_PRETRAINING_NOT_APPROVED"],
+        }
+        backend._run_full_pretraining(
+            Path("config.yaml"),
+            Path("manifest.yaml"),
+            technical_report,
+            dataset_permission=approval_context.permission,
+            execution_request=request,
+            execution_approval=approval,
+            **_target(approval_context.permission),
+        )
+    assert calls == []
+    with pytest.raises(TrainingError, match="TRAINING_EXECUTION_APPROVAL_CONSUMED"):
+        _consume(approval_context, approval, request)
+
+
+def test_public_standalone_backend_has_no_capability_and_fails_closed(
+    approval_context, monkeypatch
+) -> None:
+    request = approval_context.build()
+    approval_context.config.disk_budget = {"minimum_free_bytes_before_start": 0}
+    monkeypatch.setattr(
+        backend.FullPretrainingConfig,
+        "from_yaml",
+        lambda _path: approval_context.config,
+    )
+    monkeypatch.setattr(
+        backend,
+        "resolve_full_pretraining_path",
+        lambda *_args: approval_context.tmp_path / "RUN-1",
+    )
+    monkeypatch.setattr(
+        backend.shutil, "disk_usage", lambda _path: SimpleNamespace(free=1)
+    )
+    with pytest.raises(TrainingError) as caught:
         backend.run_full_pretraining(
             Path("config.yaml"),
             Path("manifest.yaml"),
@@ -541,20 +578,13 @@ def test_valid_backend_path_stops_at_post_consume_sentinel(
             execution_request=request,
             **_target(approval_context.permission),
         )
-    assert calls == []
-    with pytest.raises(TrainingError, match="TRAINING_EXECUTION_APPROVAL_CONSUMED"):
-        _consume(approval_context, approval, request)
+    assert caught.value.code == "TRAINING_EXECUTION_APPROVAL_REQUIRED"
 
 
-def test_readiness_denial_never_reaches_approval_or_execution(
+def test_nontechnical_readiness_never_reaches_approval_or_execution(
     approval_context, monkeypatch
 ) -> None:
     calls: list[str] = []
-    monkeypatch.setattr(
-        backend,
-        "issue_training_execution_approval",
-        lambda _request: calls.append("issuer"),
-    )
     monkeypatch.setattr(
         backend,
         "consume_training_execution_approval",
@@ -565,7 +595,9 @@ def test_readiness_denial_never_reaches_approval_or_execution(
         "_enter_execution_boundary",
         lambda: calls.append("execution"),
     )
-    with pytest.raises(TrainingError, match="FULL_PRETRAINING_EXECUTION_BLOCKED"):
+    with pytest.raises(
+        TrainingError, match="FULL_PRETRAINING_TECHNICAL_READINESS_BLOCKED"
+    ):
         backend.run_full_pretraining(
             Path("config.yaml"),
             Path("manifest.yaml"),
@@ -613,9 +645,6 @@ def test_invalid_approval_paths_have_zero_execution_side_effects(
     monkeypatch.setattr(
         backend.shutil, "disk_usage", lambda _p: SimpleNamespace(free=1)
     )
-    monkeypatch.setattr(
-        backend, "issue_training_execution_approval", lambda _request: approval
-    )
     calls: list[str] = []
     for name in (
         "_enter_execution_boundary",
@@ -632,12 +661,13 @@ def test_invalid_approval_paths_have_zero_execution_side_effects(
             lambda *_a, _name=name, **_k: calls.append(_name),
         )
     with pytest.raises(TrainingError, match=code):
-        backend.run_full_pretraining(
+        backend._run_full_pretraining(
             Path("config.yaml"),
             Path("manifest.yaml"),
             approval_context.report,
             dataset_permission=approval_context.permission,
             execution_request=request,
+            execution_approval=approval,
             **_target(approval_context.permission),
         )
     assert calls == []

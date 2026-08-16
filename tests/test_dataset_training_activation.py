@@ -153,7 +153,7 @@ def test_reconstructed_permissions_have_zero_downstream_calls(
         raise AssertionError("downstream side effect")
 
     for name in (
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
         "TokenizedJsonlDataset",
         "DohaLMTiny",
         "Trainer",
@@ -202,7 +202,7 @@ def test_denied_and_target_mismatch_fail_closed(tmp_path: Path) -> None:
 def test_permission_absent_stops_before_backend_body(monkeypatch) -> None:
     monkeypatch.setattr(
         backend,
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
         lambda _report: pytest.fail("readiness must not run"),
     )
     with pytest.raises(TrainingError, match="DATASET_TRAINING_PERMISSION_INVALID"):
@@ -219,7 +219,7 @@ def test_denied_or_mismatched_permission_has_zero_downstream_calls(
         raise AssertionError("downstream side effect")
 
     for name in (
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
         "TokenizedJsonlDataset",
         "DohaLMTiny",
         "Trainer",
@@ -278,16 +278,13 @@ def test_valid_permission_reaches_reader_only_after_both_gates(
         raise TrainingError("SYNTHETIC_READER_BOUNDARY", "stop before data access")
 
     monkeypatch.setattr(backend, "require_dataset_training_activation", activation_gate)
-    monkeypatch.setattr(backend, "require_full_pretraining_approval", readiness_gate)
+    monkeypatch.setattr(
+        backend, "require_full_pretraining_technical_readiness", readiness_gate
+    )
     monkeypatch.setattr(
         backend,
         "require_training_execution_request",
         lambda *_args, **_kwargs: calls.append("request"),
-    )
-    monkeypatch.setattr(
-        backend,
-        "issue_training_execution_approval",
-        lambda _request: calls.append("issuer") or object(),
     )
     monkeypatch.setattr(
         backend,
@@ -310,17 +307,17 @@ def test_valid_permission_reaches_reader_only_after_both_gates(
     )
 
     with pytest.raises(TrainingError, match="SYNTHETIC_READER_BOUNDARY"):
-        backend.run_full_pretraining(
+        backend._run_full_pretraining(
             Path("config"),
             Path("manifest"),
             {"execution_allowed": True},
+            execution_approval=object(),
             **_run_kwargs(permission),
         )
     assert calls == [
         "dataset_permission",
         "readiness",
         "request",
-        "issuer",
         "approval",
         "seed",
         "reader",
