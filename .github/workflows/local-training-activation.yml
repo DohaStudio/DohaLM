@@ -5,25 +5,47 @@ on:
     paths:
       - ".github/workflows/local-training-activation.yml"
       - "configs/local-training-*.example.json"
+      - "configs/full-pretraining-continuation.example.yaml"
       - "docs/training/local-single-user-activation.md"
+      - "docs/training/full-pretraining-one-epoch-continuation.md"
       - "scripts/training/run_full_pretraining.py"
+      - "src/training/checkpoint.py"
+      - "src/training/execution_approval.py"
+      - "src/training/full_pretraining.py"
+      - "src/training/full_pretraining_backend.py"
       - "src/training/local_activation.py"
       - "src/training/postgres_training_adapters.py"
       - "src/training/production_composition.py"
+      - "src/training/production_host_foundation.py"
+      - "src/training/production_orchestration_seams.py"
+      - "src/training/scheduler.py"
+      - "src/training/trainer.py"
       - "tests/fixtures/local_training_activation_mapping.json"
       - "tests/test_local_training_activation*.py"
+      - "tests/test_full_pretraining_continuation.py"
   push:
     branches: [develop]
     paths:
       - ".github/workflows/local-training-activation.yml"
       - "configs/local-training-*.example.json"
+      - "configs/full-pretraining-continuation.example.yaml"
       - "docs/training/local-single-user-activation.md"
+      - "docs/training/full-pretraining-one-epoch-continuation.md"
       - "scripts/training/run_full_pretraining.py"
+      - "src/training/checkpoint.py"
+      - "src/training/execution_approval.py"
+      - "src/training/full_pretraining.py"
+      - "src/training/full_pretraining_backend.py"
       - "src/training/local_activation.py"
       - "src/training/postgres_training_adapters.py"
       - "src/training/production_composition.py"
+      - "src/training/production_host_foundation.py"
+      - "src/training/production_orchestration_seams.py"
+      - "src/training/scheduler.py"
+      - "src/training/trainer.py"
       - "tests/fixtures/local_training_activation_mapping.json"
       - "tests/test_local_training_activation*.py"
+      - "tests/test_full_pretraining_continuation.py"
 
 permissions:
   contents: read
@@ -51,10 +73,12 @@ jobs:
         run: python -m pip check
       - name: Verify local activation style
         run: |
-          python -m ruff check src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py scripts/training/run_full_pretraining.py tests/test_local_training_activation.py tests/test_local_training_activation_integration.py
-          python -m ruff format --check src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py scripts/training/run_full_pretraining.py tests/test_local_training_activation.py tests/test_local_training_activation_integration.py
+          python -m ruff check src/training/checkpoint.py src/training/execution_approval.py src/training/full_pretraining.py src/training/full_pretraining_backend.py src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_host_foundation.py src/training/production_orchestration_seams.py src/training/scheduler.py src/training/trainer.py scripts/training/run_full_pretraining.py tests/test_full_pretraining_continuation.py tests/test_local_training_activation.py tests/test_local_training_activation_integration.py
+          python -m ruff format --check src/training/checkpoint.py src/training/execution_approval.py src/training/full_pretraining.py src/training/full_pretraining_backend.py src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_host_foundation.py src/training/production_orchestration_seams.py src/training/scheduler.py src/training/trainer.py scripts/training/run_full_pretraining.py tests/test_full_pretraining_continuation.py tests/test_local_training_activation.py tests/test_local_training_activation_integration.py
       - name: Run local activation unit contracts
         run: python -m pytest tests/test_local_training_activation.py -q
+      - name: Run exact r3 one-epoch continuation contracts
+        run: python -m pytest tests/test_full_pretraining_continuation.py -q
       - name: Run local durable PostgreSQL contract
         run: python -m pytest tests/test_local_training_activation_integration.py -q
       - name: Run C1 C2 C3 direct regressions
@@ -67,7 +91,7 @@ jobs:
       - name: Run Host activation and lifecycle regressions
         run: python -m pytest tests/test_production_host_foundation.py tests/test_production_orchestration_seams.py tests/test_production_full_pretraining_host.py tests/test_training_execution_issuer.py tests/test_dataset_training_activation.py -q
       - name: Compile local activation boundary
-        run: python -m compileall -q src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py scripts/training/run_full_pretraining.py
+        run: python -m compileall -q src/training/checkpoint.py src/training/execution_approval.py src/training/full_pretraining.py src/training/full_pretraining_backend.py src/training/local_activation.py src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_host_foundation.py src/training/production_orchestration_seams.py src/training/scheduler.py src/training/trainer.py scripts/training/run_full_pretraining.py
       - name: Verify task resource cleanup
         if: always()
         shell: bash

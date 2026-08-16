@@ -142,7 +142,7 @@ class ProductionTrainingHostIntent:
             type(action) is not str
             or action != "full_pretraining"
             or type(execution_mode) is not str
-            or execution_mode != "fresh"
+            or execution_mode not in {"fresh", "r3_one_epoch_continuation"}
             or not all(_is_reference(value) for value in references)
             or not all(_is_fingerprint(value) for value in fingerprints)
             or not _is_logical_root(output_logical_root)

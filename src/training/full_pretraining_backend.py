@@ -88,14 +88,22 @@ def _directory_bytes(path: Path) -> int:
 
 def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
     """Return a deterministic, text-free execution plan."""
+    checkpoint_steps = (
+        list(config.checkpoint_policy["steps"])
+        if config.is_continuation
+        else [MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP]
+    )
+    start_step = (
+        int(config.continuation["source_step"]) if config.is_continuation else 0
+    )
     return {
-        "candidate": "A",
+        "candidate": "A-one-epoch-continuation" if config.is_continuation else "A",
         "token_target": config.token_budget,
         "scheduled_token_limit": config.scheduled_tokens,
         "optimizer_step_limit": config.max_steps,
         "equivalent_epoch_limit": config.scheduled_tokens / 71_307_940,
-        "evaluation_steps": [0, FINAL_CHECKPOINT_STEP],
-        "checkpoint_steps": [MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP],
+        "evaluation_steps": [start_step, config.max_steps],
+        "checkpoint_steps": checkpoint_steps,
         "maximum_checkpoint_count": 2,
         "wall_clock_hard_stop_seconds": config.wall_clock_budget["hard_stop_seconds"],
         "output_budget_bytes": config.disk_budget["run_budget_bytes"],
@@ -157,11 +165,14 @@ class FullSafetyMonitor:
         return sum(values) / len(values) if len(values) >= 10 else None
 
     def observe(self, metric: TrainingMetric) -> None:
-        if metric.global_step > FINAL_CHECKPOINT_STEP:
+        if metric.global_step > self.config.max_steps:
             raise TrainingError(
                 "FULL_PRETRAINING_STEP_LIMIT", "Optimizer step limit exceeded."
             )
-        if metric.global_step * 2_048 > SCHEDULED_TOKEN_LIMIT:
+        if (
+            metric.global_step * self.config.tokens_per_optimizer_step
+            > self.config.scheduled_tokens
+        ):
             raise TrainingError(
                 "FULL_PRETRAINING_TOKEN_LIMIT", "Scheduled token limit exceeded."
             )
@@ -256,15 +267,17 @@ class SingleUseApprovalConsumer:
         run_id: str,
         manifest_path: Path,
         readiness_fingerprint: str,
+        first_optimizer_step: int = 1,
     ):
         self.path = path
         self.run_id = run_id
         self.manifest_path = manifest_path
         self.readiness_fingerprint = readiness_fingerprint
+        self.first_optimizer_step = first_optimizer_step
         self.consumed = False
 
     def observe(self, metric: TrainingMetric) -> None:
-        if metric.global_step != 1 or self.consumed:
+        if metric.global_step != self.first_optimizer_step or self.consumed:
             return
         _write_json(
             self.path,
@@ -272,7 +285,7 @@ class SingleUseApprovalConsumer:
                 "schema_version": "1.0",
                 "status": "consumed",
                 "single_use": True,
-                "consumed_at_optimizer_step": 1,
+                "consumed_at_optimizer_step": self.first_optimizer_step,
                 "run_id": self.run_id,
                 "approval_manifest_sha256": file_checksum(self.manifest_path),
                 "readiness_fingerprint": self.readiness_fingerprint,
@@ -281,11 +294,16 @@ class SingleUseApprovalConsumer:
         self.consumed = True
 
 
-def _checkpoint_manifest(output_root: Path) -> dict[str, Any]:
+def _checkpoint_manifest(
+    output_root: Path,
+    *,
+    expected_steps: tuple[int, ...] = (MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP),
+) -> dict[str, Any]:
     checkpoints = sorted(
         path for path in output_root.glob("checkpoint-*") if path.is_dir()
     )
-    if tuple(path.name for path in checkpoints) != ALLOWED_CHECKPOINTS:
+    expected_names = tuple(f"checkpoint-{step}" for step in expected_steps)
+    if tuple(path.name for path in checkpoints) != expected_names:
         raise TrainingError(
             "FULL_PRETRAINING_CHECKPOINT_POLICY_MISMATCH",
             "Only mid and final checkpoints are allowed.",
@@ -334,11 +352,6 @@ def _run_full_pretraining(
     )
     require_full_pretraining_technical_readiness(readiness_report)
     config = FullPretrainingConfig.from_yaml(config_path)
-    if config.resume_checkpoint is not None:
-        raise TrainingError(
-            "FULL_PRETRAINING_RESUME_NOT_APPROVED",
-            "Fresh Candidate A execution cannot resume.",
-        )
     output_root = resolve_full_pretraining_path(config, config.output_dir)
     if output_root.exists():
         raise TrainingError(
@@ -378,6 +391,32 @@ def _run_full_pretraining(
     started = time.perf_counter()
     lineage = _lineage(config)
     training = config.to_training_config()
+    is_continuation = getattr(config, "resume_checkpoint", None) is not None
+    resume_checkpoint: Path | None = None
+    source_dataset_metadata: dict[str, Any] | None = None
+    source_step = 0
+    if is_continuation:
+        resume_checkpoint = resolve_full_pretraining_path(
+            config, config.resume_checkpoint or ""
+        )
+        source_step = int(config.continuation["source_step"])
+        if (
+            file_checksum(resume_checkpoint / "checksums.json")
+            != config.continuation["source_manifest_sha256"]
+        ):
+            raise TrainingError(
+                "CHECKPOINT_CHECKSUM_MISMATCH",
+                "The approved continuation source manifest has drifted.",
+            )
+        source_checkpoint_config = json.loads(
+            (resume_checkpoint / "config.json").read_text(encoding="utf-8")
+        )
+        source_dataset_metadata = source_checkpoint_config.get("synthetic_dataset")
+        if type(source_dataset_metadata) is not dict:
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "The continuation source dataset metadata is unavailable.",
+            )
     seed_everything(config.seed)
     train_dataset = TokenizedJsonlDataset(
         resolve_full_pretraining_path(config, config.train_dataset),
@@ -424,6 +463,17 @@ def _run_full_pretraining(
         "token_budget": config.token_budget,
         "scheduled_token_limit": config.scheduled_tokens,
     }
+    continuation_metadata = {
+        "kind": "full-pretraining-candidate-a-one-epoch-continuation-v1",
+        **lineage,
+        **run_identity,
+        "resume_source_run_id": config.continuation.get("source_run_id"),
+        "resume_source_checkpoint": config.continuation.get("source_checkpoint"),
+        "resume_source_step": source_step,
+        "scheduler_horizon_policy": config.continuation.get("scheduler_horizon_policy"),
+    }
+    if is_continuation:
+        output_root.mkdir(parents=True, exist_ok=False)
     trainer = Trainer(
         model=DohaLMTiny(config.model),
         dataloader=train_loader,
@@ -431,13 +481,33 @@ def _run_full_pretraining(
         dataset_fingerprint=lineage["dataset_fingerprint"],
         tokenizer_fingerprint=lineage["tokenizer_fingerprint"],
         output_root=output_root,
-        dataset_metadata={
-            "kind": "full-pretraining-candidate-a-v1",
-            **lineage,
-            **run_identity,
-        },
+        dataset_metadata=(
+            source_dataset_metadata
+            if is_continuation
+            else {"kind": "full-pretraining-candidate-a-v1", **lineage, **run_identity}
+        ),
+        resume=is_continuation,
         metric_filename="full-training-metrics.jsonl",
     )
+    if is_continuation:
+        assert resume_checkpoint is not None
+        trainer.resume_from(
+            resume_checkpoint,
+            allow_scheduler_horizon_extension=True,
+            expected_source_step=source_step,
+        )
+        sampler_state = trainer.state.sampler_state or {}
+        if (
+            trainer.state.global_step != source_step
+            or trainer.state.optimizer_step != source_step
+            or sampler_state.get("sample_offset") != trainer.state.records_seen
+            or sampler_state.get("epoch") != 0
+        ):
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "The exact r3 sampler and optimizer boundary was not restored.",
+            )
+        trainer.dataset_metadata = continuation_metadata
     approval = json.loads(json.dumps(readiness_report))
     _write_json(
         output_root / "full-execution-manifest.json",
@@ -455,6 +525,7 @@ def _run_full_pretraining(
         run_id=output_root.name,
         manifest_path=manifest_path,
         readiness_fingerprint=approval["readiness_fingerprint"],
+        first_optimizer_step=source_step + 1,
     )
 
     def observe_and_consume(metric: TrainingMetric) -> None:
@@ -493,7 +564,14 @@ def _run_full_pretraining(
             raise TrainingError(
                 "FULL_PRETRAINING_WALL_CLOCK_LIMIT", "Wall-clock hard stop reached."
             )
-        checkpoint_manifest = _checkpoint_manifest(output_root)
+        expected_checkpoint_steps = (
+            tuple(config.checkpoint_policy["steps"])
+            if is_continuation
+            else (MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP)
+        )
+        checkpoint_manifest = _checkpoint_manifest(
+            output_root, expected_steps=expected_checkpoint_steps
+        )
         evaluation = {
             "schema_version": "1.0",
             "fingerprint": config.evaluation_policy["fingerprint"],
@@ -551,7 +629,7 @@ def _run_full_pretraining(
                 "schema_version": "1.0",
                 "status": "completed",
                 "global_step": trainer.state.global_step,
-                "checkpoint_count": 2,
+                "checkpoint_count": len(expected_checkpoint_steps),
                 "automatic_extension": False,
             },
         )

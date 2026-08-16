@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 from src.data.checksums import checksum_value
@@ -52,9 +52,15 @@ def _working_set_bytes() -> int | None:
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     psapi = ctypes.WinDLL("psapi", use_last_error=True)
     kernel32.GetCurrentProcess.restype = ctypes.c_void_p
-    psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(ProcessMemoryCounters), ctypes.c_ulong]
+    psapi.GetProcessMemoryInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ProcessMemoryCounters),
+        ctypes.c_ulong,
+    ]
     psapi.GetProcessMemoryInfo.restype = ctypes.c_int
-    if not psapi.GetProcessMemoryInfo(kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
+    if not psapi.GetProcessMemoryInfo(
+        kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb
+    ):
         return None
     return int(counters.WorkingSetSize)
 
@@ -102,9 +108,14 @@ class Trainer:
         metric_filename: str = "metrics.jsonl",
     ):
         if len(dataloader) == 0:
-            raise TrainingError("EMPTY_DATASET", "DataLoader가 batch를 생성하지 않습니다.")
+            raise TrainingError(
+                "EMPTY_DATASET", "DataLoader가 batch를 생성하지 않습니다."
+            )
         if not dataset_fingerprint or not tokenizer_fingerprint:
-            raise TrainingError("INVALID_TRAINING_CONFIG", "dataset과 tokenizer fingerprint가 필요합니다.")
+            raise TrainingError(
+                "INVALID_TRAINING_CONFIG",
+                "dataset과 tokenizer fingerprint가 필요합니다.",
+            )
         self.config = config
         self.device = torch.device(config.device)
         self.model = model.to(self.device)
@@ -116,12 +127,17 @@ class Trainer:
         self._session_started = time.perf_counter()
         if resume:
             if not self.output_root.is_dir():
-                raise TrainingError("RESUME_STATE_MISMATCH", "resume output 경로가 존재하지 않습니다.")
+                raise TrainingError(
+                    "RESUME_STATE_MISMATCH", "resume output 경로가 존재하지 않습니다."
+                )
         else:
             try:
                 self.output_root.mkdir(parents=True, exist_ok=False)
             except FileExistsError as exc:
-                raise TrainingError("CHECKPOINT_ALREADY_EXISTS", "기존 training output을 덮어쓸 수 없습니다.") from exc
+                raise TrainingError(
+                    "CHECKPOINT_ALREADY_EXISTS",
+                    "기존 training output을 덮어쓸 수 없습니다.",
+                ) from exc
         self.optimizer, self.optimizer_stats = create_optimizer(model, config)
         self.scheduler = create_scheduler(
             self.optimizer,
@@ -132,7 +148,9 @@ class Trainer:
         )
         self.amp_enabled = config.use_amp and self.device.type == "cuda"
         # Bounded smoke default; the production loss-scale policy remains undecided.
-        self.scaler = torch.amp.GradScaler("cuda", init_scale=1024.0, enabled=self.amp_enabled)
+        self.scaler = torch.amp.GradScaler(
+            "cuda", init_scale=1024.0, enabled=self.amp_enabled
+        )
         model_fingerprint = checksum_value(model.config.to_dict())
         self.state = state or TrainingState(
             model_config_fingerprint=model_fingerprint,
@@ -141,9 +159,16 @@ class Trainer:
             tokenizer_fingerprint=tokenizer_fingerprint,
         )
         self.checkpoints = CheckpointManager(self.output_root)
-        if Path(metric_filename).name != metric_filename or not metric_filename.endswith(".jsonl"):
-            raise TrainingError("INVALID_TRAINING_CONFIG", "metric filename은 단순한 .jsonl 파일명이어야 합니다.")
-        self.metric_logger = JsonlMetricLogger(self.output_root / metric_filename, append=resume)
+        if Path(
+            metric_filename
+        ).name != metric_filename or not metric_filename.endswith(".jsonl"):
+            raise TrainingError(
+                "INVALID_TRAINING_CONFIG",
+                "metric filename은 단순한 .jsonl 파일명이어야 합니다.",
+            )
+        self.metric_logger = JsonlMetricLogger(
+            self.output_root / metric_filename, append=resume
+        )
         self._iterator = None
         if self.state.sampler_state is not None:
             self._load_sampler_state(self.state.sampler_state)
@@ -184,7 +209,10 @@ class Trainer:
     def _load_sampler_state(self, value: dict[str, object]) -> None:
         sampler = self._stateful_sampler()
         if sampler is None:
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint sampler state를 복원할 sampler가 없습니다.")
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "checkpoint sampler state를 복원할 sampler가 없습니다.",
+            )
         sampler.load_state_dict(value)
         self._iterator = None
 
@@ -206,7 +234,9 @@ class Trainer:
         if self.device.type != "cuda":
             return 0, 0
         torch.cuda.synchronize(self.device)
-        return torch.cuda.max_memory_allocated(self.device), torch.cuda.max_memory_reserved(self.device)
+        return torch.cuda.max_memory_allocated(
+            self.device
+        ), torch.cuda.max_memory_reserved(self.device)
 
     def train(
         self,
@@ -217,7 +247,10 @@ class Trainer:
     ) -> TrainingResult:
         target = self.config.max_steps if target_steps is None else target_steps
         if target <= self.state.global_step or target > self.config.max_steps:
-            raise TrainingError("INVALID_TRAINING_CONFIG", "target_steps는 현재 step보다 크고 max_steps 이하여야 합니다.")
+            raise TrainingError(
+                "INVALID_TRAINING_CONFIG",
+                "target_steps는 현재 step보다 크고 max_steps 이하여야 합니다.",
+            )
         self.model.train()
         collected: list[TrainingMetric] = []
         checkpoint_names: list[str] = []
@@ -244,9 +277,15 @@ class Trainer:
                             attention_mask=batch["attention_mask"],
                             labels=batch["labels"],
                         )
-                        if output.loss is None or not bool(torch.isfinite(output.loss).item()):
-                            raise TrainingError("NON_FINITE_LOSS", "loss가 NaN 또는 Inf입니다.")
-                        scaled_loss = output.loss / self.config.gradient_accumulation_steps
+                        if output.loss is None or not bool(
+                            torch.isfinite(output.loss).item()
+                        ):
+                            raise TrainingError(
+                                "NON_FINITE_LOSS", "loss가 NaN 또는 Inf입니다."
+                            )
+                        scaled_loss = (
+                            output.loss / self.config.gradient_accumulation_steps
+                        )
                     self.scaler.scale(scaled_loss).backward()
                     raw_loss = float(output.loss.detach().float().cpu().item())
                     step_losses.append(raw_loss)
@@ -263,16 +302,23 @@ class Trainer:
                         ).item()
                     )
                 except RuntimeError as exc:
-                    raise TrainingError("NON_FINITE_GRADIENT", "gradient norm이 NaN 또는 Inf입니다.") from exc
+                    raise TrainingError(
+                        "NON_FINITE_GRADIENT", "gradient norm이 NaN 또는 Inf입니다."
+                    ) from exc
                 after_clip = self._gradient_norm()
                 if not math.isfinite(after_clip):
-                    raise TrainingError("NON_FINITE_GRADIENT", "clipping 후 gradient가 NaN 또는 Inf입니다.")
+                    raise TrainingError(
+                        "NON_FINITE_GRADIENT",
+                        "clipping 후 gradient가 NaN 또는 Inf입니다.",
+                    )
                 if before_optimizer_step is not None:
                     before_optimizer_step(self.state.global_step + 1)
                 scale_before = self.scaler.get_scale()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
-                amp_step_skipped = self.amp_enabled and self.scaler.get_scale() < scale_before
+                amp_step_skipped = (
+                    self.amp_enabled and self.scaler.get_scale() < scale_before
+                )
                 self.scheduler.step()
                 self.optimizer.zero_grad(set_to_none=True)
             except Exception:
@@ -308,18 +354,25 @@ class Trainer:
                 micro_step=self.state.micro_step,
                 amp_scale=float(self.scaler.get_scale()),
                 sampler_cursor=(self.state.sampler_state or {}).get("sample_offset"),
-                equivalent_epoch=self.state.records_seen / max(1, len(self.dataloader.dataset)),
+                equivalent_epoch=self.state.records_seen
+                / max(1, len(self.dataloader.dataset)),
                 cpu_working_set_bytes=_working_set_bytes(),
                 remaining_disk_bytes=shutil.disk_usage(self.output_root).free,
                 run_output_bytes=sum(
-                    path.stat().st_size for path in self.output_root.rglob("*") if path.is_file()
+                    path.stat().st_size
+                    for path in self.output_root.rglob("*")
+                    if path.is_file()
                 ),
                 elapsed_wall_clock=time.perf_counter() - self._session_started,
                 timestamp=utc_now(),
             )
             self.state.last_loss = mean_loss
             self.state.last_learning_rate = learning_rate
-            self.state.best_metric = mean_loss if self.state.best_metric is None else min(self.state.best_metric, mean_loss)
+            self.state.best_metric = (
+                mean_loss
+                if self.state.best_metric is None
+                else min(self.state.best_metric, mean_loss)
+            )
             self.state.updated_at = utc_now()
             if first_loss is None:
                 first_loss = mean_loss
@@ -350,7 +403,14 @@ class Trainer:
             optimizer_stats=self.optimizer_stats,
         )
 
-    def resume_from(self, checkpoint: Path, *, restore_rng: bool = True) -> TrainingState:
+    def resume_from(
+        self,
+        checkpoint: Path,
+        *,
+        restore_rng: bool = True,
+        allow_scheduler_horizon_extension: bool = False,
+        expected_source_step: int | None = None,
+    ) -> TrainingState:
         self.state = CheckpointManager.load(
             checkpoint,
             model=self.model,
@@ -364,6 +424,8 @@ class Trainer:
             dataset_metadata=self.dataset_metadata,
             device=self.device,
             restore_rng=restore_rng,
+            allow_scheduler_horizon_extension=allow_scheduler_horizon_extension,
+            expected_source_step=expected_source_step,
         )
         if self.state.sampler_state is not None:
             self._load_sampler_state(self.state.sampler_state)

@@ -46,11 +46,15 @@ def _write_json(path: Path, value: Any) -> None:
 
 
 def _tensor_to_base64(value: torch.Tensor) -> str:
-    return base64.b64encode(bytes(value.detach().cpu().to(torch.uint8).tolist())).decode("ascii")
+    return base64.b64encode(
+        bytes(value.detach().cpu().to(torch.uint8).tolist())
+    ).decode("ascii")
 
 
 def _tensor_from_base64(value: str) -> torch.Tensor:
-    return torch.tensor(list(base64.b64decode(value.encode("ascii"))), dtype=torch.uint8)
+    return torch.tensor(
+        list(base64.b64decode(value.encode("ascii"))), dtype=torch.uint8
+    )
 
 
 def capture_rng_state() -> dict[str, Any]:
@@ -62,22 +66,42 @@ def capture_rng_state() -> dict[str, Any]:
             "gaussian": python_state[2],
         },
         "torch_cpu": _tensor_to_base64(torch.get_rng_state()),
-        "torch_cuda": [_tensor_to_base64(item) for item in torch.cuda.get_rng_state_all()] if torch.cuda.is_available() else [],
+        "torch_cuda": [
+            _tensor_to_base64(item) for item in torch.cuda.get_rng_state_all()
+        ]
+        if torch.cuda.is_available()
+        else [],
     }
 
 
 def restore_rng_state(value: dict[str, Any]) -> None:
     try:
         python_state = value["python"]
-        random.setstate((python_state["version"], tuple(python_state["state"]), python_state["gaussian"]))
+        random.setstate(
+            (
+                python_state["version"],
+                tuple(python_state["state"]),
+                python_state["gaussian"],
+            )
+        )
         torch.set_rng_state(_tensor_from_base64(value["torch_cpu"]))
-        cuda_states = [_tensor_from_base64(item) for item in value.get("torch_cuda", [])]
+        cuda_states = [
+            _tensor_from_base64(item) for item in value.get("torch_cuda", [])
+        ]
         if cuda_states:
-            if not torch.cuda.is_available() or len(cuda_states) != torch.cuda.device_count():
-                raise TrainingError("RESUME_STATE_MISMATCH", "CUDA RNG device 수가 현재 환경과 일치하지 않습니다.")
+            if (
+                not torch.cuda.is_available()
+                or len(cuda_states) != torch.cuda.device_count()
+            ):
+                raise TrainingError(
+                    "RESUME_STATE_MISMATCH",
+                    "CUDA RNG device 수가 현재 환경과 일치하지 않습니다.",
+                )
             torch.cuda.set_rng_state_all(cuda_states)
     except (KeyError, TypeError, ValueError) as exc:
-        raise TrainingError("RESUME_STATE_MISMATCH", "RNG state 형식이 유효하지 않습니다.") from exc
+        raise TrainingError(
+            "RESUME_STATE_MISMATCH", "RNG state 형식이 유효하지 않습니다."
+        ) from exc
 
 
 @dataclass(frozen=True)
@@ -127,11 +151,20 @@ class CheckpointManager:
         started = time.perf_counter()
         final_path = self.checkpoint_path(state.global_step)
         if final_path.exists():
-            raise TrainingError("CHECKPOINT_ALREADY_EXISTS", f"checkpoint-{state.global_step}가 이미 존재합니다.")
+            raise TrainingError(
+                "CHECKPOINT_ALREADY_EXISTS",
+                f"checkpoint-{state.global_step}가 이미 존재합니다.",
+            )
         self.output_root.mkdir(parents=True, exist_ok=True)
-        staging = Path(tempfile.mkdtemp(prefix=f".checkpoint-{state.global_step}.staging-", dir=self.output_root)).resolve()
+        staging = Path(
+            tempfile.mkdtemp(
+                prefix=f".checkpoint-{state.global_step}.staging-", dir=self.output_root
+            )
+        ).resolve()
         if staging.parent != self.output_root:
-            raise TrainingError("RESUME_STATE_MISMATCH", "안전하지 않은 checkpoint staging 경로입니다.")
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "안전하지 않은 checkpoint staging 경로입니다."
+            )
         model_config_value = model_config.to_dict()
         model_fingerprint = checksum_value(model_config_value)
         try:
@@ -142,7 +175,10 @@ class CheckpointManager:
             state_value = state.to_dict()
             state_value["model_config_fingerprint"] = model_fingerprint
             state_value["training_config_fingerprint"] = training_config.fingerprint()
-            _write_json(staging / "training-state.json", {"state": state_value, "rng_state": capture_rng_state()})
+            _write_json(
+                staging / "training-state.json",
+                {"state": state_value, "rng_state": capture_rng_state()},
+            )
             config_value = {
                 "model": model_config_value,
                 "training": training_config.to_dict(),
@@ -165,14 +201,20 @@ class CheckpointManager:
             }
             _write_json(staging / "manifest.json", manifest)
             checksums = {name: file_checksum(staging / name) for name in CONTENT_FILES}
-            _write_json(staging / "checksums.json", {"algorithm": "sha256", "files": checksums})
+            _write_json(
+                staging / "checksums.json", {"algorithm": "sha256", "files": checksums}
+            )
             if {path.name for path in staging.iterdir()} != set(REQUIRED_FILES):
-                raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint 파일 집합이 계약과 다릅니다.")
+                raise TrainingError(
+                    "RESUME_STATE_MISMATCH", "checkpoint 파일 집합이 계약과 다릅니다."
+                )
             os.replace(staging, final_path)
         except TrainingError:
             raise
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint를 저장하지 못했습니다.") from exc
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "checkpoint를 저장하지 못했습니다."
+            ) from exc
         finally:
             self.last_save_seconds = time.perf_counter() - started
             if staging.exists():
@@ -180,29 +222,54 @@ class CheckpointManager:
         return final_path
 
     @staticmethod
-    def _read_and_verify(path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    def _read_and_verify(
+        path: Path,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         resolved = path.resolve()
-        if any((parent / "quarantine-policy.json").is_file() for parent in (resolved, *resolved.parents)):
+        if any(
+            (parent / "quarantine-policy.json").is_file()
+            for parent in (resolved, *resolved.parents)
+        ):
             raise TrainingError(
                 "CHECKPOINT_QUARANTINED",
                 "격리된 checkpoint는 inspect, resume 또는 evaluation에 사용할 수 없습니다.",
             )
-        if not resolved.is_dir() or {item.name for item in resolved.iterdir()} != set(REQUIRED_FILES):
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint 필수 파일이 누락되었거나 알 수 없는 파일이 있습니다.")
+        if not resolved.is_dir() or {item.name for item in resolved.iterdir()} != set(
+            REQUIRED_FILES
+        ):
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "checkpoint 필수 파일이 누락되었거나 알 수 없는 파일이 있습니다.",
+            )
         try:
-            checksums = json.loads((resolved / "checksums.json").read_text(encoding="utf-8"))
+            checksums = json.loads(
+                (resolved / "checksums.json").read_text(encoding="utf-8")
+            )
             for name in CONTENT_FILES:
-                if checksums.get("files", {}).get(name) != file_checksum(resolved / name):
-                    raise TrainingError("CHECKPOINT_CHECKSUM_MISMATCH", f"{name} checksum이 일치하지 않습니다.")
-            manifest = json.loads((resolved / "manifest.json").read_text(encoding="utf-8"))
+                if checksums.get("files", {}).get(name) != file_checksum(
+                    resolved / name
+                ):
+                    raise TrainingError(
+                        "CHECKPOINT_CHECKSUM_MISMATCH",
+                        f"{name} checksum이 일치하지 않습니다.",
+                    )
+            manifest = json.loads(
+                (resolved / "manifest.json").read_text(encoding="utf-8")
+            )
             config = json.loads((resolved / "config.json").read_text(encoding="utf-8"))
-            state = json.loads((resolved / "training-state.json").read_text(encoding="utf-8"))
+            state = json.loads(
+                (resolved / "training-state.json").read_text(encoding="utf-8")
+            )
         except TrainingError:
             raise
         except (OSError, json.JSONDecodeError, TypeError) as exc:
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint metadata를 읽을 수 없습니다.") from exc
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "checkpoint metadata를 읽을 수 없습니다."
+            ) from exc
         if manifest.get("format_version") != CHECKPOINT_FORMAT_VERSION:
-            raise TrainingError("RESUME_STATE_MISMATCH", "지원하지 않는 checkpoint format입니다.")
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "지원하지 않는 checkpoint format입니다."
+            )
         return manifest, config, state
 
     @classmethod
@@ -241,50 +308,160 @@ class CheckpointManager:
         device: torch.device,
         dataset_metadata: dict[str, Any] | None = None,
         restore_rng: bool = True,
+        allow_scheduler_horizon_extension: bool = False,
+        expected_source_step: int | None = None,
     ) -> TrainingState:
         manifest, config, state_document = cls._read_and_verify(path)
         model_value = model_config.to_dict()
-        if config.get("model") != model_value or config.get("model_config_fingerprint") != checksum_value(model_value):
-            raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "model config가 checkpoint와 일치하지 않습니다.")
-        if config.get("training_resume_fingerprint") != training_config.resume_fingerprint():
-            raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "핵심 training config가 checkpoint와 일치하지 않습니다.")
+        if config.get("model") != model_value or config.get(
+            "model_config_fingerprint"
+        ) != checksum_value(model_value):
+            raise TrainingError(
+                "CHECKPOINT_CONFIG_MISMATCH",
+                "model config가 checkpoint와 일치하지 않습니다.",
+            )
+        if allow_scheduler_horizon_extension:
+            source_training = config.get("training")
+            target_training = training_config.to_dict()
+            ignored = {
+                "max_steps",
+                "log_every",
+                "save_every",
+                "output_dir",
+                "num_workers",
+                "pin_memory",
+            }
+            if (
+                type(source_training) is not dict
+                or isinstance(expected_source_step, bool)
+                or not isinstance(expected_source_step, int)
+                or source_training.get("max_steps") != expected_source_step
+                or target_training.get("max_steps", 0) <= expected_source_step
+                or {
+                    key: value
+                    for key, value in source_training.items()
+                    if key not in ignored
+                }
+                != {
+                    key: value
+                    for key, value in target_training.items()
+                    if key not in ignored
+                }
+            ):
+                raise TrainingError(
+                    "CHECKPOINT_CONFIG_MISMATCH",
+                    "Approved continuation differs outside the scheduler horizon.",
+                )
+        elif (
+            config.get("training_resume_fingerprint")
+            != training_config.resume_fingerprint()
+        ):
+            raise TrainingError(
+                "CHECKPOINT_CONFIG_MISMATCH",
+                "핵심 training config가 checkpoint와 일치하지 않습니다.",
+            )
         if config.get("optimizer_type") != "AdamW":
-            raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "optimizer type이 checkpoint 계약과 일치하지 않습니다.")
+            raise TrainingError(
+                "CHECKPOINT_CONFIG_MISMATCH",
+                "optimizer type이 checkpoint 계약과 일치하지 않습니다.",
+            )
         if config.get("scheduler_type") != training_config.scheduler_type:
-            raise TrainingError("CHECKPOINT_CONFIG_MISMATCH", "scheduler type이 checkpoint 계약과 일치하지 않습니다.")
+            raise TrainingError(
+                "CHECKPOINT_CONFIG_MISMATCH",
+                "scheduler type이 checkpoint 계약과 일치하지 않습니다.",
+            )
         if manifest.get("tokenizer_fingerprint") != tokenizer_fingerprint:
-            raise TrainingError("CHECKPOINT_TOKENIZER_MISMATCH", "tokenizer fingerprint가 일치하지 않습니다.")
+            raise TrainingError(
+                "CHECKPOINT_TOKENIZER_MISMATCH",
+                "tokenizer fingerprint가 일치하지 않습니다.",
+            )
         if manifest.get("dataset_fingerprint") != dataset_fingerprint:
-            raise TrainingError("CHECKPOINT_DATASET_MISMATCH", "dataset fingerprint가 일치하지 않습니다.")
-        if dataset_metadata is not None and config.get("synthetic_dataset") != dataset_metadata:
-            raise TrainingError("CHECKPOINT_DATASET_MISMATCH", "dataset lineage metadata가 checkpoint와 일치하지 않습니다.")
+            raise TrainingError(
+                "CHECKPOINT_DATASET_MISMATCH",
+                "dataset fingerprint가 일치하지 않습니다.",
+            )
+        if (
+            dataset_metadata is not None
+            and config.get("synthetic_dataset") != dataset_metadata
+        ):
+            raise TrainingError(
+                "CHECKPOINT_DATASET_MISMATCH",
+                "dataset lineage metadata가 checkpoint와 일치하지 않습니다.",
+            )
         try:
-            model.load_state_dict(torch.load(path / "model.pt", map_location=device, weights_only=True), strict=True)
-            optimizer.load_state_dict(torch.load(path / "optimizer.pt", map_location=device, weights_only=True))
-            scheduler.load_state_dict(torch.load(path / "scheduler.pt", map_location="cpu", weights_only=True))
-            scaler.load_state_dict(torch.load(path / "scaler.pt", map_location="cpu", weights_only=True))
+            model.load_state_dict(
+                torch.load(path / "model.pt", map_location=device, weights_only=True),
+                strict=True,
+            )
+            optimizer.load_state_dict(
+                torch.load(
+                    path / "optimizer.pt", map_location=device, weights_only=True
+                )
+            )
+            scheduler_state = torch.load(
+                path / "scheduler.pt", map_location="cpu", weights_only=True
+            )
+            if allow_scheduler_horizon_extension:
+                extension_loader = getattr(
+                    scheduler, "load_state_dict_for_horizon_extension", None
+                )
+                if extension_loader is None:
+                    raise TrainingError(
+                        "RESUME_STATE_MISMATCH",
+                        "The configured scheduler cannot extend an approved horizon.",
+                    )
+                extension_loader(
+                    scheduler_state, expected_source_step=expected_source_step
+                )
+            else:
+                scheduler.load_state_dict(scheduler_state)
+            scaler.load_state_dict(
+                torch.load(path / "scaler.pt", map_location="cpu", weights_only=True)
+            )
         except TrainingError:
             raise
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint state를 복원하지 못했습니다.") from exc
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "checkpoint state를 복원하지 못했습니다."
+            ) from exc
         raw_state = state_document.get("state")
         if not isinstance(raw_state, dict):
-            raise TrainingError("RESUME_STATE_MISMATCH", "training state가 유효하지 않습니다.")
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH", "training state가 유효하지 않습니다."
+            )
         state = TrainingState.from_dict(raw_state)
         if (
             state.global_step != manifest.get("global_step")
-            or state.model_config_fingerprint != manifest.get("model_config_fingerprint")
-            or state.training_config_fingerprint != manifest.get("training_config_fingerprint")
+            or state.model_config_fingerprint
+            != manifest.get("model_config_fingerprint")
+            or state.training_config_fingerprint
+            != manifest.get("training_config_fingerprint")
             or state.dataset_fingerprint != manifest.get("dataset_fingerprint")
             or state.tokenizer_fingerprint != manifest.get("tokenizer_fingerprint")
         ):
-            raise TrainingError("RESUME_STATE_MISMATCH", "training state와 manifest fingerprint가 일치하지 않습니다.")
-        if state.global_step != scheduler.current_step or state.optimizer_step != state.global_step:
-            raise TrainingError("RESUME_STATE_MISMATCH", "optimizer·scheduler·global step이 연속적이지 않습니다.")
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "training state와 manifest fingerprint가 일치하지 않습니다.",
+            )
+        if (
+            state.global_step != scheduler.current_step
+            or state.optimizer_step != state.global_step
+        ):
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "optimizer·scheduler·global step이 연속적이지 않습니다.",
+            )
         token_embedding = getattr(model, "token_embedding", None)
         lm_head = getattr(model, "lm_head", None)
-        if token_embedding is not None and lm_head is not None and token_embedding.weight is not lm_head.weight:
-            raise TrainingError("RESUME_STATE_MISMATCH", "checkpoint load 후 weight tying이 유지되지 않았습니다.")
+        if (
+            token_embedding is not None
+            and lm_head is not None
+            and token_embedding.weight is not lm_head.weight
+        ):
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "checkpoint load 후 weight tying이 유지되지 않았습니다.",
+            )
         if restore_rng:
             restore_rng_state(state_document.get("rng_state", {}))
         return state

@@ -434,7 +434,12 @@ def _validate_training_prerequisites(
         )
         require_full_pretraining_technical_readiness(report)
         if (
-            config.resume_checkpoint is not None
+            intent.execution_mode
+            != (
+                "r3_one_epoch_continuation"
+                if getattr(config, "resume_checkpoint", None) is not None
+                else "fresh"
+            )
             or config_checksum_before != resolved.config_fingerprint
             or file_checksum(resolved.config_path) != config_checksum_before
             or file_checksum(resolved.manifest_path) != manifest_checksum_before

@@ -152,6 +152,21 @@ def _verified_source(expected_commit: str) -> None:
         raise _invalid_request()
 
 
+def _execution_mode(config: FullPretrainingConfig) -> str:
+    if getattr(config, "resume_checkpoint", None) is None:
+        return "fresh"
+    if getattr(config, "is_continuation", False) is not True:
+        raise _invalid_request()
+    if (
+        config.continuation.get("source_run_id") != "run-aihub-71748-local-v1-r3"
+        or config.continuation.get("source_checkpoint") != "checkpoint-4883"
+        or config.continuation.get("source_step") != 4_883
+        or config.continuation.get("target_cumulative_steps") != 34_817
+    ):
+        raise _invalid_request()
+    return "r3_one_epoch_continuation"
+
+
 def build_training_execution_request(
     config_path: Path,
     readiness_report: Mapping[str, Any],
@@ -162,7 +177,7 @@ def build_training_execution_request(
     dataset_manifest_id: str,
     dataset_pair_fingerprint: str,
 ) -> TrainingExecutionRequest:
-    """Build and register one exact, immutable fresh execution request."""
+    """Build one exact immutable fresh or r3 one-epoch execution request."""
 
     permission = _validate_target(
         dataset_permission,
@@ -186,8 +201,6 @@ def build_training_execution_request(
     ):
         raise _invalid_request()
     config = FullPretrainingConfig.from_yaml(config_path)
-    if config.resume_checkpoint is not None:
-        raise _invalid_request()
     _verified_source(source_commit)
     output_root = resolve_full_pretraining_path(config, config.output_dir)
     values = {
@@ -201,7 +214,7 @@ def build_training_execution_request(
         "run_id": output_root.name,
         "output_logical_root": config.output_dir,
         "source_commit": source_commit,
-        "execution_mode": "fresh",
+        "execution_mode": _execution_mode(config),
     }
     request = TrainingExecutionRequest(
         **values,
@@ -263,8 +276,7 @@ def require_training_execution_request(
         or request.output_logical_root != config.output_dir
         or request.source_commit != readiness_report.get("source_commit")
         or readiness_report.get("source_worktree_clean") is not True
-        or request.execution_mode != "fresh"
-        or config.resume_checkpoint is not None
+        or request.execution_mode != _execution_mode(config)
     ):
         raise _invalid_request()
 
