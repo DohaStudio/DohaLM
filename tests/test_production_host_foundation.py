@@ -533,6 +533,19 @@ def test_resolver_exception_is_sanitized(error: BaseException) -> None:
     assert type(error).__name__ not in str(caught.value)
 
 
+def test_resolver_preserves_explicit_missing_decision_classification() -> None:
+    unavailable = TrainingError(
+        "TRAINING_EXECUTION_DECISION_UNAVAILABLE",
+        "A training execution decision is unavailable.",
+    )
+    with pytest.raises(TrainingError) as caught:
+        foundation._resolve_trusted_training_decision(
+            FakeResolver(error=unavailable),
+            _decision_request(),
+        )
+    assert caught.value is unavailable
+
+
 def test_resolved_evidence_grants_no_execution_or_issuance_authority() -> None:
     result = foundation._resolve_trusted_training_decision(
         FakeResolver(), _decision_request()

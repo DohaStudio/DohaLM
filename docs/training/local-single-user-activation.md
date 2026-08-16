@@ -100,6 +100,14 @@ credential, DSN과 database exception을 포함하지 않는다.
 python -m scripts.training.run_full_pretraining destroy --config configs/local-training-activation.json --confirm-correlation-id <configured-correlation-id>
 ```
 
+## Technical readiness와 overall readiness
+
+[확정] local readiness는 technical prerequisite와 run-specific decision을 별도로 표시한다. Dataset/config/readiness가
+current이고 canonical inspection의 유일한 blocker가 `FULL_PRETRAINING_NOT_APPROVED`이면
+`technical_readiness=true`다. exact proposed run package가 존재하지만 current approved decision이 없으면
+`decision_available=true`, `execution_authorized=false`, overall status는 정상적인 fail-closed 상태인 `NOT_APPROVED`다.
+이 상태에서는 journal claim/transition, approval consume, model load, optimizer construction과 backend invocation이 0이다.
+
 ## Readiness 불변조건
 
 - dependency import, configuration redaction, PostgreSQL migration/role connectivity를 확인한다.

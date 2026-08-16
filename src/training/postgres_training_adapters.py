@@ -538,8 +538,7 @@ class _PostgresTrainingPrerequisiteResolver:
         }:
             raise ValueError("authority reference mismatch")
         if any(
-            row[f"{name}_state"] != "published"
-            for name in (*references, "dataset_pair")
+            row[f"{name}_state"] != "current" for name in (*references, "dataset_pair")
         ):
             raise _adapter_error(
                 "TRAINING_HOST_PREREQUISITE_UNAVAILABLE",
@@ -731,9 +730,9 @@ class _PostgresTrainingDecisionResolver:
             or row["decision_reference"] != f"decision:{decision_id}"
             or _trim(row["request_fingerprint"]) != request.request_fingerprint
             or row["decision_policy_reference"] != self._policy_reference
-            or row["decision_state"] != "published"
-            or row["issuer_state"] != "published"
-            or row["approver_state"] != "published"
+            or row["decision_state"] != "current"
+            or row["issuer_state"] != "current"
+            or row["approver_state"] != "current"
             or any(
                 _aware(row[f"{name}_state_effective_at"]) > snapshot_at
                 for name in ("decision", "issuer", "approver")

@@ -32,6 +32,7 @@ from src.training.production_host_foundation import (
 PAIR = "sha256:" + "1" * 64
 CONFIG = "sha256:" + "2" * 64
 READINESS = "sha256:" + "3" * 64
+READINESS_EVIDENCE = "sha256:" + "8" * 64
 SOURCE = "4" * 40
 DATASET_VERSION_AUTHORITY_ID = "11111111-1111-4111-8111-111111111111"
 DATASET_MANIFEST_AUTHORITY_ID = "22222222-2222-4222-8222-222222222222"
@@ -99,7 +100,7 @@ def _report() -> dict[str, object]:
     return {
         "execution_allowed": True,
         "blocking_codes": [],
-        "readiness_fingerprint": READINESS,
+        "readiness_fingerprint": READINESS_EVIDENCE,
         "source_commit": SOURCE,
         "source_worktree_clean": True,
         "nested": {"values": [1, "two", True, None]},
@@ -184,7 +185,7 @@ def _patch_prerequisite_inspection(
     )
     monkeypatch.setattr(
         seams,
-        "require_full_pretraining_approval",
+        "require_full_pretraining_technical_readiness",
         lambda _report: calls.append("readiness"),
     )
     monkeypatch.setattr(

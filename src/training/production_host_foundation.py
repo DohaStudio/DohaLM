@@ -414,6 +414,7 @@ def _resolve_trusted_training_decision_resolution(
     except TrainingError as exc:
         if type(exc) is TrainingError and exc.code in {
             "TRAINING_EXECUTION_DECISION_INVALID",
+            "TRAINING_EXECUTION_DECISION_UNAVAILABLE",
             "TRAINING_EXECUTION_APPROVAL_TARGET_MISMATCH",
         }:
             raise

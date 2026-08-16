@@ -532,6 +532,34 @@ def inspect_full_pretraining_readiness(
     }
 
 
+def require_full_pretraining_technical_readiness(report: dict[str, Any]) -> None:
+    """Accept material readiness without turning it into execution approval."""
+
+    if not isinstance(report, dict):
+        raise TrainingError(
+            "FULL_PRETRAINING_TECHNICAL_READINESS_BLOCKED",
+            "A technical Full Pretraining readiness report is required.",
+        )
+    blockers = report.get("blocking_codes")
+    approval_pending = blockers == ["FULL_PRETRAINING_NOT_APPROVED"]
+    fully_approved = blockers == [] and report.get("execution_allowed") is True
+    if fully_approved:
+        # Preserve the established execution-approved report contract. Older
+        # callers do not materialize the presentation-only status fields.
+        return
+    if (
+        not approval_pending
+        or report.get("status") != "ready_awaiting_final_execution_approval"
+        or report.get("inspection_only") is not True
+        or report.get("training_started") is not False
+        or report.get("execution_allowed") is not False
+    ):
+        raise TrainingError(
+            "FULL_PRETRAINING_TECHNICAL_READINESS_BLOCKED",
+            "The material and configuration are not technically ready.",
+        )
+
+
 def require_full_pretraining_approval(report: dict[str, Any]) -> None:
     if report.get("execution_allowed") is not True:
         raise TrainingError(

@@ -20,7 +20,7 @@ from src.data.common_dataset_contracts import (
 )
 
 from .errors import TrainingError
-from .full_pretraining import require_full_pretraining_approval
+from .full_pretraining import require_full_pretraining_technical_readiness
 
 
 @dataclass(frozen=True)
@@ -105,13 +105,12 @@ def evaluate_dataset_training_entry(
         return _blocked("DATASET_DOMAIN_READINESS_INVALID")
 
     try:
-        require_full_pretraining_approval(readiness)
+        require_full_pretraining_technical_readiness(readiness)
     except TrainingError:
         return _blocked("FULL_PRETRAINING_READINESS_BLOCKED")
     if (
         readiness.get("inspection_only") is not True
         or readiness.get("training_started") is not False
-        or readiness.get("blocking_codes") != []
     ):
         return _blocked("FULL_PRETRAINING_READINESS_INVALID")
 
