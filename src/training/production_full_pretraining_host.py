@@ -16,14 +16,15 @@ from typing import Callable, Iterator
 from src.data.checksums import checksum_value
 
 from .errors import TrainingError
-from .execution_approval import TrainingExecutionRequest
+from .execution_approval import TrainingExecutionApproval, TrainingExecutionRequest
 from .execution_issuer import (
     TrainingExecutionIssuerDecisionValue,
-    _TrainingExecutionDecisionSubmission,
-    _TrainingExecutionSubmissionCapability,
     _compose_production_training_execution_issuer,
     _release_production_training_execution_issuer,
     _submit_training_execution_decision_from_trusted_orchestrator,
+    _TrainingExecutionDecisionSubmission,
+    _TrainingExecutionSubmissionCapability,
+    issue_training_execution_approval,
 )
 from .production_host_foundation import (
     DurableTrainingOrchestrationJournal,
@@ -42,15 +43,14 @@ from .production_host_foundation import (
 )
 from .production_orchestration_seams import (
     ResolvedTrainingPrerequisites,
+    _build_training_execution_request_from_prerequisites,
     _FullPretrainingLifecycleResult,
     _HostFullPretrainingBackendLifecycle,
-    _TrustedTrainingPrerequisiteResolver,
-    _build_training_execution_request_from_prerequisites,
     _resolve_training_prerequisites,
     _run_host_full_pretraining,
     _thaw_json,
+    _TrustedTrainingPrerequisiteResolver,
 )
-
 
 _REASON_CODE_PATTERN = re.compile(r"[A-Z][A-Z0-9_]{0,127}")
 _TERMINAL_PHASES = frozenset(
@@ -175,6 +175,7 @@ class _HostBackendBinding:
         lifecycle: _HostFullPretrainingBackendLifecycle,
         resolved: ResolvedTrainingPrerequisites,
         request: TrainingExecutionRequest,
+        execution_approval: TrainingExecutionApproval,
     ) -> _FullPretrainingLifecycleResult:
         return self._runner(
             lifecycle,
@@ -186,6 +187,7 @@ class _HostBackendBinding:
             dataset_manifest_id=resolved.dataset_manifest_id,
             dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
             execution_request=request,
+            execution_approval=execution_approval,
         )
 
 
@@ -380,10 +382,26 @@ class ProductionFullPretrainingHost:
                     "TRAINING_HOST_DECISION_SUBMISSION_UNCERTAIN",
                 )
 
+            try:
+                execution_approval = issue_training_execution_approval(request)
+            except TrainingError as exc:
+                self._record_known_failure(
+                    identity,
+                    TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                    exc.code,
+                )
+                raise
+            except Exception:
+                return self._record_outcome_unknown(
+                    identity,
+                    TrainingOrchestrationPhase.DECISION_SUBMITTED,
+                    "TRAINING_EXECUTION_APPROVAL_OUTCOME_UNKNOWN",
+                )
+
             lifecycle = _HostFullPretrainingBackendLifecycle(self._journal, identity)
             try:
                 lifecycle_result = self._backend_binding._run(
-                    lifecycle, resolved, request
+                    lifecycle, resolved, request, execution_approval
                 )
             except BaseException as exc:
                 if not isinstance(exc, Exception):

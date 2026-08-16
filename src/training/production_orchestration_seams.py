@@ -26,6 +26,7 @@ from .dataset_training_entry import (
 )
 from .errors import TrainingError
 from .execution_approval import (
+    TrainingExecutionApproval,
     TrainingExecutionRequest,
     _verified_source,
     build_training_execution_request,
@@ -48,7 +49,6 @@ from .production_host_foundation import (
     _is_logical_root,
     _is_reference,
 )
-
 
 _COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 _REASON_CODE_PATTERN = re.compile(r"[A-Z][A-Z0-9_]{0,127}")
@@ -759,6 +759,7 @@ def _run_host_full_pretraining(
     dataset_manifest_id: str,
     dataset_pair_fingerprint: str,
     execution_request: TrainingExecutionRequest,
+    execution_approval: TrainingExecutionApproval,
 ) -> _FullPretrainingLifecycleResult:
     """Run the canonical backend once and return only sanitized lifecycle facts."""
     if type(lifecycle) is not _HostFullPretrainingBackendLifecycle:
@@ -778,6 +779,7 @@ def _run_host_full_pretraining(
             dataset_manifest_id=dataset_manifest_id,
             dataset_pair_fingerprint=dataset_pair_fingerprint,
             execution_request=execution_request,
+            execution_approval=execution_approval,
             _lifecycle=lifecycle,
         )
     except TrainingError as exc:

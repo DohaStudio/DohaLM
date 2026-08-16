@@ -59,6 +59,14 @@ constructor boundary에서 주입한다. Host는 config/environment/DSN을 읽�
 process boundary와 두 policy reference는 composition configuration에서 한 번 고정되며 adapter가
 보정하지 않는다.
 
+[확정] run-specific 승인 authority는 PostgreSQL decision snapshot 하나다. Host는 exact decision을
+trusted issuer에 제출하고 journal의 `DECISION_SUBMITTED` 전이가 durable하게 성공한 뒤 동일 request에
+대한 process-local single-use `TrainingExecutionApproval` capability를 정확히 한 번 발급한다. 이 exact
+capability는 package-private Host/backend binding을 통해 backend로 명시적으로 전달되며 backend가 실행
+경계 직전에 한 번 소비한다. backend는 technical readiness manifest를 별도의 실행 승인으로 해석하거나
+global issuer를 다시 조회하지 않는다. public standalone backend에는 capability 주입면이 없으므로 계속
+fail closed다.
+
 [확정] 이 PR은 intent intake, executable, scheduler와 public Host accessor를 제공하지 않는다.
 따라서 C3 graph가 synthetic fixture에서 constructible해도 Production Activation과 Training execution은
 계속 false다. 실제 intake와 backend invocation은 별도 Production Activation Gate 대상이다.
@@ -119,3 +127,4 @@ trace를 포함하지 않는다. configuration 오류를 database integrity fail
 | 2026-08-16 | [확정] production TLS를 유지하면서 explicit `local_single_user` loopback profile 소비 경계 연결 |
 | 2026-08-16 | [확정] explicit lifecycle state, Host/factory shared lease, compare-and-clear registration과 credential reference cleanup 보완 |
 | 2026-08-16 | [확정] C3 package-private composition, provider/activation guard, lifecycle와 preflight 구현 계약 기록 |
+| 2026-08-16 | [확정] canonical PostgreSQL decision에서 Host가 발급한 single-use capability의 explicit backend handoff 계약 기록 |

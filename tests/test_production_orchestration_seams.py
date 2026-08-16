@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import inspect
 import importlib.util
+import inspect
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import FrozenInstanceError, fields
@@ -19,7 +19,10 @@ from src.training.dataset_training_entry import (
     require_dataset_training_activation,
 )
 from src.training.errors import TrainingError
-from src.training.execution_approval import TrainingExecutionRequest
+from src.training.execution_approval import (
+    TrainingExecutionApproval,
+    TrainingExecutionRequest,
+)
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
     TrainingOrchestrationClaimRequest,
@@ -27,7 +30,6 @@ from src.training.production_host_foundation import (
     TrainingOrchestrationPhase,
     TrainingOrchestrationRecord,
 )
-
 
 PAIR = "sha256:" + "1" * 64
 CONFIG = "sha256:" + "2" * 64
@@ -481,6 +483,14 @@ def _run_lifecycle(lifecycle):
             SOURCE,
             "fresh",
             "sha256:" + "6" * 64,
+        ),
+        execution_approval=TrainingExecutionApproval(
+            authorization_id="authorization-1",
+            issuer_id="issuer-1",
+            approver_reference="approver-1",
+            evidence_reference="decision-ref",
+            request_fingerprint="sha256:" + "6" * 64,
+            issued_at="2026-08-13T12:00:00+09:00",
         ),
     )
 

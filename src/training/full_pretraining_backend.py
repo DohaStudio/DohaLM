@@ -1,8 +1,9 @@
 """Candidate A-only Full Pretraining execution backend.
 
-Importing and inspecting this module never starts training. The execution entry
-point requires a fully approved readiness report and a production-issued
-Training Execution Approval. The CLI does not compose that issuer.
+Importing and inspecting this module never starts training. The Host path
+requires technical readiness plus an explicit production-issued Training
+Execution Approval. The public standalone entry has no capability injection
+surface and therefore remains fail closed.
 """
 
 from __future__ import annotations
@@ -31,22 +32,21 @@ from .dataset_training_entry import (
 )
 from .errors import TrainingError
 from .execution_approval import (
+    TrainingExecutionApproval,
     TrainingExecutionRequest,
     consume_training_execution_approval,
     require_training_execution_request,
 )
-from .execution_issuer import issue_training_execution_approval
 from .full_pretraining import (
     FullPretrainingConfig,
     inspect_full_pretraining_readiness,
-    require_full_pretraining_approval,
+    require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
 from .metrics import TrainingMetric
 from .pilot_pretraining import _lineage
 from .trainer import Trainer, seed_everything
 from .validation import evaluate_language_model
-
 
 MID_CHECKPOINT_STEP = 2_442
 FINAL_CHECKPOINT_STEP = 4_883
@@ -312,6 +312,7 @@ def _run_full_pretraining(
     dataset_manifest_id: str = "",
     dataset_pair_fingerprint: str = "",
     execution_request: TrainingExecutionRequest | None = None,
+    execution_approval: TrainingExecutionApproval | None = None,
     _lifecycle: object | None = None,
 ) -> dict[str, Any]:
     """Shared package-private implementation for public and future Host paths."""
@@ -331,7 +332,7 @@ def _run_full_pretraining(
         dataset_manifest_id=dataset_manifest_id,
         pair_fingerprint=dataset_pair_fingerprint,
     )
-    require_full_pretraining_approval(readiness_report)
+    require_full_pretraining_technical_readiness(readiness_report)
     config = FullPretrainingConfig.from_yaml(config_path)
     if config.resume_checkpoint is not None:
         raise TrainingError(
@@ -360,7 +361,6 @@ def _run_full_pretraining(
         dataset_manifest_id=dataset_manifest_id,
         dataset_pair_fingerprint=dataset_pair_fingerprint,
     )
-    execution_approval = issue_training_execution_approval(execution_request)
     consume_training_execution_approval(
         execution_approval,
         execution_request,
