@@ -338,6 +338,9 @@ def test_result_is_immutable_and_preserves_safe_lineage_only() -> None:
     assert result.input_references[0].object_id == "artifact_source"
     assert result.rights_metadata_id == "rights_test"
     assert result.training_eligibility_id == "eligibility_test"
+    assert result.rights_producer.name == "synthetic-test"
+    assert result.eligibility_producer.name == "synthetic-test"
+    assert result.canonical_status == "approved"
     assert not hasattr(result, "payload")
     with pytest.raises(FrozenInstanceError):
         result.decision = ReviewDecision.REJECTED  # type: ignore[misc]

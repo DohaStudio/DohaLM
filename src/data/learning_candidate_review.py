@@ -92,6 +92,9 @@ class LearningCandidateReviewResult:
     candidate_schema_version: str
     candidate_content_fingerprint: str
     candidate_producer: ProducerIdentity
+    rights_producer: ProducerIdentity
+    eligibility_producer: ProducerIdentity
+    canonical_status: str
     source_type: str
     task: str
     input_references: tuple[CommonObjectReference, ...]
@@ -117,8 +120,10 @@ class LearningCandidateReviewResult:
 
 
 @dataclass(frozen=True)
-class _CurrentEvidenceDecision:
-    reason: ReviewReason | None
+class CurrentLearningCandidateEvidence:
+    """Immutable policy result shared by explicit downstream review Gates."""
+
+    reason_code: ReviewReason | None
     resolved: bool
 
 
@@ -159,6 +164,9 @@ def review_learning_candidate(
         candidate_schema_version=candidate.schema_version,
         candidate_content_fingerprint=candidate.content_fingerprint,
         candidate_producer=candidate.candidate_producer,
+        rights_producer=candidate.rights_producer,
+        eligibility_producer=candidate.eligibility_producer,
+        canonical_status=candidate.canonical_status,
         source_type=candidate.source_type,
         task=candidate.task,
         input_references=candidate.input_references,
@@ -223,10 +231,10 @@ def _require_validated_candidate(
 
 
 def _resolve_current_evidence(
-    candidate: ValidatedLearningCandidate,
+    candidate: ValidatedLearningCandidate | LearningCandidateReviewResult,
     authority: LearningCandidateReviewAuthority,
     checked_at: datetime,
-) -> _CurrentEvidenceDecision:
+) -> CurrentLearningCandidateEvidence:
     rights_resolver = getattr(authority, "resolve_rights_metadata", None)
     eligibility_resolver = getattr(authority, "resolve_training_eligibility", None)
     if not callable(rights_resolver) or not callable(eligibility_resolver):
@@ -242,7 +250,7 @@ def _resolve_current_evidence(
             "CURRENT_AUTHORITY_UNAVAILABLE", "authority"
         ) from None
     if rights is None or eligibility is None:
-        return _CurrentEvidenceDecision(
+        return CurrentLearningCandidateEvidence(
             ReviewReason.NEEDS_REVIEW_EVIDENCE_UNRESOLVED,
             False,
         )
@@ -252,11 +260,25 @@ def _resolve_current_evidence(
     _require_current_identity(candidate, rights, eligibility, checked_at)
     rights_reason = _rights_reason(rights, checked_at)
     if rights_reason is not None:
-        return _CurrentEvidenceDecision(rights_reason, True)
+        return CurrentLearningCandidateEvidence(rights_reason, True)
     eligibility_reason = _eligibility_reason(candidate, eligibility, checked_at)
     if eligibility_reason is not None:
-        return _CurrentEvidenceDecision(eligibility_reason, True)
-    return _CurrentEvidenceDecision(None, True)
+        return CurrentLearningCandidateEvidence(eligibility_reason, True)
+    return CurrentLearningCandidateEvidence(None, True)
+
+
+def evaluate_current_review_evidence(
+    review_result: LearningCandidateReviewResult,
+    *,
+    authority: LearningCandidateReviewAuthority,
+    checked_at: datetime,
+) -> CurrentLearningCandidateEvidence:
+    """Re-run the review Gate's current evidence policy without side effects."""
+
+    evaluation_time = _require_review_time(checked_at)
+    if type(review_result) is not LearningCandidateReviewResult:
+        raise LearningCandidateReviewError("REVIEW_RESULT_INVALID", "review_result")
+    return _resolve_current_evidence(review_result, authority, evaluation_time)
 
 
 def _validate_current_contract(payload: object, stage: str) -> None:
@@ -279,7 +301,7 @@ def _validate_current_contract(payload: object, stage: str) -> None:
 
 
 def _require_current_identity(
-    candidate: ValidatedLearningCandidate,
+    candidate: ValidatedLearningCandidate | LearningCandidateReviewResult,
     rights: Any,
     eligibility: Any,
     checked_at: datetime,
@@ -339,7 +361,7 @@ def _rights_reason(rights: Any, checked_at: datetime) -> ReviewReason | None:
 
 
 def _eligibility_reason(
-    candidate: ValidatedLearningCandidate,
+    candidate: ValidatedLearningCandidate | LearningCandidateReviewResult,
     eligibility: Any,
     checked_at: datetime,
 ) -> ReviewReason | None:
@@ -361,14 +383,16 @@ def _eligibility_reason(
 
 def _final_decision(
     requested: ReviewDecision,
-    current: _CurrentEvidenceDecision,
+    current: CurrentLearningCandidateEvidence,
 ) -> tuple[ReviewDecision, ReviewReason]:
-    if current.reason is not None and current.reason.name.startswith("REJECTED_"):
-        return ReviewDecision.REJECTED, current.reason
+    if current.reason_code is not None and current.reason_code.name.startswith(
+        "REJECTED_"
+    ):
+        return ReviewDecision.REJECTED, current.reason_code
     if requested is ReviewDecision.REJECTED:
         return ReviewDecision.REJECTED, ReviewReason.REJECTED_BY_REVIEWER
-    if current.reason is ReviewReason.NEEDS_REVIEW_EVIDENCE_UNRESOLVED:
-        return ReviewDecision.NEEDS_REVIEW, current.reason
+    if current.reason_code is ReviewReason.NEEDS_REVIEW_EVIDENCE_UNRESOLVED:
+        return ReviewDecision.NEEDS_REVIEW, current.reason_code
     if requested is ReviewDecision.NEEDS_REVIEW:
         return ReviewDecision.NEEDS_REVIEW, ReviewReason.NEEDS_REVIEW_REQUESTED
     return ReviewDecision.ACCEPTED, ReviewReason.ACCEPTED_VALID_CURRENT_ELIGIBILITY
@@ -412,10 +436,12 @@ def _utc_text(value: datetime) -> str:
 
 
 __all__ = [
+    "CurrentLearningCandidateEvidence",
     "LearningCandidateReviewAuthority",
     "LearningCandidateReviewError",
     "LearningCandidateReviewResult",
     "ReviewDecision",
     "ReviewReason",
+    "evaluate_current_review_evidence",
     "review_learning_candidate",
 ]
