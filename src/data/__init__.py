@@ -37,12 +37,21 @@ from .learning_candidate_consumer import (
     ValidatedLearningCandidate,
     validate_learning_candidate_for_consumption,
 )
+from .learning_candidate_dataset_handoff import (
+    DatasetInclusionHandoff,
+    DatasetInclusionHandoffError,
+    DatasetInclusionHandoffRejected,
+    DatasetInclusionHandoffStatus,
+    create_dataset_inclusion_handoff,
+)
 from .learning_candidate_review import (
+    CurrentLearningCandidateEvidence,
     LearningCandidateReviewAuthority,
     LearningCandidateReviewError,
     LearningCandidateReviewResult,
     ReviewDecision,
     ReviewReason,
+    evaluate_current_review_evidence,
     review_learning_candidate,
 )
 from .pipeline import build_pipeline, validate_pipeline
@@ -53,11 +62,16 @@ __all__ = [
     "CommonContractRuntimeError",
     "CommonDatasetValidationError",
     "CommonObjectReference",
+    "CurrentLearningCandidateEvidence",
     "DataConfig",
     "DataIssue",
     "DataPipelineError",
     "DatasetGovernanceError",
     "DatasetGovernanceIssue",
+    "DatasetInclusionHandoff",
+    "DatasetInclusionHandoffError",
+    "DatasetInclusionHandoffRejected",
+    "DatasetInclusionHandoffStatus",
     "DatasetPublicationError",
     "DatasetPublicationMetadata",
     "DatasetPublicationResult",
@@ -74,6 +88,8 @@ __all__ = [
     "approve_dataset_version",
     "begin_dataset_review",
     "build_pipeline",
+    "create_dataset_inclusion_handoff",
+    "evaluate_current_review_evidence",
     "load_data_config",
     "propose_dataset_version",
     "publish_dataset_version",

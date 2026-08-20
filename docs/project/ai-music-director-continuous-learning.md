@@ -1,7 +1,7 @@
 # AI Music Director와 Product Continuous Learning 경계
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-20
+- 마지막 검토일: 2026-08-21
 - 선행 결정: [ADR-014](../decisions/ADR-014-dataset-product-governance-boundary.md), [ADR-021](../decisions/ADR-021-production-training-adapters-and-durable-journal.md)
 - 제안 결정: [ADR-024](../decisions/ADR-024-ai-music-director-product-boundary.md)
 
@@ -16,7 +16,7 @@
 | 프로젝트 정의 | reusable LLM model provider | AI Music Director intelligence provider는 ADR-024 제안 |
 | Dataset governance | DohaLM의 immutable DatasetVersion·Manifest publication 구현 | 제품 candidate를 Dataset으로 승격하는 policy는 미구현 |
 | Foundation execution | explicit approval, PostgreSQL authority·journal, Host·composition 구현 | 기존 계보 유지 |
-| Product/adapter learning | Common LearningCandidate 소비와 explicit local review Gate 구현 | persistence·Dataset inclusion·Training request·Evaluation Gate는 미구현 |
+| Product/adapter learning | Common LearningCandidate 소비, explicit local review Gate와 Dataset inclusion handoff 구현 | persistence·product DatasetVersion assembly·Training request·Evaluation Gate는 미구현 |
 | Reference·Similarity | Common 객체 정의만 authority | DohaLM typed consumer·해석 capability 미구현 |
 | Model promotion | 자동 promotion 없음 | Evaluation과 별도 사용자 승인 계약 필요 |
 
@@ -36,7 +36,7 @@
 
 | 객체·단계 | 현재 상태 | 다음 Gate |
 |---|---|---|
-| `LearningCandidate` | Common 계약 소비와 current evidence를 재검증하는 immutable review result 구현 | producer/transport와 review persistence |
+| `LearningCandidate` | Common 계약 소비, current evidence review와 Dataset inclusion handoff 구현 | producer/transport와 review·handoff persistence |
 | `RightsMetadata` | upstream authoritative evidence; DohaLM producer 아님 | exact consumer boundary |
 | `TrainingEligibility` | DohaLM Dataset governance의 candidate 단위 Gate | authoritative producer workflow |
 | `DatasetVersion`, `DatasetManifest` | governance·publication 구현 | product candidate 승격 policy |
@@ -52,6 +52,7 @@
 ```text
 LearningCandidate creation and review
   -> current RightsMetadata and TrainingEligibility
+  -> immutable Dataset inclusion handoff
   -> DatasetVersion draft inclusion
   -> Dataset-level eligibility validation and review
   -> approved DatasetVersion, issued Manifest and freeze
@@ -76,7 +77,10 @@ LearningCandidate creation and review
 - [현재] `src.data.learning_candidate_review.review_learning_candidate()`은 `ValidatedLearningCandidate`만 candidate 입력으로 받고, 명시적 reviewer·reviewed_at·decision과 주입된 current authority port를 사용한다.
 - [현재] review 시점의 canonical RightsMetadata·TrainingEligibility를 다시 검증하며 unresolved evidence는 `NEEDS_REVIEW`, 만료·철회·policy-invalid evidence는 `REJECTED`, contract·identity·lineage·scope 위반은 error로 fail closed한다.
 - [현재] `ACCEPTED`는 Dataset inclusion review 진입 가능성만 뜻하며 Dataset inclusion/publication, Training request·실행, Evaluation·promotion 권한을 만들지 않는다.
-- [계획] Candidate review persistence, DatasetVersion inclusion/publication handoff, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
+- [현재] `src.data.learning_candidate_dataset_handoff.create_dataset_inclusion_handoff()`는 exact `LearningCandidateReviewResult(decision=ACCEPTED)`만 받고 handoff 시점의 current RightsMetadata·TrainingEligibility를 동일 authority와 Common validator로 다시 확인한다.
+- [현재] `DatasetInclusionHandoff`는 candidate·review·evidence·lineage·workspace identity를 보존하는 immutable local lifecycle object이며 별도 Dataset inclusion review의 입력 후보일 뿐이다.
+- [현재] handoff 생성은 DatasetVersion을 만들거나 Dataset governance/publication 함수를 호출하지 않으며 Training·Evaluation·promotion, persistence와 API side effect가 없다.
+- [계획] Candidate review·handoff persistence, product-specific DatasetVersion assembly와 inclusion review, publication 연결, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
 
 ## 후속 결정 순서
 
@@ -97,6 +101,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-21 | ACCEPTED review의 current evidence를 재검증하는 immutable Dataset inclusion handoff와 DatasetVersion/publication 비자동화 경계 반영 |
 | 2026-08-20 | ValidatedLearningCandidate 기반 explicit review와 review 시점 current rights·eligibility 재검증 Gate 구현 상태 반영 |
 | 2026-08-20 | Common LearningCandidate·RightsMetadata·TrainingEligibility fail-closed consumer boundary 구현 상태와 후속 Gate 분리 |
 | 2026-08-20 | PR #103의 제품 방향을 current authority에 맞춰 이관하고 Provider ownership, candidate Gate와 Foundation/product learning을 분리 |
