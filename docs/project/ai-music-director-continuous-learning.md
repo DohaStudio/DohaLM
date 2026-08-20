@@ -4,6 +4,7 @@
 - 마지막 검토일: 2026-08-21
 - 선행 결정: [ADR-014](../decisions/ADR-014-dataset-product-governance-boundary.md), [ADR-021](../decisions/ADR-021-production-training-adapters-and-durable-journal.md)
 - 제안 결정: [ADR-024](../decisions/ADR-024-ai-music-director-product-boundary.md)
+- proposal 결정: [ADR-025](../decisions/ADR-025-dataset-version-proposal-authority-contract.md)
 
 ## 목적
 
@@ -83,7 +84,17 @@ LearningCandidate creation and review
 - [현재] `src.data.product_dataset_composition.compose_product_dataset()`은 여러 exact `DatasetInclusionHandoff`와 명시적인 DohaLM Dataset-level authority input을 immutable `ProductDatasetComposition`으로 조립한다.
 - [현재] composition은 handoff identity와 current rights·eligibility를 재검증하고, train·validation·test member, group key, workspace, source·review lineage와 Dataset identity를 결정론적으로 결속한다.
 - [현재] `build_dataset_version_proposal_mapping()`은 arbitrary caller payload 없이 완전한 Common DatasetVersion `draft` mapping을 side-effect-free하게 만들고 Common validator로 검증한다. 이 호출은 Dataset governance proposal을 생성하지 않는다.
-- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff와 Product Dataset Composition까지만 구현됐다. DatasetVersion Governance Integration, Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
+- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff, Product Dataset Composition과 DatasetVersion Proposal Authority까지 구현됐다. DatasetVersion review·approval, Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
+
+## DatasetVersion proposal authority
+
+- [현재] `adjudicate_dataset_version_proposal()`은 완전한 proposal mapping, timezone-aware `proposed_at`, current evidence authority와 proposal authority를 모두 필수 입력으로 받는다.
+- [현재] 순수 `propose_dataset_version()`의 canonical draft payload checksum을 proposal fingerprint로 사용하며 adjudication 시각은 fingerprint에 포함하지 않는다.
+- [현재] current RightsMetadata·TrainingEligibility는 생성뿐 아니라 replay 전에도 proposal identity·fingerprint와 결속해 다시 검증한다.
+- [현재] proposal authority는 `DatasetVersionIdentity`로 lookup과 put-if-absent를 하나의 atomic operation으로 수행한다. absent는 `CREATED`, 동일 canonical proposal은 기존 object를 `REPLAYED`, 다른 canonical proposal은 overwrite 없는 conflict다.
+- [현재] caller가 existing lookup을 생략하거나 read-then-write로 대체할 수 없고, product code에는 persistence 또는 process-global authority cache가 없다.
+- [현재] 결과는 계속 `draft/false/false/false`이며 Dataset review·approval, Manifest publication, Training request 또는 실행을 호출하지 않는다.
+- [계획] 실제 durable proposal authority adapter와 production composition 등록은 별도 승인 Gate다.
 
 ## Product Dataset composition field authority
 
@@ -126,6 +137,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-21 | DatasetVersion proposal의 mandatory atomic authority, create·replay·conflict와 proposal-time current evidence 재검증 경계 반영 |
 | 2026-08-21 | 단일 handoff의 aggregate authority 한계를 해소하는 immutable Product Dataset composition과 side-effect-free Common DatasetVersion draft mapping 경계 반영 |
 | 2026-08-21 | ACCEPTED review의 current evidence를 재검증하는 immutable Dataset inclusion handoff와 DatasetVersion/publication 비자동화 경계 반영 |
 | 2026-08-20 | ValidatedLearningCandidate 기반 explicit review와 review 시점 current rights·eligibility 재검증 Gate 구현 상태 반영 |
