@@ -229,6 +229,33 @@ def test_accepted_current_review_creates_deterministic_review_only_handoff() -> 
     ]
 
 
+def test_handoff_identity_binds_complete_immutable_review_context() -> None:
+    review_result = _review()
+    changed_reference = replace(
+        review_result.input_references[0],
+        object_id="artifact_source_other",
+    )
+    variants = (
+        replace(
+            review_result,
+            candidate_content_fingerprint="sha256:" + "d" * 64,
+        ),
+        replace(
+            review_result,
+            candidate_producer=replace(
+                review_result.candidate_producer, version="1.0.1"
+            ),
+        ),
+        replace(review_result, source_type="preference"),
+        replace(review_result, input_references=(changed_reference,)),
+        replace(review_result, parent_candidate_ids=("candidate_parent_other",)),
+    )
+
+    handoff_ids = {_handoff(review_result=review_result).handoff_id}
+    handoff_ids.update(_handoff(review_result=value).handoff_id for value in variants)
+    assert len(handoff_ids) == len(variants) + 1
+
+
 @pytest.mark.parametrize(
     "value",
     ({}, _validated_candidate(), type("DuckReview", (), {"decision": "ACCEPTED"})()),

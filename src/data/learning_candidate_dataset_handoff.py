@@ -117,15 +117,7 @@ def create_dataset_inclusion_handoff(
         )
 
     checked_at = _utc_text(created_at)
-    identity_projection = {
-        "candidate_id": review_result.candidate_id,
-        "handoff_created_at": checked_at,
-        "review_evidence_reference": review_result.review_evidence_reference,
-        "reviewed_at": review_result.reviewed_at,
-        "rights_metadata_id": review_result.rights_metadata_id,
-        "training_eligibility_id": review_result.training_eligibility_id,
-        "workspace_id": review_result.workspace_id,
-    }
+    identity_projection = _handoff_identity_projection(review_result, checked_at)
     return DatasetInclusionHandoff(
         handoff_id=f"handoff:{checksum_value(identity_projection)}",
         status=DatasetInclusionHandoffStatus.PENDING_DATASET_INCLUSION_REVIEW,
@@ -250,6 +242,45 @@ def _rejection_code(reason: ReviewReason) -> str:
     }.get(reason, "CURRENT_EVIDENCE_INVALID")
 
 
+def _handoff_identity_projection(
+    review: LearningCandidateReviewResult,
+    checked_at: str,
+) -> dict[str, object]:
+    return {
+        "candidate_content_fingerprint": review.candidate_content_fingerprint,
+        "candidate_id": review.candidate_id,
+        "candidate_producer": _producer_projection(review.candidate_producer),
+        "candidate_review_evidence_ids": list(review.candidate_review_evidence_ids),
+        "candidate_schema_version": review.candidate_schema_version,
+        "consent_evidence_refs": list(review.consent_evidence_refs),
+        "contract_authority_commit": review.contract_authority_commit,
+        "contract_package_version": review.contract_package_version,
+        "contract_policy_version": review.contract_policy_version,
+        "eligibility_checked_at": checked_at,
+        "eligibility_producer": _producer_projection(review.eligibility_producer),
+        "handoff_created_at": checked_at,
+        "input_references": [
+            _object_reference_projection(value) for value in review.input_references
+        ],
+        "output_references": [
+            _object_reference_projection(value) for value in review.output_references
+        ],
+        "parent_candidate_ids": list(review.parent_candidate_ids),
+        "review_evidence_reference": review.review_evidence_reference,
+        "reviewed_at": review.reviewed_at,
+        "reviewer_id": review.reviewer_id,
+        "rights_checked_at": checked_at,
+        "rights_metadata_id": review.rights_metadata_id,
+        "rights_producer": _producer_projection(review.rights_producer),
+        "source_type": review.source_type,
+        "status": DatasetInclusionHandoffStatus.PENDING_DATASET_INCLUSION_REVIEW.value,
+        "task": review.task,
+        "training_eligibility_id": review.training_eligibility_id,
+        "usage_purpose": review.usage_purpose,
+        "workspace_id": review.workspace_id,
+    }
+
+
 def _require_handoff_time(value: datetime) -> datetime:
     if (
         not isinstance(value, datetime)
@@ -296,6 +327,19 @@ def _valid_object_reference(value: CommonObjectReference) -> bool:
             or _FINGERPRINT.fullmatch(value.content_fingerprint) is not None
         )
     )
+
+
+def _producer_projection(value: ProducerIdentity) -> dict[str, str]:
+    return {"name": value.name, "version": value.version}
+
+
+def _object_reference_projection(value: CommonObjectReference) -> dict[str, object]:
+    return {
+        "content_fingerprint": value.content_fingerprint,
+        "object_id": value.object_id,
+        "schema_name": value.schema_name,
+        "schema_version": value.schema_version,
+    }
 
 
 def _utc_text(value: datetime) -> str:
