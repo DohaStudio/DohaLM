@@ -8,11 +8,17 @@ from src.data.common_dataset_contracts import (
     COMMON_CONTRACT_PACKAGE_VERSION,
     DATASET_MANIFEST_SCHEMA_ID,
     DATASET_VERSION_SCHEMA_ID,
+    LEARNING_CANDIDATE_SCHEMA_ID,
+    RIGHTS_METADATA_SCHEMA_ID,
+    TRAINING_ELIGIBILITY_SCHEMA_ID,
     CommonContractRuntimeError,
     CommonDatasetValidationError,
     validate_dataset_manifest,
     validate_dataset_publication_scenario,
     validate_dataset_version,
+    validate_learning_candidate,
+    validate_rights_metadata,
+    validate_training_eligibility,
     verify_common_contract_runtime,
 )
 
@@ -211,10 +217,17 @@ def test_installed_runtime_and_valid_objects_pass_unchanged():
     assert DATASET_MANIFEST_SCHEMA_ID == (
         "https://schemas.dohastudio.org/common-ai/v1/dataset-manifest.schema.json"
     )
+    assert LEARNING_CANDIDATE_SCHEMA_ID.endswith("/learning-candidate.schema.json")
+    assert RIGHTS_METADATA_SCHEMA_ID.endswith("/rights-metadata.schema.json")
+    assert TRAINING_ELIGIBILITY_SCHEMA_ID.endswith("/training-eligibility.schema.json")
     version = dataset_version()
     manifest = dataset_manifest()
     assert validate_dataset_version(version) is version
     assert validate_dataset_manifest(manifest) is manifest
+    name = "candidate_train"
+    assert validate_learning_candidate(candidate(name)) is not None
+    assert validate_rights_metadata(rights(name)) is not None
+    assert validate_training_eligibility(eligibility(name)) is not None
 
 
 def test_valid_frozen_and_issued_pair_passes_as_one_scenario():

@@ -4,6 +4,9 @@ from .common_dataset_contracts import (
     CommonContractIssue,
     CommonContractRuntimeError,
     CommonDatasetValidationError,
+    validate_learning_candidate,
+    validate_rights_metadata,
+    validate_training_eligibility,
     validate_dataset_manifest,
     validate_dataset_publication_scenario,
     validate_dataset_version,
@@ -27,6 +30,13 @@ from .dataset_publication import (
     publish_dataset_version,
 )
 from .errors import DataIssue, DataPipelineError
+from .learning_candidate_consumer import (
+    CommonObjectReference,
+    LearningCandidateConsumerError,
+    ProducerIdentity,
+    ValidatedLearningCandidate,
+    validate_learning_candidate_for_consumption,
+)
 from .pipeline import build_pipeline, validate_pipeline
 
 __all__ = [
@@ -34,6 +44,7 @@ __all__ = [
     "CommonContractIssue",
     "CommonContractRuntimeError",
     "CommonDatasetValidationError",
+    "CommonObjectReference",
     "DataConfig",
     "DataIssue",
     "DataPipelineError",
@@ -44,6 +55,9 @@ __all__ = [
     "DatasetPublicationResult",
     "DatasetVersionIdentity",
     "DatasetVersionProposal",
+    "LearningCandidateConsumerError",
+    "ProducerIdentity",
+    "ValidatedLearningCandidate",
     "approve_dataset_version",
     "begin_dataset_review",
     "build_pipeline",
@@ -54,6 +68,10 @@ __all__ = [
     "validate_dataset_manifest",
     "validate_dataset_publication_scenario",
     "validate_dataset_version",
+    "validate_learning_candidate",
+    "validate_learning_candidate_for_consumption",
+    "validate_rights_metadata",
+    "validate_training_eligibility",
     "validate_pipeline",
     "verify_common_contract_runtime",
 ]
