@@ -43,7 +43,7 @@ from .full_pretraining import (
     require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
-from .metrics import TrainingMetric
+from .metrics import AmpOverflowEvent, JsonlMetricLogger, TrainingMetric
 from .pilot_pretraining import _lineage
 from .trainer import Trainer, seed_everything
 from .validation import evaluate_language_model
@@ -159,6 +159,9 @@ class FullSafetyMonitor:
         self.loss_spikes = 0
         self.gradient_spikes = 0
         self.amp_skips = 0
+        self.total_amp_overflows = 0
+        self.last_amp_scale_before: float | None = None
+        self.last_amp_scale_after: float | None = None
 
     @staticmethod
     def _baseline(values: deque[float]) -> float | None:
@@ -254,6 +257,18 @@ class FullSafetyMonitor:
             raise TrainingError(
                 "FULL_PRETRAINING_GRADIENT_SPIKE",
                 "Gradient norm exceeded the rolling threshold for ten steps.",
+            )
+
+    def observe_amp_overflow(self, event: AmpOverflowEvent) -> None:
+        """Enforce the existing consecutive AMP skip limit before retry."""
+        self.amp_skips += 1
+        self.total_amp_overflows += 1
+        self.last_amp_scale_before = event.scale_before
+        self.last_amp_scale_after = event.scale_after
+        if self.amp_skips >= int(self.config.system_safety["repeated_amp_skip_limit"]):
+            raise TrainingError(
+                "FULL_PRETRAINING_AMP_SKIP_LIMIT",
+                "AMP skipped three consecutive optimizer attempts.",
             )
 
 
@@ -520,6 +535,9 @@ def _run_full_pretraining(
         },
     )
     monitor = FullSafetyMonitor(config, output_root, started_at=started)
+    amp_overflow_logger = JsonlMetricLogger(
+        output_root / "full-amp-overflow-events.jsonl"
+    )
     approval_consumer = SingleUseApprovalConsumer(
         output_root / "approval-consumption.json",
         run_id=output_root.name,
@@ -532,6 +550,10 @@ def _run_full_pretraining(
         approval_consumer.observe(metric)
         monitor.observe(metric)
 
+    def observe_amp_overflow(event: AmpOverflowEvent) -> None:
+        amp_overflow_logger.write(event)
+        monitor.observe_amp_overflow(event)
+
     try:
         initial_evaluation = evaluate_language_model(
             trainer.model,
@@ -540,7 +562,10 @@ def _run_full_pretraining(
             use_amp=trainer.amp_enabled,
         )
         result = trainer.train(
-            target_steps=config.max_steps, metric_observer=observe_and_consume
+            target_steps=config.max_steps,
+            metric_observer=observe_and_consume,
+            amp_overflow_observer=observe_amp_overflow,
+            amp_overflow_limit=int(config.system_safety["repeated_amp_skip_limit"]),
         )
         final_path = trainer.checkpoints.save(
             model=trainer.model,
@@ -601,6 +626,7 @@ def _run_full_pretraining(
             },
             "actual_text_values_stored": False,
             "approval_consumed": approval_consumer.consumed,
+            "recoverable_amp_overflow_count": monitor.total_amp_overflows,
         }
         resolved = config.to_dict()
         _write_json(output_root / "full-config-resolved.json", resolved)
@@ -655,6 +681,9 @@ def _run_full_pretraining(
                 "error_code": getattr(exc, "code", None),
                 "global_step": trainer.state.global_step,
                 "automatic_retry": False,
+                "recoverable_amp_overflow_count": monitor.total_amp_overflows,
+                "last_amp_scale_before": monitor.last_amp_scale_before,
+                "last_amp_scale_after": monitor.last_amp_scale_after,
                 "actual_text_values_stored": False,
             },
             replace=(output_root / "full-failure-report.json").exists(),

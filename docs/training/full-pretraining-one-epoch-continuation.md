@@ -1,5 +1,26 @@
 # Full Pretraining 누적 1 epoch continuation
 
+## AMP overflow recovery contract
+
+[확정] r4는 cumulative step 17,196 이후, AMP scale 262,144에서 발생한
+scaled-gradient overflow를 `clip_grad_norm_(error_if_nonfinite=True)`가
+`GradScaler.step()`과 `GradScaler.update()`보다 먼저 fatal 처리해 종료됐다.
+직전 12,313개 완료 step과 실패 attempt의 loss는 finite였고, 실패 attempt의
+optimizer update는 0회였다. 이 이력은 변경하거나 재사용하지 않는다.
+
+[확정] CUDA FP16 continuation은 loss, model parameters와 optimizer tensor state가
+finite이고 `GradScaler`가 `found_inf`에 따라 optimizer update를 skip하고 scale을
+backoff한 경우만 recoverable AMP overflow로 분류한다. 이때 같은 cached batch와
+같은 step-start RNG state를 재사용하며 sampler offset, token/record count, scheduler와
+global optimizer step은 성공한 update에서만 한 번 증가한다. 각 attempt는 text-free
+`full-amp-overflow-events.jsonl`에 scale before/after와 pending count를 기록한다.
+
+[확정] 세 번째 연속 overflow, non-finite loss, model/optimizer state corruption,
+AMP backoff로 입증되지 않은 non-finite gradient는 fail closed 한다. NaN/Inf clamp,
+loss·learning-rate·clip threshold 변경, Dataset 변경, 자동 retry/resume는 허용하지
+않는다. r4 checkpoint는 존재하지 않으므로 후속 logical run은 반드시 immutable
+r3 `checkpoint-4883`에서 시작한다.
+
 이 계약은 `run-aihub-71748-local-v1-r3/checkpoint-4883`을 유일한 source로 사용해 같은 immutable Dataset에서 누적 정확히 1 epoch까지 진행하는 local-only `r4` 실행만 허용한다. generic resume, automatic retry/resume, checkpoint 덮어쓰기와 다른 source 승격은 허용하지 않는다.
 
 ## 경계
