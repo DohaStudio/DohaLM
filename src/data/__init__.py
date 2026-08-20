@@ -37,6 +37,14 @@ from .learning_candidate_consumer import (
     ValidatedLearningCandidate,
     validate_learning_candidate_for_consumption,
 )
+from .learning_candidate_review import (
+    LearningCandidateReviewAuthority,
+    LearningCandidateReviewError,
+    LearningCandidateReviewResult,
+    ReviewDecision,
+    ReviewReason,
+    review_learning_candidate,
+)
 from .pipeline import build_pipeline, validate_pipeline
 
 __all__ = [
@@ -56,7 +64,12 @@ __all__ = [
     "DatasetVersionIdentity",
     "DatasetVersionProposal",
     "LearningCandidateConsumerError",
+    "LearningCandidateReviewAuthority",
+    "LearningCandidateReviewError",
+    "LearningCandidateReviewResult",
     "ProducerIdentity",
+    "ReviewDecision",
+    "ReviewReason",
     "ValidatedLearningCandidate",
     "approve_dataset_version",
     "begin_dataset_review",
@@ -64,6 +77,7 @@ __all__ = [
     "load_data_config",
     "propose_dataset_version",
     "publish_dataset_version",
+    "review_learning_candidate",
     "validate_data_config",
     "validate_dataset_manifest",
     "validate_dataset_publication_scenario",
