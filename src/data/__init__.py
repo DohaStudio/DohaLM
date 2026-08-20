@@ -78,6 +78,7 @@ from .product_dataset_composition import (
     build_dataset_version_proposal_mapping,
     compose_product_dataset,
 )
+from .product_dataset_governance import propose_product_dataset_version
 
 __all__ = [
     "ApprovedDatasetVersion",
@@ -133,6 +134,7 @@ __all__ = [
     "evaluate_current_review_evidence",
     "load_data_config",
     "propose_dataset_version",
+    "propose_product_dataset_version",
     "publish_dataset_version",
     "review_learning_candidate",
     "validate_data_config",
