@@ -46,7 +46,7 @@ loss·learning-rate·clip threshold 변경, Dataset 변경, terminal Training의
 허용하지 않는다. r4/r5/r6 checkpoint는 존재하지 않으므로 후속 logical run은 반드시
 immutable r3 `checkpoint-4883`에서 시작한다.
 
-이 계약은 `run-aihub-71748-local-v1-r3/checkpoint-4883`을 유일한 source로 사용해 같은 immutable Dataset에서 누적 정확히 1 epoch까지 진행하는 local-only `r4` 실행만 허용한다. generic resume, automatic retry/resume, checkpoint 덮어쓰기와 다른 source 승격은 허용하지 않는다.
+이 계약은 `run-aihub-71748-local-v1-r3/checkpoint-4883`을 유일한 source로 사용해 같은 immutable Dataset에서 누적 정확히 1 epoch까지 진행하는 local-only continuation logical run에 적용한다. 각 실행은 별도의 immutable run identity, authority/decision/approval/journal 및 output root를 사용하며 과거 failed/completed run identity를 재사용하거나 덮어쓰지 않는다. generic resume, automatic retry/resume, checkpoint 덮어쓰기와 다른 source 승격은 허용하지 않는다.
 
 ## 경계
 
@@ -67,6 +67,6 @@ immutable r3 `checkpoint-4883`에서 시작한다.
 
 ## 권한과 산출물
 
-execution mode는 `r3_one_epoch_continuation` 하나뿐이다. production Host의 기존 Dataset permission, immutable decision, single-use approval 및 durable journal lifecycle을 그대로 거쳐야 한다. 출력은 별도 `run-aihub-71748-local-v1-r4` root에 원자 게시한다.
+execution mode는 `r3_one_epoch_continuation` 하나뿐이다. production Host의 기존 Dataset permission, immutable decision, single-use approval 및 durable journal lifecycle을 그대로 거쳐야 한다. 각 승인된 continuation logical run은 자기 immutable run ID에 대응하는 별도 output root에 원자 게시하며 과거 failed/completed output을 재사용하거나 덮어쓰지 않는다. checkpoint가 없는 failed run은 resume source가 될 수 없고, source checkpoint는 항상 승인된 immutable source contract를 따라야 한다.
 
-중간 checkpoint `19,850`과 final checkpoint `34,817`만 허용한다. r3 checkpoint와 Dataset은 수정하지 않으며, OOM·NaN/Inf·반복 AMP skip·checksum/atomic-write 실패·ambiguous journal outcome·disk/thermal/hard-stop 위반 시 자동 retry나 resume 없이 중단한다.
+중간 checkpoint `19,850`과 final checkpoint `34,817`만 허용한다. r3 checkpoint와 Dataset은 수정하지 않는다. OOM, non-finite loss, model/optimizer corruption, AMP scale floor exhaustion, GradScaler backoff 실패, diagnostic state restoration 실패, source/checksum 불일치, atomic-write 실패, ambiguous journal outcome 및 disk/thermal/hard-stop 위반은 자동 retry나 resume 없이 중단한다. Loss와 model/optimizer state가 finite이고 minimum AMP scale 이상에서 정상 backoff되는 recoverable overflow와 scaler skip은 발생 횟수만으로 중단하지 않는다.
