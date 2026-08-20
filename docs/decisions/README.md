@@ -1,7 +1,7 @@
 # DohaLM Architecture Decision Records
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-15
+- 마지막 검토일: 2026-08-20
 
 ## 목적
 
@@ -35,8 +35,9 @@
 | ADR-021 | [Production Training Adapters와 Durable Journal Authority](./ADR-021-production-training-adapters-and-durable-journal.md) | `approved` | 2026-08-13 | [ADR-019](./ADR-019-production-full-pretraining-host-and-trusted-decision-input.md), [ADR-020](./ADR-020-production-training-orchestration-ownership-seams.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | supported PostgreSQL authority event/projection·durable journal과 C1→Corrective C1.1→C1.2 alignment→C2→C3→Activation 순서 승인; C1/C1.1 병합 | C1.2/C2 contract 독립 Gate, C2/C3 독립 Gate, image security 결정과 별도 activation 승인 시 |
 | ADR-022 | [C1 Ephemeral PostgreSQL Test Image Security Policy](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | `approved` | 2026-08-15 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [종료된 16.15 record](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260814-01/evidence-summary.md), [current accepted Decision Packet](../security/c1-postgres-image/C1-PG16-ALPINE-1615-20260815-02/evidence-summary.md) | A/B/C drift 정책 승인; raw C2/H21·adjudicated 7·residual C1/H15 Option B를 local/CI isolated ephemeral C1 test로 30일 승인 | early termination·만료·C1 독립 검증 Gate |
 | ADR-023 | [C1 Repository-Owned PostgreSQL Client Runner Supply Chain](./ADR-023-c1-repository-owned-postgresql-client-runner-supply-chain.md) | `approved` | 2026-08-15 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | Practical Profile에서는 official `psycopg[binary] 3.3.4` 직접 소비; repository-owned runner·GHCR는 선택 hardening | C1 독립 Gate; C2/C3·Activation 별도 승인 |
+| ADR-024 | [AI Music Director 제품 방향과 지속 학습 경계](./ADR-024-ai-music-director-product-boundary.md) | `draft` | 미결정 | [Project Definition](../project/overview.md), [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md) | current Common ownership을 보존한 product direction·Foundation/product learning 분리 제안; 실행 영향 없음 | 제품 방향·cross-repository mapping·promotion 계약 승인 시 |
 
-- [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020을 등록했다.
+- [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020·024를 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
 - [제안] ADR-014는 특정 Common resource를 선택하지 않고 ADR-013에 선행하는 Dataset product governance ownership을 제안한다.
 - [제안] ADR-015는 ADR-014의 첫 Gate로 DatasetVersion·DatasetManifest resource pair와 publication transaction을 설계하며 구현·consumer 활성화는 승인하지 않는다.
@@ -52,6 +53,7 @@
   exact manifest의 local/CI isolated ephemeral C1 test만 허용한다.
 - [확정] ADR-023 Practical Security Profile amendment는 official `psycopg[binary] 3.3.4` 직접 소비를 C1에 허용하고
   repository-owned runner·GHCR를 선택 hardening으로 재분류한다. C2/C3·Production Activation·실제 Training은 미승인이다.
+- [제안] ADR-024는 PR #103의 유효한 제품 방향만 현행 Common ownership과 구현 상태에 맞춰 이관하고 Foundation training과 product/adapter continuous learning을 분리한다. 실행·Training·promotion은 승인하지 않는다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -60,6 +62,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-20 | [제안] stale PR #103에서 현행 authority와 양립하는 AI Music Director 방향을 ADR-024로 이관하고 Foundation/product learning 경계를 등록 |
 | 2026-08-15 | [확정] ADR-021 Corrective C1.1 reservation architecture, transaction ownership와 upgrade/logical-restore contract 동기화 |
 | 2026-08-15 | [확정] C1 Practical Security Profile로 official Psycopg binary 직접 소비와 loopback-only local fixture를 승인하고 custom runner를 선택 hardening으로 재분류 |
 | 2026-08-15 | [확정] ADR-023과 current PostgreSQL 16.15 Option B risk record 사용자 승인, C1 구현 Draft 착수 권한을 동기화 |
