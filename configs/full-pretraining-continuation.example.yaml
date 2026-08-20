@@ -80,7 +80,8 @@ wall_clock_budget:
 system_safety:
   maximum_reserved_vram_bytes: 7516192768
   maximum_cpu_working_set_bytes: 4294967296
-  repeated_amp_skip_limit: 3
+  amp_recovery_policy: scale_floor
+  minimum_amp_scale: 1024
   loss_spike_multiplier: 4.0
   loss_spike_consecutive_steps: 10
   evaluation_spike_multiplier: 1.5

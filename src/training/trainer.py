@@ -647,7 +647,6 @@ class Trainer:
         target_steps: int | None = None,
         metric_observer: Callable[[TrainingMetric], None] | None = None,
         amp_overflow_observer: Callable[[AmpOverflowEvent], None] | None = None,
-        amp_overflow_limit: int = 3,
         before_optimizer_step: Callable[[int], None] | None = None,
     ) -> TrainingResult:
         target = self.config.max_steps if target_steps is None else target_steps
@@ -817,7 +816,7 @@ class Trainer:
         amp_diagnostic_observer: (
             Callable[[AmpNumericalDiagnostic], None] | None
         ) = None,
-        amp_overflow_limit: int = 3,
+        minimum_amp_scale: float = 1_024.0,
         amp_diagnostic_scale_floor: float | None = None,
         before_optimizer_step: Callable[[int], None] | None = None,
     ) -> TrainingResult:
@@ -833,9 +832,15 @@ class Trainer:
                 "INVALID_TRAINING_CONFIG",
                 "target_steps must be greater than the current step and within max_steps.",
             )
-        if amp_overflow_limit <= 0:
+        if (
+            not math.isfinite(minimum_amp_scale)
+            or minimum_amp_scale <= 0
+            or not float(minimum_amp_scale).is_integer()
+            or int(minimum_amp_scale) & (int(minimum_amp_scale) - 1)
+        ):
             raise TrainingError(
-                "INVALID_TRAINING_CONFIG", "AMP overflow limit must be positive."
+                "INVALID_TRAINING_CONFIG",
+                "Minimum AMP scale must be a positive power of two.",
             )
         if (amp_diagnostic_observer is None) != (amp_diagnostic_scale_floor is None):
             raise TrainingError(
@@ -966,10 +971,10 @@ class Trainer:
                                 ) from diagnostic_error
                         if amp_overflow_observer is not None:
                             amp_overflow_observer(event)
-                        if amp_overflow_count >= amp_overflow_limit:
+                        if scale_after < minimum_amp_scale:
                             raise TrainingError(
-                                "AMP_SKIP_LIMIT",
-                                "AMP overflow limit reached before an optimizer update.",
+                                "FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED",
+                                "AMP overflow requires a scale below the configured floor.",
                             )
                         continue
 

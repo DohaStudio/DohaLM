@@ -51,7 +51,7 @@ identity:
   model_parameters: 16889856
   model_fingerprint: "sha256:a7a4d109c6d9f385bc65f33a0c5b9a0e9af218764b2e0648ea0c81b317fed106"
   config_path: "configs/full-pretraining.example.yaml"
-  config_fingerprint: "sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5"
+  config_fingerprint: "sha256:3b169842c45f21515742f34c2cf810b084491ac48d48936de1210859419c1781"
 
 budget:
   candidate: "candidate_a_10m"
@@ -139,7 +139,8 @@ wall_clock_budget:
 system_safety:
   maximum_reserved_vram_bytes: 7516192768
   maximum_cpu_working_set_bytes: 4294967296
-  repeated_amp_skip_limit: 3
+  amp_recovery_policy: scale_floor
+  minimum_amp_scale: 1024
   loss_spike_multiplier: 4.0
   loss_spike_consecutive_steps: 10
   evaluation_spike_multiplier: 1.5
@@ -221,7 +222,7 @@ execution_approval:
   approved_branch: "feat/pilot-pretraining"
   approved_git_commit: "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9"
   approved_readiness_fingerprint: "sha256:fc5c74313d31070a1304e61d93ad94117c03cc59b606329144888fecb3073683"
-  approved_config_fingerprint: "sha256:b1c6979fe681f6c69dec124f0dcce457ea1e26d511f285ee16eab1c185cea4f5"
+  approved_config_fingerprint: "sha256:3b169842c45f21515742f34c2cf810b084491ac48d48936de1210859419c1781"
   approved_dataset_fingerprint: "sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b"
   approved_tokenizer_fingerprint: "sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff"
   candidate: "A"

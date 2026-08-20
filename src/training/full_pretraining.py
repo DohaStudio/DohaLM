@@ -179,7 +179,25 @@ class FullPretrainingConfig:
                     "INVALID_FULL_PRETRAINING_CONFIG", f"{name}는 mapping이어야 합니다."
                 )
 
+        self._validate_amp_recovery_policy()
         self._validate_candidate_a_profile()
+
+    def _validate_amp_recovery_policy(self) -> None:
+        if "repeated_amp_skip_limit" in self.system_safety:
+            raise TrainingError(
+                "INVALID_FULL_PRETRAINING_CONFIG",
+                "repeated_amp_skip_limit is not an authoritative AMP safety policy.",
+            )
+        minimum_scale = self.system_safety.get("minimum_amp_scale")
+        if (
+            self.system_safety.get("amp_recovery_policy") != "scale_floor"
+            or type(minimum_scale) is not int
+            or minimum_scale != 1_024
+        ):
+            raise TrainingError(
+                "INVALID_FULL_PRETRAINING_CONFIG",
+                "AMP recovery requires the approved scale-floor policy at 1024.",
+            )
 
     def _validate_candidate_a_profile(self) -> None:
         if self.resume_checkpoint is not None:

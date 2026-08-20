@@ -158,6 +158,10 @@ def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
         "initialization_fingerprint": config.initialization_fingerprint,
         "resume_requested": config.resume_checkpoint is not None,
         "automatic_extension_allowed": False,
+        "amp_recovery_policy": {
+            "mode": config.system_safety["amp_recovery_policy"],
+            "minimum_amp_scale": config.system_safety["minimum_amp_scale"],
+        },
         "amp_numerical_diagnostics": amp_diagnostic_policy,
         "actual_text_values_stored": False,
     }
@@ -205,7 +209,6 @@ class FullSafetyMonitor:
         self.gradients: deque[float] = deque(maxlen=window)
         self.loss_spikes = 0
         self.gradient_spikes = 0
-        self.amp_skips = 0
         self.total_amp_overflows = 0
         self.last_amp_scale_before: float | None = None
         self.last_amp_scale_after: float | None = None
@@ -267,13 +270,6 @@ class FullSafetyMonitor:
                 "FULL_PRETRAINING_OUTPUT_BUDGET", "Run output exceeded 2 GiB."
             )
 
-        self.amp_skips = self.amp_skips + 1 if metric.amp_step_skipped else 0
-        if self.amp_skips >= int(self.config.system_safety["repeated_amp_skip_limit"]):
-            raise TrainingError(
-                "FULL_PRETRAINING_AMP_SKIP_LIMIT",
-                "AMP skipped three consecutive optimizer steps.",
-            )
-
         loss_baseline = self._baseline(self.losses)
         grad_baseline = self._baseline(self.gradients)
         loss_limit = float(self.config.system_safety["loss_spike_multiplier"])
@@ -307,15 +303,24 @@ class FullSafetyMonitor:
             )
 
     def observe_amp_overflow(self, event: AmpOverflowEvent) -> None:
-        """Enforce the existing consecutive AMP skip limit before retry."""
-        self.amp_skips += 1
+        """Record recoverable overflow and enforce numerical scale-floor safety."""
         self.total_amp_overflows += 1
         self.last_amp_scale_before = event.scale_before
         self.last_amp_scale_after = event.scale_after
-        if self.amp_skips >= int(self.config.system_safety["repeated_amp_skip_limit"]):
+        if not event.model_parameters_finite or not event.optimizer_state_finite:
             raise TrainingError(
-                "FULL_PRETRAINING_AMP_SKIP_LIMIT",
-                "AMP skipped three consecutive optimizer attempts.",
+                "NON_FINITE_GRADIENT",
+                "AMP overflow coincided with model or optimizer corruption.",
+            )
+        if not event.scale_after < event.scale_before:
+            raise TrainingError(
+                "NON_FINITE_GRADIENT",
+                "AMP overflow did not produce a scale backoff.",
+            )
+        if event.scale_after < float(self.config.system_safety["minimum_amp_scale"]):
+            raise TrainingError(
+                "FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED",
+                "AMP overflow requires a scale below the configured floor.",
             )
 
 
@@ -620,7 +625,7 @@ def _run_full_pretraining(
             metric_observer=observe_and_consume,
             amp_overflow_observer=observe_amp_overflow,
             amp_diagnostic_observer=observe_amp_diagnostic,
-            amp_overflow_limit=int(config.system_safety["repeated_amp_skip_limit"]),
+            minimum_amp_scale=float(config.system_safety["minimum_amp_scale"]),
             amp_diagnostic_scale_floor=float(amp_diagnostic_policy["scale_floor"]),
         )
         final_path = trainer.checkpoints.save(

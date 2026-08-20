@@ -4,11 +4,11 @@
 
 ### Prospective numerical diagnostic seam
 
-[확정] 이후 실행에서 AMP overflow가 발생하면 기존 복구 및 세 번째 연속 중단 정책을
-변경하지 않고, 다음 policy 판정 전에 동일한 cached batch, step-start RNG, model 및
-optimizer state를 사용하는 진단 전용 scale probe를 수행한다. 후보 scale은 현재 scale부터
-2로 나누어 별도 계약인 `configs/amp-numerical-diagnostics.json`의 floor까지 생성한다.
-이 floor는 Training config나 config fingerprint의 일부가 아니다.
+[확정] 이후 실행에서 AMP overflow가 발생하면 production 복구 판정 전에 동일한 cached
+batch, step-start RNG, model 및 optimizer state를 사용하는 진단 전용 scale probe를
+수행한다. 후보 scale은 현재 scale부터 2로 나누어 별도 계약인
+`configs/amp-numerical-diagnostics.json`의 floor까지 생성한다. 진단은 production state나
+복구 semantics를 변경하지 않는다.
 
 [확정] Probe는 optimizer step을 수행하지 않는다. 각 후보 실행 뒤 gradient를
 제거하고 RNG를 복구하며 model, optimizer, scheduler, production scaler, sampler와
@@ -32,11 +32,19 @@ backoff한 경우만 recoverable AMP overflow로 분류한다. 이때 같은 cac
 global optimizer step은 성공한 update에서만 한 번 증가한다. 각 attempt는 text-free
 `full-amp-overflow-events.jsonl`에 scale before/after와 pending count를 기록한다.
 
-[확정] 세 번째 연속 overflow, non-finite loss, model/optimizer state corruption,
-AMP backoff로 입증되지 않은 non-finite gradient는 fail closed 한다. NaN/Inf clamp,
-loss·learning-rate·clip threshold 변경, Dataset 변경, 자동 retry/resume는 허용하지
-않는다. r4 checkpoint는 존재하지 않으므로 후속 logical run은 반드시 immutable
-r3 `checkpoint-4883`에서 시작한다.
+[확정] Production AMP recovery는 횟수 제한이 아니라 `scale_floor` 정책을 사용하며
+`minimum_amp_scale`은 1,024다. Loss와 model/optimizer state가 finite이고 GradScaler가
+정상적으로 scale을 낮추면 같은 cached batch와 step-start RNG로 재시도한다. 성공한
+optimizer update 전에는 global/scheduler step, sampler 및 token/record accounting을
+변경하지 않는다. Scale 1,024에서 다시 overflow하여 다음 scale이 floor 미만이 되면
+`FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED`로 fail closed 한다. Non-finite loss,
+model/optimizer corruption, AMP backoff 실패와 diagnostic state restoration 실패도 즉시
+fatal이다. 누적 overflow 수 자체는 metric/WARNING이며 중단 조건이 아니다.
+
+[확정] 기존 `repeated_amp_skip_limit`은 authoritative policy에서 제거한다. NaN/Inf clamp,
+loss·learning-rate·clip threshold 변경, Dataset 변경, terminal Training의 자동 retry/resume는
+허용하지 않는다. r4/r5/r6 checkpoint는 존재하지 않으므로 후속 logical run은 반드시
+immutable r3 `checkpoint-4883`에서 시작한다.
 
 이 계약은 `run-aihub-71748-local-v1-r3/checkpoint-4883`을 유일한 source로 사용해 같은 immutable Dataset에서 누적 정확히 1 epoch까지 진행하는 local-only `r4` 실행만 허용한다. generic resume, automatic retry/resume, checkpoint 덮어쓰기와 다른 source 승격은 허용하지 않는다.
 

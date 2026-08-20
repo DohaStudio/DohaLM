@@ -44,18 +44,25 @@ def metric(step: int, **changes) -> TrainingMetric:
     return TrainingMetric(**value)
 
 
-def amp_overflow(attempt: int) -> AmpOverflowEvent:
+def amp_overflow(
+    attempt: int,
+    *,
+    scale_before: float,
+    scale_after: float,
+    model_finite: bool = True,
+    optimizer_finite: bool = True,
+) -> AmpOverflowEvent:
     return AmpOverflowEvent(
         global_step=10,
         next_optimizer_step=11,
         attempt=attempt,
-        scale_before=1024.0 / (2 ** (attempt - 1)),
-        scale_after=512.0 / (2 ** (attempt - 1)),
+        scale_before=scale_before,
+        scale_after=scale_after,
         pending_tokens=2_048,
         pending_records=8,
         sampler_cursor=88,
-        model_parameters_finite=True,
-        optimizer_state_finite=True,
+        model_parameters_finite=model_finite,
+        optimizer_state_finite=optimizer_finite,
         timestamp="2026-08-19T00:00:00+00:00",
     )
 
@@ -71,6 +78,10 @@ def test_candidate_a_plan_has_exact_limits_and_no_text() -> None:
         "prospective_no_update_scale_probe"
     )
     assert plan["amp_numerical_diagnostics"]["scale_floor"] == 1_024
+    assert plan["amp_recovery_policy"] == {
+        "mode": "scale_floor",
+        "minimum_amp_scale": 1_024,
+    }
     assert not ({"text", "prompt", "continuation", "token_ids"} & set(plan))
 
 
@@ -117,6 +128,26 @@ def test_candidate_a_profile_rejects_mutation(
         FullPretrainingConfig.from_yaml(path)
 
 
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda safety: safety.update(repeated_amp_skip_limit=3),
+        lambda safety: safety.update(amp_recovery_policy="fixed_attempt_limit"),
+        lambda safety: safety.update(minimum_amp_scale=512),
+        lambda safety: safety.pop("minimum_amp_scale"),
+    ],
+)
+def test_full_pretraining_rejects_non_authoritative_amp_recovery_policy(
+    tmp_path: Path, mutate
+) -> None:
+    config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+    mutate(config["system_safety"])
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    with pytest.raises(TrainingError, match="INVALID_FULL_PRETRAINING_CONFIG"):
+        FullPretrainingConfig.from_yaml(path)
+
+
 def test_pilot_checkpoint_and_unapproved_resume_are_rejected(tmp_path: Path) -> None:
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     config["initialization"]["mode"] = "pilot_checkpoint"
@@ -153,10 +184,8 @@ def test_safety_monitor_enforces_step_token_amp_memory_and_disk(
             metric(1, cpu_working_set_bytes=4 * 1024**3 + 1)
         )
     amp = FullSafetyMonitor(config, tmp_path)
-    amp.observe(metric(1, amp_step_skipped=True))
-    amp.observe(metric(2, amp_step_skipped=True))
-    with pytest.raises(TrainingError, match="FULL_PRETRAINING_AMP_SKIP_LIMIT"):
-        amp.observe(metric(3, amp_step_skipped=True))
+    for step in range(1, 21):
+        amp.observe(metric(step, amp_step_skipped=True))
     monkeypatch.setattr(
         "src.training.full_pretraining_backend.shutil.disk_usage",
         lambda _p: usage(30, 1, 5 * 1024**3 - 1),
@@ -165,17 +194,55 @@ def test_safety_monitor_enforces_step_token_amp_memory_and_disk(
         FullSafetyMonitor(config, tmp_path).observe(metric(1))
 
 
-def test_safety_monitor_enforces_repeated_recoverable_amp_overflow_limit(
+def test_safety_monitor_uses_scale_floor_instead_of_overflow_count(
     tmp_path: Path,
 ) -> None:
     monitor = FullSafetyMonitor(FullPretrainingConfig.from_yaml(CONFIG_PATH), tmp_path)
-    monitor.observe_amp_overflow(amp_overflow(1))
-    monitor.observe_amp_overflow(amp_overflow(2))
-    with pytest.raises(TrainingError, match="FULL_PRETRAINING_AMP_SKIP_LIMIT"):
-        monitor.observe_amp_overflow(amp_overflow(3))
+    monitor.observe_amp_overflow(
+        amp_overflow(1, scale_before=8_192.0, scale_after=4_096.0)
+    )
+    monitor.observe_amp_overflow(
+        amp_overflow(2, scale_before=4_096.0, scale_after=2_048.0)
+    )
+    monitor.observe_amp_overflow(
+        amp_overflow(3, scale_before=2_048.0, scale_after=1_024.0)
+    )
     assert monitor.total_amp_overflows == 3
-    assert monitor.last_amp_scale_before == 256.0
-    assert monitor.last_amp_scale_after == 128.0
+    assert monitor.last_amp_scale_before == 2_048.0
+    assert monitor.last_amp_scale_after == 1_024.0
+
+    with pytest.raises(
+        TrainingError, match="FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED"
+    ):
+        monitor.observe_amp_overflow(
+            amp_overflow(4, scale_before=1_024.0, scale_after=512.0)
+        )
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        amp_overflow(1, scale_before=1_024.0, scale_after=1_024.0),
+        amp_overflow(
+            1,
+            scale_before=2_048.0,
+            scale_after=1_024.0,
+            model_finite=False,
+        ),
+        amp_overflow(
+            1,
+            scale_before=2_048.0,
+            scale_after=1_024.0,
+            optimizer_finite=False,
+        ),
+    ],
+)
+def test_safety_monitor_rejects_non_recoverable_amp_state(
+    tmp_path: Path, event: AmpOverflowEvent
+) -> None:
+    monitor = FullSafetyMonitor(FullPretrainingConfig.from_yaml(CONFIG_PATH), tmp_path)
+    with pytest.raises(TrainingError, match="NON_FINITE_GRADIENT"):
+        monitor.observe_amp_overflow(event)
 
 
 def test_safety_monitor_enforces_rolling_loss_and_gradient(

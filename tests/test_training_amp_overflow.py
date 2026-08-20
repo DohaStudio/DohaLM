@@ -105,6 +105,13 @@ def _inject_gradient_overflow(trainer: Trainer, *, repeated: bool):
     return next(trainer.model.parameters()).register_hook(hook)
 
 
+def _set_amp_scale(trainer: Trainer, scale: float) -> None:
+    state = trainer.scaler.state_dict()
+    state["scale"] = scale
+    state["_growth_tracker"] = 0
+    trainer.scaler.load_state_dict(state)
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 def test_single_amp_overflow_retries_same_batch_without_step_or_sampler_drift(
     tmp_path,
@@ -117,6 +124,7 @@ def test_single_amp_overflow_retries_same_batch_without_step_or_sampler_drift(
         result = trainer.train(
             amp_overflow_observer=events.append,
             amp_diagnostic_observer=diagnostics.append,
+            minimum_amp_scale=64.0,
             amp_diagnostic_scale_floor=64.0,
         )
     finally:
@@ -148,27 +156,39 @@ def test_single_amp_overflow_retries_same_batch_without_step_or_sampler_drift(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_repeated_amp_overflow_fails_closed_without_optimizer_accounting(
+def test_r6_pattern_recovers_on_fourth_attempt_without_accounting_drift(
     tmp_path,
 ) -> None:
-    trainer = _amp_trainer(tmp_path / "repeated")
+    trainer = _amp_trainer(tmp_path / "r6-pattern")
+    _set_amp_scale(trainer, 131_072.0)
     events = []
-    handle = _inject_gradient_overflow(trainer, repeated=True)
+
+    def overflow_above_recovery_floor(gradient: torch.Tensor) -> torch.Tensor:
+        if trainer.scaler.get_scale() > 16_384.0:
+            return torch.full_like(gradient, float("inf"))
+        return gradient
+
+    handle = next(trainer.model.parameters()).register_hook(
+        overflow_above_recovery_floor
+    )
     try:
-        with pytest.raises(TrainingError, match="AMP_SKIP_LIMIT"):
-            trainer.train(
-                amp_overflow_observer=events.append,
-                amp_overflow_limit=3,
-            )
+        result = trainer.train(
+            amp_overflow_observer=events.append,
+            minimum_amp_scale=1_024.0,
+        )
     finally:
         handle.remove()
 
     assert len(events) == 3
     assert [event.attempt for event in events] == [1, 2, 3]
     assert all(event.global_step == 0 for event in events)
-    assert trainer.state.global_step == trainer.state.optimizer_step == 0
-    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
-    assert not trainer.optimizer.state
+    assert [event.scale_before for event in events] == [131_072.0, 65_536.0, 32_768.0]
+    assert [event.scale_after for event in events] == [65_536.0, 32_768.0, 16_384.0]
+    assert result.state.global_step == result.state.optimizer_step == 1
+    assert result.state.tokens_seen > 0 and result.state.records_seen == 2
+    assert result.state.sampler_state is not None
+    assert result.state.sampler_state["records_yielded"] == 2
+    assert result.metrics[0].amp_overflow_count == 3
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
@@ -206,13 +226,12 @@ def test_prospective_scale_probe_records_lower_scale_recovery_without_mutation(
     trainer._probe_amp_numerical_state = observe_probe_rng_boundary
     handle = next(trainer.model.parameters()).register_hook(scale_sensitive_overflow)
     try:
-        with pytest.raises(TrainingError, match="AMP_SKIP_LIMIT"):
-            trainer.train(
-                amp_overflow_observer=events.append,
-                amp_diagnostic_observer=logger.write,
-                amp_overflow_limit=3,
-                amp_diagnostic_scale_floor=64.0,
-            )
+        result = trainer.train(
+            amp_overflow_observer=events.append,
+            amp_diagnostic_observer=logger.write,
+            minimum_amp_scale=64.0,
+            amp_diagnostic_scale_floor=64.0,
+        )
     finally:
         handle.remove()
 
@@ -242,11 +261,11 @@ def test_prospective_scale_probe_records_lower_scale_recovery_without_mutation(
     assert all(item["optimizer_step_applied"] is False for item in diagnostics)
     assert all(item["actual_text_values_stored"] is False for item in diagnostics)
     assert all(item["token_ids_stored"] is False for item in diagnostics)
-    assert trainer._model_state_fingerprint() == before_model
-    assert trainer._optimizer_state_fingerprint() == before_optimizer
+    assert trainer._model_state_fingerprint() != before_model
+    assert trainer._optimizer_state_fingerprint() != before_optimizer
     assert all(before == after for before, after in probe_rng_boundaries)
-    assert trainer.state.global_step == trainer.state.optimizer_step == 0
-    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+    assert result.state.global_step == result.state.optimizer_step == 1
+    assert result.state.tokens_seen > 0 and result.state.records_seen == 2
     assert len(events) == 3
 
 
@@ -258,17 +277,19 @@ def test_prospective_scale_probe_records_all_scale_overflow_and_fails_closed(
     diagnostics = []
     handle = _inject_gradient_overflow(trainer, repeated=True)
     try:
-        with pytest.raises(TrainingError, match="AMP_SKIP_LIMIT"):
+        with pytest.raises(
+            TrainingError, match="FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED"
+        ):
             trainer.train(
                 amp_diagnostic_observer=diagnostics.append,
-                amp_overflow_limit=3,
+                minimum_amp_scale=64.0,
                 amp_diagnostic_scale_floor=64.0,
             )
     finally:
         handle.remove()
 
-    final_attempt = [item for item in diagnostics if item.overflow_attempt == 3]
-    assert [item.probe_scale for item in final_attempt] == [256.0, 128.0, 64.0]
+    final_attempt = [item for item in diagnostics if item.overflow_attempt == 5]
+    assert [item.probe_scale for item in final_attempt] == [64.0]
     assert all(item.grad_scaler_found_inf for item in final_attempt)
     assert all(not item.scaled_gradients_finite for item in final_attempt)
     assert all(not item.unscaled_gradients_finite for item in final_attempt)
@@ -276,6 +297,92 @@ def test_prospective_scale_probe_records_all_scale_overflow_and_fails_closed(
     assert all(item.first_offending_parameter_shape for item in final_attempt)
     assert all(item.first_offending_parameter_dtype for item in final_attempt)
     assert all(item.unscaled_non_finite_element_count > 0 for item in final_attempt)
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_amp_overflow_recovers_at_configured_scale_floor(tmp_path) -> None:
+    trainer = _amp_trainer(tmp_path / "floor-recovery")
+    _set_amp_scale(trainer, 2_048.0)
+    events = []
+
+    def overflow_above_floor(gradient: torch.Tensor) -> torch.Tensor:
+        if trainer.scaler.get_scale() > 1_024.0:
+            return torch.full_like(gradient, float("inf"))
+        return gradient
+
+    handle = next(trainer.model.parameters()).register_hook(overflow_above_floor)
+    try:
+        result = trainer.train(
+            amp_overflow_observer=events.append,
+            minimum_amp_scale=1_024.0,
+        )
+    finally:
+        handle.remove()
+
+    assert len(events) == 1
+    assert events[0].scale_before == 2_048.0
+    assert events[0].scale_after == 1_024.0
+    assert result.state.global_step == result.state.optimizer_step == 1
+    assert result.metrics[0].amp_scale == 1_024.0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_amp_overflow_at_scale_floor_fails_without_accounting(tmp_path) -> None:
+    trainer = _amp_trainer(tmp_path / "floor-exhausted")
+    events = []
+    handle = _inject_gradient_overflow(trainer, repeated=True)
+    try:
+        with pytest.raises(
+            TrainingError, match="FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED"
+        ):
+            trainer.train(
+                amp_overflow_observer=events.append,
+                minimum_amp_scale=1_024.0,
+            )
+    finally:
+        handle.remove()
+
+    assert len(events) == 1
+    assert events[0].scale_before == 1_024.0
+    assert events[0].scale_after == 512.0
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+    assert trainer.state.sampler_state is None
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_amp_overflow_without_scale_backoff_is_fatal(tmp_path, monkeypatch) -> None:
+    trainer = _amp_trainer(tmp_path / "backoff-failure")
+    handle = _inject_gradient_overflow(trainer, repeated=True)
+    monkeypatch.setattr(trainer.scaler, "update", lambda *args, **kwargs: None)
+    try:
+        with pytest.raises(TrainingError, match="NON_FINITE_GRADIENT"):
+            trainer.train(minimum_amp_scale=64.0)
+    finally:
+        handle.remove()
+
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_amp_overflow_with_corrupted_model_state_is_fatal(tmp_path) -> None:
+    trainer = _amp_trainer(tmp_path / "model-corrupted")
+    parameter = next(trainer.model.parameters())
+
+    def corrupt_model(gradient: torch.Tensor) -> torch.Tensor:
+        parameter.data.fill_(float("inf"))
+        return torch.full_like(gradient, float("inf"))
+
+    handle = parameter.register_hook(corrupt_model)
+    try:
+        with pytest.raises(TrainingError, match="NON_FINITE_GRADIENT"):
+            trainer.train(minimum_amp_scale=64.0)
+    finally:
+        handle.remove()
+
     assert trainer.state.global_step == trainer.state.optimizer_step == 0
     assert trainer.state.tokens_seen == trainer.state.records_seen == 0
 
@@ -292,7 +399,7 @@ def test_prospective_scale_probe_evidence_failure_is_fatal(tmp_path) -> None:
         with pytest.raises(TrainingError, match="DIAGNOSTIC_EVIDENCE_FAILURE"):
             trainer.train(
                 amp_diagnostic_observer=fail_evidence_write,
-                amp_overflow_limit=3,
+                minimum_amp_scale=64.0,
                 amp_diagnostic_scale_floor=64.0,
             )
     finally:
