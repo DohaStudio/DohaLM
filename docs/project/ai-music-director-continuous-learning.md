@@ -24,10 +24,10 @@
 
 | 책임 | owner | DohaLM 경계 |
 |---|---|---|
-| 사용자 work·project·asset·job·orchestration | DohaMusic | 제품 intelligence만 제공 |
+| Workspace·MusicProject·Asset·AssetVersion·Artifact·Composition·Job persistence와 orchestration | DohaMusic | 제품 intelligence만 제공 |
 | `LearningCandidate`, rights·consent evidence | DohaMusic·권리 검토 계층 / Common authority | 직접 생성하지 않음 |
-| audio analysis·feature 계산 | DohaAudio | `ReferenceAnalysis`·`FeatureRecord` 소비 후보 |
-| vocal analysis·rendering | DohaVocal | typed evidence 소비 후보 |
+| music/audio generation·stem separation·analysis·mix·audio runtime | DohaAudio | `ReferenceAnalysis`·`FeatureRecord` 소비 후보 |
+| singing·voice conversion·vocal correction·analysis·vocal runtime | DohaVocal | typed evidence 소비 후보 |
 | DatasetVersion·Manifest publication | DohaLM | 현행 immutable publication 유지 |
 | Training·Evaluation·Model lineage | DohaLM / Common authority | Foundation과 product 계보 분리 |
 | planning·lyrics·prompt·QA·RevisionPlan | DohaLM | ADR-024 승인 뒤 세부 capability 결정 |
@@ -50,17 +50,22 @@
 ## 허용되는 흐름
 
 ```text
-upstream typed evidence
-  -> explicit consumer validation
-  -> separately approved DatasetVersion publication
+LearningCandidate creation and review
+  -> current RightsMetadata and TrainingEligibility
+  -> DatasetVersion draft inclusion
+  -> Dataset-level eligibility validation and review
+  -> approved DatasetVersion, issued Manifest and freeze
   -> explicit Training approval and durable journal
+  -> TrainingRun
   -> EvaluationRun
-  -> separately approved ModelVersion promotion
+  -> separate ModelVersion/runtime promotion decision
 ```
 
 - [확정] 각 화살표는 독립 Gate다.
 - [확정] candidate 또는 similarity evidence가 Training approval을 암묵적으로 만들지 않는다.
-- [확정] Foundation checkpoint와 product/adapter artifact는 identity와 lineage를 공유하지 않는다.
+- [확정] 사용자 수정과 생성 결과는 candidate review 없이 Dataset에 자동 편입되지 않으며, rights·eligibility evidence가 missing·unknown·expired·revoked·invalid이면 fail closed한다.
+- [확정] source와 parent lineage는 끝까지 보존한다. Foundation checkpoint와 product/adapter artifact는 별도 identity·lineage record를 사용하되 승인된 명시적 parent/source reference로 연결할 수 있다.
+- [확정] Provider끼리 직접 호출하지 않으며 DohaMusic이 Common intent·capability에 따라 orchestration한다.
 - [확정] 현재 문서는 물리적 directory 이동이나 schema migration을 지시하지 않는다.
 
 ## 후속 결정 순서
@@ -82,4 +87,4 @@ upstream typed evidence
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-08-20 | PR #103의 제품 방향을 current authority에 맞춰 이관하고 현재 구현과 후속 product learning을 분리 |
+| 2026-08-20 | PR #103의 제품 방향을 current authority에 맞춰 이관하고 Provider ownership, candidate Gate와 Foundation/product learning을 분리 |
