@@ -2,6 +2,23 @@
 
 ## AMP overflow recovery contract
 
+### Prospective numerical diagnostic seam
+
+[확정] 이후 실행에서 AMP overflow가 발생하면 기존 복구 및 세 번째 연속 중단 정책을
+변경하지 않고, 다음 policy 판정 전에 동일한 cached batch, step-start RNG, model 및
+optimizer state를 사용하는 진단 전용 scale probe를 수행한다. 후보 scale은 현재 scale부터
+2로 나누어 별도 계약인 `configs/amp-numerical-diagnostics.json`의 floor까지 생성한다.
+이 floor는 Training config나 config fingerprint의 일부가 아니다.
+
+[확정] Probe는 optimizer step을 수행하지 않는다. 각 후보 실행 뒤 gradient를
+제거하고 RNG를 복구하며 model, optimizer, scheduler, production scaler, sampler와
+step/token/record accounting이 변하지 않았음을 fingerprint와 checksum으로 검증한다.
+복구 또는 evidence 기록 실패는 `DIAGNOSTIC_EVIDENCE_FAILURE`로 fail closed 한다.
+
+[확정] `full-amp-numerical-diagnostics.jsonl`에는 run/step/attempt/scale, batch와 RNG
+identity, model/optimizer fingerprint, gradient finite 상태·크기·norm 및 canonical
+offender metadata만 저장한다. Dataset text, token ID, label과 prompt는 저장하지 않는다.
+
 [확정] r4는 cumulative step 17,196 이후, AMP scale 262,144에서 발생한
 scaled-gradient overflow를 `clip_grad_norm_(error_if_nonfinite=True)`가
 `GradScaler.step()`과 `GradScaler.update()`보다 먼저 fatal 처리해 종료됐다.

@@ -12,6 +12,7 @@ from src.training.full_pretraining import FullPretrainingConfig
 from src.training.full_pretraining_backend import (
     FullSafetyMonitor,
     SingleUseApprovalConsumer,
+    _load_amp_numerical_diagnostic_policy,
     _write_json,
     candidate_a_execution_plan,
     dry_run_full_pretraining,
@@ -66,7 +67,32 @@ def test_candidate_a_plan_has_exact_limits_and_no_text() -> None:
     assert plan["checkpoint_steps"] == [2_442, 4_883]
     assert plan["evaluation_steps"] == [0, 4_883]
     assert plan["actual_text_values_stored"] is False
+    assert plan["amp_numerical_diagnostics"]["mode"] == (
+        "prospective_no_update_scale_probe"
+    )
+    assert plan["amp_numerical_diagnostics"]["scale_floor"] == 1_024
     assert not ({"text", "prompt", "continuation", "token_ids"} & set(plan))
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        {},
+        {
+            "mode": "prospective_no_update_scale_probe",
+            "scale_floor": 1000,
+            "schema_version": 1,
+        },
+        {"mode": "training_policy", "scale_floor": 1024, "schema_version": 1},
+    ],
+)
+def test_amp_diagnostic_policy_is_strict_and_fail_closed(
+    tmp_path: Path, value: dict[str, object]
+) -> None:
+    path = tmp_path / "diagnostic.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(TrainingError, match="DIAGNOSTIC_EVIDENCE_FAILURE"):
+        _load_amp_numerical_diagnostic_policy(path)
 
 
 @pytest.mark.parametrize(

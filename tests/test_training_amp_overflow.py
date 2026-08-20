@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 import torch
 
@@ -14,6 +16,7 @@ from src.training import (
     seed_everything,
 )
 from src.training.errors import TrainingError
+from src.training.metrics import JsonlMetricLogger
 
 
 def _model_config() -> ModelConfig:
@@ -108,9 +111,14 @@ def test_single_amp_overflow_retries_same_batch_without_step_or_sampler_drift(
 ) -> None:
     trainer = _amp_trainer(tmp_path / "overflow")
     events = []
+    diagnostics = []
     handle = _inject_gradient_overflow(trainer, repeated=False)
     try:
-        result = trainer.train(amp_overflow_observer=events.append)
+        result = trainer.train(
+            amp_overflow_observer=events.append,
+            amp_diagnostic_observer=diagnostics.append,
+            amp_diagnostic_scale_floor=64.0,
+        )
     finally:
         handle.remove()
 
@@ -128,6 +136,15 @@ def test_single_amp_overflow_retries_same_batch_without_step_or_sampler_drift(
     assert result.state.sampler_state["sample_offset"] == 2
     assert result.metrics[0].amp_step_skipped is False
     assert result.metrics[0].amp_overflow_count == 1
+    assert [item.probe_scale for item in diagnostics] == [
+        1_024.0,
+        512.0,
+        256.0,
+        128.0,
+        64.0,
+    ]
+    assert all(item.optimizer_step_applied is False for item in diagnostics)
+    assert all(item.accounting_state_unchanged for item in diagnostics)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
@@ -152,6 +169,137 @@ def test_repeated_amp_overflow_fails_closed_without_optimizer_accounting(
     assert trainer.state.global_step == trainer.state.optimizer_step == 0
     assert trainer.state.tokens_seen == trainer.state.records_seen == 0
     assert not trainer.optimizer.state
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_prospective_scale_probe_records_lower_scale_recovery_without_mutation(
+    tmp_path,
+) -> None:
+    trainer = _amp_trainer(tmp_path / "diagnostic-recovery")
+    events = []
+    diagnostic_path = tmp_path / "diagnostic-recovery.jsonl"
+    logger = JsonlMetricLogger(diagnostic_path)
+    first_max = None
+
+    def scale_sensitive_overflow(gradient: torch.Tensor) -> torch.Tensor:
+        nonlocal first_max
+        maximum = float(gradient.detach().abs().max().item())
+        if first_max is None:
+            first_max = maximum
+        assert first_max > 0
+        if maximum > first_max * 0.2:
+            return torch.full_like(gradient, float("inf"))
+        return gradient
+
+    before_model = trainer._model_state_fingerprint()
+    before_optimizer = trainer._optimizer_state_fingerprint()
+    probe_rng_boundaries = []
+    original_probe = trainer._probe_amp_numerical_state
+
+    def observe_probe_rng_boundary(**kwargs):
+        before = trainer._rng_checksums(trainer._capture_attempt_rng())
+        result = original_probe(**kwargs)
+        after = trainer._rng_checksums(trainer._capture_attempt_rng())
+        probe_rng_boundaries.append((before, after))
+        return result
+
+    trainer._probe_amp_numerical_state = observe_probe_rng_boundary
+    handle = next(trainer.model.parameters()).register_hook(scale_sensitive_overflow)
+    try:
+        with pytest.raises(TrainingError, match="AMP_SKIP_LIMIT"):
+            trainer.train(
+                amp_overflow_observer=events.append,
+                amp_diagnostic_observer=logger.write,
+                amp_overflow_limit=3,
+                amp_diagnostic_scale_floor=64.0,
+            )
+    finally:
+        handle.remove()
+
+    diagnostics = [
+        json.loads(line)
+        for line in diagnostic_path.read_text(encoding="utf-8").splitlines()
+    ]
+    forbidden_fields = {"text", "token_ids", "input_ids", "labels", "prompt"}
+    assert all(not (forbidden_fields & set(item)) for item in diagnostics)
+    final_attempt = [item for item in diagnostics if item["overflow_attempt"] == 3]
+    assert [item["probe_scale"] for item in final_attempt] == [256.0, 128.0, 64.0]
+    assert diagnostics[0]["grad_scaler_found_inf"] is True
+    assert any(item["unscaled_gradients_finite"] for item in diagnostics[1:])
+    assert len({item["batch_identity_sha256"] for item in diagnostics}) == 1
+    assert len({item["python_rng_sha256"] for item in diagnostics}) == 1
+    assert len({item["cpu_rng_sha256"] for item in diagnostics}) == 1
+    assert len({item["cuda_rng_sha256"] for item in diagnostics}) == 1
+    assert len({item["model_state_sha256"] for item in diagnostics}) == 1
+    assert len({item["optimizer_state_sha256"] for item in diagnostics}) == 1
+    assert all(item["model_state_unchanged"] for item in diagnostics)
+    assert all(item["optimizer_state_unchanged"] for item in diagnostics)
+    assert all(item["scheduler_state_unchanged"] for item in diagnostics)
+    assert all(item["scaler_state_unchanged"] for item in diagnostics)
+    assert all(item["sampler_state_unchanged"] for item in diagnostics)
+    assert all(item["accounting_state_unchanged"] for item in diagnostics)
+    assert all(item["rng_state_restored"] for item in diagnostics)
+    assert all(item["optimizer_step_applied"] is False for item in diagnostics)
+    assert all(item["actual_text_values_stored"] is False for item in diagnostics)
+    assert all(item["token_ids_stored"] is False for item in diagnostics)
+    assert trainer._model_state_fingerprint() == before_model
+    assert trainer._optimizer_state_fingerprint() == before_optimizer
+    assert all(before == after for before, after in probe_rng_boundaries)
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+    assert len(events) == 3
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_prospective_scale_probe_records_all_scale_overflow_and_fails_closed(
+    tmp_path,
+) -> None:
+    trainer = _amp_trainer(tmp_path / "diagnostic-overflow")
+    diagnostics = []
+    handle = _inject_gradient_overflow(trainer, repeated=True)
+    try:
+        with pytest.raises(TrainingError, match="AMP_SKIP_LIMIT"):
+            trainer.train(
+                amp_diagnostic_observer=diagnostics.append,
+                amp_overflow_limit=3,
+                amp_diagnostic_scale_floor=64.0,
+            )
+    finally:
+        handle.remove()
+
+    final_attempt = [item for item in diagnostics if item.overflow_attempt == 3]
+    assert [item.probe_scale for item in final_attempt] == [256.0, 128.0, 64.0]
+    assert all(item.grad_scaler_found_inf for item in final_attempt)
+    assert all(not item.scaled_gradients_finite for item in final_attempt)
+    assert all(not item.unscaled_gradients_finite for item in final_attempt)
+    assert all(item.first_offending_parameter_id for item in final_attempt)
+    assert all(item.first_offending_parameter_shape for item in final_attempt)
+    assert all(item.first_offending_parameter_dtype for item in final_attempt)
+    assert all(item.unscaled_non_finite_element_count > 0 for item in final_attempt)
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_prospective_scale_probe_evidence_failure_is_fatal(tmp_path) -> None:
+    trainer = _amp_trainer(tmp_path / "diagnostic-write-failure")
+    handle = _inject_gradient_overflow(trainer, repeated=True)
+
+    def fail_evidence_write(_event) -> None:
+        raise OSError("synthetic evidence failure")
+
+    try:
+        with pytest.raises(TrainingError, match="DIAGNOSTIC_EVIDENCE_FAILURE"):
+            trainer.train(
+                amp_diagnostic_observer=fail_evidence_write,
+                amp_overflow_limit=3,
+                amp_diagnostic_scale_floor=64.0,
+            )
+    finally:
+        handle.remove()
+
+    assert trainer.state.global_step == trainer.state.optimizer_step == 0
+    assert trainer.state.tokens_seen == trainer.state.records_seen == 0
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")

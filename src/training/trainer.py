@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import math
 import os
+import pickle
 import random
 import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import torch
 from torch import Tensor
@@ -22,7 +24,12 @@ from src.model import DohaLMTiny
 from .checkpoint import CheckpointManager
 from .config import TrainingConfig
 from .errors import TrainingError
-from .metrics import AmpOverflowEvent, JsonlMetricLogger, TrainingMetric
+from .metrics import (
+    AmpNumericalDiagnostic,
+    AmpOverflowEvent,
+    JsonlMetricLogger,
+    TrainingMetric,
+)
 from .optimizer import OptimizerStats, create_optimizer
 from .sampler_state import StatefulBatchSampler
 from .scheduler import create_scheduler
@@ -90,6 +97,20 @@ class TrainingResult:
             "state": self.state.to_dict(),
             "optimizer_stats": self.optimizer_stats.to_dict(),
         }
+
+
+@dataclass(frozen=True)
+class _GradientDiagnostics:
+    total_parameter_count: int
+    finite_parameter_count: int
+    non_finite_parameter_count: int
+    non_finite_element_count: int
+    gradients_finite: bool
+    first_offending_parameter_id: str | None
+    first_offending_parameter_shape: tuple[int, ...] | None
+    first_offending_parameter_dtype: str | None
+    finite_max_abs: float
+    finite_norm: float
 
 
 class Trainer:
@@ -279,6 +300,347 @@ class Trainer:
         if cuda_states:
             torch.cuda.set_rng_state_all(cuda_states)
 
+    @staticmethod
+    def _update_tensor_hash(hasher: Any, tensor: Tensor) -> None:
+        detached = tensor.detach().cpu().contiguous()
+        hasher.update(str(tuple(detached.shape)).encode("ascii"))
+        hasher.update(str(detached.dtype).encode("ascii"))
+        hasher.update(detached.reshape(-1).view(torch.uint8).numpy().tobytes())
+
+    @staticmethod
+    def _rng_checksums(
+        value: tuple[object, Tensor, list[Tensor]],
+    ) -> tuple[str, str, str]:
+        python_state, cpu_state, cuda_states = value
+        python_hash = (
+            "sha256:"
+            + hashlib.sha256(pickle.dumps(python_state, protocol=5)).hexdigest()
+        )
+        cpu_hasher = hashlib.sha256()
+        Trainer._update_tensor_hash(cpu_hasher, cpu_state)
+        cuda_hasher = hashlib.sha256()
+        for index, state in enumerate(cuda_states):
+            cuda_hasher.update(str(index).encode("ascii"))
+            Trainer._update_tensor_hash(cuda_hasher, state)
+        return (
+            python_hash,
+            "sha256:" + cpu_hasher.hexdigest(),
+            "sha256:" + cuda_hasher.hexdigest(),
+        )
+
+    def _batch_identity(self, batches: list[dict[str, Tensor]]) -> str:
+        hasher = hashlib.sha256()
+        for batch_index, batch in enumerate(batches):
+            hasher.update(str(batch_index).encode("ascii"))
+            for name in sorted(batch):
+                hasher.update(name.encode("utf-8"))
+                self._update_tensor_hash(hasher, batch[name])
+        return "sha256:" + hasher.hexdigest()
+
+    def _model_state_fingerprint(self) -> str:
+        hasher = hashlib.sha256()
+        for name, value in self.model.state_dict().items():
+            hasher.update(name.encode("utf-8"))
+            self._update_tensor_hash(hasher, value)
+        return "sha256:" + hasher.hexdigest()
+
+    def _optimizer_state_fingerprint(self) -> str:
+        hasher = hashlib.sha256()
+        parameter_indexes: dict[int, int] = {}
+        next_index = 0
+        for group_index, group in enumerate(self.optimizer.param_groups):
+            hasher.update(f"group:{group_index}".encode("ascii"))
+            for name in sorted(key for key in group if key != "params"):
+                hasher.update(name.encode("utf-8"))
+                hasher.update(repr(group[name]).encode("utf-8"))
+            for parameter in group["params"]:
+                if id(parameter) not in parameter_indexes:
+                    parameter_indexes[id(parameter)] = next_index
+                    next_index += 1
+        for parameter, state in sorted(
+            self.optimizer.state.items(),
+            key=lambda item: parameter_indexes[id(item[0])],
+        ):
+            hasher.update(str(parameter_indexes[id(parameter)]).encode("ascii"))
+            for name in sorted(state):
+                hasher.update(str(name).encode("utf-8"))
+                value = state[name]
+                if isinstance(value, Tensor):
+                    self._update_tensor_hash(hasher, value)
+                else:
+                    hasher.update(repr(value).encode("utf-8"))
+        return "sha256:" + hasher.hexdigest()
+
+    def _gradient_diagnostics(self) -> _GradientDiagnostics:
+        total = 0
+        finite_parameters = 0
+        non_finite_parameters = 0
+        non_finite_elements = 0
+        finite_squared_norm = 0.0
+        finite_max_abs = 0.0
+        first_identifier = None
+        first_shape = None
+        first_dtype = None
+        for name, parameter in self.model.named_parameters():
+            gradient = parameter.grad
+            if gradient is None:
+                continue
+            total += 1
+            detached = gradient.detach()
+            finite_mask = torch.isfinite(detached)
+            all_finite = bool(finite_mask.all().item())
+            if all_finite:
+                finite_parameters += 1
+            else:
+                non_finite_parameters += 1
+                non_finite_elements += int((~finite_mask).sum().item())
+                if first_identifier is None:
+                    identity = f"{name}|{tuple(parameter.shape)}|{parameter.dtype}"
+                    first_identifier = (
+                        "sha256:" + hashlib.sha256(identity.encode("utf-8")).hexdigest()
+                    )
+                    first_shape = tuple(parameter.shape)
+                    first_dtype = str(parameter.dtype)
+            finite_values = detached[finite_mask].float()
+            if finite_values.numel():
+                finite_max_abs = max(
+                    finite_max_abs, float(finite_values.abs().max().item())
+                )
+                norm = float(finite_values.norm(2).item())
+                finite_squared_norm += norm * norm
+        return _GradientDiagnostics(
+            total_parameter_count=total,
+            finite_parameter_count=finite_parameters,
+            non_finite_parameter_count=non_finite_parameters,
+            non_finite_element_count=non_finite_elements,
+            gradients_finite=non_finite_parameters == 0,
+            first_offending_parameter_id=first_identifier,
+            first_offending_parameter_shape=first_shape,
+            first_offending_parameter_dtype=first_dtype,
+            finite_max_abs=finite_max_abs,
+            finite_norm=math.sqrt(finite_squared_norm),
+        )
+
+    def _probe_amp_numerical_state(
+        self,
+        *,
+        step_batches: list[dict[str, Tensor]],
+        attempt_rng_state: tuple[object, Tensor, list[Tensor]],
+        overflow_attempt: int,
+        current_scale: float,
+        scale_floor: float,
+        pending_tokens: int,
+        pending_records: int,
+    ) -> tuple[AmpNumericalDiagnostic, ...]:
+        if not 0 < scale_floor or not 0 < current_scale:
+            raise TrainingError(
+                "DIAGNOSTIC_EVIDENCE_FAILURE",
+                "AMP diagnostic scales must be positive.",
+            )
+        scales = [current_scale]
+        scale = current_scale
+        while scale / 2.0 >= scale_floor:
+            scale /= 2.0
+            scales.append(scale)
+
+        batch_identity = self._batch_identity(step_batches)
+        python_rng, cpu_rng, cuda_rng = self._rng_checksums(attempt_rng_state)
+        entry_rng_state = self._capture_attempt_rng()
+        entry_rng_checksums = self._rng_checksums(entry_rng_state)
+        model_fingerprint = self._model_state_fingerprint()
+        optimizer_fingerprint = self._optimizer_state_fingerprint()
+        scheduler_fingerprint = checksum_value(self.scheduler.state_dict())
+        scaler_fingerprint = checksum_value(self.scaler.state_dict())
+        sampler = self._stateful_sampler()
+        sampler_state = sampler.state_dict() if sampler is not None else None
+        sampler_fingerprint = (
+            checksum_value(sampler_state) if sampler_state is not None else None
+        )
+        accounting_state = (
+            self.state.global_step,
+            self.state.optimizer_step,
+            self.state.micro_step,
+            self.state.tokens_seen,
+            self.state.records_seen,
+        )
+        records = []
+        try:
+            for probe_scale in scales:
+                self.optimizer.zero_grad(set_to_none=True)
+                self._restore_attempt_rng(attempt_rng_state)
+                loss_finite = True
+                scaled_loss_finite = True
+                for batch in step_batches:
+                    with torch.amp.autocast(
+                        device_type=self.device.type,
+                        dtype=torch.float16,
+                        enabled=True,
+                    ):
+                        output = self.model(
+                            batch["input_ids"],
+                            attention_mask=batch["attention_mask"],
+                            labels=batch["labels"],
+                        )
+                        if output.loss is None:
+                            loss_finite = False
+                            scaled_loss_finite = False
+                            break
+                        loss_finite = loss_finite and bool(
+                            torch.isfinite(output.loss).item()
+                        )
+                        normalized_loss = (
+                            output.loss / self.config.gradient_accumulation_steps
+                        )
+                        diagnostic_scaled_loss = normalized_loss * probe_scale
+                        scaled_loss_finite = scaled_loss_finite and bool(
+                            torch.isfinite(diagnostic_scaled_loss).item()
+                        )
+                    if not loss_finite or not scaled_loss_finite:
+                        break
+                    diagnostic_scaled_loss.backward()
+
+                scaled = self._gradient_diagnostics()
+                with torch.no_grad():
+                    for parameter in self.model.parameters():
+                        if parameter.grad is not None:
+                            parameter.grad.mul_(1.0 / probe_scale)
+                unscaled = self._gradient_diagnostics()
+                first = (
+                    unscaled
+                    if unscaled.first_offending_parameter_id is not None
+                    else scaled
+                )
+                self.optimizer.zero_grad(set_to_none=True)
+                self._restore_attempt_rng(entry_rng_state)
+                rng_restored = (
+                    self._rng_checksums(self._capture_attempt_rng())
+                    == entry_rng_checksums
+                )
+                current_sampler_state = (
+                    sampler.state_dict() if sampler is not None else None
+                )
+                records.append(
+                    AmpNumericalDiagnostic(
+                        run_id=self.output_root.name,
+                        global_step=self.state.global_step,
+                        next_optimizer_step=self.state.global_step + 1,
+                        overflow_attempt=overflow_attempt,
+                        probe_scale=probe_scale,
+                        sampler_cursor=(
+                            sampler.sample_offset if sampler is not None else None
+                        ),
+                        pending_records=pending_records,
+                        pending_tokens=pending_tokens,
+                        batch_identity_sha256=batch_identity,
+                        python_rng_sha256=python_rng,
+                        cpu_rng_sha256=cpu_rng,
+                        cuda_rng_sha256=cuda_rng,
+                        sampler_state_sha256=sampler_fingerprint,
+                        model_state_sha256=model_fingerprint,
+                        optimizer_state_sha256=optimizer_fingerprint,
+                        total_gradient_parameter_count=scaled.total_parameter_count,
+                        scaled_finite_gradient_parameter_count=(
+                            scaled.finite_parameter_count
+                        ),
+                        scaled_non_finite_gradient_parameter_count=(
+                            scaled.non_finite_parameter_count
+                        ),
+                        scaled_non_finite_element_count=(
+                            scaled.non_finite_element_count
+                        ),
+                        scaled_gradients_finite=scaled.gradients_finite,
+                        unscaled_finite_gradient_parameter_count=(
+                            unscaled.finite_parameter_count
+                        ),
+                        unscaled_non_finite_gradient_parameter_count=(
+                            unscaled.non_finite_parameter_count
+                        ),
+                        unscaled_non_finite_element_count=(
+                            unscaled.non_finite_element_count
+                        ),
+                        unscaled_gradients_finite=unscaled.gradients_finite,
+                        first_offending_parameter_id=(
+                            first.first_offending_parameter_id
+                        ),
+                        first_offending_parameter_shape=(
+                            first.first_offending_parameter_shape
+                        ),
+                        first_offending_parameter_dtype=(
+                            first.first_offending_parameter_dtype
+                        ),
+                        finite_gradient_max_abs=unscaled.finite_max_abs,
+                        finite_gradient_norm=unscaled.finite_norm,
+                        loss_finite=loss_finite,
+                        scaled_loss_finite=scaled_loss_finite,
+                        grad_scaler_found_inf=not unscaled.gradients_finite,
+                        model_parameters_finite=(self._model_parameters_are_finite()),
+                        optimizer_state_finite=self._optimizer_state_is_finite(),
+                        model_state_unchanged=(
+                            self._model_state_fingerprint() == model_fingerprint
+                        ),
+                        optimizer_state_unchanged=(
+                            self._optimizer_state_fingerprint() == optimizer_fingerprint
+                        ),
+                        scheduler_state_unchanged=(
+                            checksum_value(self.scheduler.state_dict())
+                            == scheduler_fingerprint
+                        ),
+                        scaler_state_unchanged=(
+                            checksum_value(self.scaler.state_dict())
+                            == scaler_fingerprint
+                        ),
+                        sampler_state_unchanged=(
+                            current_sampler_state == sampler_state
+                        ),
+                        accounting_state_unchanged=(
+                            (
+                                self.state.global_step,
+                                self.state.optimizer_step,
+                                self.state.micro_step,
+                                self.state.tokens_seen,
+                                self.state.records_seen,
+                            )
+                            == accounting_state
+                        ),
+                        rng_state_restored=rng_restored,
+                        optimizer_step_applied=False,
+                        actual_text_values_stored=False,
+                        token_ids_stored=False,
+                        timestamp=utc_now(),
+                    )
+                )
+        except Exception as exc:
+            self.optimizer.zero_grad(set_to_none=True)
+            self._restore_attempt_rng(entry_rng_state)
+            if isinstance(exc, TrainingError) and exc.code == (
+                "DIAGNOSTIC_EVIDENCE_FAILURE"
+            ):
+                raise
+            raise TrainingError(
+                "DIAGNOSTIC_EVIDENCE_FAILURE",
+                "AMP numerical diagnostic probe failed closed.",
+            ) from exc
+        finally:
+            self.optimizer.zero_grad(set_to_none=True)
+            self._restore_attempt_rng(entry_rng_state)
+
+        if not records or not all(
+            record.model_state_unchanged
+            and record.optimizer_state_unchanged
+            and record.scheduler_state_unchanged
+            and record.scaler_state_unchanged
+            and record.sampler_state_unchanged
+            and record.accounting_state_unchanged
+            and record.rng_state_restored
+            and not record.optimizer_step_applied
+            for record in records
+        ):
+            raise TrainingError(
+                "DIAGNOSTIC_EVIDENCE_FAILURE",
+                "AMP diagnostic probe changed protected training state.",
+            )
+        return tuple(records)
+
     def _train_without_amp_overflow_recovery(
         self,
         *,
@@ -452,7 +814,11 @@ class Trainer:
         target_steps: int | None = None,
         metric_observer: Callable[[TrainingMetric], None] | None = None,
         amp_overflow_observer: Callable[[AmpOverflowEvent], None] | None = None,
+        amp_diagnostic_observer: (
+            Callable[[AmpNumericalDiagnostic], None] | None
+        ) = None,
         amp_overflow_limit: int = 3,
+        amp_diagnostic_scale_floor: float | None = None,
         before_optimizer_step: Callable[[int], None] | None = None,
     ) -> TrainingResult:
         if not self.amp_enabled:
@@ -470,6 +836,11 @@ class Trainer:
         if amp_overflow_limit <= 0:
             raise TrainingError(
                 "INVALID_TRAINING_CONFIG", "AMP overflow limit must be positive."
+            )
+        if (amp_diagnostic_observer is None) != (amp_diagnostic_scale_floor is None):
+            raise TrainingError(
+                "INVALID_TRAINING_CONFIG",
+                "AMP diagnostic observer and scale floor must be configured together.",
             )
 
         self.model.train()
@@ -572,6 +943,27 @@ class Trainer:
                             optimizer_state_finite=optimizer_finite,
                             timestamp=utc_now(),
                         )
+                        if (
+                            amp_diagnostic_observer is not None
+                            and amp_diagnostic_scale_floor is not None
+                        ):
+                            diagnostics = self._probe_amp_numerical_state(
+                                step_batches=step_batches,
+                                attempt_rng_state=attempt_rng_state,
+                                overflow_attempt=amp_overflow_count,
+                                current_scale=scale_before,
+                                scale_floor=amp_diagnostic_scale_floor,
+                                pending_tokens=step_tokens,
+                                pending_records=step_records,
+                            )
+                            try:
+                                for diagnostic in diagnostics:
+                                    amp_diagnostic_observer(diagnostic)
+                            except Exception as diagnostic_error:
+                                raise TrainingError(
+                                    "DIAGNOSTIC_EVIDENCE_FAILURE",
+                                    "AMP numerical diagnostic evidence write failed.",
+                                ) from diagnostic_error
                         if amp_overflow_observer is not None:
                             amp_overflow_observer(event)
                         if amp_overflow_count >= amp_overflow_limit:

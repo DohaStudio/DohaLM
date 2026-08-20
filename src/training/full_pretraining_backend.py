@@ -43,7 +43,12 @@ from .full_pretraining import (
     require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
-from .metrics import AmpOverflowEvent, JsonlMetricLogger, TrainingMetric
+from .metrics import (
+    AmpNumericalDiagnostic,
+    AmpOverflowEvent,
+    JsonlMetricLogger,
+    TrainingMetric,
+)
 from .pilot_pretraining import _lineage
 from .trainer import Trainer, seed_everything
 from .validation import evaluate_language_model
@@ -52,6 +57,7 @@ MID_CHECKPOINT_STEP = 2_442
 FINAL_CHECKPOINT_STEP = 4_883
 ALLOWED_CHECKPOINTS = ("checkpoint-2442", "checkpoint-4883")
 SCHEDULED_TOKEN_LIMIT = 10_000_384
+AMP_NUMERICAL_DIAGNOSTIC_POLICY_PATH = Path("configs/amp-numerical-diagnostics.json")
 
 
 def _enter_execution_boundary() -> None:
@@ -86,8 +92,48 @@ def _directory_bytes(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
+def _load_amp_numerical_diagnostic_policy(
+    path: Path | None = None,
+) -> dict[str, Any]:
+    """Load the diagnostic-only scale probe policy without changing run config."""
+    policy_path = (
+        repository_root() / AMP_NUMERICAL_DIAGNOSTIC_POLICY_PATH
+        if path is None
+        else path
+    )
+    try:
+        value = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise TrainingError(
+            "DIAGNOSTIC_EVIDENCE_FAILURE",
+            "The AMP numerical diagnostic policy is unavailable or invalid.",
+        ) from exc
+    expected_keys = {"mode", "scale_floor", "schema_version"}
+    scale_floor = value.get("scale_floor") if type(value) is dict else None
+    if (
+        type(value) is not dict
+        or set(value) != expected_keys
+        or value.get("schema_version") != 1
+        or value.get("mode") != "prospective_no_update_scale_probe"
+        or type(scale_floor) is not int
+        or scale_floor <= 0
+        or scale_floor & (scale_floor - 1)
+    ):
+        raise TrainingError(
+            "DIAGNOSTIC_EVIDENCE_FAILURE",
+            "The AMP numerical diagnostic policy violates its fixed schema.",
+        )
+    return {
+        "mode": value["mode"],
+        "scale_floor": scale_floor,
+        "schema_version": value["schema_version"],
+        "policy_sha256": file_checksum(policy_path),
+    }
+
+
 def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
     """Return a deterministic, text-free execution plan."""
+    amp_diagnostic_policy = _load_amp_numerical_diagnostic_policy()
     checkpoint_steps = (
         list(config.checkpoint_policy["steps"])
         if config.is_continuation
@@ -112,6 +158,7 @@ def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
         "initialization_fingerprint": config.initialization_fingerprint,
         "resume_requested": config.resume_checkpoint is not None,
         "automatic_extension_allowed": False,
+        "amp_numerical_diagnostics": amp_diagnostic_policy,
         "actual_text_values_stored": False,
     }
 
@@ -538,6 +585,9 @@ def _run_full_pretraining(
     amp_overflow_logger = JsonlMetricLogger(
         output_root / "full-amp-overflow-events.jsonl"
     )
+    amp_diagnostic_logger = JsonlMetricLogger(
+        output_root / "full-amp-numerical-diagnostics.jsonl"
+    )
     approval_consumer = SingleUseApprovalConsumer(
         output_root / "approval-consumption.json",
         run_id=output_root.name,
@@ -554,7 +604,11 @@ def _run_full_pretraining(
         amp_overflow_logger.write(event)
         monitor.observe_amp_overflow(event)
 
+    def observe_amp_diagnostic(event: AmpNumericalDiagnostic) -> None:
+        amp_diagnostic_logger.write(event)
+
     try:
+        amp_diagnostic_policy = _load_amp_numerical_diagnostic_policy()
         initial_evaluation = evaluate_language_model(
             trainer.model,
             evaluation_loader,
@@ -565,7 +619,9 @@ def _run_full_pretraining(
             target_steps=config.max_steps,
             metric_observer=observe_and_consume,
             amp_overflow_observer=observe_amp_overflow,
+            amp_diagnostic_observer=observe_amp_diagnostic,
             amp_overflow_limit=int(config.system_safety["repeated_amp_skip_limit"]),
+            amp_diagnostic_scale_floor=float(amp_diagnostic_policy["scale_floor"]),
         )
         final_path = trainer.checkpoints.save(
             model=trainer.model,
