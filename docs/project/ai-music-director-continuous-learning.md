@@ -16,7 +16,7 @@
 | 프로젝트 정의 | reusable LLM model provider | AI Music Director intelligence provider는 ADR-024 제안 |
 | Dataset governance | DohaLM의 immutable DatasetVersion·Manifest publication 구현 | 제품 candidate를 Dataset으로 승격하는 policy는 미구현 |
 | Foundation execution | explicit approval, PostgreSQL authority·journal, Host·composition 구현 | 기존 계보 유지 |
-| Product/adapter learning | Common LearningCandidate의 fail-closed consumer boundary 구현 | review·Dataset inclusion·Training request·Evaluation Gate는 미구현 |
+| Product/adapter learning | Common LearningCandidate 소비와 explicit local review Gate 구현 | persistence·Dataset inclusion·Training request·Evaluation Gate는 미구현 |
 | Reference·Similarity | Common 객체 정의만 authority | DohaLM typed consumer·해석 capability 미구현 |
 | Model promotion | 자동 promotion 없음 | Evaluation과 별도 사용자 승인 계약 필요 |
 
@@ -36,7 +36,7 @@
 
 | 객체·단계 | 현재 상태 | 다음 Gate |
 |---|---|---|
-| `LearningCandidate` | Common 계약을 검증하는 immutable consumer view 구현 | producer/transport와 review runtime |
+| `LearningCandidate` | Common 계약 소비와 current evidence를 재검증하는 immutable review result 구현 | producer/transport와 review persistence |
 | `RightsMetadata` | upstream authoritative evidence; DohaLM producer 아님 | exact consumer boundary |
 | `TrainingEligibility` | DohaLM Dataset governance의 candidate 단위 Gate | authoritative producer workflow |
 | `DatasetVersion`, `DatasetManifest` | governance·publication 구현 | product candidate 승격 policy |
@@ -68,12 +68,15 @@ LearningCandidate creation and review
 - [확정] Provider끼리 직접 호출하지 않으며 DohaMusic이 Common intent·capability에 따라 orchestration한다.
 - [확정] 현재 문서는 물리적 directory 이동이나 schema migration을 지시하지 않는다.
 
-## 구현된 첫 consumer boundary
+## 구현된 consumer와 review boundary
 
 - [현재] `src.data.learning_candidate_consumer.validate_learning_candidate_for_consumption()`은 pinned Common package로 LearningCandidate·RightsMetadata·TrainingEligibility를 검증하고 immutable consumer view만 반환한다.
 - [현재] schema·version·identity·workspace scope, review·consent evidence, source lineage, purpose-matched eligibility와 rights·retention expiry/revocation을 fail closed한다.
 - [현재] 입력 payload를 변경하거나 보존하지 않으며 DB persistence, Dataset publication, Training·Evaluation과 promotion을 호출하지 않는다.
-- [계획] Candidate review·persistence, DatasetVersion inclusion/publication handoff, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
+- [현재] `src.data.learning_candidate_review.review_learning_candidate()`은 `ValidatedLearningCandidate`만 candidate 입력으로 받고, 명시적 reviewer·reviewed_at·decision과 주입된 current authority port를 사용한다.
+- [현재] review 시점의 canonical RightsMetadata·TrainingEligibility를 다시 검증하며 unresolved evidence는 `NEEDS_REVIEW`, 만료·철회·policy-invalid evidence는 `REJECTED`, contract·identity·lineage·scope 위반은 error로 fail closed한다.
+- [현재] `ACCEPTED`는 Dataset inclusion review 진입 가능성만 뜻하며 Dataset inclusion/publication, Training request·실행, Evaluation·promotion 권한을 만들지 않는다.
+- [계획] Candidate review persistence, DatasetVersion inclusion/publication handoff, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
 
 ## 후속 결정 순서
 
@@ -94,5 +97,6 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-20 | ValidatedLearningCandidate 기반 explicit review와 review 시점 current rights·eligibility 재검증 Gate 구현 상태 반영 |
 | 2026-08-20 | Common LearningCandidate·RightsMetadata·TrainingEligibility fail-closed consumer boundary 구현 상태와 후속 Gate 분리 |
 | 2026-08-20 | PR #103의 제품 방향을 current authority에 맞춰 이관하고 Provider ownership, candidate Gate와 Foundation/product learning을 분리 |
