@@ -257,7 +257,7 @@ def build_dataset_version_proposal_mapping(
     if type(composition) is not ProductDatasetComposition:
         raise ProductDatasetCompositionError("COMPOSITION_INVALID", "composition")
     _require_valid_composition(composition)
-    members = composition.members
+    members = tuple(sorted(composition.members, key=lambda value: value.candidate_id))
     payload: dict[str, Any] = {
         "schema_name": "dataset_version",
         "schema_version": "1.0.0",
@@ -299,8 +299,8 @@ def build_dataset_version_proposal_mapping(
         "extensions": {
             "dohalm.product_dataset_composition": {
                 "composition_id": composition.composition_id,
-                "composed_at": composition.composed_at,
                 "handoff_ids": [member.handoff_id for member in members],
+                "member_bindings": [_identity_projection(member) for member in members],
                 "review_evidence_references": [
                     member.review_evidence_reference for member in members
                 ],

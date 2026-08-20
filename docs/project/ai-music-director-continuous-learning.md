@@ -103,7 +103,7 @@ LearningCandidate creation and review
 | `rights_summary` | composition 시점 current evidence가 전부 pass한 결과 |
 | `status`, `approved`, `frozen`, `training_allowed` | 고정된 proposal-only 값 `draft/false/false/false` |
 
-필수 Common field의 unresolved source는 0이다. Composition ID는 명시적 Dataset authority, canonical member ordering, handoff·review·source lineage, split·group과 content fingerprint를 결속한다. 입력 순서는 identity 의미가 아니며 runtime clock, UUID 또는 silent default를 사용하지 않는다.
+필수 Common field의 unresolved source는 0이다. Composition ID는 명시적 Dataset authority, canonical member ordering, handoff·review·source lineage, split·group과 content fingerprint를 결속한다. 입력 순서와 composition 실행 시각은 logical identity나 proposal mapping 의미가 아니며 runtime clock, UUID 또는 silent default를 사용하지 않는다. Safe member binding은 namespaced extension에 보존하므로 source·parent·review lineage가 proposal mapping에서 끊기지 않는다.
 
 `ProductDatasetComposition`은 Common DatasetVersion, Dataset approval, publication, Training readiness 또는 실행 권한이 아니다. Governance proposal·review·approval, publication, persistence, Training, Evaluation과 promotion 호출은 모두 후속 explicit Gate다.
 

@@ -375,6 +375,54 @@ def test_same_logical_input_and_permutation_have_same_identity_and_mapping():
     ) == build_dataset_version_proposal_mapping(second)
 
 
+def test_audit_time_does_not_change_logical_identity_or_proposal_mapping():
+    handoffs = _handoffs()
+    authority = _authority_input(handoffs)
+    first = compose_product_dataset(
+        handoffs,
+        authority_input=authority,
+        current_authority=_Authority(),
+        composed_at=COMPOSED_AT,
+    )
+    second = compose_product_dataset(
+        handoffs,
+        authority_input=authority,
+        current_authority=_Authority(),
+        composed_at=datetime(2026, 8, 24, tzinfo=timezone.utc),
+    )
+    assert first.composed_at != second.composed_at
+    assert first.composition_id == second.composition_id
+    assert build_dataset_version_proposal_mapping(
+        first
+    ) == build_dataset_version_proposal_mapping(second)
+
+
+def test_proposal_mapping_preserves_safe_source_parent_and_review_lineage():
+    composition = _compose()
+    mapping = build_dataset_version_proposal_mapping(composition)
+    extension = mapping["extensions"]["dohalm.product_dataset_composition"]
+    assert "composed_at" not in extension
+    canonical_members = sorted(
+        composition.members,
+        key=lambda member: member.candidate_id,
+    )
+    assert [item["candidate_id"] for item in extension["member_bindings"]] == [
+        member.candidate_id for member in canonical_members
+    ]
+    first = extension["member_bindings"][0]
+    assert first["input_references"] == [
+        composition_module._reference_projection(
+            canonical_members[0].input_references[0]
+        )
+    ]
+    assert first["parent_candidate_ids"] == list(
+        canonical_members[0].parent_candidate_ids
+    )
+    assert first["review_evidence_reference"] == (
+        canonical_members[0].review_evidence_reference
+    )
+
+
 @pytest.mark.parametrize(
     ("change", "value"),
     [
