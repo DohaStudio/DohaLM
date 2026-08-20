@@ -43,6 +43,8 @@ from .learning_candidate_dataset_handoff import (
     DatasetInclusionHandoffRejected,
     DatasetInclusionHandoffStatus,
     create_dataset_inclusion_handoff,
+    evaluate_current_handoff_evidence,
+    validate_dataset_inclusion_handoff,
 )
 from .learning_candidate_review import (
     CurrentLearningCandidateEvidence,
@@ -55,6 +57,16 @@ from .learning_candidate_review import (
     review_learning_candidate,
 )
 from .pipeline import build_pipeline, validate_pipeline
+from .product_dataset_composition import (
+    ProductDatasetComposition,
+    ProductDatasetCompositionAuthorityInput,
+    ProductDatasetCompositionError,
+    ProductDatasetCompositionMember,
+    ProductDatasetCompositionStatus,
+    ProductDatasetMemberAllocation,
+    build_dataset_version_proposal_mapping,
+    compose_product_dataset,
+)
 
 __all__ = [
     "ApprovedDatasetVersion",
@@ -82,13 +94,22 @@ __all__ = [
     "LearningCandidateReviewError",
     "LearningCandidateReviewResult",
     "ProducerIdentity",
+    "ProductDatasetComposition",
+    "ProductDatasetCompositionAuthorityInput",
+    "ProductDatasetCompositionError",
+    "ProductDatasetCompositionMember",
+    "ProductDatasetCompositionStatus",
+    "ProductDatasetMemberAllocation",
     "ReviewDecision",
     "ReviewReason",
     "ValidatedLearningCandidate",
     "approve_dataset_version",
     "begin_dataset_review",
     "build_pipeline",
+    "build_dataset_version_proposal_mapping",
+    "compose_product_dataset",
     "create_dataset_inclusion_handoff",
+    "evaluate_current_handoff_evidence",
     "evaluate_current_review_evidence",
     "load_data_config",
     "propose_dataset_version",
@@ -100,6 +121,7 @@ __all__ = [
     "validate_dataset_version",
     "validate_learning_candidate",
     "validate_learning_candidate_for_consumption",
+    "validate_dataset_inclusion_handoff",
     "validate_rights_metadata",
     "validate_training_eligibility",
     "validate_pipeline",

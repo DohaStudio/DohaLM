@@ -86,6 +86,19 @@ class DatasetInclusionHandoff:
     contract_authority_commit: str = COMMON_CONTRACT_AUTHORITY_COMMIT
 
 
+@dataclass(frozen=True)
+class _CurrentEvidenceBinding:
+    candidate_id: str
+    canonical_status: str
+    rights_metadata_id: str
+    training_eligibility_id: str
+    usage_purpose: str
+    rights_producer: ProducerIdentity
+    eligibility_producer: ProducerIdentity
+    workspace_id: str | None
+    consent_evidence_refs: tuple[str, ...]
+
+
 def create_dataset_inclusion_handoff(
     review_result: LearningCandidateReviewResult,
     *,
@@ -145,6 +158,91 @@ def create_dataset_inclusion_handoff(
         rights_checked_at=checked_at,
         eligibility_checked_at=checked_at,
     )
+
+
+def validate_dataset_inclusion_handoff(
+    handoff: DatasetInclusionHandoff,
+    *,
+    expected_workspace_id: str | None = None,
+) -> None:
+    """Revalidate one exact handoff snapshot and its deterministic identity."""
+
+    if type(handoff) is not DatasetInclusionHandoff:
+        raise DatasetInclusionHandoffError("HANDOFF_INVALID", "handoff")
+    if (
+        handoff.status
+        is not DatasetInclusionHandoffStatus.PENDING_DATASET_INCLUSION_REVIEW
+    ):
+        raise DatasetInclusionHandoffError("HANDOFF_STATUS_INVALID", "status")
+    if (
+        handoff.dataset_inclusion_review_allowed is not True
+        or handoff.dataset_version_creation_allowed is not False
+        or handoff.dataset_publication_allowed is not False
+        or handoff.training_allowed is not False
+        or handoff.evaluation_allowed is not False
+        or handoff.promotion_allowed is not False
+    ):
+        raise DatasetInclusionHandoffError("HANDOFF_SCOPE_INVALID", "scope")
+    if (
+        handoff.contract_package_version != COMMON_CONTRACT_PACKAGE_VERSION
+        or handoff.contract_policy_version != COMMON_CONTRACT_POLICY_VERSION
+        or handoff.contract_authority_commit != COMMON_CONTRACT_AUTHORITY_COMMIT
+        or not _valid_handoff_fields(handoff)
+    ):
+        raise DatasetInclusionHandoffError("HANDOFF_IDENTITY_INVALID", "identity")
+    if (
+        expected_workspace_id is not None
+        and expected_workspace_id != handoff.workspace_id
+    ):
+        raise DatasetInclusionHandoffError("WORKSPACE_SCOPE_MISMATCH", "workspace")
+    expected = f"handoff:{checksum_value(_handoff_projection(handoff))}"
+    if handoff.handoff_id != expected:
+        raise DatasetInclusionHandoffError("HANDOFF_IDENTITY_MISMATCH", "identity")
+
+
+def evaluate_current_handoff_evidence(
+    handoff: DatasetInclusionHandoff,
+    *,
+    authority: LearningCandidateReviewAuthority,
+    checked_at: datetime,
+) -> None:
+    """Apply the existing current-evidence policy to a validated handoff."""
+
+    validate_dataset_inclusion_handoff(
+        handoff,
+        expected_workspace_id=handoff.workspace_id,
+    )
+    evaluation_time = _require_handoff_time(checked_at)
+    try:
+        from .learning_candidate_review import _resolve_current_evidence
+
+        current = _resolve_current_evidence(
+            _CurrentEvidenceBinding(
+                candidate_id=handoff.candidate_id,
+                canonical_status="approved",
+                rights_metadata_id=handoff.rights_metadata_id,
+                training_eligibility_id=handoff.training_eligibility_id,
+                usage_purpose=handoff.usage_purpose,
+                rights_producer=handoff.rights_producer,
+                eligibility_producer=handoff.eligibility_producer,
+                workspace_id=handoff.workspace_id,
+                consent_evidence_refs=handoff.consent_evidence_refs,
+            ),
+            authority,
+            evaluation_time,
+        )
+    except LearningCandidateReviewError as exc:
+        raise DatasetInclusionHandoffError(exc.code, exc.stage) from None
+    if current.reason_code is not None:
+        raise DatasetInclusionHandoffRejected(
+            _rejection_code(current.reason_code),
+            "current_evidence",
+        )
+    if current.resolved is not True:
+        raise DatasetInclusionHandoffRejected(
+            "CURRENT_EVIDENCE_UNRESOLVED",
+            "current_evidence",
+        )
 
 
 def _require_accepted_review(
@@ -281,6 +379,81 @@ def _handoff_identity_projection(
     }
 
 
+def _handoff_projection(handoff: DatasetInclusionHandoff) -> dict[str, object]:
+    return {
+        "candidate_content_fingerprint": handoff.candidate_content_fingerprint,
+        "candidate_id": handoff.candidate_id,
+        "candidate_producer": _producer_projection(handoff.candidate_producer),
+        "candidate_review_evidence_ids": list(handoff.candidate_review_evidence_ids),
+        "candidate_schema_version": handoff.candidate_schema_version,
+        "consent_evidence_refs": list(handoff.consent_evidence_refs),
+        "contract_authority_commit": handoff.contract_authority_commit,
+        "contract_package_version": handoff.contract_package_version,
+        "contract_policy_version": handoff.contract_policy_version,
+        "eligibility_checked_at": handoff.eligibility_checked_at,
+        "eligibility_producer": _producer_projection(handoff.eligibility_producer),
+        "handoff_created_at": handoff.handoff_created_at,
+        "input_references": [
+            _object_reference_projection(value) for value in handoff.input_references
+        ],
+        "output_references": [
+            _object_reference_projection(value) for value in handoff.output_references
+        ],
+        "parent_candidate_ids": list(handoff.parent_candidate_ids),
+        "review_evidence_reference": handoff.review_evidence_reference,
+        "reviewed_at": handoff.reviewed_at,
+        "reviewer_id": handoff.reviewer_id,
+        "rights_checked_at": handoff.rights_checked_at,
+        "rights_metadata_id": handoff.rights_metadata_id,
+        "rights_producer": _producer_projection(handoff.rights_producer),
+        "source_type": handoff.source_type,
+        "status": handoff.status.value,
+        "task": handoff.task,
+        "training_eligibility_id": handoff.training_eligibility_id,
+        "usage_purpose": handoff.usage_purpose,
+        "workspace_id": handoff.workspace_id,
+    }
+
+
+def _valid_handoff_fields(handoff: DatasetInclusionHandoff) -> bool:
+    return (
+        all(
+            _is_reference(value)
+            for value in (
+                handoff.candidate_id,
+                handoff.review_evidence_reference,
+                handoff.reviewer_id,
+                handoff.candidate_schema_version,
+                handoff.source_type,
+                handoff.task,
+                handoff.rights_metadata_id,
+                handoff.training_eligibility_id,
+                handoff.usage_purpose,
+            )
+        )
+        and (handoff.workspace_id is None or _is_reference(handoff.workspace_id))
+        and _FINGERPRINT.fullmatch(handoff.candidate_content_fingerprint) is not None
+        and _valid_producer(handoff.candidate_producer)
+        and _valid_producer(handoff.rights_producer)
+        and _valid_producer(handoff.eligibility_producer)
+        and _valid_references(handoff.candidate_review_evidence_ids)
+        and _valid_references(handoff.consent_evidence_refs)
+        and isinstance(handoff.input_references, tuple)
+        and isinstance(handoff.output_references, tuple)
+        and isinstance(handoff.parent_candidate_ids, tuple)
+        and all(
+            type(value) is CommonObjectReference and _valid_object_reference(value)
+            for value in (*handoff.input_references, *handoff.output_references)
+        )
+        and all(_is_reference(value) for value in handoff.parent_candidate_ids)
+        and handoff.candidate_id not in handoff.parent_candidate_ids
+        and _parse_time(handoff.reviewed_at, "reviewed_at")
+        <= _parse_time(handoff.handoff_created_at, "handoff_created_at")
+        and handoff.rights_checked_at == handoff.handoff_created_at
+        and handoff.eligibility_checked_at == handoff.handoff_created_at
+    )
+
+
 def _require_handoff_time(value: datetime) -> datetime:
     if (
         not isinstance(value, datetime)
@@ -352,4 +525,6 @@ __all__ = [
     "DatasetInclusionHandoffRejected",
     "DatasetInclusionHandoffStatus",
     "create_dataset_inclusion_handoff",
+    "evaluate_current_handoff_evidence",
+    "validate_dataset_inclusion_handoff",
 ]

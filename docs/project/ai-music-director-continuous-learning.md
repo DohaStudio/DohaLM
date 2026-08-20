@@ -80,7 +80,32 @@ LearningCandidate creation and review
 - [현재] `src.data.learning_candidate_dataset_handoff.create_dataset_inclusion_handoff()`는 exact `LearningCandidateReviewResult(decision=ACCEPTED)`만 받고 handoff 시점의 current RightsMetadata·TrainingEligibility를 동일 authority와 Common validator로 다시 확인한다.
 - [현재] `DatasetInclusionHandoff`는 candidate·review·evidence·lineage·workspace identity를 보존하는 immutable local lifecycle object이며 별도 Dataset inclusion review의 입력 후보일 뿐이다.
 - [현재] handoff 생성은 DatasetVersion을 만들거나 Dataset governance/publication 함수를 호출하지 않으며 Training·Evaluation·promotion, persistence와 API side effect가 없다.
-- [계획] Candidate review·handoff persistence, product-specific DatasetVersion assembly와 inclusion review, publication 연결, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
+- [현재] `src.data.product_dataset_composition.compose_product_dataset()`은 여러 exact `DatasetInclusionHandoff`와 명시적인 DohaLM Dataset-level authority input을 immutable `ProductDatasetComposition`으로 조립한다.
+- [현재] composition은 handoff identity와 current rights·eligibility를 재검증하고, train·validation·test member, group key, workspace, source·review lineage와 Dataset identity를 결정론적으로 결속한다.
+- [현재] `build_dataset_version_proposal_mapping()`은 arbitrary caller payload 없이 완전한 Common DatasetVersion `draft` mapping을 side-effect-free하게 만들고 Common validator로 검증한다. 이 호출은 Dataset governance proposal을 생성하지 않는다.
+- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff와 Product Dataset Composition까지만 구현됐다. DatasetVersion Governance Integration, Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
+
+## Product Dataset composition field authority
+
+단일 handoff는 Dataset aggregate authority가 아니다. Dataset identity·version·split·group과 Dataset-level evidence는 `ProductDatasetCompositionAuthorityInput`의 명시적 값이며, member identity·content·review·source lineage는 검증된 handoff에서만 파생한다.
+
+| Common DatasetVersion field | authoritative source |
+|---|---|
+| `object_id`, `dataset_id`, `dataset_version` | explicit Dataset composition authority |
+| `created_at`, `created_by`, `producer`, `workspace_id` | explicit Dataset composition authority |
+| `schema_manifest_id`, `dataset_manifest_id` | explicit Dataset composition authority; publication은 수행하지 않음 |
+| `dataset_eligibility_evidence_id`, `approval_evidence_ids` | explicit Dataset composition authority |
+| `usage_purpose`, `task` | 모든 validated handoff에서 동일함을 확인한 뒤 파생 |
+| `lineage` | candidate identity·schema version·content fingerprint의 canonical projection |
+| `split_manifest`, `candidate_count` | explicit handoff allocation과 validated member 집합 |
+| `created_from` | canonical source·parent·handoff lineage fingerprint |
+| `content_fingerprint` | canonical candidate content·split·group projection fingerprint |
+| `rights_summary` | composition 시점 current evidence가 전부 pass한 결과 |
+| `status`, `approved`, `frozen`, `training_allowed` | 고정된 proposal-only 값 `draft/false/false/false` |
+
+필수 Common field의 unresolved source는 0이다. Composition ID는 명시적 Dataset authority, canonical member ordering, handoff·review·source lineage, split·group과 content fingerprint를 결속한다. 입력 순서와 composition 실행 시각은 logical identity나 proposal mapping 의미가 아니며 runtime clock, UUID 또는 silent default를 사용하지 않는다. Safe member binding은 namespaced extension에 보존하므로 source·parent·review lineage가 proposal mapping에서 끊기지 않는다.
+
+`ProductDatasetComposition`은 Common DatasetVersion, Dataset approval, publication, Training readiness 또는 실행 권한이 아니다. Governance proposal·review·approval, publication, persistence, Training, Evaluation과 promotion 호출은 모두 후속 explicit Gate다.
 
 ## 후속 결정 순서
 
@@ -101,6 +126,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-21 | 단일 handoff의 aggregate authority 한계를 해소하는 immutable Product Dataset composition과 side-effect-free Common DatasetVersion draft mapping 경계 반영 |
 | 2026-08-21 | ACCEPTED review의 current evidence를 재검증하는 immutable Dataset inclusion handoff와 DatasetVersion/publication 비자동화 경계 반영 |
 | 2026-08-20 | ValidatedLearningCandidate 기반 explicit review와 review 시점 current rights·eligibility 재검증 Gate 구현 상태 반영 |
 | 2026-08-20 | Common LearningCandidate·RightsMetadata·TrainingEligibility fail-closed consumer boundary 구현 상태와 후속 Gate 분리 |
