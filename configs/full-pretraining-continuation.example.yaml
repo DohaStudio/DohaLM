@@ -1,18 +1,16 @@
-train_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/train.jsonl
-validation_dataset: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/evaluation.jsonl
-tokenizer_model: analysis/tokenizer-development/AIHUB-71748/operating-16k-v2/tokenizers/unigram-16k/tokenizer.model
-corpus_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/dataset-manifest.json
-split_manifest: analysis/pilot-pretraining/AIHUB-71748/prepared/pilot-v2/split-manifest.json
-output_dir: analysis/full-pretraining/AIHUB-71748/runs/FULL-PRETRAIN-CANDIDATE-A-20260727-0001
+train_dataset: curated/aihub-71748-local-v1/train/tokenized.jsonl
+validation_dataset: curated/aihub-71748-local-v1/validation/tokenized.jsonl
+tokenizer_model: curated/aihub-71748-local-v1/tokenizer/tokenizer.model
+corpus_manifest: curated/aihub-71748-local-v1/technical-readiness/dataset-manifest.json
+split_manifest: curated/aihub-71748-local-v1/technical-readiness/split-manifest.json
+output_dir: .dohalm-local/training-output/run-aihub-71748-local-v1-r4
 path_root: configured_external
 local_dataset_config: configs/local-datasets.yaml
-
-budget_candidate: candidate_a_10m
-token_budget: 10000000
+budget_candidate: candidate_a_one_epoch_continuation
+token_budget: 71304960
 tokens_per_optimizer_step: 2048
-max_steps: 4883
-maximum_epochs: 0.14024222267534303
-
+max_steps: 34817
+maximum_epochs: 1.0
 micro_batch_size: 2
 gradient_accumulation_steps: 4
 learning_rate: 0.0003
@@ -25,13 +23,12 @@ log_every: 1
 seed: 17
 device: cuda
 use_amp: true
-
 initialization:
-  mode: fresh_seed_17
-  seed: 17
+  mode: resume_full_checkpoint
+  source_run_id: run-aihub-71748-local-v1-r3
+  source_step: 4883
   pilot_checkpoint_used: false
   approval_status: approved
-
 evaluation_policy:
   mode: full_internal
   records: 4799
@@ -40,20 +37,23 @@ evaluation_policy:
   fingerprint: sha256:0265e2d4b2ab94cd4f3df3afba14e671a58cc76b8e11434ebd64db36506f8790
   include_initial: true
   include_final: true
-  schedule: [start, final]
+  schedule:
+  - start
+  - final
   original_validation_used: false
   generated_samples: false
   approval_status: approved
-
 checkpoint_policy:
-  interval_tokens: 5000000
-  interval_steps: 2442
+  interval_tokens: 40652800
+  interval_steps: 19850
+  steps:
+  - 19850
+  - 34817
   save_final: true
   expected_checkpoint_count: 2
   atomic_publish: true
   checksum_manifest: true
   approval_status: approved
-
 retention_policy:
   maximum_retained: 2
   keep_mid: true
@@ -67,19 +67,16 @@ retention_policy:
   store_text_or_token_ids: false
   automatic_deletion_during_run: false
   approval_status: approved
-
 disk_budget:
   run_budget_bytes: 2147483648
   minimum_free_bytes_before_start: 10737418240
   minimum_free_bytes_during_run: 5368709120
-  atomic_staging_bytes: 202789742
+  atomic_staging_bytes: 202790069
   approval_status: approved
-
 wall_clock_budget:
-  planned_seconds: 1800
-  hard_stop_seconds: 2700
+  planned_seconds: 7800
+  hard_stop_seconds: 10800
   approval_status: approved
-
 system_safety:
   maximum_reserved_vram_bytes: 7516192768
   maximum_cpu_working_set_bytes: 4294967296
@@ -99,10 +96,20 @@ system_safety:
   no_other_long_gpu_task: required_before_execution
   automatic_retry: false
   approval_status: approved
-
 local_experiment_only: true
 publish_allowed: false
 redistribution_allowed: false
 model_release_allowed: false
-resume_checkpoint: null
-resume_approval_status: not_approved
+resume_checkpoint: .dohalm-local/training-output/run-aihub-71748-local-v1-r3/checkpoint-4883
+resume_approval_status: approved_full_run_resume
+continuation:
+  source_run_id: run-aihub-71748-local-v1-r3
+  source_checkpoint: checkpoint-4883
+  source_step: 4883
+  source_manifest_sha256: sha256:7faea6d169e76e15577ac87cd98630592f1047f26c329189adb3f027f3388a48
+  target_cumulative_steps: 34817
+  packed_sequence_count: 278535
+  actual_cumulative_input_tokens: 71304960
+  scheduler_horizon_policy: extend_cosine_global_step_no_warmup_restart
+  automatic_retry: false
+  automatic_resume: false

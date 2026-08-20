@@ -43,7 +43,12 @@ from .full_pretraining import (
     require_full_pretraining_technical_readiness,
     resolve_full_pretraining_path,
 )
-from .metrics import TrainingMetric
+from .metrics import (
+    AmpNumericalDiagnostic,
+    AmpOverflowEvent,
+    JsonlMetricLogger,
+    TrainingMetric,
+)
 from .pilot_pretraining import _lineage
 from .trainer import Trainer, seed_everything
 from .validation import evaluate_language_model
@@ -52,6 +57,7 @@ MID_CHECKPOINT_STEP = 2_442
 FINAL_CHECKPOINT_STEP = 4_883
 ALLOWED_CHECKPOINTS = ("checkpoint-2442", "checkpoint-4883")
 SCHEDULED_TOKEN_LIMIT = 10_000_384
+AMP_NUMERICAL_DIAGNOSTIC_POLICY_PATH = Path("configs/amp-numerical-diagnostics.json")
 
 
 def _enter_execution_boundary() -> None:
@@ -86,16 +92,64 @@ def _directory_bytes(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
+def _load_amp_numerical_diagnostic_policy(
+    path: Path | None = None,
+) -> dict[str, Any]:
+    """Load the diagnostic-only scale probe policy without changing run config."""
+    policy_path = (
+        repository_root() / AMP_NUMERICAL_DIAGNOSTIC_POLICY_PATH
+        if path is None
+        else path
+    )
+    try:
+        value = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise TrainingError(
+            "DIAGNOSTIC_EVIDENCE_FAILURE",
+            "The AMP numerical diagnostic policy is unavailable or invalid.",
+        ) from exc
+    expected_keys = {"mode", "scale_floor", "schema_version"}
+    scale_floor = value.get("scale_floor") if type(value) is dict else None
+    if (
+        type(value) is not dict
+        or set(value) != expected_keys
+        or value.get("schema_version") != 1
+        or value.get("mode") != "prospective_no_update_scale_probe"
+        or type(scale_floor) is not int
+        or scale_floor <= 0
+        or scale_floor & (scale_floor - 1)
+    ):
+        raise TrainingError(
+            "DIAGNOSTIC_EVIDENCE_FAILURE",
+            "The AMP numerical diagnostic policy violates its fixed schema.",
+        )
+    return {
+        "mode": value["mode"],
+        "scale_floor": scale_floor,
+        "schema_version": value["schema_version"],
+        "policy_sha256": file_checksum(policy_path),
+    }
+
+
 def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
     """Return a deterministic, text-free execution plan."""
+    amp_diagnostic_policy = _load_amp_numerical_diagnostic_policy()
+    checkpoint_steps = (
+        list(config.checkpoint_policy["steps"])
+        if config.is_continuation
+        else [MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP]
+    )
+    start_step = (
+        int(config.continuation["source_step"]) if config.is_continuation else 0
+    )
     return {
-        "candidate": "A",
+        "candidate": "A-one-epoch-continuation" if config.is_continuation else "A",
         "token_target": config.token_budget,
         "scheduled_token_limit": config.scheduled_tokens,
         "optimizer_step_limit": config.max_steps,
         "equivalent_epoch_limit": config.scheduled_tokens / 71_307_940,
-        "evaluation_steps": [0, FINAL_CHECKPOINT_STEP],
-        "checkpoint_steps": [MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP],
+        "evaluation_steps": [start_step, config.max_steps],
+        "checkpoint_steps": checkpoint_steps,
         "maximum_checkpoint_count": 2,
         "wall_clock_hard_stop_seconds": config.wall_clock_budget["hard_stop_seconds"],
         "output_budget_bytes": config.disk_budget["run_budget_bytes"],
@@ -104,6 +158,11 @@ def candidate_a_execution_plan(config: FullPretrainingConfig) -> dict[str, Any]:
         "initialization_fingerprint": config.initialization_fingerprint,
         "resume_requested": config.resume_checkpoint is not None,
         "automatic_extension_allowed": False,
+        "amp_recovery_policy": {
+            "mode": config.system_safety["amp_recovery_policy"],
+            "minimum_amp_scale": config.system_safety["minimum_amp_scale"],
+        },
+        "amp_numerical_diagnostics": amp_diagnostic_policy,
         "actual_text_values_stored": False,
     }
 
@@ -150,18 +209,23 @@ class FullSafetyMonitor:
         self.gradients: deque[float] = deque(maxlen=window)
         self.loss_spikes = 0
         self.gradient_spikes = 0
-        self.amp_skips = 0
+        self.total_amp_overflows = 0
+        self.last_amp_scale_before: float | None = None
+        self.last_amp_scale_after: float | None = None
 
     @staticmethod
     def _baseline(values: deque[float]) -> float | None:
         return sum(values) / len(values) if len(values) >= 10 else None
 
     def observe(self, metric: TrainingMetric) -> None:
-        if metric.global_step > FINAL_CHECKPOINT_STEP:
+        if metric.global_step > self.config.max_steps:
             raise TrainingError(
                 "FULL_PRETRAINING_STEP_LIMIT", "Optimizer step limit exceeded."
             )
-        if metric.global_step * 2_048 > SCHEDULED_TOKEN_LIMIT:
+        if (
+            metric.global_step * self.config.tokens_per_optimizer_step
+            > self.config.scheduled_tokens
+        ):
             raise TrainingError(
                 "FULL_PRETRAINING_TOKEN_LIMIT", "Scheduled token limit exceeded."
             )
@@ -206,13 +270,6 @@ class FullSafetyMonitor:
                 "FULL_PRETRAINING_OUTPUT_BUDGET", "Run output exceeded 2 GiB."
             )
 
-        self.amp_skips = self.amp_skips + 1 if metric.amp_step_skipped else 0
-        if self.amp_skips >= int(self.config.system_safety["repeated_amp_skip_limit"]):
-            raise TrainingError(
-                "FULL_PRETRAINING_AMP_SKIP_LIMIT",
-                "AMP skipped three consecutive optimizer steps.",
-            )
-
         loss_baseline = self._baseline(self.losses)
         grad_baseline = self._baseline(self.gradients)
         loss_limit = float(self.config.system_safety["loss_spike_multiplier"])
@@ -245,6 +302,27 @@ class FullSafetyMonitor:
                 "Gradient norm exceeded the rolling threshold for ten steps.",
             )
 
+    def observe_amp_overflow(self, event: AmpOverflowEvent) -> None:
+        """Record recoverable overflow and enforce numerical scale-floor safety."""
+        self.total_amp_overflows += 1
+        self.last_amp_scale_before = event.scale_before
+        self.last_amp_scale_after = event.scale_after
+        if not event.model_parameters_finite or not event.optimizer_state_finite:
+            raise TrainingError(
+                "NON_FINITE_GRADIENT",
+                "AMP overflow coincided with model or optimizer corruption.",
+            )
+        if not event.scale_after < event.scale_before:
+            raise TrainingError(
+                "NON_FINITE_GRADIENT",
+                "AMP overflow did not produce a scale backoff.",
+            )
+        if event.scale_after < float(self.config.system_safety["minimum_amp_scale"]):
+            raise TrainingError(
+                "FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED",
+                "AMP overflow requires a scale below the configured floor.",
+            )
+
 
 class SingleUseApprovalConsumer:
     """Atomically consume approval only after optimizer step 1 succeeds."""
@@ -256,15 +334,17 @@ class SingleUseApprovalConsumer:
         run_id: str,
         manifest_path: Path,
         readiness_fingerprint: str,
+        first_optimizer_step: int = 1,
     ):
         self.path = path
         self.run_id = run_id
         self.manifest_path = manifest_path
         self.readiness_fingerprint = readiness_fingerprint
+        self.first_optimizer_step = first_optimizer_step
         self.consumed = False
 
     def observe(self, metric: TrainingMetric) -> None:
-        if metric.global_step != 1 or self.consumed:
+        if metric.global_step != self.first_optimizer_step or self.consumed:
             return
         _write_json(
             self.path,
@@ -272,7 +352,7 @@ class SingleUseApprovalConsumer:
                 "schema_version": "1.0",
                 "status": "consumed",
                 "single_use": True,
-                "consumed_at_optimizer_step": 1,
+                "consumed_at_optimizer_step": self.first_optimizer_step,
                 "run_id": self.run_id,
                 "approval_manifest_sha256": file_checksum(self.manifest_path),
                 "readiness_fingerprint": self.readiness_fingerprint,
@@ -281,11 +361,16 @@ class SingleUseApprovalConsumer:
         self.consumed = True
 
 
-def _checkpoint_manifest(output_root: Path) -> dict[str, Any]:
+def _checkpoint_manifest(
+    output_root: Path,
+    *,
+    expected_steps: tuple[int, ...] = (MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP),
+) -> dict[str, Any]:
     checkpoints = sorted(
         path for path in output_root.glob("checkpoint-*") if path.is_dir()
     )
-    if tuple(path.name for path in checkpoints) != ALLOWED_CHECKPOINTS:
+    expected_names = tuple(f"checkpoint-{step}" for step in expected_steps)
+    if tuple(path.name for path in checkpoints) != expected_names:
         raise TrainingError(
             "FULL_PRETRAINING_CHECKPOINT_POLICY_MISMATCH",
             "Only mid and final checkpoints are allowed.",
@@ -334,11 +419,6 @@ def _run_full_pretraining(
     )
     require_full_pretraining_technical_readiness(readiness_report)
     config = FullPretrainingConfig.from_yaml(config_path)
-    if config.resume_checkpoint is not None:
-        raise TrainingError(
-            "FULL_PRETRAINING_RESUME_NOT_APPROVED",
-            "Fresh Candidate A execution cannot resume.",
-        )
     output_root = resolve_full_pretraining_path(config, config.output_dir)
     if output_root.exists():
         raise TrainingError(
@@ -378,6 +458,32 @@ def _run_full_pretraining(
     started = time.perf_counter()
     lineage = _lineage(config)
     training = config.to_training_config()
+    is_continuation = getattr(config, "resume_checkpoint", None) is not None
+    resume_checkpoint: Path | None = None
+    source_dataset_metadata: dict[str, Any] | None = None
+    source_step = 0
+    if is_continuation:
+        resume_checkpoint = resolve_full_pretraining_path(
+            config, config.resume_checkpoint or ""
+        )
+        source_step = int(config.continuation["source_step"])
+        if (
+            file_checksum(resume_checkpoint / "checksums.json")
+            != config.continuation["source_manifest_sha256"]
+        ):
+            raise TrainingError(
+                "CHECKPOINT_CHECKSUM_MISMATCH",
+                "The approved continuation source manifest has drifted.",
+            )
+        source_checkpoint_config = json.loads(
+            (resume_checkpoint / "config.json").read_text(encoding="utf-8")
+        )
+        source_dataset_metadata = source_checkpoint_config.get("synthetic_dataset")
+        if type(source_dataset_metadata) is not dict:
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "The continuation source dataset metadata is unavailable.",
+            )
     seed_everything(config.seed)
     train_dataset = TokenizedJsonlDataset(
         resolve_full_pretraining_path(config, config.train_dataset),
@@ -424,6 +530,17 @@ def _run_full_pretraining(
         "token_budget": config.token_budget,
         "scheduled_token_limit": config.scheduled_tokens,
     }
+    continuation_metadata = {
+        "kind": "full-pretraining-candidate-a-one-epoch-continuation-v1",
+        **lineage,
+        **run_identity,
+        "resume_source_run_id": config.continuation.get("source_run_id"),
+        "resume_source_checkpoint": config.continuation.get("source_checkpoint"),
+        "resume_source_step": source_step,
+        "scheduler_horizon_policy": config.continuation.get("scheduler_horizon_policy"),
+    }
+    if is_continuation:
+        output_root.mkdir(parents=True, exist_ok=False)
     trainer = Trainer(
         model=DohaLMTiny(config.model),
         dataloader=train_loader,
@@ -431,13 +548,33 @@ def _run_full_pretraining(
         dataset_fingerprint=lineage["dataset_fingerprint"],
         tokenizer_fingerprint=lineage["tokenizer_fingerprint"],
         output_root=output_root,
-        dataset_metadata={
-            "kind": "full-pretraining-candidate-a-v1",
-            **lineage,
-            **run_identity,
-        },
+        dataset_metadata=(
+            source_dataset_metadata
+            if is_continuation
+            else {"kind": "full-pretraining-candidate-a-v1", **lineage, **run_identity}
+        ),
+        resume=is_continuation,
         metric_filename="full-training-metrics.jsonl",
     )
+    if is_continuation:
+        assert resume_checkpoint is not None
+        trainer.resume_from(
+            resume_checkpoint,
+            allow_scheduler_horizon_extension=True,
+            expected_source_step=source_step,
+        )
+        sampler_state = trainer.state.sampler_state or {}
+        if (
+            trainer.state.global_step != source_step
+            or trainer.state.optimizer_step != source_step
+            or sampler_state.get("sample_offset") != trainer.state.records_seen
+            or sampler_state.get("epoch") != 0
+        ):
+            raise TrainingError(
+                "RESUME_STATE_MISMATCH",
+                "The exact r3 sampler and optimizer boundary was not restored.",
+            )
+        trainer.dataset_metadata = continuation_metadata
     approval = json.loads(json.dumps(readiness_report))
     _write_json(
         output_root / "full-execution-manifest.json",
@@ -450,18 +587,33 @@ def _run_full_pretraining(
         },
     )
     monitor = FullSafetyMonitor(config, output_root, started_at=started)
+    amp_overflow_logger = JsonlMetricLogger(
+        output_root / "full-amp-overflow-events.jsonl"
+    )
+    amp_diagnostic_logger = JsonlMetricLogger(
+        output_root / "full-amp-numerical-diagnostics.jsonl"
+    )
     approval_consumer = SingleUseApprovalConsumer(
         output_root / "approval-consumption.json",
         run_id=output_root.name,
         manifest_path=manifest_path,
         readiness_fingerprint=approval["readiness_fingerprint"],
+        first_optimizer_step=source_step + 1,
     )
 
     def observe_and_consume(metric: TrainingMetric) -> None:
         approval_consumer.observe(metric)
         monitor.observe(metric)
 
+    def observe_amp_overflow(event: AmpOverflowEvent) -> None:
+        amp_overflow_logger.write(event)
+        monitor.observe_amp_overflow(event)
+
+    def observe_amp_diagnostic(event: AmpNumericalDiagnostic) -> None:
+        amp_diagnostic_logger.write(event)
+
     try:
+        amp_diagnostic_policy = _load_amp_numerical_diagnostic_policy()
         initial_evaluation = evaluate_language_model(
             trainer.model,
             evaluation_loader,
@@ -469,7 +621,12 @@ def _run_full_pretraining(
             use_amp=trainer.amp_enabled,
         )
         result = trainer.train(
-            target_steps=config.max_steps, metric_observer=observe_and_consume
+            target_steps=config.max_steps,
+            metric_observer=observe_and_consume,
+            amp_overflow_observer=observe_amp_overflow,
+            amp_diagnostic_observer=observe_amp_diagnostic,
+            minimum_amp_scale=float(config.system_safety["minimum_amp_scale"]),
+            amp_diagnostic_scale_floor=float(amp_diagnostic_policy["scale_floor"]),
         )
         final_path = trainer.checkpoints.save(
             model=trainer.model,
@@ -493,7 +650,14 @@ def _run_full_pretraining(
             raise TrainingError(
                 "FULL_PRETRAINING_WALL_CLOCK_LIMIT", "Wall-clock hard stop reached."
             )
-        checkpoint_manifest = _checkpoint_manifest(output_root)
+        expected_checkpoint_steps = (
+            tuple(config.checkpoint_policy["steps"])
+            if is_continuation
+            else (MID_CHECKPOINT_STEP, FINAL_CHECKPOINT_STEP)
+        )
+        checkpoint_manifest = _checkpoint_manifest(
+            output_root, expected_steps=expected_checkpoint_steps
+        )
         evaluation = {
             "schema_version": "1.0",
             "fingerprint": config.evaluation_policy["fingerprint"],
@@ -523,6 +687,7 @@ def _run_full_pretraining(
             },
             "actual_text_values_stored": False,
             "approval_consumed": approval_consumer.consumed,
+            "recoverable_amp_overflow_count": monitor.total_amp_overflows,
         }
         resolved = config.to_dict()
         _write_json(output_root / "full-config-resolved.json", resolved)
@@ -551,7 +716,7 @@ def _run_full_pretraining(
                 "schema_version": "1.0",
                 "status": "completed",
                 "global_step": trainer.state.global_step,
-                "checkpoint_count": 2,
+                "checkpoint_count": len(expected_checkpoint_steps),
                 "automatic_extension": False,
             },
         )
@@ -577,6 +742,9 @@ def _run_full_pretraining(
                 "error_code": getattr(exc, "code", None),
                 "global_step": trainer.state.global_step,
                 "automatic_retry": False,
+                "recoverable_amp_overflow_count": monitor.total_amp_overflows,
+                "last_amp_scale_before": monitor.last_amp_scale_before,
+                "last_amp_scale_after": monitor.last_amp_scale_after,
                 "actual_text_values_stored": False,
             },
             replace=(output_root / "full-failure-report.json").exists(),

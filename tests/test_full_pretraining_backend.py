@@ -12,11 +12,12 @@ from src.training.full_pretraining import FullPretrainingConfig
 from src.training.full_pretraining_backend import (
     FullSafetyMonitor,
     SingleUseApprovalConsumer,
+    _load_amp_numerical_diagnostic_policy,
     _write_json,
     candidate_a_execution_plan,
     dry_run_full_pretraining,
 )
-from src.training.metrics import TrainingMetric
+from src.training.metrics import AmpOverflowEvent, TrainingMetric
 
 
 CONFIG_PATH = Path("configs/full-pretraining.example.yaml")
@@ -43,6 +44,29 @@ def metric(step: int, **changes) -> TrainingMetric:
     return TrainingMetric(**value)
 
 
+def amp_overflow(
+    attempt: int,
+    *,
+    scale_before: float,
+    scale_after: float,
+    model_finite: bool = True,
+    optimizer_finite: bool = True,
+) -> AmpOverflowEvent:
+    return AmpOverflowEvent(
+        global_step=10,
+        next_optimizer_step=11,
+        attempt=attempt,
+        scale_before=scale_before,
+        scale_after=scale_after,
+        pending_tokens=2_048,
+        pending_records=8,
+        sampler_cursor=88,
+        model_parameters_finite=model_finite,
+        optimizer_state_finite=optimizer_finite,
+        timestamp="2026-08-19T00:00:00+00:00",
+    )
+
+
 def test_candidate_a_plan_has_exact_limits_and_no_text() -> None:
     plan = candidate_a_execution_plan(FullPretrainingConfig.from_yaml(CONFIG_PATH))
     assert plan["optimizer_step_limit"] == 4_883
@@ -50,19 +74,77 @@ def test_candidate_a_plan_has_exact_limits_and_no_text() -> None:
     assert plan["checkpoint_steps"] == [2_442, 4_883]
     assert plan["evaluation_steps"] == [0, 4_883]
     assert plan["actual_text_values_stored"] is False
+    assert plan["amp_numerical_diagnostics"]["mode"] == (
+        "prospective_no_update_scale_probe"
+    )
+    assert plan["amp_numerical_diagnostics"]["scale_floor"] == 1_024
+    assert plan["amp_recovery_policy"] == {
+        "mode": "scale_floor",
+        "minimum_amp_scale": 1_024,
+    }
     assert not ({"text", "prompt", "continuation", "token_ids"} & set(plan))
 
 
 @pytest.mark.parametrize(
-    ("field", "value"),
-    [("budget_candidate", "candidate_b_1epoch"), ("seed", 18), ("learning_rate", 1e-3), ("warmup_steps", 11)],
+    "value",
+    [
+        {},
+        {
+            "mode": "prospective_no_update_scale_probe",
+            "scale_floor": 1000,
+            "schema_version": 1,
+        },
+        {"mode": "training_policy", "scale_floor": 1024, "schema_version": 1},
+    ],
 )
-def test_candidate_a_profile_rejects_mutation(tmp_path: Path, field: str, value) -> None:
+def test_amp_diagnostic_policy_is_strict_and_fail_closed(
+    tmp_path: Path, value: dict[str, object]
+) -> None:
+    path = tmp_path / "diagnostic.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(TrainingError, match="DIAGNOSTIC_EVIDENCE_FAILURE"):
+        _load_amp_numerical_diagnostic_policy(path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("budget_candidate", "candidate_b_1epoch"),
+        ("seed", 18),
+        ("learning_rate", 1e-3),
+        ("warmup_steps", 11),
+    ],
+)
+def test_candidate_a_profile_rejects_mutation(
+    tmp_path: Path, field: str, value
+) -> None:
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     config[field] = value
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-    with pytest.raises(TrainingError, match="FULL_PRETRAINING_CANDIDATE_A_PROFILE_MISMATCH"):
+    with pytest.raises(
+        TrainingError, match="FULL_PRETRAINING_CANDIDATE_A_PROFILE_MISMATCH"
+    ):
+        FullPretrainingConfig.from_yaml(path)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda safety: safety.update(repeated_amp_skip_limit=3),
+        lambda safety: safety.update(amp_recovery_policy="fixed_attempt_limit"),
+        lambda safety: safety.update(minimum_amp_scale=512),
+        lambda safety: safety.pop("minimum_amp_scale"),
+    ],
+)
+def test_full_pretraining_rejects_non_authoritative_amp_recovery_policy(
+    tmp_path: Path, mutate
+) -> None:
+    config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+    mutate(config["system_safety"])
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    with pytest.raises(TrainingError, match="INVALID_FULL_PRETRAINING_CONFIG"):
         FullPretrainingConfig.from_yaml(path)
 
 
@@ -81,30 +163,96 @@ def test_pilot_checkpoint_and_unapproved_resume_are_rejected(tmp_path: Path) -> 
         FullPretrainingConfig.from_yaml(path)
 
 
-def test_safety_monitor_enforces_step_token_amp_memory_and_disk(tmp_path: Path, monkeypatch) -> None:
+def test_safety_monitor_enforces_step_token_amp_memory_and_disk(
+    tmp_path: Path, monkeypatch
+) -> None:
     config = FullPretrainingConfig.from_yaml(CONFIG_PATH)
     usage = namedtuple("usage", "total used free")
-    monkeypatch.setattr("src.training.full_pretraining_backend.shutil.disk_usage", lambda _p: usage(30, 1, 20 * 1024**3))
+    monkeypatch.setattr(
+        "src.training.full_pretraining_backend.shutil.disk_usage",
+        lambda _p: usage(30, 1, 20 * 1024**3),
+    )
     monitor = FullSafetyMonitor(config, tmp_path)
     with pytest.raises(TrainingError, match="FULL_PRETRAINING_STEP_LIMIT"):
         monitor.observe(metric(4_884))
     with pytest.raises(TrainingError, match="FULL_PRETRAINING_VRAM_LIMIT"):
-        FullSafetyMonitor(config, tmp_path).observe(metric(1, peak_memory_reserved=7 * 1024**3 + 1))
+        FullSafetyMonitor(config, tmp_path).observe(
+            metric(1, peak_memory_reserved=7 * 1024**3 + 1)
+        )
     with pytest.raises(TrainingError, match="FULL_PRETRAINING_CPU_MEMORY_LIMIT"):
-        FullSafetyMonitor(config, tmp_path).observe(metric(1, cpu_working_set_bytes=4 * 1024**3 + 1))
+        FullSafetyMonitor(config, tmp_path).observe(
+            metric(1, cpu_working_set_bytes=4 * 1024**3 + 1)
+        )
     amp = FullSafetyMonitor(config, tmp_path)
-    amp.observe(metric(1, amp_step_skipped=True))
-    amp.observe(metric(2, amp_step_skipped=True))
-    with pytest.raises(TrainingError, match="FULL_PRETRAINING_AMP_SKIP_LIMIT"):
-        amp.observe(metric(3, amp_step_skipped=True))
-    monkeypatch.setattr("src.training.full_pretraining_backend.shutil.disk_usage", lambda _p: usage(30, 1, 5 * 1024**3 - 1))
+    for step in range(1, 21):
+        amp.observe(metric(step, amp_step_skipped=True))
+    monkeypatch.setattr(
+        "src.training.full_pretraining_backend.shutil.disk_usage",
+        lambda _p: usage(30, 1, 5 * 1024**3 - 1),
+    )
     with pytest.raises(TrainingError, match="FULL_PRETRAINING_DISK_MINIMUM"):
         FullSafetyMonitor(config, tmp_path).observe(metric(1))
 
 
-def test_safety_monitor_enforces_rolling_loss_and_gradient(tmp_path: Path, monkeypatch) -> None:
+def test_safety_monitor_uses_scale_floor_instead_of_overflow_count(
+    tmp_path: Path,
+) -> None:
+    monitor = FullSafetyMonitor(FullPretrainingConfig.from_yaml(CONFIG_PATH), tmp_path)
+    monitor.observe_amp_overflow(
+        amp_overflow(1, scale_before=8_192.0, scale_after=4_096.0)
+    )
+    monitor.observe_amp_overflow(
+        amp_overflow(2, scale_before=4_096.0, scale_after=2_048.0)
+    )
+    monitor.observe_amp_overflow(
+        amp_overflow(3, scale_before=2_048.0, scale_after=1_024.0)
+    )
+    assert monitor.total_amp_overflows == 3
+    assert monitor.last_amp_scale_before == 2_048.0
+    assert monitor.last_amp_scale_after == 1_024.0
+
+    with pytest.raises(
+        TrainingError, match="FULL_PRETRAINING_AMP_SCALE_FLOOR_EXHAUSTED"
+    ):
+        monitor.observe_amp_overflow(
+            amp_overflow(4, scale_before=1_024.0, scale_after=512.0)
+        )
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        amp_overflow(1, scale_before=1_024.0, scale_after=1_024.0),
+        amp_overflow(
+            1,
+            scale_before=2_048.0,
+            scale_after=1_024.0,
+            model_finite=False,
+        ),
+        amp_overflow(
+            1,
+            scale_before=2_048.0,
+            scale_after=1_024.0,
+            optimizer_finite=False,
+        ),
+    ],
+)
+def test_safety_monitor_rejects_non_recoverable_amp_state(
+    tmp_path: Path, event: AmpOverflowEvent
+) -> None:
+    monitor = FullSafetyMonitor(FullPretrainingConfig.from_yaml(CONFIG_PATH), tmp_path)
+    with pytest.raises(TrainingError, match="NON_FINITE_GRADIENT"):
+        monitor.observe_amp_overflow(event)
+
+
+def test_safety_monitor_enforces_rolling_loss_and_gradient(
+    tmp_path: Path, monkeypatch
+) -> None:
     usage = namedtuple("usage", "total used free")
-    monkeypatch.setattr("src.training.full_pretraining_backend.shutil.disk_usage", lambda _p: usage(30, 1, 20 * 1024**3))
+    monkeypatch.setattr(
+        "src.training.full_pretraining_backend.shutil.disk_usage",
+        lambda _p: usage(30, 1, 20 * 1024**3),
+    )
     config = FullPretrainingConfig.from_yaml(CONFIG_PATH)
     loss_monitor = FullSafetyMonitor(config, tmp_path)
     for step in range(1, 11):
@@ -169,12 +317,25 @@ def test_dry_run_never_starts_training(tmp_path: Path, monkeypatch) -> None:
         "tokenizer_model_checksum": identity["tokenizer_model_checksum"],
         "tokenizer_vocab_checksum": identity["tokenizer_vocab_checksum"],
     }
-    monkeypatch.setattr("src.training.full_pretraining._lineage", lambda _config: lineage)
+    monkeypatch.setattr(
+        "src.training.full_pretraining._lineage", lambda _config: lineage
+    )
     monkeypatch.setattr(
         "src.training.full_pretraining._inspect_source_state",
-        lambda: type("SourceState", (), {"commit": "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9", "branch": "feat/pilot-pretraining", "clean": True})(),
+        lambda: type(
+            "SourceState",
+            (),
+            {
+                "commit": "c3b778df31b9888ca6539b1d2b3c09faca6ec0e9",
+                "branch": "feat/pilot-pretraining",
+                "clean": True,
+            },
+        )(),
     )
-    monkeypatch.setattr("src.training.full_pretraining.resolve_full_pretraining_path", lambda *_args: tmp_path / "new-run")
+    monkeypatch.setattr(
+        "src.training.full_pretraining.resolve_full_pretraining_path",
+        lambda *_args: tmp_path / "new-run",
+    )
     report = dry_run_full_pretraining(CONFIG_PATH, MANIFEST_PATH)
     assert report["mode"] == "dry_run"
     assert report["training_started"] is False

@@ -1,0 +1,5 @@
+{
+  "mode": "prospective_no_update_scale_probe",
+  "scale_floor": 1024,
+  "schema_version": 1
+}
