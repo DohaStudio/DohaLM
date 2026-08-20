@@ -16,7 +16,7 @@
 | 프로젝트 정의 | reusable LLM model provider | AI Music Director intelligence provider는 ADR-024 제안 |
 | Dataset governance | DohaLM의 immutable DatasetVersion·Manifest publication 구현 | 제품 candidate를 Dataset으로 승격하는 policy는 미구현 |
 | Foundation execution | explicit approval, PostgreSQL authority·journal, Host·composition 구현 | 기존 계보 유지 |
-| Product/adapter learning | runtime consumer 없음 | 별도 producer mapping·Dataset·Evaluation Gate 필요 |
+| Product/adapter learning | Common LearningCandidate의 fail-closed consumer boundary 구현 | review·Dataset inclusion·Training request·Evaluation Gate는 미구현 |
 | Reference·Similarity | Common 객체 정의만 authority | DohaLM typed consumer·해석 capability 미구현 |
 | Model promotion | 자동 promotion 없음 | Evaluation과 별도 사용자 승인 계약 필요 |
 
@@ -36,7 +36,7 @@
 
 | 객체·단계 | 현재 상태 | 다음 Gate |
 |---|---|---|
-| `LearningCandidate` | Common 계약과 DohaMusic ownership이 기준 | producer/transport mapping |
+| `LearningCandidate` | Common 계약을 검증하는 immutable consumer view 구현 | producer/transport와 review runtime |
 | `RightsMetadata` | upstream authoritative evidence; DohaLM producer 아님 | exact consumer boundary |
 | `TrainingEligibility` | DohaLM Dataset governance의 candidate 단위 Gate | authoritative producer workflow |
 | `DatasetVersion`, `DatasetManifest` | governance·publication 구현 | product candidate 승격 policy |
@@ -68,6 +68,13 @@ LearningCandidate creation and review
 - [확정] Provider끼리 직접 호출하지 않으며 DohaMusic이 Common intent·capability에 따라 orchestration한다.
 - [확정] 현재 문서는 물리적 directory 이동이나 schema migration을 지시하지 않는다.
 
+## 구현된 첫 consumer boundary
+
+- [현재] `src.data.learning_candidate_consumer.validate_learning_candidate_for_consumption()`은 pinned Common package로 LearningCandidate·RightsMetadata·TrainingEligibility를 검증하고 immutable consumer view만 반환한다.
+- [현재] schema·version·identity·workspace scope, review·consent evidence, source lineage, purpose-matched eligibility와 rights·retention expiry/revocation을 fail closed한다.
+- [현재] 입력 payload를 변경하거나 보존하지 않으며 DB persistence, Dataset publication, Training·Evaluation과 promotion을 호출하지 않는다.
+- [계획] Candidate review·persistence, DatasetVersion inclusion/publication handoff, Product/Adapter Training request, Evaluation·promotion과 Reference/Similarity runtime은 후속 Gate다.
+
 ## 후속 결정 순서
 
 1. [제안] ADR-024 제품 방향 승인 여부 결정
@@ -87,4 +94,5 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-20 | Common LearningCandidate·RightsMetadata·TrainingEligibility fail-closed consumer boundary 구현 상태와 후속 Gate 분리 |
 | 2026-08-20 | PR #103의 제품 방향을 current authority에 맞춰 이관하고 Provider ownership, candidate Gate와 Foundation/product learning을 분리 |
