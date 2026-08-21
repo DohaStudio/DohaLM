@@ -9,6 +9,13 @@ from datetime import datetime, timezone
 from threading import Barrier, Lock
 
 import pytest
+from test_product_dataset_composition import (
+    _Authority,
+    _authority_input,
+    _compose,
+    _handoff,
+    _handoffs,
+)
 
 import src.data.learning_candidate_dataset_handoff as handoff_module
 import src.data.product_dataset_governance as integration_module
@@ -16,6 +23,7 @@ from src.data.checksums import checksum_value
 from src.data.dataset_governance import DatasetGovernanceError, DatasetVersionIdentity
 from src.data.dataset_proposal_authority import (
     DatasetProposalAuthorityError,
+    DatasetProposalAuthorityRecord,
     DatasetProposalAuthorityResult,
     DatasetProposalEvidenceDecision,
     DatasetProposalEvidenceStatus,
@@ -28,13 +36,6 @@ from src.data.product_dataset_composition import (
     build_dataset_version_proposal_mapping,
 )
 from src.data.product_dataset_governance import propose_product_dataset_version
-from test_product_dataset_composition import (
-    _Authority,
-    _authority_input,
-    _compose,
-    _handoff,
-    _handoffs,
-)
 
 PROPOSED_AT = datetime(2026, 8, 24, tzinfo=timezone.utc)
 
@@ -114,6 +115,37 @@ class _AtomicProposalAuthority:
                 authority_reference="authority:product-dataset-proposal:test",
                 authority_version=1,
             )
+
+    def read_authoritative_proposal(
+        self,
+        identity: DatasetVersionIdentity,
+    ) -> DatasetProposalAuthorityRecord:
+        if type(identity) is not DatasetVersionIdentity or any(
+            type(value) is not str or not 1 <= len(value) <= 256
+            for value in (
+                getattr(identity, "object_id", None),
+                getattr(identity, "dataset_id", None),
+                getattr(identity, "dataset_version", None),
+            )
+        ):
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID",
+                "read",
+            )
+        stored = self.records.get(identity)
+        if stored is None:
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_NOT_FOUND",
+                "read",
+                identity=identity,
+            )
+        return DatasetProposalAuthorityRecord(
+            proposal=stored[0],
+            identity=stored[0].identity,
+            proposal_fingerprint=stored[1],
+            authority_reference="authority:product-dataset-proposal:test",
+            authority_version=1,
+        )
 
 
 def _propose(
