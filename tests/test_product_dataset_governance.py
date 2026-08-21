@@ -3,13 +3,16 @@ from __future__ import annotations
 import ast
 import inspect
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from threading import Barrier, Lock
 
 import pytest
 
+import src.data.learning_candidate_dataset_handoff as handoff_module
 import src.data.product_dataset_governance as integration_module
+from src.data.checksums import checksum_value
 from src.data.dataset_governance import DatasetGovernanceError, DatasetVersionIdentity
 from src.data.dataset_proposal_authority import (
     DatasetProposalAuthorityError,
@@ -25,7 +28,13 @@ from src.data.product_dataset_composition import (
     build_dataset_version_proposal_mapping,
 )
 from src.data.product_dataset_governance import propose_product_dataset_version
-from test_product_dataset_composition import _authority_input, _compose, _handoffs
+from test_product_dataset_composition import (
+    _Authority,
+    _authority_input,
+    _compose,
+    _handoff,
+    _handoffs,
+)
 
 PROPOSED_AT = datetime(2026, 8, 24, tzinfo=timezone.utc)
 
@@ -122,6 +131,67 @@ def _propose(
     )
 
 
+def _rehash_handoff(handoff, **changes):
+    changed = replace(handoff, **changes)
+    return replace(
+        changed,
+        handoff_id=f"handoff:{checksum_value(handoff_module._handoff_projection(changed))}",
+    )
+
+
+def _competing_composition(difference: str):
+    handoffs = _handoffs()
+    authority = None
+    changes = {}
+    if difference == "producer":
+        changes["producer"] = ProducerIdentity("competing-governance", "1.0.0")
+    elif difference == "content":
+        handoffs = (_handoff("train", "d"), *handoffs[1:])
+    elif difference == "source":
+        handoffs = (
+            _rehash_handoff(
+                handoffs[0],
+                parent_candidate_ids=("parent_train_other",),
+            ),
+            *handoffs[1:],
+        )
+    elif difference == "member":
+        handoffs = (_handoff("train_other", "d"), *handoffs[1:])
+        authority = _Authority(("train_other", "validation", "test"))
+    elif difference == "manifest":
+        changes["dataset_manifest_id"] = "dataset_manifest_product_2"
+    elif difference == "evidence":
+        changes["dataset_eligibility_evidence_id"] = "dataset_gate_product_2"
+    elif difference == "workspace":
+        handoffs = tuple(
+            _handoff(suffix, fingerprint, workspace_id="workspace_other")
+            for suffix, fingerprint in (
+                ("train", "a"),
+                ("validation", "b"),
+                ("test", "c"),
+            )
+        )
+        changes["workspace_id"] = "workspace_other"
+        authority = _Authority()
+        for payload in (*authority.rights.values(), *authority.eligibility.values()):
+            payload["workspace_id"] = "workspace_other"
+    elif difference == "lineage":
+        handoffs = (
+            _rehash_handoff(
+                handoffs[0],
+                review_evidence_reference="review:train:other",
+            ),
+            *handoffs[1:],
+        )
+    else:
+        raise AssertionError(f"unexpected test difference: {difference}")
+    return _compose(
+        handoffs,
+        authority_input=_authority_input(handoffs, **changes),
+        authority=authority,
+    )
+
+
 def test_exact_composition_creates_canonical_draft_through_existing_builder():
     composition = _compose()
     mapping = build_dataset_version_proposal_mapping(composition)
@@ -175,6 +245,40 @@ def test_different_composition_with_same_dataset_identity_conflicts_without_over
     winner = _propose(first_composition, authority=authority)
     before = dict(authority.records)
 
+    with pytest.raises(
+        DatasetProposalAuthorityError,
+        match="DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT",
+    ):
+        _propose(competing_composition, authority=authority)
+
+    assert winner.outcome is DatasetProposalOutcome.CREATED
+    assert authority.records == before
+    assert authority.writes == 1
+
+
+@pytest.mark.parametrize(
+    "difference",
+    (
+        "producer",
+        "content",
+        "source",
+        "member",
+        "manifest",
+        "evidence",
+        "workspace",
+        "lineage",
+    ),
+)
+def test_each_valid_authoritative_difference_conflicts_without_mutation(difference):
+    first_composition = _compose()
+    competing_composition = _competing_composition(difference)
+    authority = _AtomicProposalAuthority()
+    winner = _propose(first_composition, authority=authority)
+    before = dict(authority.records)
+
+    assert competing_composition.object_id == first_composition.object_id
+    assert competing_composition.dataset_id == first_composition.dataset_id
+    assert competing_composition.dataset_version == first_composition.dataset_version
     with pytest.raises(
         DatasetProposalAuthorityError,
         match="DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT",
@@ -353,6 +457,7 @@ def test_authority_dependencies_are_mandatory_without_fallback():
 
 def test_composition_authority_fields_and_lineage_are_preserved_exactly():
     composition = _compose()
+    before = deepcopy(composition)
     mapping = build_dataset_version_proposal_mapping(composition)
     result = _propose(composition)
     payload = result.proposal.payload
@@ -380,6 +485,27 @@ def test_composition_authority_fields_and_lineage_are_preserved_exactly():
         member.handoff_id for member in canonical_members
     ]
     assert len(extension["member_bindings"]) == len(composition.members)
+    assert composition == before
+
+
+def test_integration_conflict_error_does_not_render_private_input():
+    handoffs = _handoffs()
+    authority = _AtomicProposalAuthority()
+    _propose(_compose(handoffs), authority=authority)
+    competing = _compose(
+        handoffs,
+        authority_input=_authority_input(
+            handoffs,
+            producer=ProducerIdentity("C:\\private\\token-secret", "1.0.0"),
+        ),
+    )
+
+    with pytest.raises(DatasetProposalAuthorityError) as raised:
+        _propose(competing, authority=authority)
+
+    assert raised.value.code == "DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT"
+    assert "private" not in str(raised.value)
+    assert "token" not in str(raised.value)
 
 
 def test_concurrent_same_composition_has_one_create_and_existing_replays():
