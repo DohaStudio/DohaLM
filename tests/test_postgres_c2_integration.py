@@ -25,9 +25,96 @@ from src.training.production_host_foundation import (
 from src.training.production_orchestration_seams import (
     TrainingPrerequisiteResolutionRequest,
 )
-from test_postgres_c1_integration import C1Fixture, SCHEMA
+from test_postgres_c1_integration import (
+    C1Fixture,
+    SCHEMA,
+    _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip,
+    _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic,
+    _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial,
+    _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite,
+    _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects,
+)
 
 pytest_plugins = ("test_postgres_c1_integration",)
+
+
+def test_dataset_proposal_settings_are_explicit_role_scoped_and_redacted() -> None:
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthoritySettings,
+    )
+
+    settings = PostgresDatasetProposalAuthoritySettings(
+        environment="isolated_test",
+        host="127.0.0.1",
+        port=5432,
+        database="dohalm_c1_contract",
+        user="dohalm_dataset_proposal_authority",
+        password="synthetic-password-only",
+        application_name="dohalm-proposal-contract",
+        sslmode="disable",
+    )
+    assert repr(settings) == "PostgresDatasetProposalAuthoritySettings(<redacted>)"
+    assert settings.password not in repr(settings)
+    for changes in (
+        {"host": "0.0.0.0"},
+        {"user": "postgres"},
+        {"environment": "production"},
+        {"sslmode": "allow"},
+    ):
+        values = {
+            "environment": settings.environment,
+            "host": settings.host,
+            "port": settings.port,
+            "database": settings.database,
+            "user": settings.user,
+            "password": settings.password,
+            "application_name": settings.application_name,
+            "sslmode": settings.sslmode,
+        }
+        values.update(changes)
+        with pytest.raises(Exception, match="CONFIGURATION_INVALID"):
+            PostgresDatasetProposalAuthoritySettings(**values)  # type: ignore[arg-type]
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
+        c1_postgres
+    )
+
+
+@pytest.mark.integration
+def test_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
+        c1_postgres
+    )
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
+        c1_postgres
+    )
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite(c1_postgres)
 
 
 @pytest.mark.integration

@@ -79,6 +79,10 @@ from .product_dataset_composition import (
     compose_product_dataset,
 )
 from .product_dataset_governance import propose_product_dataset_version
+from .postgres_dataset_proposal_authority import (
+    PostgresDatasetProposalAuthority,
+    PostgresDatasetProposalAuthoritySettings,
+)
 
 __all__ = [
     "ApprovedDatasetVersion",
@@ -119,6 +123,8 @@ __all__ = [
     "ProductDatasetCompositionMember",
     "ProductDatasetCompositionStatus",
     "ProductDatasetMemberAllocation",
+    "PostgresDatasetProposalAuthority",
+    "PostgresDatasetProposalAuthoritySettings",
     "ReviewDecision",
     "ReviewReason",
     "ValidatedLearningCandidate",

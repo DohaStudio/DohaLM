@@ -3,7 +3,7 @@
 - 문서 상태: `draft`
 - 결정일: 미결정
 - 작성일: 2026-08-21
-- 실행 영향: proposal lifecycle port와 검증 service만 추가; persistence·publication·Training 영향 없음
+- 실행 영향: proposal lifecycle port·검증 service와 별도 승인된 PostgreSQL adapter 구현; 자동 activation·publication·Training 영향 없음
 
 ## 배경
 
@@ -42,8 +42,8 @@
 ### 원자성과 구현 경계
 
 - [제안] 구체 authority adapter는 동시 caller에 대해 단일 winner, 동일 proposal replay와 다른 proposal conflict를 원자적으로 보장해야 한다.
-- [제안] 실제 persistence schema, transaction backend와 production composition 등록은 후속 구현 Gate다.
-- [제안] 이번 구현은 typed port와 orchestration service, test fake만 제공하며 DB·파일·네트워크 저장소를 만들지 않는다.
+- [현재] 별도 승인된 후속 구현은 `dohalm_dataset_governance_v1` schema와 전용 least-privilege role에서 PostgreSQL atomic compare-and-create를 제공한다. 한 transaction이 canonical composite identity의 advisory lock 하나를 소유한 뒤 DB primary key로 create·replay·conflict를 판정하며 retry나 overwrite를 사용하지 않는다.
+- [현재] adapter는 명시적 dependency injection으로만 사용할 수 있고 production composition 등록과 자동 activation은 여전히 후속 Gate다.
 - [제안] authority 오류는 credential, raw payload 또는 개인 경로를 포함하지 않는 stable code로 fail closed한다.
 
 ## 상태 전이
@@ -59,7 +59,7 @@
 
 ## 제외 범위
 
-- [제외] 실제 DB·filesystem persistence adapter와 migration
+- [제외] filesystem persistence adapter와 PostgreSQL adapter의 자동 runtime 등록
 - [제외] composition root 또는 production runtime 등록
 - [제외] DatasetVersion review·approval, DatasetManifest publication과 freeze
 - [제외] Training request·approval·execution, Evaluation과 Model promotion
@@ -82,4 +82,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-21 | [현재] 별도 승인된 PostgreSQL durable adapter가 계약을 구현했으며 자동 activation은 제외됨을 정합화 |
 | 2026-08-21 | [제안] DatasetVersionIdentity 기반 atomic create·replay·conflict와 proposal-time current evidence 재검증 계약 등록 |
