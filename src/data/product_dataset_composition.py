@@ -34,7 +34,7 @@ _SPLITS = ("train", "validation", "test")
 
 
 class ProductDatasetCompositionStatus(str, Enum):
-    """Local state that grants only entry to a future proposal adapter."""
+    """Local state that grants only entry to proposal integration."""
 
     READY_FOR_DATASET_VERSION_PROPOSAL = "READY_FOR_DATASET_VERSION_PROPOSAL"
 
@@ -106,7 +106,7 @@ class ProductDatasetCompositionMember:
 
 @dataclass(frozen=True)
 class ProductDatasetComposition:
-    """Complete immutable input for a future DatasetVersion proposal adapter."""
+    """Complete immutable input for DatasetVersion proposal integration."""
 
     composition_id: str
     status: ProductDatasetCompositionStatus
