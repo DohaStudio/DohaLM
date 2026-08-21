@@ -2200,6 +2200,7 @@ def _check_dataset_proposal_authoritative_read_contract(
     from src.data.dataset_proposal_authority import (
         DatasetProposalAuthorityError,
         DatasetProposalAuthorityRecord,
+        DatasetProposalOutcome,
         dataset_version_proposal_fingerprint,
     )
     from src.data.postgres_dataset_proposal_authority import (
@@ -2223,6 +2224,11 @@ def _check_dataset_proposal_authoritative_read_contract(
             proposal,
             proposal_fingerprint=fingerprint,
         )
+        replayed = adapter.compare_and_create(
+            proposal,
+            proposal_fingerprint=fingerprint,
+        )
+        assert replayed.outcome is DatasetProposalOutcome.REPLAYED
         with c1_postgres.factory.connection() as owner:
             before = owner.execute(
                 "SELECT object_id, dataset_id, dataset_version, proposal_fingerprint, "
@@ -2238,10 +2244,17 @@ def _check_dataset_proposal_authoritative_read_contract(
         assert type(loaded) is DatasetProposalAuthorityRecord
         assert loaded == restarted
         assert loaded.proposal == created.proposal == proposal
+        assert loaded.proposal == replayed.proposal
         assert loaded.identity == proposal.identity
         assert loaded.proposal_fingerprint == fingerprint
         assert loaded.authority_reference == created.authority_reference
         assert loaded.authority_version == created.authority_version == 1
+        assert loaded.proposal.payload["extensions"] == proposal.payload["extensions"]
+        assert loaded.proposal.payload["lineage"] == proposal.payload["lineage"]
+        assert (
+            loaded.proposal.payload["split_manifest"]
+            == proposal.payload["split_manifest"]
+        )
 
         conflicting = propose_dataset_version(
             _proposal_payload(
