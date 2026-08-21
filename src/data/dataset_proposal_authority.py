@@ -80,6 +80,17 @@ class DatasetProposalAuthorityResult:
     authority_version: int
 
 
+@dataclass(frozen=True, slots=True)
+class DatasetProposalAuthorityRecord:
+    """Validated immutable proposal loaded from the authoritative store."""
+
+    proposal: DatasetVersionProposal
+    identity: DatasetVersionIdentity
+    proposal_fingerprint: str
+    authority_reference: str
+    authority_version: int
+
+
 class DatasetProposalCurrentEvidenceAuthority(Protocol):
     """Coordinator over canonical current Rights/Eligibility authorities."""
 
@@ -109,6 +120,12 @@ class DatasetProposalAuthority(Protocol):
         proposal_fingerprint: str,
     ) -> DatasetProposalAuthorityResult:
         """Atomically resolve the existing proposal or create this proposal."""
+
+    def read_authoritative_proposal(
+        self,
+        identity: DatasetVersionIdentity,
+    ) -> DatasetProposalAuthorityRecord:
+        """Read and validate the immutable proposal for one exact identity."""
 
 
 def adjudicate_dataset_version_proposal(
@@ -260,6 +277,7 @@ def _valid_authority_metadata(reference: object, version: object) -> bool:
 __all__ = [
     "DatasetProposalAuthority",
     "DatasetProposalAuthorityError",
+    "DatasetProposalAuthorityRecord",
     "DatasetProposalAuthorityResult",
     "DatasetProposalCurrentEvidenceAuthority",
     "DatasetProposalEvidenceDecision",

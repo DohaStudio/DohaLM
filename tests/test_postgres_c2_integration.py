@@ -5,6 +5,16 @@ import uuid
 from dataclasses import replace
 
 import pytest
+from test_postgres_c1_integration import (
+    SCHEMA,
+    C1Fixture,
+    _check_dataset_proposal_authoritative_read_contract,
+    _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip,
+    _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic,
+    _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial,
+    _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite,
+    _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects,
+)
 
 from src.training.errors import TrainingError
 from src.training.postgres_training_adapters import (
@@ -24,15 +34,6 @@ from src.training.production_host_foundation import (
 )
 from src.training.production_orchestration_seams import (
     TrainingPrerequisiteResolutionRequest,
-)
-from test_postgres_c1_integration import (
-    C1Fixture,
-    SCHEMA,
-    _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip,
-    _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic,
-    _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial,
-    _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite,
-    _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects,
 )
 
 pytest_plugins = ("test_postgres_c1_integration",)
@@ -90,6 +91,13 @@ def test_dataset_proposal_authority_create_replay_conflict_restart_and_round_tri
     _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
         c1_postgres
     )
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authoritative_read_contract(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_proposal_authoritative_read_contract(c1_postgres)
 
 
 @pytest.mark.integration

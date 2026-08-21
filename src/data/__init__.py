@@ -4,12 +4,12 @@ from .common_dataset_contracts import (
     CommonContractIssue,
     CommonContractRuntimeError,
     CommonDatasetValidationError,
-    validate_learning_candidate,
-    validate_rights_metadata,
-    validate_training_eligibility,
     validate_dataset_manifest,
     validate_dataset_publication_scenario,
     validate_dataset_version,
+    validate_learning_candidate,
+    validate_rights_metadata,
+    validate_training_eligibility,
     verify_common_contract_runtime,
 )
 from .config import DataConfig, load_data_config, validate_data_config
@@ -23,15 +23,10 @@ from .dataset_governance import (
     begin_dataset_review,
     propose_dataset_version,
 )
-from .dataset_publication import (
-    DatasetPublicationError,
-    DatasetPublicationMetadata,
-    DatasetPublicationResult,
-    publish_dataset_version,
-)
 from .dataset_proposal_authority import (
     DatasetProposalAuthority,
     DatasetProposalAuthorityError,
+    DatasetProposalAuthorityRecord,
     DatasetProposalAuthorityResult,
     DatasetProposalCurrentEvidenceAuthority,
     DatasetProposalEvidenceDecision,
@@ -39,6 +34,12 @@ from .dataset_proposal_authority import (
     DatasetProposalOutcome,
     adjudicate_dataset_version_proposal,
     dataset_version_proposal_fingerprint,
+)
+from .dataset_publication import (
+    DatasetPublicationError,
+    DatasetPublicationMetadata,
+    DatasetPublicationResult,
+    publish_dataset_version,
 )
 from .errors import DataIssue, DataPipelineError
 from .learning_candidate_consumer import (
@@ -68,6 +69,10 @@ from .learning_candidate_review import (
     review_learning_candidate,
 )
 from .pipeline import build_pipeline, validate_pipeline
+from .postgres_dataset_proposal_authority import (
+    PostgresDatasetProposalAuthority,
+    PostgresDatasetProposalAuthoritySettings,
+)
 from .product_dataset_composition import (
     ProductDatasetComposition,
     ProductDatasetCompositionAuthorityInput,
@@ -79,10 +84,6 @@ from .product_dataset_composition import (
     compose_product_dataset,
 )
 from .product_dataset_governance import propose_product_dataset_version
-from .postgres_dataset_proposal_authority import (
-    PostgresDatasetProposalAuthority,
-    PostgresDatasetProposalAuthoritySettings,
-)
 
 __all__ = [
     "ApprovedDatasetVersion",
@@ -100,22 +101,25 @@ __all__ = [
     "DatasetInclusionHandoffError",
     "DatasetInclusionHandoffRejected",
     "DatasetInclusionHandoffStatus",
-    "DatasetPublicationError",
-    "DatasetPublicationMetadata",
-    "DatasetPublicationResult",
     "DatasetProposalAuthority",
     "DatasetProposalAuthorityError",
+    "DatasetProposalAuthorityRecord",
     "DatasetProposalAuthorityResult",
     "DatasetProposalCurrentEvidenceAuthority",
     "DatasetProposalEvidenceDecision",
     "DatasetProposalEvidenceStatus",
     "DatasetProposalOutcome",
+    "DatasetPublicationError",
+    "DatasetPublicationMetadata",
+    "DatasetPublicationResult",
     "DatasetVersionIdentity",
     "DatasetVersionProposal",
     "LearningCandidateConsumerError",
     "LearningCandidateReviewAuthority",
     "LearningCandidateReviewError",
     "LearningCandidateReviewResult",
+    "PostgresDatasetProposalAuthority",
+    "PostgresDatasetProposalAuthoritySettings",
     "ProducerIdentity",
     "ProductDatasetComposition",
     "ProductDatasetCompositionAuthorityInput",
@@ -123,16 +127,14 @@ __all__ = [
     "ProductDatasetCompositionMember",
     "ProductDatasetCompositionStatus",
     "ProductDatasetMemberAllocation",
-    "PostgresDatasetProposalAuthority",
-    "PostgresDatasetProposalAuthoritySettings",
     "ReviewDecision",
     "ReviewReason",
     "ValidatedLearningCandidate",
-    "approve_dataset_version",
     "adjudicate_dataset_version_proposal",
+    "approve_dataset_version",
     "begin_dataset_review",
-    "build_pipeline",
     "build_dataset_version_proposal_mapping",
+    "build_pipeline",
     "compose_product_dataset",
     "create_dataset_inclusion_handoff",
     "dataset_version_proposal_fingerprint",
@@ -144,14 +146,14 @@ __all__ = [
     "publish_dataset_version",
     "review_learning_candidate",
     "validate_data_config",
+    "validate_dataset_inclusion_handoff",
     "validate_dataset_manifest",
     "validate_dataset_publication_scenario",
     "validate_dataset_version",
     "validate_learning_candidate",
     "validate_learning_candidate_for_consumption",
-    "validate_dataset_inclusion_handoff",
+    "validate_pipeline",
     "validate_rights_metadata",
     "validate_training_eligibility",
-    "validate_pipeline",
     "verify_common_contract_runtime",
 ]

@@ -9,9 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from .checksums import canonical_json_bytes
-from .dataset_governance import DatasetVersionProposal, propose_dataset_version
+from .dataset_governance import (
+    DatasetVersionIdentity,
+    DatasetVersionProposal,
+    propose_dataset_version,
+)
 from .dataset_proposal_authority import (
     DatasetProposalAuthorityError,
+    DatasetProposalAuthorityRecord,
     DatasetProposalAuthorityResult,
     DatasetProposalOutcome,
     dataset_version_proposal_fingerprint,
@@ -89,6 +94,52 @@ class PostgresDatasetProposalAuthority:
     def __repr__(self) -> str:
         return "PostgresDatasetProposalAuthority(<redacted>)"
 
+    def read_authoritative_proposal(
+        self,
+        identity: DatasetVersionIdentity,
+    ) -> DatasetProposalAuthorityRecord:
+        """Read one validated proposal through the restricted authority function."""
+
+        requested = _read_identity(identity)
+        connection = None
+        try:
+            import psycopg
+
+            connection = psycopg.connect(**self._connection_kwargs())
+            with connection.transaction():
+                connection.execute(
+                    "SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY"
+                )
+                self._configure_transaction(connection)
+                self._require_runtime_role(connection)
+                cursor = connection.execute(
+                    "SELECT * FROM "
+                    "dohalm_dataset_governance_v1.read_dataset_version_proposal"
+                    "(%s, %s, %s)",
+                    requested,
+                )
+                row = _optional_named_row(cursor)
+                if row is None:
+                    raise DatasetProposalAuthorityError(
+                        "DATASET_PROPOSAL_AUTHORITY_NOT_FOUND",
+                        "read",
+                        identity=identity,
+                    )
+                return _authority_record(row)
+        except DatasetProposalAuthorityError:
+            raise
+        except Exception as error:
+            sqlstate = getattr(error, "sqlstate", None)
+            if isinstance(sqlstate, str) and sqlstate.startswith("XX"):
+                raise _corrupt() from None
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_UNAVAILABLE",
+                "persistence",
+            ) from None
+        finally:
+            if connection is not None:
+                connection.close()
+
     def compare_and_create(
         self,
         proposal: DatasetVersionProposal,
@@ -100,38 +151,13 @@ class PostgresDatasetProposalAuthority:
         try:
             import psycopg
 
-            kwargs: dict[str, Any] = {
-                "host": self._settings.host,
-                "port": self._settings.port,
-                "dbname": self._settings.database,
-                "user": self._settings.user,
-                "password": self._settings.password,
-                "connect_timeout": self._settings.connect_timeout_seconds,
-                "application_name": self._settings.application_name,
-                "sslmode": self._settings.sslmode,
-                "options": "-c timezone=UTC -c client_encoding=UTF8",
-                "autocommit": False,
-            }
-            if self._settings.sslrootcert is not None:
-                kwargs["sslrootcert"] = str(self._settings.sslrootcert)
-            connection = psycopg.connect(**kwargs)
+            connection = psycopg.connect(**self._connection_kwargs())
             with connection.transaction():
                 connection.execute(
                     "SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE"
                 )
-                connection.execute(
-                    "SELECT set_config('statement_timeout', %s, true), "
-                    "set_config('idle_in_transaction_session_timeout', %s, true)",
-                    (
-                        str(self._settings.statement_timeout_ms),
-                        str(self._settings.transaction_timeout_ms),
-                    ),
-                )
-                if connection.execute("SELECT current_user").fetchone() != (_ROLE,):
-                    raise DatasetProposalAuthorityError(
-                        "DATASET_PROPOSAL_AUTHORITY_PERMISSION_DENIED",
-                        "transaction",
-                    )
+                self._configure_transaction(connection)
+                self._require_runtime_role(connection)
                 connection.execute(
                     "SELECT "
                     "dohalm_dataset_governance_v1.lock_dataset_version_proposal_identity"
@@ -217,6 +243,41 @@ class PostgresDatasetProposalAuthority:
             if connection is not None:
                 connection.close()
 
+    def _connection_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "host": self._settings.host,
+            "port": self._settings.port,
+            "dbname": self._settings.database,
+            "user": self._settings.user,
+            "password": self._settings.password,
+            "connect_timeout": self._settings.connect_timeout_seconds,
+            "application_name": self._settings.application_name,
+            "sslmode": self._settings.sslmode,
+            "options": "-c timezone=UTC -c client_encoding=UTF8",
+            "autocommit": False,
+        }
+        if self._settings.sslrootcert is not None:
+            kwargs["sslrootcert"] = str(self._settings.sslrootcert)
+        return kwargs
+
+    def _configure_transaction(self, connection: Any) -> None:
+        connection.execute(
+            "SELECT set_config('statement_timeout', %s, true), "
+            "set_config('idle_in_transaction_session_timeout', %s, true)",
+            (
+                str(self._settings.statement_timeout_ms),
+                str(self._settings.transaction_timeout_ms),
+            ),
+        )
+
+    @staticmethod
+    def _require_runtime_role(connection: Any) -> None:
+        if connection.execute("SELECT current_user").fetchone() != (_ROLE,):
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_PERMISSION_DENIED",
+                "transaction",
+            )
+
 
 def _incoming(
     proposal: DatasetVersionProposal, proposal_fingerprint: str
@@ -227,6 +288,21 @@ def _incoming(
     if proposal_fingerprint != expected:
         raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "fingerprint")
     return canonical_json_bytes(proposal.payload), expected
+
+
+def _read_identity(identity: object) -> tuple[str, str, str]:
+    if type(identity) is not DatasetVersionIdentity:
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID",
+            "read",
+        )
+    values = (identity.object_id, identity.dataset_id, identity.dataset_version)
+    if any(type(value) is not str or not 1 <= len(value) <= 256 for value in values):
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID",
+            "read",
+        )
+    return values
 
 
 def _named_rows(cursor: Any) -> list[dict[str, Any]]:
@@ -245,6 +321,35 @@ def _one_named_row(cursor: Any) -> dict[str, Any]:
     if len(rows) != 1:
         raise _corrupt()
     return rows[0]
+
+
+def _optional_named_row(cursor: Any) -> dict[str, Any] | None:
+    rows = _named_rows(cursor)
+    if len(rows) > 1:
+        raise _corrupt()
+    return rows[0] if rows else None
+
+
+def _authority_record(row: dict[str, Any]) -> DatasetProposalAuthorityRecord:
+    if set(row) != {
+        "object_id",
+        "dataset_id",
+        "dataset_version",
+        "proposal_fingerprint",
+        "canonical_payload",
+        "authority_reference",
+        "authority_version",
+        "created_at",
+    }:
+        raise _corrupt()
+    stored = _stored_proposal({"outcome": "REPLAYED", **row})
+    return DatasetProposalAuthorityRecord(
+        proposal=stored,
+        identity=stored.identity,
+        proposal_fingerprint=_text(row["proposal_fingerprint"]),
+        authority_reference=_text(row["authority_reference"]),
+        authority_version=_integer(row["authority_version"]),
+    )
 
 
 def _stored_proposal(row: dict[str, Any]) -> DatasetVersionProposal:

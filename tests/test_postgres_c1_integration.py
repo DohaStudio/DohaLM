@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import platform
 import secrets
 import subprocess
@@ -1987,6 +1987,7 @@ def _dataset_proposal_adapter(
     c1_postgres: C1Fixture,
 ) -> Iterator[PostgresDatasetProposalAuthority]:
     from psycopg import sql
+
     from src.data.postgres_dataset_proposal_authority import (
         PostgresDatasetProposalAuthority,
         PostgresDatasetProposalAuthoritySettings,
@@ -2057,6 +2058,25 @@ def _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
             ),
         ).fetchone()
         assert owner_name == ("dohalm_dataset_proposal_owner",)
+        read_function = owner.execute(
+            "SELECT p.prosecdef, p.provolatile, p.proconfig, "
+            "has_function_privilege(%s, p.oid, 'EXECUTE'), "
+            "has_function_privilege('public', p.oid, 'EXECUTE') "
+            "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+            "WHERE n.nspname=%s AND p.proname=%s",
+            (
+                "dohalm_dataset_proposal_authority",
+                "dohalm_dataset_governance_v1",
+                "read_dataset_version_proposal",
+            ),
+        ).fetchone()
+        assert read_function == (
+            True,
+            "s",
+            ["search_path=pg_catalog, pg_temp"],
+            True,
+            False,
+        )
     with _dataset_proposal_adapter(c1_postgres) as adapter:
         settings = adapter._settings
         import psycopg
@@ -2089,6 +2109,18 @@ def _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
                         "convert_to('{}', 'UTF8'),'dataset-proposal:denied')"
                     )
             assert insert_denied.value.sqlstate == "42501"
+            for statement in (
+                "UPDATE dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority SET dataset_version='denied'",
+                "DELETE FROM dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority",
+            ):
+                with (
+                    pytest.raises(Exception) as mutation_denied,
+                    connection.transaction(),
+                ):
+                    connection.execute(statement)
+                assert mutation_denied.value.sqlstate == "42501"
         finally:
             connection.close()
 
@@ -2158,9 +2190,148 @@ def _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_t
     assert bytes(rows[0][2]) == canonical_json_bytes(proposal.payload)
 
 
+def _check_dataset_proposal_authoritative_read_contract(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.dataset_governance import (
+        DatasetVersionIdentity,
+        propose_dataset_version,
+    )
+    from src.data.dataset_proposal_authority import (
+        DatasetProposalAuthorityError,
+        DatasetProposalAuthorityRecord,
+        DatasetProposalOutcome,
+        dataset_version_proposal_fingerprint,
+    )
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+    )
+
+    suffix = uuid.uuid4().hex
+    proposal = propose_dataset_version(_proposal_payload(suffix))
+    fingerprint = dataset_version_proposal_fingerprint(proposal)
+    missing = DatasetVersionIdentity(
+        f"dataset_version_missing_{suffix}",
+        f"dataset_missing_{suffix}",
+        "1.0.0",
+    )
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        with pytest.raises(DatasetProposalAuthorityError) as not_found:
+            adapter.read_authoritative_proposal(missing)
+        assert not_found.value.code == "DATASET_PROPOSAL_AUTHORITY_NOT_FOUND"
+
+        created = adapter.compare_and_create(
+            proposal,
+            proposal_fingerprint=fingerprint,
+        )
+        replayed = adapter.compare_and_create(
+            proposal,
+            proposal_fingerprint=fingerprint,
+        )
+        assert replayed.outcome is DatasetProposalOutcome.REPLAYED
+        with c1_postgres.factory.connection() as owner:
+            before = owner.execute(
+                "SELECT object_id, dataset_id, dataset_version, proposal_fingerprint, "
+                "canonical_payload, authority_reference, authority_version, created_at "
+                "FROM dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority WHERE object_id=%s",
+                (proposal.identity.object_id,),
+            ).fetchone()
+        loaded = adapter.read_authoritative_proposal(proposal.identity)
+        restarted = PostgresDatasetProposalAuthority(
+            adapter._settings
+        ).read_authoritative_proposal(proposal.identity)
+        assert type(loaded) is DatasetProposalAuthorityRecord
+        assert loaded == restarted
+        assert loaded.proposal == created.proposal == proposal
+        assert loaded.proposal == replayed.proposal
+        assert loaded.identity == proposal.identity
+        assert loaded.proposal_fingerprint == fingerprint
+        assert loaded.authority_reference == created.authority_reference
+        assert loaded.authority_version == created.authority_version == 1
+        assert loaded.proposal.payload["extensions"] == proposal.payload["extensions"]
+        assert loaded.proposal.payload["lineage"] == proposal.payload["lineage"]
+        assert (
+            loaded.proposal.payload["split_manifest"]
+            == proposal.payload["split_manifest"]
+        )
+
+        conflicting = propose_dataset_version(
+            _proposal_payload(
+                suffix,
+                producer={"name": "conflicting-governance", "version": "1.0.0"},
+            )
+        )
+        with pytest.raises(DatasetProposalAuthorityError) as conflict:
+            adapter.compare_and_create(
+                conflicting,
+                proposal_fingerprint=dataset_version_proposal_fingerprint(conflicting),
+            )
+        assert conflict.value.code == "DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT"
+        assert adapter.read_authoritative_proposal(proposal.identity) == loaded
+
+        with c1_postgres.factory.connection() as owner:
+            after = owner.execute(
+                "SELECT object_id, dataset_id, dataset_version, proposal_fingerprint, "
+                "canonical_payload, authority_reference, authority_version, created_at "
+                "FROM dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority WHERE object_id=%s",
+                (proposal.identity.object_id,),
+            ).fetchone()
+        assert after == before
+
+        invalid = replace(adapter._settings, password="synthetic-wrong-password")
+        with pytest.raises(DatasetProposalAuthorityError) as unavailable:
+            PostgresDatasetProposalAuthority(invalid).read_authoritative_proposal(
+                proposal.identity
+            )
+        assert unavailable.value.code == "DATASET_PROPOSAL_AUTHORITY_UNAVAILABLE"
+        assert invalid.password not in str(unavailable.value)
+        assert invalid.host not in str(unavailable.value)
+        assert "SELECT" not in str(unavailable.value)
+
+        for malformed_identity in (
+            "invalid",
+            DatasetVersionIdentity("", "dataset", "1.0.0"),
+            DatasetVersionIdentity("object", "d" * 257, "1.0.0"),
+        ):
+            with pytest.raises(DatasetProposalAuthorityError) as malformed:
+                adapter.read_authoritative_proposal(
+                    malformed_identity  # type: ignore[arg-type]
+                )
+            assert malformed.value.code == "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID"
+
+        with c1_postgres.factory.connection() as owner, owner.transaction():
+            owner.execute(
+                "ALTER TABLE dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority DISABLE TRIGGER USER"
+            )
+            owner.execute(
+                "UPDATE dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority SET proposal_fingerprint=%s "
+                "WHERE object_id=%s",
+                ("sha256:" + "0" * 64, proposal.identity.object_id),
+            )
+            owner.execute(
+                "ALTER TABLE dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority ENABLE TRIGGER USER"
+            )
+        with pytest.raises(DatasetProposalAuthorityError) as corrupt:
+            adapter.read_authoritative_proposal(proposal.identity)
+        assert corrupt.value.code == "DATASET_PROPOSAL_AUTHORITY_CORRUPT"
+        with c1_postgres.factory.connection() as owner:
+            assert owner.execute(
+                "SELECT proposal_fingerprint FROM dohalm_dataset_governance_v1."
+                "dataset_version_proposal_authority WHERE object_id=%s",
+                (proposal.identity.object_id,),
+            ).fetchone() == ("sha256:" + "0" * 64,)
+
+
 def _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
     c1_postgres: C1Fixture,
 ) -> None:
+    from test_product_dataset_governance import _compose, _CurrentEvidenceAuthority
+
     from src.data.dataset_proposal_authority import (
         DatasetProposalAuthorityError,
         DatasetProposalOutcome,
@@ -2169,7 +2340,6 @@ def _check_product_dataset_governance_uses_durable_authority_without_lifecycle_s
         PostgresDatasetProposalAuthority,
     )
     from src.data.product_dataset_governance import propose_product_dataset_version
-    from test_product_dataset_governance import _CurrentEvidenceAuthority, _compose
 
     with c1_postgres.factory.connection() as owner:
         before = owner.execute(

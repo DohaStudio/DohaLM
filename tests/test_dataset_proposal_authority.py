@@ -4,15 +4,23 @@ import ast
 import inspect
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 from threading import Barrier, Lock
 
 import pytest
 
 import src.data.dataset_proposal_authority as authority_module
-from src.data.dataset_governance import DatasetVersionProposal
+import src.data.postgres_dataset_proposal_authority as postgres_authority_module
+from src.data.checksums import canonical_json_bytes
+from src.data.dataset_governance import (
+    DatasetVersionIdentity,
+    DatasetVersionProposal,
+    propose_dataset_version,
+)
 from src.data.dataset_proposal_authority import (
     DatasetProposalAuthorityError,
+    DatasetProposalAuthorityRecord,
     DatasetProposalAuthorityResult,
     DatasetProposalEvidenceDecision,
     DatasetProposalEvidenceStatus,
@@ -160,6 +168,37 @@ class _AtomicProposalAuthority:
                 authority_version=stored[2],
             )
 
+    def read_authoritative_proposal(
+        self,
+        identity: DatasetVersionIdentity,
+    ) -> DatasetProposalAuthorityRecord:
+        if type(identity) is not DatasetVersionIdentity or any(
+            type(value) is not str or not 1 <= len(value) <= 256
+            for value in (
+                getattr(identity, "object_id", None),
+                getattr(identity, "dataset_id", None),
+                getattr(identity, "dataset_version", None),
+            )
+        ):
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID",
+                "read",
+            )
+        stored = self._records.get(identity)
+        if stored is None:
+            raise DatasetProposalAuthorityError(
+                "DATASET_PROPOSAL_AUTHORITY_NOT_FOUND",
+                "read",
+                identity=identity,
+            )
+        return DatasetProposalAuthorityRecord(
+            proposal=stored[0],
+            identity=stored[0].identity,
+            proposal_fingerprint=stored[1],
+            authority_reference="authority:dataset-proposal:test",
+            authority_version=stored[2],
+        )
+
 
 def _adjudicate(
     payload: dict | None = None,
@@ -197,6 +236,84 @@ def test_same_canonical_proposal_replays_existing_object():
     assert second.outcome is DatasetProposalOutcome.REPLAYED
     assert second.proposal is first.proposal
     assert authority.calls == 2
+
+
+def test_fake_authoritative_read_returns_immutable_created_record_without_mutation():
+    authority = _AtomicProposalAuthority()
+    created = _adjudicate(authority=authority)
+    before = dict(authority._records)
+
+    loaded = authority.read_authoritative_proposal(created.identity)
+
+    assert loaded == DatasetProposalAuthorityRecord(
+        proposal=created.proposal,
+        identity=created.identity,
+        proposal_fingerprint=created.proposal_fingerprint,
+        authority_reference=created.authority_reference,
+        authority_version=created.authority_version,
+    )
+    assert authority._records == before
+    with pytest.raises(FrozenInstanceError):
+        loaded.authority_version = 2  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    "malformed_identity",
+    [
+        "missing",
+        DatasetVersionIdentity("", "dataset", "1.0.0"),
+        DatasetVersionIdentity("object", "d" * 257, "1.0.0"),
+    ],
+)
+def test_fake_authoritative_read_missing_and_malformed_identity_fail_closed(
+    malformed_identity,
+):
+    authority = _AtomicProposalAuthority()
+    missing = DatasetVersionIdentity("missing", "missing", "1.0.0")
+    with pytest.raises(DatasetProposalAuthorityError) as not_found:
+        authority.read_authoritative_proposal(missing)
+    assert not_found.value.code == "DATASET_PROPOSAL_AUTHORITY_NOT_FOUND"
+    assert authority._records == {}
+
+    with pytest.raises(DatasetProposalAuthorityError) as raised:
+        authority.read_authoritative_proposal(
+            malformed_identity  # type: ignore[arg-type]
+        )
+    assert raised.value.code == "DATASET_PROPOSAL_AUTHORITY_IDENTITY_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("proposal_fingerprint", "sha256:" + "0" * 64),
+        ("object_id", "dataset_version_other"),
+        ("canonical_payload", b"{}\n"),
+        ("authority_version", 2),
+    ],
+)
+def test_stored_authoritative_record_corruption_fails_closed_without_repair(
+    field,
+    value,
+):
+    proposal = propose_dataset_version(_payload())
+    row = {
+        "object_id": proposal.identity.object_id,
+        "dataset_id": proposal.identity.dataset_id,
+        "dataset_version": proposal.identity.dataset_version,
+        "proposal_fingerprint": dataset_version_proposal_fingerprint(proposal),
+        "canonical_payload": canonical_json_bytes(proposal.payload),
+        "authority_reference": "dataset-proposal:" + "1" * 64,
+        "authority_version": 1,
+        "created_at": PROPOSED_AT,
+    }
+    row[field] = value
+    corrupted = deepcopy(row)
+
+    with pytest.raises(DatasetProposalAuthorityError) as raised:
+        postgres_authority_module._authority_record(row)
+
+    assert raised.value.code == "DATASET_PROPOSAL_AUTHORITY_CORRUPT"
+    assert row == corrupted
 
 
 @pytest.mark.parametrize(
