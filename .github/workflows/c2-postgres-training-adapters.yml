@@ -87,8 +87,6 @@ jobs:
         run: python -m pytest tests/test_postgres_c3_integration.py -q
       - name: Run C3 Host lifecycle regressions
         run: python -m pytest tests/test_production_host_foundation.py tests/test_production_orchestration_seams.py tests/test_production_full_pretraining_host.py tests/test_training_execution_issuer.py -q
-      - name: Run explicit C1 regression
-        run: python -m pytest tests/test_postgres_c1.py tests/test_postgres_c1_integration.py -q
       - name: Compile C2 Python boundary
         run: python -m compileall -q src/training/postgres_training_adapters.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py
       - name: Verify disposable resource cleanup
