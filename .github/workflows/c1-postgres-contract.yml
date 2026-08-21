@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/c1-postgres-contract.yml"
+      - ".github/workflows/c2-postgres-training-adapters.yml"
       - "pyproject.toml"
       - "requirements-c1.lock"
       - "src/postgres_c1.py"
@@ -13,6 +14,7 @@ on:
     branches: [develop]
     paths:
       - ".github/workflows/c1-postgres-contract.yml"
+      - ".github/workflows/c2-postgres-training-adapters.yml"
       - "pyproject.toml"
       - "requirements-c1.lock"
       - "src/postgres_c1.py"
