@@ -11,11 +11,24 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
 import pytest
 
+from src.data.checksums import canonical_json_bytes
+from src.data.dataset_governance import propose_dataset_version
+from src.data.dataset_proposal_authority import (
+    DatasetProposalAuthorityError,
+    DatasetProposalOutcome,
+    dataset_version_proposal_fingerprint,
+)
+from src.data.postgres_dataset_proposal_authority import (
+    PostgresDatasetProposalAuthority,
+    PostgresDatasetProposalAuthoritySettings,
+)
+from src.data.product_dataset_governance import propose_product_dataset_version
 from src.postgres_c1 import (
     C1PostgresConnectionFactory,
     C1PostgresError,
@@ -90,7 +103,7 @@ def _assert_loopback_listener(container: str, port: int) -> None:
         assert local_addresses == [f"127.0.0.1:{port}"]
 
 
-@dataclass(frozen=True)
+@dataclass
 class C1Fixture:
     correlation: str
     container: str
@@ -172,7 +185,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4)]
         yield C1Fixture(
             correlation,
             container,
@@ -1392,7 +1405,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3)
+            assert apply_c1_migrations(connection) == (2, 3, 4)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -1453,6 +1466,15 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root
                         / "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"
+                    ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                4,
+                "0004_dataset_proposal_authority.sql",
+                hashlib.sha256(
+                    (
+                        migration_root / "0004_dataset_proposal_authority.sql"
                     ).read_bytes()
                 ).hexdigest(),
             ),
@@ -1890,9 +1912,23 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (1, "0001_training_authority_and_journal.sql"),
                 (2, "0002_c1_1_prerequisite_restricted_operations.sql"),
                 (3, "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"),
+                (4, "0004_dataset_proposal_authority.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
+            assert connection.execute(
+                "SELECT to_regclass(%s), has_function_privilege(%s, %s, 'EXECUTE')",
+                (
+                    "dohalm_dataset_governance_v1.dataset_version_proposal_authority",
+                    "dohalm_dataset_proposal_authority",
+                    "dohalm_dataset_governance_v1."
+                    "compare_and_create_dataset_version_proposal"
+                    "(varchar,varchar,varchar,char,bytea)",
+                ),
+            ).fetchone() == (
+                "dohalm_dataset_governance_v1.dataset_version_proposal_authority",
+                True,
+            )
         restored_result = _exercise_restore_smoke(
             restore_factory, _restore_claim_input("restored", "6")
         )
@@ -1951,3 +1987,373 @@ def test_migration_idempotency_advisory_lock_and_restart(
             1,
         )
         assert apply_c1_migrations(connection) == ()
+    c1_postgres.settings = replace(c1_postgres.settings, port=restart_port)
+    c1_postgres.factory = restart_factory
+
+
+@contextmanager
+def _dataset_proposal_adapter(
+    c1_postgres: C1Fixture,
+) -> Iterator[PostgresDatasetProposalAuthority]:
+    from psycopg import sql
+
+    password = secrets.token_urlsafe(32)
+    with c1_postgres.factory.connection() as owner:
+        owner.execute(
+            sql.SQL("ALTER ROLE dohalm_dataset_proposal_authority PASSWORD {}").format(
+                sql.Literal(password)
+            )
+        )
+        owner.commit()
+    try:
+        settings = PostgresDatasetProposalAuthoritySettings(
+            environment="isolated_test",
+            host=c1_postgres.settings.host,
+            port=c1_postgres.settings.port,
+            database=c1_postgres.settings.database,
+            user="dohalm_dataset_proposal_authority",
+            password=password,
+            application_name="dohalm-dataset-proposal-contract",
+            sslmode="disable",
+        )
+        yield PostgresDatasetProposalAuthority(settings)
+    finally:
+        with c1_postgres.factory.connection() as owner:
+            owner.execute("ALTER ROLE dohalm_dataset_proposal_authority PASSWORD NULL")
+            owner.commit()
+
+
+def _proposal_payload(suffix: str, **updates: object) -> dict[str, object]:
+    from test_dataset_proposal_authority import _payload
+
+    payload = _payload(
+        object_id=f"dataset_version_product_{suffix}",
+        dataset_id=f"dataset_product_{suffix}",
+        dataset_version="1.0.0",
+    )
+    payload.update(updates)
+    return payload
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
+    c1_postgres: C1Fixture,
+) -> None:
+    with c1_postgres.factory.connection() as owner:
+        roles = dict(
+            owner.execute(
+                "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = ANY(%s)",
+                (
+                    [
+                        "dohalm_dataset_proposal_owner",
+                        "dohalm_dataset_proposal_authority",
+                    ],
+                ),
+            ).fetchall()
+        )
+        assert roles == {
+            "dohalm_dataset_proposal_owner": False,
+            "dohalm_dataset_proposal_authority": True,
+        }
+        owner_name = owner.execute(
+            "SELECT tableowner FROM pg_tables WHERE schemaname=%s AND tablename=%s",
+            (
+                "dohalm_dataset_governance_v1",
+                "dataset_version_proposal_authority",
+            ),
+        ).fetchone()
+        assert owner_name == ("dohalm_dataset_proposal_owner",)
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        settings = adapter._settings
+        import psycopg
+
+        connection = psycopg.connect(
+            host=settings.host,
+            port=settings.port,
+            dbname=settings.database,
+            user=settings.user,
+            password=settings.password,
+            sslmode=settings.sslmode,
+            autocommit=False,
+        )
+        try:
+            with pytest.raises(Exception) as denied:
+                with connection.transaction():
+                    connection.execute(
+                        "SELECT count(*) FROM "
+                        "dohalm_dataset_governance_v1.dataset_version_proposal_authority"
+                    )
+            assert denied.value.sqlstate == "42501"
+            with pytest.raises(Exception) as insert_denied:
+                with connection.transaction():
+                    connection.execute(
+                        "INSERT INTO dohalm_dataset_governance_v1."
+                        "dataset_version_proposal_authority "
+                        "(object_id,dataset_id,dataset_version,proposal_fingerprint,"
+                        "canonical_payload,authority_reference) "
+                        "VALUES ('denied','denied','1','sha256:' || repeat('0',64),"
+                        "convert_to('{}', 'UTF8'),'dataset-proposal:denied')"
+                    )
+            assert insert_denied.value.sqlstate == "42501"
+        finally:
+            connection.close()
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
+    c1_postgres: C1Fixture,
+) -> None:
+    suffix = uuid.uuid4().hex
+    proposal = propose_dataset_version(_proposal_payload(suffix))
+    fingerprint = dataset_version_proposal_fingerprint(proposal)
+    conflicting = propose_dataset_version(
+        _proposal_payload(
+            suffix,
+            producer={"name": "competing-governance", "version": "1.0.0"},
+        )
+    )
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        created = adapter.compare_and_create(proposal, proposal_fingerprint=fingerprint)
+        replayed = PostgresDatasetProposalAuthority(
+            adapter._settings
+        ).compare_and_create(
+            propose_dataset_version(dict(reversed(tuple(proposal.payload.items())))),
+            proposal_fingerprint=fingerprint,
+        )
+        assert created.outcome is DatasetProposalOutcome.CREATED
+        assert replayed.outcome is DatasetProposalOutcome.REPLAYED
+        assert replayed.proposal == proposal
+        assert replayed.proposal_fingerprint == fingerprint
+        assert replayed.authority_reference == created.authority_reference
+        with pytest.raises(DatasetProposalAuthorityError) as conflict:
+            PostgresDatasetProposalAuthority(adapter._settings).compare_and_create(
+                conflicting,
+                proposal_fingerprint=dataset_version_proposal_fingerprint(conflicting),
+            )
+        assert conflict.value.code == "DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT"
+        assert conflict.value.existing_fingerprint == fingerprint
+        different = propose_dataset_version(
+            _proposal_payload(suffix + "b", dataset_version="2.0.0")
+        )
+        assert (
+            adapter.compare_and_create(
+                different,
+                proposal_fingerprint=dataset_version_proposal_fingerprint(different),
+            ).outcome
+            is DatasetProposalOutcome.CREATED
+        )
+    with c1_postgres.factory.connection() as owner:
+        rows = owner.execute(
+            "SELECT object_id, proposal_fingerprint, canonical_payload "
+            "FROM dohalm_dataset_governance_v1.dataset_version_proposal_authority "
+            "WHERE object_id = ANY(%s) ORDER BY object_id",
+            ([proposal.identity.object_id, different.identity.object_id],),
+        ).fetchall()
+    assert len(rows) == 2
+    assert rows[0][1].rstrip() == fingerprint
+    assert bytes(rows[0][2]) == canonical_json_bytes(proposal.payload)
+
+
+@pytest.mark.integration
+def test_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
+    c1_postgres: C1Fixture,
+) -> None:
+    from test_product_dataset_governance import _CurrentEvidenceAuthority, _compose
+
+    with c1_postgres.factory.connection() as owner:
+        before = owner.execute(
+            f"SELECT "
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_version_authority), "
+            f"(SELECT count(*) FROM {SCHEMA}.training_execution_journal), "
+            f"(SELECT count(*) FROM {SCHEMA}.training_execution_phase_event)"
+        ).fetchone()
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        first = propose_product_dataset_version(
+            _compose(),
+            authority=adapter,
+            current_evidence_authority=_CurrentEvidenceAuthority(),
+            proposed_at=datetime(2026, 8, 21, tzinfo=timezone.utc),
+        )
+        second = propose_product_dataset_version(
+            _compose(),
+            authority=PostgresDatasetProposalAuthority(adapter._settings),
+            current_evidence_authority=_CurrentEvidenceAuthority(),
+            proposed_at=datetime(2026, 8, 22, tzinfo=timezone.utc),
+        )
+        assert first.outcome is DatasetProposalOutcome.CREATED
+        assert second.outcome is DatasetProposalOutcome.REPLAYED
+        assert first.proposal == second.proposal
+
+        invalid = replace(adapter._settings, password="synthetic-wrong-password")
+        with pytest.raises(DatasetProposalAuthorityError) as unavailable:
+            PostgresDatasetProposalAuthority(invalid).compare_and_create(
+                first.proposal,
+                proposal_fingerprint=first.proposal_fingerprint,
+            )
+        assert unavailable.value.code == "DATASET_PROPOSAL_AUTHORITY_UNAVAILABLE"
+        assert invalid.password not in str(unavailable.value)
+        assert invalid.host not in str(unavailable.value)
+        assert "SELECT" not in str(unavailable.value)
+    with c1_postgres.factory.connection() as owner:
+        after = owner.execute(
+            f"SELECT "
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_version_authority), "
+            f"(SELECT count(*) FROM {SCHEMA}.training_execution_journal), "
+            f"(SELECT count(*) FROM {SCHEMA}.training_execution_phase_event)"
+        ).fetchone()
+    assert after == before
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
+    c1_postgres: C1Fixture,
+) -> None:
+    suffix = uuid.uuid4().hex
+    identical = propose_dataset_version(_proposal_payload(suffix))
+    identical_fingerprint = dataset_version_proposal_fingerprint(identical)
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        barrier = threading.Barrier(4)
+
+        def identical_call(_: int):
+            barrier.wait()
+            return PostgresDatasetProposalAuthority(
+                adapter._settings
+            ).compare_and_create(identical, proposal_fingerprint=identical_fingerprint)
+
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            identical_results = list(workers.map(identical_call, range(4)))
+        assert [item.outcome for item in identical_results].count(
+            DatasetProposalOutcome.CREATED
+        ) == 1
+        assert [item.outcome for item in identical_results].count(
+            DatasetProposalOutcome.REPLAYED
+        ) == 3
+
+        conflict_suffix = suffix + "c"
+        proposals = (
+            propose_dataset_version(_proposal_payload(conflict_suffix)),
+            propose_dataset_version(
+                _proposal_payload(
+                    conflict_suffix,
+                    content_fingerprint="sha256:" + "9" * 64,
+                )
+            ),
+        )
+        conflict_barrier = threading.Barrier(2)
+
+        def conflicting_call(proposal: object):
+            conflict_barrier.wait()
+            try:
+                return PostgresDatasetProposalAuthority(
+                    adapter._settings
+                ).compare_and_create(
+                    proposal,
+                    proposal_fingerprint=dataset_version_proposal_fingerprint(proposal),
+                )
+            except DatasetProposalAuthorityError as error:
+                return error
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            conflict_results = list(workers.map(conflicting_call, proposals))
+        assert (
+            sum(
+                getattr(item, "outcome", None) is DatasetProposalOutcome.CREATED
+                for item in conflict_results
+            )
+            == 1
+        )
+        errors = [
+            item
+            for item in conflict_results
+            if isinstance(item, DatasetProposalAuthorityError)
+        ]
+        assert len(errors) == 1
+        assert errors[0].code == "DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT"
+    with c1_postgres.factory.connection() as owner:
+        count = owner.execute(
+            "SELECT count(*) FROM "
+            "dohalm_dataset_governance_v1.dataset_version_proposal_authority "
+            "WHERE object_id = ANY(%s)",
+            ([identical.identity.object_id, proposals[0].identity.object_id],),
+        ).fetchone()
+    assert count == (2,)
+
+
+@pytest.mark.integration
+def test_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
+    c1_postgres: C1Fixture,
+) -> None:
+    suffix = uuid.uuid4().hex
+    proposal = propose_dataset_version(_proposal_payload(suffix))
+    fingerprint = dataset_version_proposal_fingerprint(proposal)
+    payload = canonical_json_bytes(proposal.payload)
+    with c1_postgres.factory.connection() as owner:
+        with pytest.raises(RuntimeError, match="synthetic rollback"):
+            with owner.transaction():
+                owner.execute(
+                    "SELECT * FROM "
+                    "dohalm_dataset_governance_v1.compare_and_create_dataset_version_proposal"
+                    "(%s,%s,%s,%s,%s)",
+                    (
+                        proposal.identity.object_id,
+                        proposal.identity.dataset_id,
+                        proposal.identity.dataset_version,
+                        fingerprint,
+                        payload,
+                    ),
+                )
+                raise RuntimeError("synthetic rollback")
+        assert owner.execute(
+            "SELECT count(*) FROM "
+            "dohalm_dataset_governance_v1.dataset_version_proposal_authority "
+            "WHERE object_id=%s",
+            (proposal.identity.object_id,),
+        ).fetchone() == (0,)
+
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        assert (
+            adapter.compare_and_create(
+                proposal, proposal_fingerprint=fingerprint
+            ).outcome
+            is DatasetProposalOutcome.CREATED
+        )
+        with c1_postgres.factory.connection() as owner:
+            with owner.transaction():
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority DISABLE TRIGGER USER"
+                )
+                owner.execute(
+                    "UPDATE dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority "
+                    "SET canonical_payload=%s WHERE object_id=%s",
+                    (b"{}\n", proposal.identity.object_id),
+                )
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority ENABLE TRIGGER USER"
+                )
+        with pytest.raises(DatasetProposalAuthorityError) as corrupt:
+            adapter.compare_and_create(proposal, proposal_fingerprint=fingerprint)
+        assert corrupt.value.code == "DATASET_PROPOSAL_AUTHORITY_CORRUPT"
+        with c1_postgres.factory.connection() as owner:
+            assert owner.execute(
+                "SELECT canonical_payload FROM "
+                "dohalm_dataset_governance_v1.dataset_version_proposal_authority "
+                "WHERE object_id=%s",
+                (proposal.identity.object_id,),
+            ).fetchone() == (b"{}\n",)
+            with owner.transaction():
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority DISABLE TRIGGER USER"
+                )
+                owner.execute(
+                    "DELETE FROM dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority WHERE object_id=%s",
+                    (proposal.identity.object_id,),
+                )
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_proposal_authority ENABLE TRIGGER USER"
+                )

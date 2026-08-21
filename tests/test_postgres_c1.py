@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from src.data.postgres_dataset_proposal_authority import (
+    PostgresDatasetProposalAuthoritySettings,
+)
 from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
 
@@ -131,8 +134,9 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0001_training_authority_and_journal.sql",
         "0002_c1_1_prerequisite_restricted_operations.sql",
         "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql",
+        "0004_dataset_proposal_authority.sql",
     ]
-    sql = migrations[-1].sql
+    sql = migrations[2].sql
     for function_name in (
         "read_c2_training_prerequisite_snapshot",
         "read_c2_training_decision_snapshot",
@@ -145,3 +149,64 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
     assert "REPEATABLE READ" not in sql
     assert "repeatable read" in sql
     assert "read committed" in sql
+
+
+def test_dataset_proposal_migration_has_separate_immutable_restricted_authority() -> (
+    None
+):
+    migration = load_c1_migrations()[-1]
+    assert migration.name == "0004_dataset_proposal_authority.sql"
+    sql = migration.sql
+    assert "CREATE SCHEMA dohalm_dataset_governance_v1" in sql
+    assert "PRIMARY KEY (object_id, dataset_id, dataset_version)" in sql
+    assert (
+        "ON CONFLICT ON CONSTRAINT dataset_version_proposal_authority_pkey DO NOTHING"
+        in sql
+    )
+    assert "BEFORE UPDATE OR DELETE" in sql
+    assert "SECURITY DEFINER" in sql
+    assert (
+        "CREATE FUNCTION dohalm_dataset_governance_v1.lock_dataset_version_proposal_identity"
+        in sql
+    )
+    assert (
+        "CREATE FUNCTION dohalm_dataset_governance_v1.read_dataset_version_proposal"
+        in sql
+    )
+    assert "REVOKE ALL ON ALL TABLES" in sql
+    assert "GRANT EXECUTE ON FUNCTION" in sql
+    assert "dohalm_training_v1.dataset_version_authority" not in sql
+
+
+def test_dataset_proposal_settings_are_explicit_role_scoped_and_redacted() -> None:
+    settings = PostgresDatasetProposalAuthoritySettings(
+        environment="isolated_test",
+        host="127.0.0.1",
+        port=5432,
+        database="dohalm_c1_contract",
+        user="dohalm_dataset_proposal_authority",
+        password="synthetic-password-only",
+        application_name="dohalm-proposal-contract",
+        sslmode="disable",
+    )
+    assert repr(settings) == "PostgresDatasetProposalAuthoritySettings(<redacted>)"
+    assert settings.password not in repr(settings)
+    for changes in (
+        {"host": "0.0.0.0"},
+        {"user": "postgres"},
+        {"environment": "production"},
+        {"sslmode": "allow"},
+    ):
+        values = {
+            "environment": settings.environment,
+            "host": settings.host,
+            "port": settings.port,
+            "database": settings.database,
+            "user": settings.user,
+            "password": settings.password,
+            "application_name": settings.application_name,
+            "sslmode": settings.sslmode,
+        }
+        values.update(changes)
+        with pytest.raises(Exception, match="CONFIGURATION_INVALID"):
+            PostgresDatasetProposalAuthoritySettings(**values)  # type: ignore[arg-type]
