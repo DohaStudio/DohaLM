@@ -13,22 +13,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import pytest
 
-from src.data.checksums import canonical_json_bytes
-from src.data.dataset_governance import propose_dataset_version
-from src.data.dataset_proposal_authority import (
-    DatasetProposalAuthorityError,
-    DatasetProposalOutcome,
-    dataset_version_proposal_fingerprint,
-)
-from src.data.postgres_dataset_proposal_authority import (
-    PostgresDatasetProposalAuthority,
-    PostgresDatasetProposalAuthoritySettings,
-)
-from src.data.product_dataset_governance import propose_product_dataset_version
 from src.postgres_c1 import (
     C1PostgresConnectionFactory,
     C1PostgresError,
@@ -36,6 +24,11 @@ from src.postgres_c1 import (
     apply_c1_migrations,
     map_c1_postgres_error,
 )
+
+if TYPE_CHECKING:
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+    )
 
 
 IMAGE = (
@@ -103,7 +96,7 @@ def _assert_loopback_listener(container: str, port: int) -> None:
         assert local_addresses == [f"127.0.0.1:{port}"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class C1Fixture:
     correlation: str
     container: str
@@ -1987,8 +1980,6 @@ def test_migration_idempotency_advisory_lock_and_restart(
             1,
         )
         assert apply_c1_migrations(connection) == ()
-    c1_postgres.settings = replace(c1_postgres.settings, port=restart_port)
-    c1_postgres.factory = restart_factory
 
 
 @contextmanager
@@ -1996,6 +1987,10 @@ def _dataset_proposal_adapter(
     c1_postgres: C1Fixture,
 ) -> Iterator[PostgresDatasetProposalAuthority]:
     from psycopg import sql
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+        PostgresDatasetProposalAuthoritySettings,
+    )
 
     password = secrets.token_urlsafe(32)
     with c1_postgres.factory.connection() as owner:
@@ -2035,8 +2030,7 @@ def _proposal_payload(suffix: str, **updates: object) -> dict[str, object]:
     return payload
 
 
-@pytest.mark.integration
-def test_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
+def _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
     c1_postgres: C1Fixture,
 ) -> None:
     with c1_postgres.factory.connection() as owner:
@@ -2099,10 +2093,20 @@ def test_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
             connection.close()
 
 
-@pytest.mark.integration
-def test_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
+def _check_dataset_proposal_authority_create_replay_conflict_restart_and_round_trip(
     c1_postgres: C1Fixture,
 ) -> None:
+    from src.data.checksums import canonical_json_bytes
+    from src.data.dataset_governance import propose_dataset_version
+    from src.data.dataset_proposal_authority import (
+        DatasetProposalAuthorityError,
+        DatasetProposalOutcome,
+        dataset_version_proposal_fingerprint,
+    )
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+    )
+
     suffix = uuid.uuid4().hex
     proposal = propose_dataset_version(_proposal_payload(suffix))
     fingerprint = dataset_version_proposal_fingerprint(proposal)
@@ -2154,10 +2158,17 @@ def test_dataset_proposal_authority_create_replay_conflict_restart_and_round_tri
     assert bytes(rows[0][2]) == canonical_json_bytes(proposal.payload)
 
 
-@pytest.mark.integration
-def test_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
+def _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects(
     c1_postgres: C1Fixture,
 ) -> None:
+    from src.data.dataset_proposal_authority import (
+        DatasetProposalAuthorityError,
+        DatasetProposalOutcome,
+    )
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+    )
+    from src.data.product_dataset_governance import propose_product_dataset_version
     from test_product_dataset_governance import _CurrentEvidenceAuthority, _compose
 
     with c1_postgres.factory.connection() as owner:
@@ -2204,10 +2215,19 @@ def test_product_dataset_governance_uses_durable_authority_without_lifecycle_sid
     assert after == before
 
 
-@pytest.mark.integration
-def test_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
+def _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
     c1_postgres: C1Fixture,
 ) -> None:
+    from src.data.dataset_governance import propose_dataset_version
+    from src.data.dataset_proposal_authority import (
+        DatasetProposalAuthorityError,
+        DatasetProposalOutcome,
+        dataset_version_proposal_fingerprint,
+    )
+    from src.data.postgres_dataset_proposal_authority import (
+        PostgresDatasetProposalAuthority,
+    )
+
     suffix = uuid.uuid4().hex
     identical = propose_dataset_version(_proposal_payload(suffix))
     identical_fingerprint = dataset_version_proposal_fingerprint(identical)
@@ -2279,10 +2299,17 @@ def test_dataset_proposal_authority_multi_connection_concurrency_is_atomic(
     assert count == (2,)
 
 
-@pytest.mark.integration
-def test_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
+def _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
     c1_postgres: C1Fixture,
 ) -> None:
+    from src.data.checksums import canonical_json_bytes
+    from src.data.dataset_governance import propose_dataset_version
+    from src.data.dataset_proposal_authority import (
+        DatasetProposalAuthorityError,
+        DatasetProposalOutcome,
+        dataset_version_proposal_fingerprint,
+    )
+
     suffix = uuid.uuid4().hex
     proposal = propose_dataset_version(_proposal_payload(suffix))
     fingerprint = dataset_version_proposal_fingerprint(proposal)

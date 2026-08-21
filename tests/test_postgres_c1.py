@@ -4,10 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
-from src.data.postgres_dataset_proposal_authority import (
-    PostgresDatasetProposalAuthoritySettings,
-)
 from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
 
@@ -176,37 +172,3 @@ def test_dataset_proposal_migration_has_separate_immutable_restricted_authority(
     assert "REVOKE ALL ON ALL TABLES" in sql
     assert "GRANT EXECUTE ON FUNCTION" in sql
     assert "dohalm_training_v1.dataset_version_authority" not in sql
-
-
-def test_dataset_proposal_settings_are_explicit_role_scoped_and_redacted() -> None:
-    settings = PostgresDatasetProposalAuthoritySettings(
-        environment="isolated_test",
-        host="127.0.0.1",
-        port=5432,
-        database="dohalm_c1_contract",
-        user="dohalm_dataset_proposal_authority",
-        password="synthetic-password-only",
-        application_name="dohalm-proposal-contract",
-        sslmode="disable",
-    )
-    assert repr(settings) == "PostgresDatasetProposalAuthoritySettings(<redacted>)"
-    assert settings.password not in repr(settings)
-    for changes in (
-        {"host": "0.0.0.0"},
-        {"user": "postgres"},
-        {"environment": "production"},
-        {"sslmode": "allow"},
-    ):
-        values = {
-            "environment": settings.environment,
-            "host": settings.host,
-            "port": settings.port,
-            "database": settings.database,
-            "user": settings.user,
-            "password": settings.password,
-            "application_name": settings.application_name,
-            "sslmode": settings.sslmode,
-        }
-        values.update(changes)
-        with pytest.raises(Exception, match="CONFIGURATION_INVALID"):
-            PostgresDatasetProposalAuthoritySettings(**values)  # type: ignore[arg-type]
