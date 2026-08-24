@@ -87,6 +87,10 @@ from .postgres_dataset_proposal_authority import (
     PostgresDatasetProposalAuthority,
     PostgresDatasetProposalAuthoritySettings,
 )
+from .postgres_dataset_review_authority import (
+    PostgresDatasetReviewAuthority,
+    PostgresDatasetReviewAuthoritySettings,
+)
 from .product_dataset_composition import (
     ProductDatasetComposition,
     ProductDatasetCompositionAuthorityInput,
@@ -140,6 +144,8 @@ __all__ = [
     "LearningCandidateReviewResult",
     "PostgresDatasetProposalAuthority",
     "PostgresDatasetProposalAuthoritySettings",
+    "PostgresDatasetReviewAuthority",
+    "PostgresDatasetReviewAuthoritySettings",
     "ProducerIdentity",
     "ProductDatasetComposition",
     "ProductDatasetCompositionAuthorityInput",
