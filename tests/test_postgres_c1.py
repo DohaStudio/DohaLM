@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from src.postgres_c1 import C1PostgresError, C1PostgresSettings, load_c1_migrations
 
 
@@ -131,6 +132,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0002_c1_1_prerequisite_restricted_operations.sql",
         "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql",
         "0004_dataset_proposal_authority.sql",
+        "0005_dataset_review_authority.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -150,7 +152,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
 def test_dataset_proposal_migration_has_separate_immutable_restricted_authority() -> (
     None
 ):
-    migration = load_c1_migrations()[-1]
+    migration = load_c1_migrations()[3]
     assert migration.name == "0004_dataset_proposal_authority.sql"
     sql = migration.sql
     assert "CREATE SCHEMA dohalm_dataset_governance_v1" in sql
@@ -169,6 +171,44 @@ def test_dataset_proposal_migration_has_separate_immutable_restricted_authority(
         "CREATE FUNCTION dohalm_dataset_governance_v1.read_dataset_version_proposal"
         in sql
     )
+    assert "REVOKE ALL ON ALL TABLES" in sql
+    assert "GRANT EXECUTE ON FUNCTION" in sql
+    assert "dohalm_training_v1.dataset_version_authority" not in sql
+
+
+def test_dataset_review_migration_has_bound_immutable_restricted_authority() -> None:
+    migration = load_c1_migrations()[-1]
+    assert migration.name == "0005_dataset_review_authority.sql"
+    sql = migration.sql
+    assert (
+        "CREATE TABLE dohalm_dataset_governance_v1.dataset_version_review_authority"
+        in sql
+    )
+    assert "PRIMARY KEY (object_id, dataset_id, dataset_version)" in sql
+    assert (
+        "FOREIGN KEY (object_id, dataset_id, dataset_version, proposal_fingerprint)"
+        in sql
+    )
+    assert (
+        "CREATE UNIQUE INDEX dataset_version_proposal_authority_identity_fingerprint_uq"
+        in sql
+    )
+    assert (
+        "CREATE FUNCTION dohalm_dataset_governance_v1.compute_dataset_review_record_fingerprint"
+        in sql
+    )
+    assert (
+        "CREATE FUNCTION dohalm_dataset_governance_v1.start_dataset_version_review"
+        in sql
+    )
+    assert (
+        "CREATE FUNCTION dohalm_dataset_governance_v1.read_dataset_version_review"
+        in sql
+    )
+    assert "pg_catalog.pg_advisory_xact_lock" in sql
+    assert "BEFORE UPDATE OR DELETE" in sql
+    assert "SECURITY DEFINER" in sql
+    assert "SET search_path = pg_catalog, pg_temp" in sql
     assert "REVOKE ALL ON ALL TABLES" in sql
     assert "GRANT EXECUTE ON FUNCTION" in sql
     assert "dohalm_training_v1.dataset_version_authority" not in sql
