@@ -14,6 +14,8 @@ from test_postgres_c1_integration import (
     _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial,
     _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite,
     _check_dataset_review_authority_concurrency_and_corruption,
+    _check_dataset_review_authority_concurrency_repetition,
+    _check_dataset_review_authority_fingerprint_and_corruption_matrix,
     _check_dataset_review_authority_roles_functions_and_immutability,
     _check_dataset_review_authority_start_read_restart_and_no_proposal_mutation,
     _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects,
@@ -187,6 +189,20 @@ def test_dataset_review_authority_concurrency_and_corruption(
     c1_postgres: C1Fixture,
 ) -> None:
     _check_dataset_review_authority_concurrency_and_corruption(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_concurrency_repetition(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_concurrency_repetition(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_fingerprint_and_corruption_matrix(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_fingerprint_and_corruption_matrix(c1_postgres)
 
 
 @pytest.mark.integration

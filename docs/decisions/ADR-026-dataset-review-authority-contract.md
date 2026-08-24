@@ -16,12 +16,13 @@
 - [현재] `begin_dataset_review()`은 immutable `DatasetVersionProposal(status="draft")`을 검증하고 새
   `DatasetVersionProposal(status="reviewing")`을 반환하는 순수 domain transition이다. reviewer, 시작 시각,
   evidence, persistence, replay 또는 concurrency 의미를 소유하지 않는다.
-- [현재] `DatasetProposalAuthority`는 `compare_and_create()`만 노출한다. PostgreSQL adapter 내부 restricted read는
-  create·replay·conflict 판정에 사용되지만 후속 lifecycle이 identity로 authoritative proposal을 읽는 public port는 없다.
+- [현재] `DatasetProposalAuthority`는 `compare_and_create()`와 identity 기반 `read_authoritative_proposal()`을 노출한다.
+  PostgreSQL adapter는 restricted read 결과의 identity·payload·fingerprint·authority metadata를 재검증한다.
 - [현재] `dohalm_dataset_governance_v1.dataset_version_proposal_authority`는 canonical `draft` proposal을 보존하는
   immutable authority다. `UPDATE`와 `DELETE`는 거부되며 review 상태를 이 row에 기록할 수 없다.
 - [현재] immutable typed request·record·STARTED/REPLAYED/CONFLICT result와 authoritative read를 정의하는 Python port는
-  구현됐다. durable `reviewing` 상태, restart recovery와 approval이 사용할 PostgreSQL adapter·storage는 없다.
+  구현됐다. durable `reviewing` 상태, restart recovery와 approval이 사용할 PostgreSQL adapter·storage도 구현됐으며
+  Product Review Start Integration과 approval authority는 아직 없다.
 - [확정] ADR-014는 DohaLM Dataset Governance를 DatasetVersion domain owner로 두지만 구체적인 review service와 storage는
   미결정으로 남긴다. ADR-015는 publication, ADR-024는 product learning 경계, ADR-025는 proposal authority만 다룬다.
 
@@ -50,8 +51,8 @@
 
 - [제안] proposal read는 기존 Dataset Proposal Authority와 같은 owner·port concern이다. orchestration service가 임의 SQL이나
   caller payload로 proposal을 대체하지 않는다.
-- [제안] 후속 port는 `DatasetVersionIdentity`로 authoritative proposal을 읽고 최소 다음을 lossless하게 반환해야 한다.
-  exact symbol 이름은 구현 PR에서 repository convention에 맞춘다.
+- [현재] `read_authoritative_proposal()`은 `DatasetVersionIdentity`로 authoritative proposal을 읽고 최소 다음을
+  lossless하게 반환한다.
 
   - immutable stored `DatasetVersionProposal(status="draft")`
   - exact `DatasetVersionIdentity`
@@ -68,13 +69,13 @@
   DatasetVersion identity가 다른 canonical draft를 가리키거나 review record가 다른 proposal에 재사용되는 것을 막는다.
 - [제안] 하나의 authoritative DatasetVersion proposal에는 active review-start record가 최대 하나다. 여러 사람의 병렬 검토나
   reviewer handoff는 이 lifecycle-start authority와 다른 후속 concern이다.
-- [제안] 후속 persistence는 identity와 fingerprint의 composite binding을 DB invariant로 강제하고, 같은
+- [현재] persistence는 identity와 fingerprint의 composite binding을 DB invariant로 강제하고, 같은
   `DatasetVersionIdentity`에 다른 fingerprint를 가진 두 review lifecycle이 생기지 않도록 별도 uniqueness 또는 동등한
   database-level invariant를 둔다. 애플리케이션 lock만으로 uniqueness를 보장하지 않는다.
 
 ### Review Start Request
 
-- [제안] 후속 구현의 local immutable input은 개념적으로 `DatasetReviewStartRequest`이며 Common canonical schema가 아니다.
+- [현재] local immutable input은 `DatasetReviewStartRequest`이며 Common canonical schema가 아니다.
 - [제안] 최소 field는 다음과 같다.
 
   - `DatasetVersionIdentity`
@@ -108,8 +109,8 @@
 
 ### Atomic STARTED·REPLAYED·CONFLICT
 
-- [제안] Dataset Review Authority는 단순 read-then-insert 대신 하나의 atomic start adjudication을 제공한다. exact method 이름은
-  후속 구현에서 정하되 의미는 다음과 같다.
+- [현재] Dataset Review Authority는 단순 read-then-insert 대신 `start_review()` 하나로 다음 atomic start adjudication을
+  제공한다.
 
 | authoritative state와 요청 | 결과 | mutation |
 |---|---|---|
@@ -147,20 +148,20 @@
 - [제안] stored identity, proposal fingerprint, reviewer, lifecycle state, canonical record fingerprint 또는 authority metadata가
   서로 맞지 않으면 authority corruption으로 fail closed한다. 자동 repair·overwrite·삭제는 금지한다.
 
-### PostgreSQL 후속 경계
+### PostgreSQL 구현 경계
 
-- [제안] 후속 durable adapter는 기존 `dohalm_dataset_governance_v1` schema 아래 proposal table과 분리된 review authority
-  storage identity를 사용할 수 있다. 실제 table·function·role 이름은 구현 PR에서 확정한다.
+- [현재] durable adapter는 기존 `dohalm_dataset_governance_v1` schema 아래 proposal table과 분리된
+  `dataset_version_review_authority` storage identity를 사용한다.
 - [제안] 기존 C1 security pattern처럼 owner role, least-privilege runtime authority role, restricted functions, transaction과
   database-level uniqueness를 재사용한다. 새 security model을 발명하지 않는다.
 - [제안] proposal authoritative read와 review start/read는 각각 owning authority port를 통해서만 접근하며 product service가
   SQL을 직접 호출하지 않는다.
-- [제안] 새 forward-only migration이 필요하지만 번호는 구현 시점의 repository next available로 결정한다. migration
-  `0001`~`0004`를 수정하지 않는다.
+- [현재] forward-only migration `0005_dataset_review_authority.sql`이 review persistence를 추가하며 migration
+  `0001`~`0004`는 수정하지 않는다.
 
 ### Error와 data minimization
 
-- [제안] 후속 구현은 현재 repository의 typed error pattern에 맞춰 최소 다음 semantic failure를 안정적으로 구분한다.
+- [현재] 구현은 repository의 typed error pattern에 맞춰 최소 다음 semantic failure를 안정적으로 구분한다.
 
   - proposal not found
   - proposal authority unavailable 또는 corrupt
@@ -202,7 +203,7 @@
 1. Dataset Proposal Authority의 authoritative read contract
 2. Dataset Review Authority start/read port와 typed request/result — Python contract 구현 완료
 3. PostgreSQL review authority migration·restricted functions·adapter — 구현 완료
-4. unit·C1/C2 security, corruption, restart와 concurrency 검증
+4. unit·C1/C2 security, corruption, restart와 concurrency 검증 — 단계 4 Gate 구현
 5. existing `begin_dataset_review()`을 재사용하는 Product Dataset Review Start Integration
 6. fixed-head 검증과 별도 merge 결정
 7. Dataset Approval Integration의 authoritative review read 연결
@@ -221,21 +222,26 @@
 
 ## 미결정 사항
 
-- [검증 필요] 실제 port·request·result·adapter symbol 이름
-- [검증 필요] PostgreSQL table·function·role 이름과 next migration 번호
-- [검증 필요] optional safe evidence/request reference의 exact validation pattern
+- [현재] port·request·result·adapter symbol은 `DatasetReviewAuthority`, `DatasetReviewStartRequest`,
+  `DatasetReviewStartResult`, `PostgresDatasetReviewAuthority`다.
+- [현재] PostgreSQL table은 `dataset_version_review_authority`, restricted function은
+  `start_dataset_version_review`·`read_dataset_version_review`, role은 `dohalm_dataset_review_owner`와
+  `dohalm_dataset_review_authority`, migration은 `0005_dataset_review_authority.sql`이다.
+- [현재] optional request reference는 Python과 PostgreSQL에서 같은 safe reference pattern을 사용한다.
 - [검증 필요] reviewer reference issuer·roster·reassignment authority
 - [검증 필요] approval authority의 별도 persistence와 review-to-approval transaction 경계
 
 ## 승인 Gate
 
 이 ADR은 `draft`다. 독립 검토, 사용자 명시 승인과 병합 전에는 authoritative implementation requirement가 아니다.
-병합되더라도 persistence adapter, Dataset Review Start, approval, publication 또는 Training을 승인하지 않는다.
+현재 구현된 persistence adapter의 runtime activation, Product Dataset Review Start, approval, publication 또는 Training은
+승인하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | [현재] 단계 4 fingerprint·corruption·concurrency persistence Gate 보강과 구현 후 stale 문구 교정 |
 | 2026-08-24 | [현재] 분리된 immutable review table, restricted start/read, PostgreSQL adapter와 최소 restart·concurrency·corruption 검증 구현; Product Review Start·approval·runtime activation은 미구현 |
 | 2026-08-24 | [현재] immutable request·record·STARTED/REPLAYED/CONFLICT·authoritative read Python port 구현; PostgreSQL persistence와 Product Review Start는 미구현 |
 | 2026-08-21 | [제안] immutable proposal과 분리된 Dataset Review Authority owner·identity·read·STARTED/REPLAYED/CONFLICT·current evidence·restart 계약 등록 |
