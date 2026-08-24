@@ -140,11 +140,11 @@ def adjudicate_dataset_version_proposal(
     proposal_time = _require_proposed_at(proposed_at)
     proposal = propose_dataset_version(payload)
     fingerprint = dataset_version_proposal_fingerprint(proposal)
-    _require_current_evidence(
+    require_current_dataset_evidence(
         proposal,
-        fingerprint=fingerprint,
+        proposal_fingerprint=fingerprint,
         authority=current_evidence_authority,
-        proposed_at=proposal_time,
+        evaluated_at=proposal_time,
     )
     compare_and_create = getattr(authority, "compare_and_create", None)
     if not callable(compare_and_create):
@@ -156,7 +156,7 @@ def adjudicate_dataset_version_proposal(
         )
     except DatasetProposalAuthorityError:
         raise
-    except Exception:
+    except Exception:  # noqa: BLE001 - authority failures cross a sanitized boundary
         raise DatasetProposalAuthorityError(
             "PROPOSAL_AUTHORITY_UNAVAILABLE",
             "authority",
@@ -171,6 +171,94 @@ def dataset_version_proposal_fingerprint(proposal: DatasetVersionProposal) -> st
     if type(proposal) is not DatasetVersionProposal or proposal.status != "draft":
         raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "fingerprint")
     return checksum_value(proposal.payload)
+
+
+def require_current_dataset_evidence(
+    proposal: DatasetVersionProposal,
+    *,
+    proposal_fingerprint: str,
+    authority: DatasetProposalCurrentEvidenceAuthority,
+    evaluated_at: datetime,
+) -> None:
+    """Require the existing current Rights/Eligibility decision at one time."""
+
+    evaluation_time = _require_proposed_at(evaluated_at)
+    try:
+        actual_fingerprint = dataset_version_proposal_fingerprint(proposal)
+    except DatasetProposalAuthorityError:
+        raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "evidence") from None
+    if actual_fingerprint != proposal_fingerprint:
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_FINGERPRINT_MISMATCH",
+            "evidence",
+            identity=proposal.identity,
+            existing_fingerprint=actual_fingerprint,
+            incoming_fingerprint=proposal_fingerprint,
+        )
+    _require_current_evidence(
+        proposal,
+        fingerprint=proposal_fingerprint,
+        authority=authority,
+        proposed_at=evaluation_time,
+    )
+
+
+def validate_dataset_proposal_authority_record(
+    record: object,
+    *,
+    expected_identity: DatasetVersionIdentity,
+    expected_proposal_fingerprint: str,
+) -> DatasetProposalAuthorityRecord:
+    """Validate an authoritative proposal read against its exact lookup binding."""
+
+    if type(record) is not DatasetProposalAuthorityRecord:
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
+            "read",
+        )
+    try:
+        if type(record.proposal) is not DatasetVersionProposal:
+            raise TypeError
+        proposal = propose_dataset_version(record.proposal.payload)
+        actual_fingerprint = dataset_version_proposal_fingerprint(proposal)
+    except Exception:  # noqa: BLE001 - untrusted record access must fail closed
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
+            "read",
+        ) from None
+    if record.proposal._canonical_payload != proposal._canonical_payload:
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
+            "read",
+            identity=expected_identity,
+        )
+    if record.identity != expected_identity or proposal.identity != expected_identity:
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_IDENTITY_MISMATCH",
+            "read",
+            identity=expected_identity,
+        )
+    if (
+        record.proposal_fingerprint != expected_proposal_fingerprint
+        or actual_fingerprint != expected_proposal_fingerprint
+    ):
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_FINGERPRINT_MISMATCH",
+            "read",
+            identity=expected_identity,
+            existing_fingerprint=record.proposal_fingerprint,
+            incoming_fingerprint=expected_proposal_fingerprint,
+        )
+    if not _valid_authority_metadata(
+        record.authority_reference,
+        record.authority_version,
+    ):
+        raise DatasetProposalAuthorityError(
+            "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
+            "read",
+            identity=expected_identity,
+        )
+    return record
 
 
 def _require_current_evidence(
@@ -194,7 +282,7 @@ def _require_current_evidence(
         )
     except DatasetProposalAuthorityError:
         raise
-    except Exception:
+    except Exception:  # noqa: BLE001 - authority failures cross a sanitized boundary
         raise DatasetProposalAuthorityError(
             "PROPOSAL_EVIDENCE_AUTHORITY_UNAVAILABLE",
             "evidence",
@@ -285,4 +373,6 @@ __all__ = [
     "DatasetProposalOutcome",
     "adjudicate_dataset_version_proposal",
     "dataset_version_proposal_fingerprint",
+    "require_current_dataset_evidence",
+    "validate_dataset_proposal_authority_record",
 ]
