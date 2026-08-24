@@ -4,8 +4,8 @@
 - 결정일: 미결정
 - 작성일: 2026-08-21
 - 마지막 검토일: 2026-08-24
-- 실행 영향: Review Authority Python start/read port 계약 구현; PostgreSQL persistence·Product Review Start·approval은 미구현
-- 구현 상태: [현재] Review Authority Python start/read port implemented; PostgreSQL persistence and product integration pending
+- 실행 영향: Review Authority Python port와 PostgreSQL durable persistence 구현; Product Review Start·approval은 미구현
+- 구현 상태: [현재] Review Authority Python port and PostgreSQL persistence implemented; product integration pending
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -37,7 +37,7 @@
 | authority | 소유 상태·책임 | 이번 결정의 구현 상태 |
 |---|---|---|
 | Dataset Proposal Authority | immutable canonical `draft` proposal, create·replay·identity conflict | 기존 구현 유지 |
-| Dataset Review Authority | proposal에 결속된 단일 durable `reviewing` lifecycle start와 authoritative read | Python port 구현; persistence 미구현 |
+| Dataset Review Authority | proposal에 결속된 단일 durable `reviewing` lifecycle start와 authoritative read | Python port·PostgreSQL persistence 구현 |
 | Dataset Approval Authority | explicit reviewing input과 approval evidence에 따른 approval | 후속 결정·구현 |
 | Dataset Publication Authority | approved Version과 issued Manifest의 publication·freeze | ADR-015 경계 유지 |
 
@@ -201,7 +201,7 @@
 
 1. Dataset Proposal Authority의 authoritative read contract
 2. Dataset Review Authority start/read port와 typed request/result — Python contract 구현 완료
-3. PostgreSQL review authority migration·restricted functions·adapter
+3. PostgreSQL review authority migration·restricted functions·adapter — 구현 완료
 4. unit·C1/C2 security, corruption, restart와 concurrency 검증
 5. existing `begin_dataset_review()`을 재사용하는 Product Dataset Review Start Integration
 6. fixed-head 검증과 별도 merge 결정
@@ -212,7 +212,7 @@
 ## 제외 범위
 
 - [제외] 이 ADR 작성 범위의 Python review·proposal read code와 PostgreSQL table·function·migration·test 구현
-  (후속 단계에서 proposal read와 Review Authority Python port만 구현됨)
+  (후속 단계에서 proposal read, Review Authority Python port와 PostgreSQL persistence가 구현됨)
 - [제외] `begin_dataset_review()` 또는 proposal migration `0001`~`0004` 변경
 - [제외] proposal row mutation, runtime composition 등록과 API 추가
 - [제외] Dataset approval·publication, Training, Evaluation과 promotion
@@ -236,5 +236,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | [현재] 분리된 immutable review table, restricted start/read, PostgreSQL adapter와 최소 restart·concurrency·corruption 검증 구현; Product Review Start·approval·runtime activation은 미구현 |
 | 2026-08-24 | [현재] immutable request·record·STARTED/REPLAYED/CONFLICT·authoritative read Python port 구현; PostgreSQL persistence와 Product Review Start는 미구현 |
 | 2026-08-21 | [제안] immutable proposal과 분리된 Dataset Review Authority owner·identity·read·STARTED/REPLAYED/CONFLICT·current evidence·restart 계약 등록 |
