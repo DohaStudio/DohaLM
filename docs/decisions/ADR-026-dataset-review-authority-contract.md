@@ -5,9 +5,10 @@
 - 작성일: 2026-08-21
 - 마지막 검토일: 2026-08-25
 - 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration과
-  authoritative review read 기반 Dataset Approval Integration 구현; durable Approval Authority·runtime activation은 미구현
+  authoritative review read 기반 Dataset Approval Integration 구현; Publication v1의 별도 durable Approval Authority는
+  미채택이며 runtime activation은 미구현
 - 구현 상태: [현재] Review Authority Python port, PostgreSQL persistence, Product Review Start Integration and
-  Product Dataset Approval Integration implemented; durable approval authority pending
+  Product Dataset Approval Integration implemented; approval result is a transient validated Publication input candidate
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -42,7 +43,7 @@
 |---|---|---|
 | Dataset Proposal Authority | immutable canonical `draft` proposal, create·replay·identity conflict | 기존 구현 유지 |
 | Dataset Review Authority | proposal에 결속된 단일 durable `reviewing` lifecycle start와 authoritative read | Python port·PostgreSQL persistence 구현 |
-| Dataset Approval Authority | explicit reviewing input과 approval evidence에 따른 approval | 후속 결정·구현 |
+| Dataset Approval | authoritative review와 current evidence를 다시 검증한 transient approved candidate | Product Integration 구현; Publication v1 별도 durable authority 미채택 |
 | Dataset Publication Authority | approved Version과 issued Manifest의 publication·freeze | ADR-015 경계 유지 |
 
 - [제안] review 시작은 proposal row를 수정하지 않는다. proposal authority의 stored object는 review 이후에도 canonical
@@ -142,8 +143,8 @@
   - canonical review-record fingerprint
   - 의미 판정에 사용하지 않는 DB audit timestamp
 
-- [제안] record는 기본 immutable이며 reviewer, start time, fingerprint와 state를 rewrite하지 않는다. approval을 같은 row의
-  `UPDATE`로 표현할지는 이번 ADR에서 결정하지 않으며 기본 경계는 별도 Approval Authority다.
+- [제안] record는 기본 immutable이며 reviewer, start time, fingerprint와 state를 rewrite하지 않는다. approval은 같은 row의
+  `UPDATE`로 표현하지 않으며, Publication v1에서는 별도 durable Approval Authority도 만들지 않는다.
 - [제안] Dataset Review Authority는 identity와 proposal fingerprint로 authoritative record를 읽는 read contract도 제공한다.
   Approval Integration은 caller가 만든 `reviewing` payload가 아니라 이 read 결과를 사용해야 한다.
 - [제안] process restart 또는 새 adapter instance 뒤에도 same request는 `REPLAYED`, different reviewer는 `CONFLICT`, current
@@ -187,6 +188,75 @@
 - [제안] Dataset Review Authority는 DohaLM local governance lifecycle이며 Common DatasetVersion schema와 Common Contract를
   변경하지 않는다.
 
+## Dataset Approval Authority Architecture Gate
+
+### 판정
+
+- [제안] Publication v1의 별도 durable Dataset Approval Authority는 `NOT REQUIRED`다.
+- [현재] `approve_product_dataset_version()`의 `ApprovedDatasetVersion`은 process-local immutable validated value이며
+  durable fact나 authoritative lookup 결과가 아니다.
+- [제안] Product Dataset Publication Integration은 caller-created approved payload를 신뢰하지 않고 authoritative Proposal과
+  Review를 다시 읽어 current RightsMetadata·TrainingEligibility와 exact approval evidence binding을 재검증한 뒤 같은
+  orchestration attempt에서 `publish_dataset_version()`에 `ApprovedDatasetVersion`을 전달해야 한다.
+- [제안] publication 전에 process가 종료되거나 다른 worker가 이어받으면 이전 approval value를 복구하지 않는다. 새 invocation이
+  approval validation을 다시 수행한다.
+- [제안] 재시작 후 조회 가능한 authoritative state, idempotent replay와 conflict의 소유자는 ADR-015의 committed frozen
+  DatasetVersion·issued DatasetManifest pair다. approved-only 상태는 외부 또는 internal component의 공식 조회 상태가 아니다.
+
+이 판정은 ADR-015의 `ApprovedDatasetVersion` explicit input, pre-publication approval store·lookup 0, frozen/issued pair만
+restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 Approval Authority ADR, port, migration, adapter 또는 role은
+필요하지 않다.
+
+### Durability 질문
+
+| 질문 | 답 | 근거·처리 |
+|---|---|---|
+| approval을 restart 후 재조회해야 하는가 | `NO` | publication 전 실패는 새 invocation에서 authoritative Proposal·Review와 current evidence를 재검증한다. |
+| multi-worker가 같은 approval authority를 공유해야 하는가 | `NO` | worker 간 approved-only handoff를 공식 lifecycle로 만들지 않는다. publication worker가 validation을 다시 수행한다. |
+| actor·evidence·timestamp를 독립 audit fact로 보존해야 하는가 | `NO` | actor authority가 없고 현재 계약은 evidence ID를 approved payload와 최종 publication pair에 결속한다. |
+| approval replay를 독립적으로 판정해야 하는가 | `NO` | publication pair가 동일 canonical bytes의 replay를 판정한다. |
+| conflicting approval evidence를 독립 authority가 거부해야 하는가 | `NO` | approval 시 exact declared evidence set mismatch가 실패하고, commit 뒤에는 publication pair fingerprint conflict가 실패한다. |
+| publication이 authoritative approval을 읽어야 하는가 | `NO` | ADR-015의 explicit immutable `ApprovedDatasetVersion` 입력을 사용하되 Product Integration에서 그 값을 fresh validation으로 만든다. |
+| evidence 변경 뒤 historical approval fact를 보존해야 하는가 | `NO` | unpublished approval은 historical authority가 아니다. published pair는 기존 evidence binding을 immutable lineage로 보존한다. |
+| publication 실패·재시도에서 기존 approval fact를 유지해야 하는가 | `NO` | 재시도는 current evidence를 다시 평가하며 committed pair가 있으면 그 pair만 replay한다. |
+
+### 모델 비교와 decision matrix
+
+| 항목 | Authority 없음 | Authority 있음 | 필요성 판단 |
+|---|---|---|---|
+| restart | 미commit이면 fresh approval validation, commit이면 pair replay | approved-only record 재조회 | 전자가 ADR-015와 일치 |
+| multi-worker | publication worker가 fresh validation | worker 간 approval reference 전달 | 공식 approved-only handoff 요구 없음 |
+| audit | published pair의 approval evidence binding 보존 | pre-publication actor·time까지 독립 보존 | actor authority·독립 audit 요구 없음 |
+| replay | frozen/issued pair replay | approval replay와 publication replay 이중화 | publication replay만 필요 |
+| conflict | approval evidence mismatch와 pair fingerprint conflict | 별도 approval identity conflict 추가 | 현행 두 Gate로 충분 |
+| publication retry | current evidence 재검증 후 새 attempt | historical approval read 후 current evidence 재검증 | historical read가 안전 Gate를 제거하지 못함 |
+| current evidence revocation | 새 attempt가 fail closed | historical approval은 남지만 publication은 다시 fail closed | 결과가 같아 store 이점 없음 |
+| immutability | Proposal·Review row와 committed pair 불변 | 새 immutable approval row 추가 | 기존 authority mutation은 양쪽 모두 불필요 |
+| operational complexity | 추가 DB lifecycle 없음 | port·migration·adapter·monitoring 필요 | 추가 복잡성 회피 |
+| schema/security cost | 없음 | identity·role·restricted function·DML 차단 필요 | 현재 요구에 비례하지 않음 |
+
+### Restart·multi-worker 시나리오
+
+| 시나리오 | Approval Authority 없음 | Approval Authority 있음 | Publication v1 판정 |
+|---|---|---|---|
+| approval 직후 process crash | process-local value 유실, durable mutation 0 | approval record 유지 | 새 invocation의 fresh validation으로 충분 |
+| approval 후 publication 전 restart | Proposal·Review authoritative read부터 다시 수행 | approval read 뒤 publication 진행 | approved-only recovery 요구가 없어 전자 채택 |
+| worker A approval / worker B publication | B가 approval validation을 다시 수행 | B가 approval reference를 조회 | cross-worker handoff를 공식 lifecycle로 만들지 않음 |
+| concurrent duplicate approval | 각각 side-effect-free candidate 생성, publication에서 단일 pair commit·replay | authority에서 approval replay | durable duplicate가 없어 별도 adjudication 불필요 |
+| conflicting approval evidence | proposal에 declared된 exact evidence set과 다르면 approval 실패 | authority conflict | current approval Gate에서 이미 fail closed |
+| publication retry | current evidence 재검증; final pair가 있으면 strict replay | approval read와 current evidence 재검증 후 pair replay | 추가 read가 안전성·결과를 개선하지 않음 |
+
+### Actor, evidence와 future reconsideration
+
+- [현재] Product approval input에는 actor가 없고 Common contract에는 별도 `ReviewEvidence` resource가 없다.
+  `approval_evidence_ids`는 opaque ID이며 DohaLM은 evidence body authority를 소유하지 않는다.
+- [제안] actor나 evidence authority를 임의로 만들지 않는다. published artifact는 승인 시각을 별도 authority audit fact로
+  주장하지 않으며, publication 시각·creator metadata를 approval actor로 재해석하지 않는다.
+- [제안] 향후 approved-only 상태의 공식 observability, actor accountability, cross-worker approval handoff 또는 publication과
+  독립된 approval replay가 제품 요구사항이 되면 새 ADR로 재검토한다. 그때의 최소 identity 후보는
+  `DatasetVersionIdentity + proposal fingerprint + review record fingerprint + approval evidence IDs`다. `evaluated_at`과
+  actor/reference의 identity·audit 역할은 해당 authority source가 먼저 결정된 뒤 확정한다.
+
 ## 기각한 대안
 
 | 대안 | 기각 사유 |
@@ -209,7 +279,8 @@
 4. unit·C1/C2 security, corruption, restart와 concurrency 검증 — 단계 4 Gate 구현
 5. existing `begin_dataset_review()`을 재사용하는 Product Dataset Review Start Integration — 구현 완료
 6. fixed-head 검증과 별도 merge 결정
-7. Dataset Approval Integration의 authoritative review read 연결 — 구현 완료; durable Approval Authority는 미결정
+7. Dataset Approval Integration의 authoritative review read 연결 — 구현 완료; Publication v1 durable Approval Authority는
+   Architecture Gate에서 `NOT REQUIRED` 판정
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -232,7 +303,8 @@
   `dohalm_dataset_review_authority`, migration은 `0005_dataset_review_authority.sql`이다.
 - [현재] optional request reference는 Python과 PostgreSQL에서 같은 safe reference pattern을 사용한다.
 - [검증 필요] reviewer reference issuer·roster·reassignment authority
-- [검증 필요] approval authority의 별도 persistence와 review-to-approval transaction 경계
+- [제안] Publication v1은 별도 approval persistence를 두지 않고 Product Publication Integration의 fresh approval validation과
+  ADR-015 publication transaction 경계를 사용한다. approved-only observability·actor audit 요구가 생기면 별도 ADR로 재검토한다.
 
 ## 승인 Gate
 
@@ -244,6 +316,7 @@ authority, publication 또는 Training은 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] Architecture Gate에서 Publication v1 durable Approval Authority를 `NOT REQUIRED`로 판정하고 fresh approval validation·publication pair authority·재검토 조건을 명시함 |
 | 2026-08-25 | [현재] caller-created `reviewing` payload 대신 authoritative proposal·review read와 approval-time current evidence를 사용하는 Product Dataset Approval Integration 구현; durable Approval Authority·runtime·publication 미구현 |
 | 2026-08-24 | [현재] authoritative proposal read·current evidence 재검증·atomic review start와 `begin_dataset_review()`을 연결하는 Product Dataset Review Start Integration 구현; approval·runtime activation 미구현 |
 | 2026-08-24 | [현재] 단계 4 fingerprint·corruption·concurrency persistence Gate 보강과 구현 후 stale 문구 교정 |
