@@ -34,6 +34,8 @@ from .dataset_proposal_authority import (
     DatasetProposalOutcome,
     adjudicate_dataset_version_proposal,
     dataset_version_proposal_fingerprint,
+    require_current_dataset_evidence,
+    validate_dataset_proposal_authority_record,
 )
 from .dataset_publication import (
     DatasetPublicationError,
@@ -102,6 +104,10 @@ from .product_dataset_composition import (
     compose_product_dataset,
 )
 from .product_dataset_governance import propose_product_dataset_version
+from .product_dataset_review import (
+    ProductDatasetReviewStartResult,
+    start_product_dataset_review,
+)
 
 __all__ = [
     "ApprovedDatasetVersion",
@@ -153,6 +159,7 @@ __all__ = [
     "ProductDatasetCompositionMember",
     "ProductDatasetCompositionStatus",
     "ProductDatasetMemberAllocation",
+    "ProductDatasetReviewStartResult",
     "ReviewDecision",
     "ReviewReason",
     "ValidatedLearningCandidate",
@@ -173,10 +180,13 @@ __all__ = [
     "propose_dataset_version",
     "propose_product_dataset_version",
     "publish_dataset_version",
+    "require_current_dataset_evidence",
     "review_learning_candidate",
+    "start_product_dataset_review",
     "validate_data_config",
     "validate_dataset_inclusion_handoff",
     "validate_dataset_manifest",
+    "validate_dataset_proposal_authority_record",
     "validate_dataset_publication_scenario",
     "validate_dataset_review_authority_record",
     "validate_dataset_review_start_request",

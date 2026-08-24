@@ -85,7 +85,7 @@ LearningCandidate creation and review
 - [현재] `src.data.product_dataset_composition.compose_product_dataset()`은 여러 exact `DatasetInclusionHandoff`와 명시적인 DohaLM Dataset-level authority input을 immutable `ProductDatasetComposition`으로 조립한다.
 - [현재] composition은 handoff identity와 current rights·eligibility를 재검증하고, train·validation·test member, group key, workspace, source·review lineage와 Dataset identity를 결정론적으로 결속한다.
 - [현재] `build_dataset_version_proposal_mapping()`은 arbitrary caller payload 없이 완전한 Common DatasetVersion `draft` mapping을 side-effect-free하게 만들고 Common validator로 검증한다. 이 호출은 Dataset governance proposal을 생성하지 않는다.
-- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff, Product Dataset Composition, DatasetVersion Proposal Authority, Product DatasetVersion Governance Integration과 durable PostgreSQL proposal authority adapter까지 구현됐다. DatasetVersion review·approval, Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
+- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff, Product Dataset Composition, DatasetVersion Proposal Authority, Product DatasetVersion Governance Integration, durable PostgreSQL proposal·review authority adapter와 Product Dataset Review Start Integration까지 구현됐다. DatasetVersion approval, Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
 
 ## DatasetVersion proposal authority
 
@@ -111,7 +111,7 @@ LearningCandidate creation and review
 - [제안] ADR-026은 DohaLM Dataset Governance를 Dataset Review Authority owner로 두고 immutable proposal authority와 durable review lifecycle authority를 분리한다.
 - [제안] review lifecycle은 `DatasetVersionIdentity`와 canonical proposal fingerprint에 결속하며 authoritative proposal read, explicit opaque reviewer, timezone-aware `review_started_at`과 current RightsMetadata·TrainingEligibility Gate를 요구한다.
 - [현재] review persistence는 단일 active lifecycle과 atomic `STARTED`·`REPLAYED`·`CONFLICT`, restart durability, corruption fail-closed와 approval이 사용할 authoritative review read를 PostgreSQL restricted boundary로 제공한다.
-- [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. Review Authority Python start/read port, 분리된 immutable table과 PostgreSQL adapter가 구현됐고 Product Review Start Integration은 구현되지 않았다. proposal row는 계속 immutable `draft`이며 review start·approval·publication·Training side effect는 없다.
+- [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. Product Dataset Review Start Integration은 이 public read, `review_started_at` 기준 current evidence Gate, Review Authority atomic start와 `begin_dataset_review()` 순수 transition을 순서대로 연결한다. proposal row는 계속 immutable `draft`이며 approval·publication·Training side effect와 runtime activation은 없다.
 
 ## Product continuous learning 구현 상태
 
@@ -177,6 +177,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | Product Dataset Review Start Integration의 authoritative proposal read·current evidence replay Gate·atomic review start·순수 reviewing representation 연결 반영; approval·runtime activation 미구현 |
 | 2026-08-24 | Dataset Review Authority PostgreSQL persistence·restricted start/read·restart/concurrency/corruption 최소 검증 반영; Product Review Start는 미구현 |
 | 2026-08-24 | Dataset Review Authority Python start/read port와 immutable request·record·outcome·fingerprint 계약 반영; persistence와 Product Review Start는 미구현 |
 | 2026-08-21 | DatasetVersionIdentity 기반 immutable Dataset Proposal authoritative read와 restricted PostgreSQL 재검증 경계 반영 |
