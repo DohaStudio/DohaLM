@@ -13,6 +13,11 @@ from test_postgres_c1_integration import (
     _check_dataset_proposal_authority_multi_connection_concurrency_is_atomic,
     _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial,
     _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite,
+    _check_dataset_review_authority_concurrency_and_corruption,
+    _check_dataset_review_authority_concurrency_repetition,
+    _check_dataset_review_authority_fingerprint_and_corruption_matrix,
+    _check_dataset_review_authority_roles_functions_and_immutability,
+    _check_dataset_review_authority_start_read_restart_and_no_proposal_mutation,
     _check_product_dataset_governance_uses_durable_authority_without_lifecycle_side_effects,
 )
 
@@ -77,6 +82,44 @@ def test_dataset_proposal_settings_are_explicit_role_scoped_and_redacted() -> No
             PostgresDatasetProposalAuthoritySettings(**values)  # type: ignore[arg-type]
 
 
+def test_dataset_review_settings_are_explicit_role_scoped_and_redacted() -> None:
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthoritySettings,
+    )
+
+    settings = PostgresDatasetReviewAuthoritySettings(
+        environment="isolated_test",
+        host="127.0.0.1",
+        port=5432,
+        database="dohalm_c1_contract",
+        user="dohalm_dataset_review_authority",
+        password="synthetic-password-only",
+        application_name="dohalm-review-contract",
+        sslmode="disable",
+    )
+    assert repr(settings) == "PostgresDatasetReviewAuthoritySettings(<redacted>)"
+    assert settings.password not in repr(settings)
+    for changes in (
+        {"host": "0.0.0.0"},
+        {"user": "postgres"},
+        {"environment": "production"},
+        {"sslmode": "allow"},
+    ):
+        values = {
+            "environment": settings.environment,
+            "host": settings.host,
+            "port": settings.port,
+            "database": settings.database,
+            "user": settings.user,
+            "password": settings.password,
+            "application_name": settings.application_name,
+            "sslmode": settings.sslmode,
+        }
+        values.update(changes)
+        with pytest.raises(Exception, match="CONFIGURATION_INVALID"):
+            PostgresDatasetReviewAuthoritySettings(**values)  # type: ignore[arg-type]
+
+
 @pytest.mark.integration
 def test_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
     c1_postgres: C1Fixture,
@@ -123,6 +166,43 @@ def test_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
     c1_postgres: C1Fixture,
 ) -> None:
     _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_roles_functions_and_immutability(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_roles_functions_and_immutability(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_start_read_restart_and_no_proposal_mutation(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_start_read_restart_and_no_proposal_mutation(
+        c1_postgres
+    )
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_concurrency_and_corruption(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_concurrency_and_corruption(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_concurrency_repetition(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_concurrency_repetition(c1_postgres)
+
+
+@pytest.mark.integration
+def test_dataset_review_authority_fingerprint_and_corruption_matrix(
+    c1_postgres: C1Fixture,
+) -> None:
+    _check_dataset_review_authority_fingerprint_and_corruption_matrix(c1_postgres)
 
 
 @pytest.mark.integration
