@@ -93,6 +93,10 @@ from .postgres_dataset_review_authority import (
     PostgresDatasetReviewAuthority,
     PostgresDatasetReviewAuthoritySettings,
 )
+from .product_dataset_approval import (
+    ProductDatasetApprovalRequest,
+    approve_product_dataset_version,
+)
 from .product_dataset_composition import (
     ProductDatasetComposition,
     ProductDatasetCompositionAuthorityInput,
@@ -153,6 +157,7 @@ __all__ = [
     "PostgresDatasetReviewAuthority",
     "PostgresDatasetReviewAuthoritySettings",
     "ProducerIdentity",
+    "ProductDatasetApprovalRequest",
     "ProductDatasetComposition",
     "ProductDatasetCompositionAuthorityInput",
     "ProductDatasetCompositionError",
@@ -165,6 +170,7 @@ __all__ = [
     "ValidatedLearningCandidate",
     "adjudicate_dataset_version_proposal",
     "approve_dataset_version",
+    "approve_product_dataset_version",
     "begin_dataset_review",
     "build_dataset_review_authority_record",
     "build_dataset_version_proposal_mapping",

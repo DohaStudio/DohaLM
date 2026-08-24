@@ -3,11 +3,11 @@
 - 문서 상태: `draft`
 - 결정일: 미결정
 - 작성일: 2026-08-21
-- 마지막 검토일: 2026-08-24
-- 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration 구현;
-  approval·runtime activation은 미구현
-- 구현 상태: [현재] Review Authority Python port, PostgreSQL persistence and Product Review Start Integration implemented;
-  approval pending
+- 마지막 검토일: 2026-08-25
+- 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration과
+  authoritative review read 기반 Dataset Approval Integration 구현; durable Approval Authority·runtime activation은 미구현
+- 구현 상태: [현재] Review Authority Python port, PostgreSQL persistence, Product Review Start Integration and
+  Product Dataset Approval Integration implemented; durable approval authority pending
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -24,7 +24,8 @@
   immutable authority다. `UPDATE`와 `DELETE`는 거부되며 review 상태를 이 row에 기록할 수 없다.
 - [현재] immutable typed request·record·STARTED/REPLAYED/CONFLICT result와 authoritative read를 정의하는 Python port는
   구현됐다. durable `reviewing` 상태, restart recovery와 approval이 사용할 PostgreSQL adapter·storage도 구현됐으며
-  Product Review Start Integration은 구현됐고 approval authority는 아직 없다.
+  Product Review Start Integration과 authoritative review read 기반 Approval Integration은 구현됐고 durable approval
+  authority·persistence는 아직 없다.
 - [확정] ADR-014는 DohaLM Dataset Governance를 DatasetVersion domain owner로 두지만 구체적인 review service와 storage는
   미결정으로 남긴다. ADR-015는 publication, ADR-024는 product learning 경계, ADR-025는 proposal authority만 다룬다.
 
@@ -208,7 +209,7 @@
 4. unit·C1/C2 security, corruption, restart와 concurrency 검증 — 단계 4 Gate 구현
 5. existing `begin_dataset_review()`을 재사용하는 Product Dataset Review Start Integration — 구현 완료
 6. fixed-head 검증과 별도 merge 결정
-7. Dataset Approval Integration의 authoritative review read 연결
+7. Dataset Approval Integration의 authoritative review read 연결 — 구현 완료; durable Approval Authority는 미결정
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -236,13 +237,14 @@
 ## 승인 Gate
 
 이 ADR은 `draft`다. 독립 검토, 사용자 명시 승인과 병합 전에는 authoritative implementation requirement가 아니다.
-현재 구현된 persistence adapter와 Product Dataset Review Start Integration의 runtime activation, approval, publication 또는
-Training은 승인하지 않는다.
+현재 구현된 persistence adapter, Product Dataset Review Start·Approval Integration의 runtime activation, durable approval
+authority, publication 또는 Training은 승인하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [현재] caller-created `reviewing` payload 대신 authoritative proposal·review read와 approval-time current evidence를 사용하는 Product Dataset Approval Integration 구현; durable Approval Authority·runtime·publication 미구현 |
 | 2026-08-24 | [현재] authoritative proposal read·current evidence 재검증·atomic review start와 `begin_dataset_review()`을 연결하는 Product Dataset Review Start Integration 구현; approval·runtime activation 미구현 |
 | 2026-08-24 | [현재] 단계 4 fingerprint·corruption·concurrency persistence Gate 보강과 구현 후 stale 문구 교정 |
 | 2026-08-24 | [현재] 분리된 immutable review table, restricted start/read, PostgreSQL adapter와 최소 restart·concurrency·corruption 검증 구현; Product Review Start·approval·runtime activation은 미구현 |
