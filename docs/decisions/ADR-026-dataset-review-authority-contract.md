@@ -3,7 +3,9 @@
 - 문서 상태: `draft`
 - 결정일: 미결정
 - 작성일: 2026-08-21
-- 실행 영향: 없음; proposal authoritative read와 durable review authority의 후속 구현 진입 계약만 제안
+- 마지막 검토일: 2026-08-24
+- 실행 영향: Review Authority Python start/read port 계약 구현; PostgreSQL persistence·Product Review Start·approval은 미구현
+- 구현 상태: [현재] Review Authority Python start/read port implemented; PostgreSQL persistence and product integration pending
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -18,8 +20,8 @@
   create·replay·conflict 판정에 사용되지만 후속 lifecycle이 identity로 authoritative proposal을 읽는 public port는 없다.
 - [현재] `dohalm_dataset_governance_v1.dataset_version_proposal_authority`는 canonical `draft` proposal을 보존하는
   immutable authority다. `UPDATE`와 `DELETE`는 거부되며 review 상태를 이 row에 기록할 수 없다.
-- [현재] durable `reviewing` 상태, reviewer·시각 binding, start replay/conflict, restart recovery와 approval이 사용할
-  authoritative review read를 소유하는 port·adapter·storage는 없다.
+- [현재] immutable typed request·record·STARTED/REPLAYED/CONFLICT result와 authoritative read를 정의하는 Python port는
+  구현됐다. durable `reviewing` 상태, restart recovery와 approval이 사용할 PostgreSQL adapter·storage는 없다.
 - [확정] ADR-014는 DohaLM Dataset Governance를 DatasetVersion domain owner로 두지만 구체적인 review service와 storage는
   미결정으로 남긴다. ADR-015는 publication, ADR-024는 product learning 경계, ADR-025는 proposal authority만 다룬다.
 
@@ -35,7 +37,7 @@
 | authority | 소유 상태·책임 | 이번 결정의 구현 상태 |
 |---|---|---|
 | Dataset Proposal Authority | immutable canonical `draft` proposal, create·replay·identity conflict | 기존 구현 유지 |
-| Dataset Review Authority | proposal에 결속된 단일 durable `reviewing` lifecycle start와 authoritative read | 계약만 제안 |
+| Dataset Review Authority | proposal에 결속된 단일 durable `reviewing` lifecycle start와 authoritative read | Python port 구현; persistence 미구현 |
 | Dataset Approval Authority | explicit reviewing input과 approval evidence에 따른 approval | 후속 결정·구현 |
 | Dataset Publication Authority | approved Version과 issued Manifest의 publication·freeze | ADR-015 경계 유지 |
 
@@ -198,7 +200,7 @@
 이 ADR이 독립 검토·명시 승인·병합되더라도 구현 완료나 activation을 뜻하지 않는다. 후속 작업은 다음 순서를 권장한다.
 
 1. Dataset Proposal Authority의 authoritative read contract
-2. Dataset Review Authority start/read port와 typed request/result
+2. Dataset Review Authority start/read port와 typed request/result — Python contract 구현 완료
 3. PostgreSQL review authority migration·restricted functions·adapter
 4. unit·C1/C2 security, corruption, restart와 concurrency 검증
 5. existing `begin_dataset_review()`을 재사용하는 Product Dataset Review Start Integration
@@ -209,7 +211,8 @@
 
 ## 제외 범위
 
-- [제외] Python review·proposal read code, PostgreSQL table·function·migration과 test 구현
+- [제외] 이 ADR 작성 범위의 Python review·proposal read code와 PostgreSQL table·function·migration·test 구현
+  (후속 단계에서 proposal read와 Review Authority Python port만 구현됨)
 - [제외] `begin_dataset_review()` 또는 proposal migration `0001`~`0004` 변경
 - [제외] proposal row mutation, runtime composition 등록과 API 추가
 - [제외] Dataset approval·publication, Training, Evaluation과 promotion
@@ -233,4 +236,5 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | [현재] immutable request·record·STARTED/REPLAYED/CONFLICT·authoritative read Python port 구현; PostgreSQL persistence와 Product Review Start는 미구현 |
 | 2026-08-21 | [제안] immutable proposal과 분리된 Dataset Review Authority owner·identity·read·STARTED/REPLAYED/CONFLICT·current evidence·restart 계약 등록 |

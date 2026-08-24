@@ -1,7 +1,7 @@
 # AI Music Director와 Product Continuous Learning 경계
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-21
+- 마지막 검토일: 2026-08-24
 - 선행 결정: [ADR-014](../decisions/ADR-014-dataset-product-governance-boundary.md), [ADR-021](../decisions/ADR-021-production-training-adapters-and-durable-journal.md)
 - 제안 결정: [ADR-024](../decisions/ADR-024-ai-music-director-product-boundary.md)
 - proposal 결정: [ADR-025](../decisions/ADR-025-dataset-version-proposal-authority-contract.md)
@@ -111,7 +111,7 @@ LearningCandidate creation and review
 - [제안] ADR-026은 DohaLM Dataset Governance를 Dataset Review Authority owner로 두고 immutable proposal authority와 durable review lifecycle authority를 분리한다.
 - [제안] review lifecycle은 `DatasetVersionIdentity`와 canonical proposal fingerprint에 결속하며 authoritative proposal read, explicit opaque reviewer, timezone-aware `review_started_at`과 current RightsMetadata·TrainingEligibility Gate를 요구한다.
 - [제안] 후속 review persistence는 단일 active lifecycle과 atomic `STARTED`·`REPLAYED`·`CONFLICT`, restart durability, corruption fail-closed와 approval이 사용할 authoritative review read를 제공해야 한다.
-- [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. review port·PostgreSQL adapter·migration과 Review Start Integration은 구현되지 않았다. proposal row는 계속 immutable `draft`이며 review start·approval·publication·Training side effect는 없다.
+- [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. Review Authority Python start/read port와 immutable typed contract는 구현됐고 PostgreSQL adapter·migration과 Product Review Start Integration은 구현되지 않았다. proposal row는 계속 immutable `draft`이며 review start·approval·publication·Training side effect는 없다.
 
 ## Product continuous learning 구현 상태
 
@@ -126,7 +126,7 @@ LearningCandidate creation and review
 | Persistent Dataset Proposal Authority Adapter | `CURRENT` |
 | Dataset Proposal Authoritative Read | `CURRENT` |
 | Dataset Review Authority Architecture | `DRAFT` |
-| Dataset Review Authority | `PLANNED` |
+| Dataset Review Authority Python Port | `CURRENT` |
 | Persistent Dataset Review Authority | `PLANNED` |
 | Dataset Review Start Integration | `PLANNED` |
 | Dataset Approval Integration | `PLANNED` |
@@ -177,6 +177,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | Dataset Review Authority Python start/read port와 immutable request·record·outcome·fingerprint 계약 반영; persistence와 Product Review Start는 미구현 |
 | 2026-08-21 | DatasetVersionIdentity 기반 immutable Dataset Proposal authoritative read와 restricted PostgreSQL 재검증 경계 반영 |
 | 2026-08-21 | immutable proposal과 분리된 Dataset Review Authority의 owner·authoritative reads·reviewer/time·current evidence·durable start 의미를 ADR-026 제안으로 등록 |
 | 2026-08-21 | DatasetVersionIdentity DB uniqueness, immutable canonical payload와 atomic create·replay·conflict를 제공하는 PostgreSQL proposal authority adapter 반영 |

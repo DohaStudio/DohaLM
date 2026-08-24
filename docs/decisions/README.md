@@ -1,7 +1,7 @@
 # DohaLM Architecture Decision Records
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-21
+- 마지막 검토일: 2026-08-24
 
 ## 목적
 
@@ -37,7 +37,7 @@
 | ADR-023 | [C1 Repository-Owned PostgreSQL Client Runner Supply Chain](./ADR-023-c1-repository-owned-postgresql-client-runner-supply-chain.md) | `approved` | 2026-08-15 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [ADR-022](./ADR-022-c1-ephemeral-postgresql-test-image-security-policy.md) | Practical Profile에서는 official `psycopg[binary] 3.3.4` 직접 소비; repository-owned runner·GHCR는 선택 hardening | C1 독립 Gate; C2/C3·Activation 별도 승인 |
 | ADR-024 | [AI Music Director 제품 방향과 지속 학습 경계](./ADR-024-ai-music-director-product-boundary.md) | `draft` | 미결정 | [Project Definition](../project/overview.md), [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md) | current Common ownership을 보존한 product direction·Foundation/product learning 분리 제안; 실행 영향 없음 | 제품 방향·cross-repository mapping·promotion 계약 승인 시 |
 | ADR-025 | [DatasetVersion Proposal Authority 계약](./ADR-025-dataset-version-proposal-authority-contract.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md) | mandatory atomic create·replay·conflict와 proposal-time current evidence 재검증 port 제안; persistence·publication·Training 없음 | architecture 승인 또는 proposal lifecycle 의미 변경 시 |
-| ADR-026 | [Dataset Review Authority 영속성 계약](./ADR-026-dataset-review-authority-contract.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-024](./ADR-024-ai-music-director-product-boundary.md), [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md) | immutable proposal과 분리된 durable review owner·authoritative reads·atomic STARTED/REPLAYED/CONFLICT·current evidence Gate 제안; 구현 영향 없음 | 독립 검토·명시 승인·병합 후 proposal read와 review persistence 구현 전 |
+| ADR-026 | [Dataset Review Authority 영속성 계약](./ADR-026-dataset-review-authority-contract.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-024](./ADR-024-ai-music-director-product-boundary.md), [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md) | immutable proposal과 분리된 durable review owner·authoritative reads·atomic STARTED/REPLAYED/CONFLICT·current evidence Gate 제안; Python port 구현, persistence 미구현 | PostgreSQL review authority와 Product Review Start 구현 전 |
 
 - [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020·024~026을 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
@@ -57,7 +57,7 @@
   repository-owned runner·GHCR를 선택 hardening으로 재분류한다. C2/C3·Production Activation·실제 Training은 미승인이다.
 - [제안] ADR-024는 PR #103의 유효한 제품 방향만 현행 Common ownership과 구현 상태에 맞춰 이관하고 Foundation training과 product/adapter continuous learning을 분리한다. 실행·Training·promotion은 승인하지 않는다.
 - [제안] ADR-025는 DatasetVersion proposal의 authoritative lookup을 생략 불가능한 atomic compare-and-create port로 고정하고 current Rights·Eligibility evidence를 매 adjudication마다 재검증한다.
-- [제안] ADR-026은 immutable proposal과 별도의 Dataset Review Authority를 두고 proposal·review authoritative read, explicit reviewer/time, current evidence와 durable STARTED·REPLAYED·CONFLICT 의미를 제안한다. persistence·review start·approval 구현은 승인하지 않는다.
+- [제안] ADR-026은 immutable proposal과 별도의 Dataset Review Authority를 두고 proposal·review authoritative read, explicit reviewer/time, current evidence와 durable STARTED·REPLAYED·CONFLICT 의미를 제안한다. Review Authority Python port는 구현됐으며 persistence·Product Review Start·approval 구현은 승인하지 않는다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -66,6 +66,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-24 | [현재] ADR-026 Review Authority Python start/read port 구현과 persistence·Product Review Start 미구현 경계 반영 |
 | 2026-08-21 | [제안] immutable proposal과 분리된 Dataset Review Authority의 authoritative read·durable start·current evidence 계약을 ADR-026으로 등록 |
 | 2026-08-21 | [제안] DatasetVersion proposal의 atomic create·replay·conflict와 current evidence 재검증 계약을 ADR-025로 등록 |
 | 2026-08-20 | [제안] stale PR #103에서 현행 authority와 양립하는 AI Music Director 방향을 ADR-024로 이관하고 Foundation/product learning 경계를 등록 |
