@@ -11,7 +11,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
@@ -28,6 +28,9 @@ from src.postgres_c1 import (
 if TYPE_CHECKING:
     from src.data.postgres_dataset_proposal_authority import (
         PostgresDatasetProposalAuthority,
+    )
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthority,
     )
 
 
@@ -178,7 +181,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5)]
         yield C1Fixture(
             correlation,
             container,
@@ -1398,7 +1401,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4)
+            assert apply_c1_migrations(connection) == (2, 3, 4, 5)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -1469,6 +1472,13 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root / "0004_dataset_proposal_authority.sql"
                     ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                5,
+                "0005_dataset_review_authority.sql",
+                hashlib.sha256(
+                    (migration_root / "0005_dataset_review_authority.sql").read_bytes()
                 ).hexdigest(),
             ),
         ]
@@ -1906,20 +1916,33 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (2, "0002_c1_1_prerequisite_restricted_operations.sql"),
                 (3, "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"),
                 (4, "0004_dataset_proposal_authority.sql"),
+                (5, "0005_dataset_review_authority.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
             assert connection.execute(
-                "SELECT to_regclass(%s), has_function_privilege(%s, %s, 'EXECUTE')",
+                "SELECT to_regclass(%s), has_function_privilege(%s, %s, 'EXECUTE'), "
+                "to_regclass(%s), has_function_privilege(%s, %s, 'EXECUTE')",
                 (
                     "dohalm_dataset_governance_v1.dataset_version_proposal_authority",
                     "dohalm_dataset_proposal_authority",
-                    "dohalm_dataset_governance_v1."
-                    "compare_and_create_dataset_version_proposal"
-                    "(varchar,varchar,varchar,char,bytea)",
+                    (
+                        "dohalm_dataset_governance_v1."
+                        "compare_and_create_dataset_version_proposal"
+                        "(varchar,varchar,varchar,char,bytea)"
+                    ),
+                    "dohalm_dataset_governance_v1.dataset_version_review_authority",
+                    "dohalm_dataset_review_authority",
+                    (
+                        "dohalm_dataset_governance_v1."
+                        "start_dataset_version_review"
+                        "(varchar,varchar,varchar,char,varchar,timestamptz,varchar,char)"
+                    ),
                 ),
             ).fetchone() == (
                 "dohalm_dataset_governance_v1.dataset_version_proposal_authority",
+                True,
+                "dohalm_dataset_governance_v1.dataset_version_review_authority",
                 True,
             )
         restored_result = _exercise_restore_smoke(
@@ -2554,3 +2577,603 @@ def _check_dataset_proposal_authority_rollback_corruption_and_no_overwrite(
                     "ALTER TABLE dohalm_dataset_governance_v1."
                     "dataset_version_proposal_authority ENABLE TRIGGER USER"
                 )
+
+
+@contextmanager
+def _dataset_review_adapter(
+    c1_postgres: C1Fixture,
+) -> Iterator[PostgresDatasetReviewAuthority]:
+    from psycopg import sql
+
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthority,
+        PostgresDatasetReviewAuthoritySettings,
+    )
+
+    password = secrets.token_urlsafe(32)
+    with c1_postgres.factory.connection() as owner:
+        owner.execute(
+            sql.SQL("ALTER ROLE dohalm_dataset_review_authority PASSWORD {}").format(
+                sql.Literal(password)
+            )
+        )
+        owner.commit()
+    try:
+        settings = PostgresDatasetReviewAuthoritySettings(
+            environment="isolated_test",
+            host=c1_postgres.settings.host,
+            port=c1_postgres.settings.port,
+            database=c1_postgres.settings.database,
+            user="dohalm_dataset_review_authority",
+            password=password,
+            application_name="dohalm-dataset-review-contract",
+            sslmode="disable",
+        )
+        yield PostgresDatasetReviewAuthority(settings)
+    finally:
+        with c1_postgres.factory.connection() as owner:
+            owner.execute("ALTER ROLE dohalm_dataset_review_authority PASSWORD NULL")
+            owner.commit()
+
+
+def _create_authoritative_proposal(c1_postgres: C1Fixture, suffix: str):
+    from src.data.dataset_governance import propose_dataset_version
+    from src.data.dataset_proposal_authority import dataset_version_proposal_fingerprint
+
+    proposal = propose_dataset_version(_proposal_payload(suffix))
+    fingerprint = dataset_version_proposal_fingerprint(proposal)
+    with _dataset_proposal_adapter(c1_postgres) as adapter:
+        adapter.compare_and_create(proposal, proposal_fingerprint=fingerprint)
+    return proposal, fingerprint
+
+
+def _review_request(proposal: object, fingerprint: str, **updates: object):
+    from src.data.dataset_review_authority import DatasetReviewStartRequest
+
+    values = {
+        "identity": proposal.identity,
+        "proposal_fingerprint": fingerprint,
+        "reviewer_reference": "reviewer:governance-primary",
+        "review_started_at": datetime(2026, 8, 24, 3, 0, tzinfo=timezone.utc),
+        "request_reference": "review-request:postgres-contract",
+    }
+    values.update(updates)
+    return DatasetReviewStartRequest(**values)
+
+
+def _check_dataset_review_authority_roles_functions_and_immutability(
+    c1_postgres: C1Fixture,
+) -> None:
+    with c1_postgres.factory.connection() as owner:
+        roles = dict(
+            owner.execute(
+                "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = ANY(%s)",
+                (["dohalm_dataset_review_owner", "dohalm_dataset_review_authority"],),
+            ).fetchall()
+        )
+        assert roles == {
+            "dohalm_dataset_review_owner": False,
+            "dohalm_dataset_review_authority": True,
+        }
+        assert owner.execute(
+            "SELECT tableowner FROM pg_tables WHERE schemaname=%s AND tablename=%s",
+            ("dohalm_dataset_governance_v1", "dataset_version_review_authority"),
+        ).fetchone() == ("dohalm_dataset_review_owner",)
+        functions = owner.execute(
+            "SELECT p.proname, p.prosecdef, p.proconfig, "
+            "has_function_privilege(%s, p.oid, 'EXECUTE'), "
+            "has_function_privilege('public', p.oid, 'EXECUTE') "
+            "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+            "WHERE n.nspname=%s AND p.proname = ANY(%s) ORDER BY p.proname",
+            (
+                "dohalm_dataset_review_authority",
+                "dohalm_dataset_governance_v1",
+                (["read_dataset_version_review", "start_dataset_version_review"]),
+            ),
+        ).fetchall()
+        assert functions == [
+            (
+                "read_dataset_version_review",
+                True,
+                ["search_path=pg_catalog, pg_temp"],
+                True,
+                False,
+            ),
+            (
+                "start_dataset_version_review",
+                True,
+                ["search_path=pg_catalog, pg_temp"],
+                True,
+                False,
+            ),
+        ]
+
+    with _dataset_review_adapter(c1_postgres) as adapter:
+        import psycopg
+
+        settings = adapter._settings
+        connection = psycopg.connect(
+            host=settings.host,
+            port=settings.port,
+            dbname=settings.database,
+            user=settings.user,
+            password=settings.password,
+            sslmode=settings.sslmode,
+            autocommit=False,
+        )
+        try:
+            for statement in (
+                (
+                    "SELECT count(*) FROM dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority"
+                ),
+                (
+                    "INSERT INTO dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority DEFAULT VALUES"
+                ),
+                (
+                    "UPDATE dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority SET lifecycle_state='reviewing'"
+                ),
+                (
+                    "DELETE FROM dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority"
+                ),
+            ):
+                with pytest.raises(Exception) as denied, connection.transaction():
+                    connection.execute(statement)
+                assert denied.value.sqlstate == "42501"
+        finally:
+            connection.close()
+
+
+def _check_dataset_review_authority_start_read_restart_and_no_proposal_mutation(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.dataset_governance import DatasetVersionIdentity
+    from src.data.dataset_review_authority import (
+        DatasetReviewAuthorityError,
+        DatasetReviewOutcome,
+        build_dataset_review_authority_record,
+    )
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthority,
+        _authority_reference,
+    )
+
+    suffix = uuid.uuid4().hex
+    proposal, fingerprint = _create_authoritative_proposal(c1_postgres, suffix)
+    request = _review_request(proposal, fingerprint)
+    rollback_fingerprint = build_dataset_review_authority_record(
+        request,
+        authority_reference=_authority_reference(proposal.identity, fingerprint),
+        authority_version=1,
+    ).record_fingerprint
+    with c1_postgres.factory.connection() as owner:
+        proposal_before = owner.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1."
+            "dataset_version_proposal_authority WHERE object_id=%s",
+            (proposal.identity.object_id,),
+        ).fetchone()
+        with (
+            pytest.raises(RuntimeError, match="synthetic review rollback"),
+            owner.transaction(),
+        ):
+            owner.execute(
+                "SELECT * FROM dohalm_dataset_governance_v1."
+                "start_dataset_version_review(%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    proposal.identity.object_id,
+                    proposal.identity.dataset_id,
+                    proposal.identity.dataset_version,
+                    fingerprint,
+                    request.reviewer_reference,
+                    request.review_started_at,
+                    request.request_reference,
+                    rollback_fingerprint,
+                ),
+            )
+            raise RuntimeError("synthetic review rollback")
+        assert owner.execute(
+            "SELECT count(*) FROM dohalm_dataset_governance_v1."
+            "dataset_version_review_authority WHERE object_id=%s",
+            (proposal.identity.object_id,),
+        ).fetchone() == (0,)
+    with _dataset_review_adapter(c1_postgres) as adapter:
+        missing = DatasetVersionIdentity(
+            "dataset_version_missing_review", "dataset_missing_review", "1.0.0"
+        )
+        with pytest.raises(DatasetReviewAuthorityError) as not_found:
+            adapter.read_authoritative_review(
+                missing, proposal_fingerprint="sha256:" + "0" * 64
+            )
+        assert not_found.value.code == "DATASET_REVIEW_AUTHORITY_NOT_FOUND"
+
+        started = adapter.start_review(request)
+        replay = PostgresDatasetReviewAuthority(adapter._settings).start_review(
+            replace(
+                request,
+                review_started_at=datetime(2026, 8, 24, 3, 3, tzinfo=timezone.utc),
+            )
+        )
+        assert started.outcome is DatasetReviewOutcome.STARTED
+        assert replay.outcome is DatasetReviewOutcome.REPLAYED
+        assert replay.record == started.record
+        assert replay.record.review_started_at == request.review_started_at
+        loaded = PostgresDatasetReviewAuthority(
+            adapter._settings
+        ).read_authoritative_review(proposal.identity, proposal_fingerprint=fingerprint)
+        assert loaded == started.record
+        with pytest.raises(DatasetReviewAuthorityError) as read_mismatch:
+            adapter.read_authoritative_review(
+                proposal.identity,
+                proposal_fingerprint="sha256:" + "9" * 64,
+            )
+        assert (
+            read_mismatch.value.code == "DATASET_REVIEW_PROPOSAL_FINGERPRINT_MISMATCH"
+        )
+        for conflict_request in (
+            replace(request, reviewer_reference="reviewer:governance-secondary"),
+            replace(request, request_reference="review-request:conflicting"),
+        ):
+            result = PostgresDatasetReviewAuthority(adapter._settings).start_review(
+                conflict_request
+            )
+            assert result.outcome is DatasetReviewOutcome.CONFLICT
+            assert result.record is None
+        with pytest.raises(DatasetReviewAuthorityError) as mismatch:
+            adapter.start_review(
+                replace(request, proposal_fingerprint="sha256:" + "9" * 64)
+            )
+        assert mismatch.value.code == "DATASET_REVIEW_PROPOSAL_FINGERPRINT_MISMATCH"
+
+        invalid = replace(adapter._settings, password="synthetic-wrong-password")
+        with pytest.raises(DatasetReviewAuthorityError) as unavailable:
+            PostgresDatasetReviewAuthority(invalid).read_authoritative_review(
+                proposal.identity, proposal_fingerprint=fingerprint
+            )
+        assert unavailable.value.code == "DATASET_REVIEW_AUTHORITY_UNAVAILABLE"
+        assert invalid.password not in str(unavailable.value)
+        assert invalid.host not in str(unavailable.value)
+
+    with c1_postgres.factory.connection() as owner:
+        assert owner.execute(
+            "SELECT count(*) FROM dohalm_dataset_governance_v1."
+            "dataset_version_review_authority WHERE object_id=%s",
+            (proposal.identity.object_id,),
+        ).fetchone() == (1,)
+        proposal_after = owner.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1."
+            "dataset_version_proposal_authority WHERE object_id=%s",
+            (proposal.identity.object_id,),
+        ).fetchone()
+        assert proposal_after == proposal_before
+        for statement in (
+            (
+                "UPDATE dohalm_dataset_governance_v1."
+                "dataset_version_review_authority "
+                "SET reviewer_reference='reviewer:forbidden' WHERE object_id=%s"
+            ),
+            (
+                "DELETE FROM dohalm_dataset_governance_v1."
+                "dataset_version_review_authority WHERE object_id=%s"
+            ),
+        ):
+            with pytest.raises(Exception) as immutable, owner.transaction():
+                owner.execute(statement, (proposal.identity.object_id,))
+            assert immutable.value.sqlstate == "55000"
+
+
+def _check_dataset_review_authority_concurrency_and_corruption(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.dataset_review_authority import (
+        DatasetReviewAuthorityError,
+        DatasetReviewOutcome,
+    )
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthority,
+    )
+
+    suffix = uuid.uuid4().hex
+    proposal, fingerprint = _create_authoritative_proposal(c1_postgres, suffix)
+    request = _review_request(proposal, fingerprint)
+    with _dataset_review_adapter(c1_postgres) as adapter:
+        barrier = threading.Barrier(4)
+
+        def same_start(_: int):
+            barrier.wait()
+            return PostgresDatasetReviewAuthority(adapter._settings).start_review(
+                request
+            )
+
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            same_results = list(workers.map(same_start, range(4)))
+        assert (
+            sum(
+                result.outcome is DatasetReviewOutcome.STARTED
+                for result in same_results
+            )
+            == 1
+        )
+        assert (
+            sum(
+                result.outcome is DatasetReviewOutcome.REPLAYED
+                for result in same_results
+            )
+            == 3
+        )
+
+        proposal_two, fingerprint_two = _create_authoritative_proposal(
+            c1_postgres, suffix + "b"
+        )
+        requests = (
+            _review_request(proposal_two, fingerprint_two),
+            _review_request(
+                proposal_two,
+                fingerprint_two,
+                reviewer_reference="reviewer:governance-secondary",
+            ),
+        )
+        conflict_barrier = threading.Barrier(2)
+
+        def competing_start(item: object):
+            conflict_barrier.wait()
+            return PostgresDatasetReviewAuthority(adapter._settings).start_review(item)
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            competing = list(workers.map(competing_start, requests))
+        assert (
+            sum(result.outcome is DatasetReviewOutcome.STARTED for result in competing)
+            == 1
+        )
+        assert (
+            sum(result.outcome is DatasetReviewOutcome.CONFLICT for result in competing)
+            == 1
+        )
+
+        with c1_postgres.factory.connection() as owner, owner.transaction():
+            owner.execute(
+                "ALTER TABLE dohalm_dataset_governance_v1."
+                "dataset_version_review_authority DISABLE TRIGGER USER"
+            )
+            owner.execute(
+                "UPDATE dohalm_dataset_governance_v1."
+                "dataset_version_review_authority SET record_fingerprint=%s "
+                "WHERE object_id=%s",
+                ("sha256:" + "0" * 64, proposal.identity.object_id),
+            )
+            owner.execute(
+                "ALTER TABLE dohalm_dataset_governance_v1."
+                "dataset_version_review_authority ENABLE TRIGGER USER"
+            )
+        with pytest.raises(DatasetReviewAuthorityError) as corrupt:
+            adapter.read_authoritative_review(
+                proposal.identity, proposal_fingerprint=fingerprint
+            )
+        assert corrupt.value.code == "DATASET_REVIEW_AUTHORITY_RECORD_CORRUPT"
+
+    with c1_postgres.factory.connection() as owner:
+        assert owner.execute(
+            "SELECT count(*) FROM dohalm_dataset_governance_v1."
+            "dataset_version_review_authority WHERE object_id = ANY(%s)",
+            ([proposal.identity.object_id, proposal_two.identity.object_id],),
+        ).fetchone() == (2,)
+
+
+def _check_dataset_review_authority_concurrency_repetition(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.dataset_review_authority import DatasetReviewOutcome
+    from src.data.postgres_dataset_review_authority import (
+        PostgresDatasetReviewAuthority,
+    )
+
+    with _dataset_review_adapter(c1_postgres) as adapter:
+        for _ in range(4):
+            suffix = uuid.uuid4().hex
+            proposal, fingerprint = _create_authoritative_proposal(c1_postgres, suffix)
+            request = _review_request(proposal, fingerprint)
+            barrier = threading.Barrier(6)
+
+            def same_start(
+                _: int,
+                current_barrier: threading.Barrier = barrier,
+                current_request: object = request,
+            ):
+                current_barrier.wait()
+                return PostgresDatasetReviewAuthority(adapter._settings).start_review(
+                    current_request
+                )
+
+            with ThreadPoolExecutor(max_workers=6) as workers:
+                results = list(workers.map(same_start, range(6)))
+            assert (
+                sum(
+                    result.outcome is DatasetReviewOutcome.STARTED for result in results
+                )
+                == 1
+            )
+            assert (
+                sum(
+                    result.outcome is DatasetReviewOutcome.REPLAYED
+                    for result in results
+                )
+                == 5
+            )
+
+            competing_proposal, competing_fingerprint = _create_authoritative_proposal(
+                c1_postgres, suffix + "b"
+            )
+            requests = (
+                _review_request(competing_proposal, competing_fingerprint),
+                _review_request(
+                    competing_proposal,
+                    competing_fingerprint,
+                    reviewer_reference="reviewer:governance-secondary",
+                ),
+            )
+            competing_barrier = threading.Barrier(2)
+
+            def competing_start(
+                item: object,
+                current_barrier: threading.Barrier = competing_barrier,
+            ):
+                current_barrier.wait()
+                return PostgresDatasetReviewAuthority(adapter._settings).start_review(
+                    item
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as workers:
+                competing = list(workers.map(competing_start, requests))
+            assert (
+                sum(
+                    result.outcome is DatasetReviewOutcome.STARTED
+                    for result in competing
+                )
+                == 1
+            )
+            assert (
+                sum(
+                    result.outcome is DatasetReviewOutcome.CONFLICT
+                    for result in competing
+                )
+                == 1
+            )
+
+
+def _check_dataset_review_authority_fingerprint_and_corruption_matrix(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.dataset_governance import DatasetVersionIdentity
+    from src.data.dataset_review_authority import (
+        DatasetReviewAuthorityError,
+        DatasetReviewStartRequest,
+        build_dataset_review_authority_record,
+    )
+    from src.data.postgres_dataset_review_authority import _authority_reference
+
+    parity_requests = (
+        DatasetReviewStartRequest(
+            DatasetVersionIdentity("parity-object-a", "parity-dataset-a", "1.0.0"),
+            "sha256:" + "1" * 64,
+            "reviewer:parity-a",
+            datetime(2026, 8, 24, 1, 2, 3, 456789, tzinfo=timezone.utc),
+        ),
+        DatasetReviewStartRequest(
+            DatasetVersionIdentity("parity-object-b", "parity-dataset-b", "2.0.0"),
+            "sha256:" + "2" * 64,
+            "reviewer:parity-b",
+            datetime(
+                2026,
+                8,
+                24,
+                9,
+                8,
+                7,
+                654321,
+                tzinfo=timezone(timedelta(hours=5, minutes=30)),
+            ),
+            "request:timezone-offset",
+        ),
+        DatasetReviewStartRequest(
+            DatasetVersionIdentity("o" + "x" * 255, "d" + "y" * 255, "v" + "z" * 255),
+            "sha256:" + "3" * 64,
+            "r" + "a" * 255,
+            datetime(2037, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc),
+            "q" + "b" * 255,
+        ),
+    )
+    with c1_postgres.factory.connection() as owner:
+        for request in parity_requests:
+            authority_reference = _authority_reference(
+                request.identity, request.proposal_fingerprint
+            )
+            expected = build_dataset_review_authority_record(
+                request,
+                authority_reference=authority_reference,
+                authority_version=1,
+            ).record_fingerprint
+            actual = owner.execute(
+                "SELECT dohalm_dataset_governance_v1."
+                "compute_dataset_review_record_fingerprint("
+                "%s::varchar,%s::varchar,%s::varchar,%s::char(71),"
+                "%s::varchar,%s::varchar,%s::timestamptz,%s::varchar,"
+                "%s::varchar,%s::smallint)",
+                (
+                    request.identity.object_id,
+                    request.identity.dataset_id,
+                    request.identity.dataset_version,
+                    request.proposal_fingerprint,
+                    "reviewing",
+                    request.reviewer_reference,
+                    request.review_started_at,
+                    request.request_reference,
+                    authority_reference,
+                    1,
+                ),
+            ).fetchone()
+            assert actual is not None and actual[0].rstrip() == expected
+
+    suffix = uuid.uuid4().hex
+    corruption_cases = (
+        ("fingerprint", {"record_fingerprint": "sha256:" + "0" * 64}),
+        ("reviewer", {"reviewer_reference": "reviewer:synthetic-mismatch"}),
+        (
+            "authority",
+            {"authority_reference": "dataset-review:" + "f" * 64},
+        ),
+    )
+    with _dataset_review_adapter(c1_postgres) as adapter:
+        for name, updates in corruption_cases:
+            proposal, fingerprint = _create_authoritative_proposal(
+                c1_postgres, suffix + name
+            )
+            adapter.start_review(_review_request(proposal, fingerprint))
+            column, value = next(iter(updates.items()))
+            with c1_postgres.factory.connection() as owner, owner.transaction():
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority DISABLE TRIGGER USER"
+                )
+                owner.execute(
+                    f"UPDATE dohalm_dataset_governance_v1."
+                    f"dataset_version_review_authority SET {column}=%s "
+                    "WHERE object_id=%s",
+                    (value, proposal.identity.object_id),
+                )
+                owner.execute(
+                    "ALTER TABLE dohalm_dataset_governance_v1."
+                    "dataset_version_review_authority ENABLE TRIGGER USER"
+                )
+            with pytest.raises(DatasetReviewAuthorityError) as corrupt:
+                adapter.read_authoritative_review(
+                    proposal.identity, proposal_fingerprint=fingerprint
+                )
+            assert corrupt.value.code == "DATASET_REVIEW_AUTHORITY_RECORD_CORRUPT"
+
+        proposal, fingerprint = _create_authoritative_proposal(
+            c1_postgres, suffix + "invariants"
+        )
+        adapter.start_review(_review_request(proposal, fingerprint))
+        invariant_cases = (
+            ("dataset_id", "synthetic-mismatched-dataset", "23503"),
+            ("proposal_fingerprint", "sha256:" + "9" * 64, "23503"),
+            ("lifecycle_state", "approved", "23514"),
+            ("authority_version", 2, "23514"),
+            ("schema_revision", 2, "23514"),
+        )
+        with c1_postgres.factory.connection() as owner:
+            for column, value, sqlstate in invariant_cases:
+                with pytest.raises(Exception) as blocked, owner.transaction():
+                    owner.execute(
+                        "ALTER TABLE dohalm_dataset_governance_v1."
+                        "dataset_version_review_authority DISABLE TRIGGER USER"
+                    )
+                    owner.execute(
+                        f"UPDATE dohalm_dataset_governance_v1."
+                        f"dataset_version_review_authority SET {column}=%s "
+                        "WHERE object_id=%s",
+                        (value, proposal.identity.object_id),
+                    )
+                assert blocked.value.sqlstate == sqlstate
