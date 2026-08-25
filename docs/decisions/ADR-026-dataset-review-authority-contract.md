@@ -5,10 +5,11 @@
 - 작성일: 2026-08-21
 - 마지막 검토일: 2026-08-25
 - 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration과
-  authoritative review read 기반 Dataset Approval Integration 구현; Publication v1의 별도 durable Approval Authority는
-  미채택이며 runtime activation은 미구현
+  authoritative review read 기반 Dataset Approval·Publication Integration 구현; Publication v1의 별도 durable Approval
+  Authority는 미채택이며 runtime activation은 미구현
 - 구현 상태: [현재] Review Authority Python port, PostgreSQL persistence, Product Review Start Integration and
-  Product Dataset Approval Integration implemented; approval result is a transient validated Publication input candidate
+  Product Dataset Approval·Publication Integration implemented; approval result remains a transient validated input and the
+  committed frozen DatasetVersion·issued DatasetManifest pair is the durable Publication result
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -195,9 +196,12 @@
 - [제안] Publication v1의 별도 durable Dataset Approval Authority는 `NOT REQUIRED`다.
 - [현재] `approve_product_dataset_version()`의 `ApprovedDatasetVersion`은 process-local immutable validated value이며
   durable fact나 authoritative lookup 결과가 아니다.
-- [제안] Product Dataset Publication Integration은 caller-created approved payload를 신뢰하지 않고 authoritative Proposal과
+- [현재] `publish_product_dataset_version()`은 caller-created approved payload를 입력으로 받지 않고 authoritative Proposal과
   Review를 다시 읽어 current RightsMetadata·TrainingEligibility와 exact approval evidence binding을 재검증한 뒤 같은
-  orchestration attempt에서 `publish_dataset_version()`에 `ApprovedDatasetVersion`을 전달해야 한다.
+  orchestration attempt에서 `publish_dataset_version()`에 `ApprovedDatasetVersion`을 전달한다.
+- [현재] Product service는 기존 `approve_product_dataset_version()`과 `publish_dataset_version()`을 순서대로 재사용한다.
+  Manifest/frozen candidate construction, pair fingerprint, staging, no-replace commit, replay·conflict와 atomic visibility는 기존
+  Publication boundary가 계속 소유하며 Proposal·Review record는 변경하지 않는다.
 - [제안] publication 전에 process가 종료되거나 다른 worker가 이어받으면 이전 approval value를 복구하지 않는다. 새 invocation이
   approval validation을 다시 수행한다.
 - [제안] 재시작 후 조회 가능한 authoritative state, idempotent replay와 conflict의 소유자는 ADR-015의 committed frozen
@@ -281,6 +285,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
 6. fixed-head 검증과 별도 merge 결정
 7. Dataset Approval Integration의 authoritative review read 연결 — 구현 완료; Publication v1 durable Approval Authority는
    Architecture Gate에서 `NOT REQUIRED` 판정
+8. Product Dataset Publication Integration의 fresh approval validation과 기존 Publication boundary 연결 — 구현 완료;
+   runtime activation·Training은 미구현
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -316,6 +322,7 @@ authority, publication 또는 Training은 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [현재] fresh authoritative Proposal·Review/current evidence와 transient approval을 기존 atomic Publication boundary에 연결하는 Product Dataset Publication Integration 구현; runtime·Training 미구현 |
 | 2026-08-25 | [제안] Architecture Gate에서 Publication v1 durable Approval Authority를 `NOT REQUIRED`로 판정하고 fresh approval validation·publication pair authority·재검토 조건을 명시함 |
 | 2026-08-25 | [현재] caller-created `reviewing` payload 대신 authoritative proposal·review read와 approval-time current evidence를 사용하는 Product Dataset Approval Integration 구현; durable Approval Authority·runtime·publication 미구현 |
 | 2026-08-24 | [현재] authoritative proposal read·current evidence 재검증·atomic review start와 `begin_dataset_review()`을 연결하는 Product Dataset Review Start Integration 구현; approval·runtime activation 미구현 |

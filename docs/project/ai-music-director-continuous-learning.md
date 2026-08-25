@@ -85,7 +85,7 @@ LearningCandidate creation and review
 - [현재] `src.data.product_dataset_composition.compose_product_dataset()`은 여러 exact `DatasetInclusionHandoff`와 명시적인 DohaLM Dataset-level authority input을 immutable `ProductDatasetComposition`으로 조립한다.
 - [현재] composition은 handoff identity와 current rights·eligibility를 재검증하고, train·validation·test member, group key, workspace, source·review lineage와 Dataset identity를 결정론적으로 결속한다.
 - [현재] `build_dataset_version_proposal_mapping()`은 arbitrary caller payload 없이 완전한 Common DatasetVersion `draft` mapping을 side-effect-free하게 만들고 Common validator로 검증한다. 이 호출은 Dataset governance proposal을 생성하지 않는다.
-- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff, Product Dataset Composition, DatasetVersion Proposal Authority, Product DatasetVersion Governance Integration, durable PostgreSQL proposal·review authority adapter와 Product Dataset Review Start·Approval Integration까지 구현됐다. Publication v1의 durable Dataset Approval Authority는 `NOT REQUIRED`이며 Dataset Publication Integration, Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
+- [현재] Consumer, Candidate Review, Dataset Inclusion Handoff, Product Dataset Composition, DatasetVersion Proposal Authority, Product DatasetVersion Governance Integration, durable PostgreSQL proposal·review authority adapter와 Product Dataset Review Start·Approval·Publication Integration까지 구현됐다. Publication v1의 durable Dataset Approval Authority는 `NOT REQUIRED`이며 Product Training Request, Evaluation·Promotion과 Reference·Similarity는 계획 상태다.
 
 ## DatasetVersion proposal authority
 
@@ -112,7 +112,8 @@ LearningCandidate creation and review
 - [제안] review lifecycle은 `DatasetVersionIdentity`와 canonical proposal fingerprint에 결속하며 authoritative proposal read, explicit opaque reviewer, timezone-aware `review_started_at`과 current RightsMetadata·TrainingEligibility Gate를 요구한다.
 - [현재] review persistence는 단일 active lifecycle과 atomic `STARTED`·`REPLAYED`·`CONFLICT`, restart durability, corruption fail-closed와 approval이 사용할 authoritative review read를 PostgreSQL restricted boundary로 제공한다.
 - [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. Product Dataset Review Start Integration은 이 public read, `review_started_at` 기준 current evidence Gate, Review Authority atomic start와 `begin_dataset_review()` 순수 transition을 순서대로 연결한다. proposal row는 계속 immutable `draft`이며 approval·publication·Training side effect와 runtime activation은 없다.
-- [현재] Product Dataset Approval Integration은 identity·proposal fingerprint·approval evidence IDs·explicit approval 평가 시각만 받고 authoritative proposal read와 immutable Review Authority read를 검증한 뒤 approval-time current evidence와 기존 순수 `approve_dataset_version()`을 연결한다. caller-created `reviewing` payload를 받지 않으며 proposal·review row를 수정하지 않는다. 결과는 Publication v1의 transient validated input candidate이고 별도 durable Approval Authority·approval replay/conflict는 두지 않는다. runtime·Product Publication Integration은 아직 없다.
+- [현재] Product Dataset Approval Integration은 identity·proposal fingerprint·approval evidence IDs·explicit approval 평가 시각만 받고 authoritative proposal read와 immutable Review Authority read를 검증한 뒤 approval-time current evidence와 기존 순수 `approve_dataset_version()`을 연결한다. caller-created `reviewing` payload를 받지 않으며 proposal·review row를 수정하지 않는다. 결과는 Publication v1의 transient validated input candidate이고 별도 durable Approval Authority·approval replay/conflict는 두지 않는다.
+- [현재] `publish_product_dataset_version()`은 매 invocation마다 Product Approval Integration을 다시 실행한 뒤 transient `ApprovedDatasetVersion`만 기존 `publish_dataset_version()`에 전달한다. caller-created approved/frozen/Manifest payload를 받지 않으며, committed frozen DatasetVersion·issued DatasetManifest pair가 유일한 durable Publication 결과다. runtime activation·Training 연결은 없다.
 
 ## Product continuous learning 구현 상태
 
@@ -131,7 +132,7 @@ LearningCandidate creation and review
 | Persistent Dataset Review Authority | `CURRENT` |
 | Dataset Review Start Integration | `CURRENT` |
 | Dataset Approval Integration | `CURRENT` |
-| Dataset Publication Integration | `PLANNED` |
+| Dataset Publication Integration | `CURRENT` |
 | Product/Adapter Training Request | `PLANNED` |
 | Evaluation | `PLANNED` |
 | Promotion | `PLANNED` |
@@ -178,6 +179,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | authoritative Proposal·Review와 publication-time current evidence로 transient approval을 재구성하고 기존 atomic publication pair를 발행하는 Product Dataset Publication Integration 구현 반영 |
 | 2026-08-25 | Dataset Approval Authority Architecture Gate에서 Publication v1은 `NOT REQUIRED`로 판정하고 fresh approval validation과 frozen/issued pair authority 경계를 반영 |
 | 2026-08-25 | authoritative Proposal·Review read와 approval-time current evidence를 기존 pure approval transition에 연결; caller reviewing payload·row mutation·durable Approval Authority·runtime·publication 없음 |
 | 2026-08-24 | Product Dataset Review Start Integration의 authoritative proposal read·current evidence replay Gate·atomic review start·순수 reviewing representation 연결 반영; approval·runtime activation 미구현 |
