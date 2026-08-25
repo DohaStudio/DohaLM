@@ -116,6 +116,7 @@ LearningCandidate creation and review
 - [현재] `publish_product_dataset_version()`은 매 invocation마다 Product Approval Integration을 다시 실행한 뒤 transient `ApprovedDatasetVersion`만 기존 `publish_dataset_version()`에 전달한다. caller-created approved/frozen/Manifest payload를 받지 않으며, committed frozen DatasetVersion·issued DatasetManifest pair가 유일한 durable Publication 결과다. runtime activation·Training 연결은 없다.
 - [제안] Product Dataset Governance Runtime Activation Architecture Gate 판정은 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`다. 현재 chain은 service-only이며 production current-evidence authority, governance runtime config·secret/composition owner, reviewer trust policy와 standalone publication read 필요성 결정 전에는 CLI·API·worker를 활성화하지 않는다. 선행 계약 완료 뒤 첫 재검토 후보는 operator-driven CLI지만 아직 지원·구현 승인이 아니다.
 - [제안] [ADR-027](../decisions/ADR-027-dataset-governance-production-prerequisites.md)은 production CurrentEvidence source를 `D. BLOCKED — EVIDENCE SOURCE NOT DEFINED`, config/composition을 `B. NEW DOHALM GOVERNANCE RUNTIME CONFIG REQUIRED`로 판정한다. Common validator는 source가 아니며 새 config도 reviewer trust를 만들지 않는다. 전체 prerequisite는 `STILL BLOCKED`이고 CLI 구현은 시작하지 않는다.
+- [제안] [ADR-028](../decisions/ADR-028-current-evidence-source-authority.md)은 접근 가능한 DohaStudio 구현에서 canonical producer를 찾지 못했다. Rights producer·authority와 unique-current projection/cross-source snapshot은 `BLOCKED`, TrainingEligibility는 새 DohaLM Dataset Governance producer·durable authority가 `REQUIRED`다. existing publication pair는 authority revision/snapshot을 결속하지 않으므로 Publication binding Gate 전 port/adapter design과 runtime activation을 시작하지 않는다.
 
 ## Product continuous learning 구현 상태
 
@@ -135,7 +136,10 @@ LearningCandidate creation and review
 | Dataset Review Start Integration | `CURRENT` |
 | Dataset Approval Integration | `CURRENT` |
 | Dataset Publication Integration | `CURRENT` |
+| Production RightsMetadata Producer/Authority | `BLOCKED` |
+| Production TrainingEligibility Producer/Authority | `REQUIRED` |
 | Production CurrentEvidence Source | `BLOCKED` |
+| CurrentEvidence Projection/Snapshot | `BLOCKED` |
 | Governance Runtime Config Architecture | `DRAFT` |
 | Dataset Governance Runtime Activation | `BLOCKED` |
 | Product/Adapter Training Request | `PLANNED` |
@@ -184,6 +188,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | ADR-028의 Rights source·projection/snapshot BLOCKED, 새 DohaLM TrainingEligibility producer/authority REQUIRED와 Publication binding blocker 반영 |
 | 2026-08-25 | ADR-027 prerequisite Gate의 CurrentEvidence source `BLOCKED`, 새 DohaLM governance config `REQUIRED`, overall `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | Runtime Activation Architecture Gate를 선행 current-evidence/config·secret/reviewer trust/publication read architecture 부족으로 `BLOCKED` 판정하고 CLI를 첫 재검토 후보로 한정 |
 | 2026-08-25 | authoritative Proposal·Review와 publication-time current evidence로 transient approval을 재구성하고 기존 atomic publication pair를 발행하는 Product Dataset Publication Integration 구현 반영 |

@@ -7,7 +7,8 @@
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md),
-  [ADR-026](./ADR-026-dataset-review-authority-contract.md)
+  [ADR-026](./ADR-026-dataset-review-authority-contract.md),
+  [ADR-028](./ADR-028-current-evidence-source-authority.md)
 - 관련 문서: [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md),
   [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md)
 
@@ -106,6 +107,15 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 - [제안] Filesystem registry는 current selection·concurrency·revocation owner가 없어 채택하지 않는다.
 - [제안] source가 승인되면 DohaLM-owned coordinator implementation이 필요할 가능성이 높지만 coordinator 자체가 source of
   truth를 대신하지 않는다. source decision 전 production adapter·migration·cache 구현은 금지한다.
+
+### ADR-028 후속 조사
+
+- [제안] ADR-028은 RightsMetadata producer와 durable authority를 cross-repository owner 미승인으로 계속 `BLOCKED` 판정한다.
+- [제안] TrainingEligibility는 `C. NEW PRODUCER REQUIRED`, durable authority는 `A. DOHALM-OWNED`로 구체화하지만 구현·projection은
+  아직 없다.
+- [제안] Common v1에 authority revision·current marker·snapshot token이 없고 existing Publication pair가 upstream evidence
+  snapshot을 결속하지 않으므로 Current Projection과 Snapshot Model은 `BLOCKED`다.
+- [제안] 따라서 이 ADR의 CurrentEvidence `D`와 전체 `STILL BLOCKED` 판정은 유지한다.
 
 ## Runtime config inventory
 
@@ -219,6 +229,8 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 - [제안] CurrentEvidence: `D. BLOCKED — EVIDENCE SOURCE NOT DEFINED`
 - [제안] Runtime Config / Composition: `B. NEW DOHALM GOVERNANCE RUNTIME CONFIG REQUIRED`
 - [제안] 전체 prerequisite 상태: `STILL BLOCKED`
+- [제안] ADR-028 세부 판정 뒤에도 Rights owner·writer·projection, authenticated read, cross-source snapshot과 Publication binding이
+  해결되지 않아 production port/adapter design은 시작하지 않는다.
 - [제안] Runtime Activation, first supported entrypoint, API, worker와 Training 상태는 변경하지 않는다.
 
 ## 기각한 대안
@@ -236,13 +248,14 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 
 ## 후속 Gate와 구현 순서
 
-1. RightsMetadata·TrainingEligibility producer, durable source, unique-current selection, revocation/current projection과 read
-   interface를 결정하는 CurrentEvidence Source Authority Gate
-2. reviewer issuer·trust·accountability Gate
-3. standalone publication pair public read contract Gate
-4. 위 결정 승인 뒤 governance config/secret loader·composition·read-only preflight contract 구현 PR
-5. production CurrentEvidence source adapter와 DohaLM coordinator 구현 PR
-6. 별도 Runtime Activation Gate에서 first supported CLI surface 재검토
+1. Rights/Licensing accountable owner와 create·revoke·replacement writer의 cross-repository approval
+2. Rights immutable authority/current projection/authenticated read와 TrainingEligibility producer·authority contract
+3. cross-source revision token 또는 evidence bundle snapshot 선택과 ADR-015 Publication binding 변경 Gate
+4. reviewer issuer·trust·accountability Gate
+5. standalone publication pair public read contract Gate
+6. 위 결정 승인 뒤 governance config/secret loader·composition·read-only preflight contract 구현 PR
+7. production CurrentEvidence source adapter와 DohaLM coordinator 구현 PR
+8. 별도 Runtime Activation Gate에서 first supported CLI surface 재검토
 
 각 단계는 별도 Ready·사용자 승인·테스트와 fixed-head 검증을 요구한다.
 
@@ -256,9 +269,9 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 
 ## 미결정 사항
 
-- [검증 필요] RightsMetadata production producer·durable source·revocation owner와 authenticated read interface
-- [검증 필요] TrainingEligibility producer workflow·durable source·unique-current projection과 revoke owner
-- [검증 필요] 두 source를 한 `evaluated_at`에 결속하는 consistency/snapshot 의미
+- [검증 필요] ADR-028의 Rights/Licensing accountable cross-repository owner, create·revoke·replacement writer와 authenticated read
+- [제안] TrainingEligibility producer·authority owner는 DohaLM Dataset Governance지만 history/projection·writer/read 구현은 미승인
+- [검증 필요] 두 source를 한 `evaluated_at`에 결속할 revision token 또는 evidence bundle과 Publication pair binding
 - [검증 필요] protected secret reference의 exact environment names, provider wire format과 platform ACL validation
 - [검증 필요] publication root atomic-usability preflight의 non-publication probe contract
 - [검증 필요] reviewer authority와 standalone publication read public port
@@ -273,4 +286,5 @@ Training을 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] ADR-028의 Rights owner/authority·projection/snapshot BLOCKED와 새 DohaLM TrainingEligibility producer/authority REQUIRED 판정 연결 |
 | 2026-08-25 | [제안] CurrentEvidence source를 `BLOCKED`, 새 DohaLM governance config/composition을 `REQUIRED`, 전체 prerequisite를 `STILL BLOCKED`로 판정 |
