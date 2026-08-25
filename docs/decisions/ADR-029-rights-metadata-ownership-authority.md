@@ -337,6 +337,11 @@ current projection owner, logical key, unique-current invariant, authenticated r
 
 다음 Gate는 code가 아니라 cross-repository·organizational ownership 결정이어야 한다.
 
+[후속] [ADR-030](./ADR-030-cross-repository-rights-domain-ownership.md)은 이 Gate를 수행했다. DohaMusic은 가장 강한 existing
+owner 후보, 새 cross-repository Rights domain은 가장 응집도 높은 architecture 후보지만 organizational/legal actor,
+stable source identity, create·replacement·revoke writer와 authority/read owner 승인이 없어
+`D. ORGANIZATIONAL OWNERSHIP STILL BLOCKED`로 판정했다. 따라서 아래 요구는 해소되지 않았으며 조직 승인 입력으로 남는다.
+
 1. DohaMusic Rights/Consent domain을 모든 supported source의 accountable owner로 승인할지 결정
 2. 그렇지 않다면 새 cross-repository Rights/Licensing domain과 accountable owner를 명시
 3. supported source identity와 stable logical Rights chain key 승인
@@ -372,4 +377,5 @@ current projection owner, logical key, unique-current invariant, authenticated r
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [후속] ADR-030의 cross-repository ownership Gate가 Option D·`STILL BLOCKED`를 판정해 조직 승인 요구를 유지 |
 | 2026-08-25 | [제안] accountable owner·canonical producer·logical key·revoke/read authority 미확정으로 Rights authority를 `STILL BLOCKED` 판정 |
