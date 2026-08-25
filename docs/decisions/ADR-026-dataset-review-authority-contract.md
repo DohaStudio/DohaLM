@@ -13,7 +13,8 @@
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
-  [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md)
+  [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md),
+  [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md)
 
 ## 배경
 
@@ -377,6 +378,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
    runtime activation·Training은 미구현
 9. Product Dataset Governance Runtime Activation Architecture Gate — `BLOCKED — PRIOR ARCHITECTURE REQUIRED`;
    current-evidence production composition·runtime config/secret owner·reviewer trust·publication read contract 선행 필요
+10. Production Prerequisites Architecture Gate — CurrentEvidence source는 `BLOCKED`, 새 DohaLM governance runtime
+    config/composition은 `REQUIRED`, 전체 prerequisite는 `STILL BLOCKED`
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -401,7 +404,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
 - [검증 필요] reviewer reference issuer·roster·reassignment authority
 - [제안] Publication v1은 별도 approval persistence를 두지 않고 Product Publication Integration의 fresh approval validation과
   ADR-015 publication transaction 경계를 사용한다. approved-only observability·actor audit 요구가 생기면 별도 ADR로 재검토한다.
-- [검증 필요] production current-evidence authority와 governance runtime config/composition owner
+- [검증 필요] production current-evidence source·unique-current selection·revocation owner; ADR-027에서 source 미정으로 차단
+- [제안] governance runtime config/composition owner는 ADR-027의 새 DohaLM-owned typed contract이며 구현은 미승인
 - [검증 필요] standalone publication read surface 필요성 및 private storage protocol owner와의 결속
 
 ## 승인 Gate
@@ -414,6 +418,7 @@ durable approval authority, API·CLI·worker 또는 Training은 승인하지 않
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] ADR-027 prerequisite Gate의 CurrentEvidence `BLOCKED`, 새 DohaLM governance config `REQUIRED`, 전체 `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Runtime Activation Architecture Gate를 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`로 판정하고 CLI를 선행 계약 완료 후 첫 재검토 후보로 한정함 |
 | 2026-08-25 | [현재] fresh authoritative Proposal·Review/current evidence와 transient approval을 기존 atomic Publication boundary에 연결하는 Product Dataset Publication Integration 구현; runtime·Training 미구현 |
 | 2026-08-25 | [제안] Architecture Gate에서 Publication v1 durable Approval Authority를 `NOT REQUIRED`로 판정하고 fresh approval validation·publication pair authority·재검토 조건을 명시함 |
