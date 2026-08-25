@@ -118,6 +118,7 @@ LearningCandidate creation and review
 - [제안] [ADR-027](../decisions/ADR-027-dataset-governance-production-prerequisites.md)은 production CurrentEvidence source를 `D. BLOCKED — EVIDENCE SOURCE NOT DEFINED`, config/composition을 `B. NEW DOHALM GOVERNANCE RUNTIME CONFIG REQUIRED`로 판정한다. Common validator는 source가 아니며 새 config도 reviewer trust를 만들지 않는다. 전체 prerequisite는 `STILL BLOCKED`이고 CLI 구현은 시작하지 않는다.
 - [제안] [ADR-028](../decisions/ADR-028-current-evidence-source-authority.md)은 접근 가능한 DohaStudio 구현에서 canonical producer를 찾지 못했다. Rights producer·authority와 unique-current projection/cross-source snapshot은 `BLOCKED`, TrainingEligibility는 새 DohaLM Dataset Governance producer·durable authority가 `REQUIRED`다. existing publication pair는 authority revision/snapshot을 결속하지 않으므로 Publication binding Gate 전 port/adapter design과 runtime activation을 시작하지 않는다.
 - [제안] [ADR-029](../decisions/ADR-029-rights-metadata-ownership-authority.md)은 Common의 DohaMusic Rights·Consent 방향과 voice consent 구현을 조사했지만 모든 source 유형의 accountable owner, canonical producer, logical Rights chain key, revoke writer와 authenticated read owner를 승인할 근거가 부족하다고 판정한다. Rights Authority contract는 `STILL BLOCKED`이며 다음 단계는 cross-repository·organizational ownership 결정이다.
+- [제안] [ADR-030](../decisions/ADR-030-cross-repository-rights-domain-ownership.md)은 여섯 repository를 비교해 DohaMusic을 strongest existing candidate, 새 Rights domain을 leading architecture alternative로 식별했지만 organizational/legal actor·stable source identity·writer·authority/read owner가 승인되지 않아 Option D와 overall `STILL BLOCKED`를 선택한다. DohaLM ownership은 Dataset consumer 경계 위반으로 기각하며 구현은 시작하지 않는다.
 
 ## Product continuous learning 구현 상태
 
@@ -189,6 +190,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | ADR-030의 cross-repository Rights ownership Option D·organizational approval `REQUIRED`·overall `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | ADR-029의 RightsMetadata accountable owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | ADR-028의 Rights source·projection/snapshot BLOCKED, 새 DohaLM TrainingEligibility producer/authority REQUIRED와 Publication binding blocker 반영 |
 | 2026-08-25 | ADR-027 prerequisite Gate의 CurrentEvidence source `BLOCKED`, 새 DohaLM governance config `REQUIRED`, overall `STILL BLOCKED` 판정 반영 |
