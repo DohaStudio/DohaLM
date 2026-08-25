@@ -43,6 +43,12 @@
 | ADR-029 | [RightsMetadata producer와 authority ownership 경계](./ADR-029-rights-metadata-ownership-authority.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-028](./ADR-028-current-evidence-source-authority.md) | accountable owner·writer·logical key·projection·authenticated read와 Common change 필요성 판정 | owner·producer·logical key·revoke/read authority `BLOCKED`; overall `STILL BLOCKED` |
 | ADR-030 | [Cross-repository Rights domain ownership 결정 Gate](./ADR-030-cross-repository-rights-domain-ownership.md) | `draft` | 미결정 | [ADR-028](./ADR-028-current-evidence-source-authority.md), [ADR-029](./ADR-029-rights-metadata-ownership-authority.md) | 기존/신규/DohaLM owner, source identity, writer·authority·read와 cross-repository approval 판정 | Option D `ORGANIZATIONAL OWNERSHIP STILL BLOCKED`; overall `STILL BLOCKED` |
 
+## Decision Request
+
+| 문서 | 상태 | 요청 | 현재 결과 |
+|---|---|---|---|
+| [Cross-Repository Rights Owner Decision Request](./rights-owner-decision-request.md) | `review` | DohaMusic, 새 Rights domain 또는 다른 existing domain 중 하나와 owner/team·scope·provenance·13개 운영 책임의 명시 승인 | `D. ORGANIZATIONAL APPROVAL STILL BLOCKED`; authentication/semantic authority는 부분 승인으로만 인정 |
+
 - [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020·024~030을 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
 - [제안] ADR-014는 특정 Common resource를 선택하지 않고 ADR-013에 선행하는 Dataset product governance ownership을 제안한다.
@@ -66,6 +72,7 @@
 - [제안] ADR-028은 Common과 접근 가능한 DohaStudio 구현 조사 뒤 Rights producer/authority와 cross-source projection/snapshot을 계속 `BLOCKED`로 두고, TrainingEligibility의 새 DohaLM producer·durable authority 필요성만 구체화한다. Publication snapshot binding 전에는 port/adapter design과 runtime activation을 시작하지 않는다.
 - [제안] ADR-029는 source-level authority 방향을 유지하지만 voice-only consent 구현과 제안 문서만으로 전체 Rights accountable owner를 확정하지 않는다. canonical producer·logical key·revoke/read authority가 미정이므로 Rights Authority contract는 `STILL BLOCKED`다.
 - [제안] ADR-030은 DohaMusic을 strongest existing candidate, 새 cross-repository Rights domain을 leading architecture alternative로 식별하지만 조직·법무 actor와 stable source identity·writer·authority/read owner 승인이 없어 Option D와 `STILL BLOCKED`를 선택한다.
+- [확정] Rights Owner Decision Request는 accepted authentication ADR·병합 PR과 전체 Rights ownership을 분리하고, 완전한 owner/team·scope·provenance가 기록될 때까지 Option D를 유지한다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -74,6 +81,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [확정] Cross-Repository Rights Owner Decision Request와 explicit approval READY 기준 등록; Option D 유지 |
 | 2026-08-25 | [제안] ADR-030 Cross-repository Rights domain ownership Gate의 Option D·overall `STILL BLOCKED` 판정 등록 |
 | 2026-08-25 | [제안] ADR-029 RightsMetadata owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 등록 |
 | 2026-08-25 | [제안] ADR-028 Rights/Eligibility CurrentEvidence producer·authority·projection·snapshot과 Publication TOCTOU Gate 등록 |
