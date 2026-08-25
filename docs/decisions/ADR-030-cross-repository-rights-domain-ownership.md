@@ -10,7 +10,8 @@
 - 선행 ADR: [ADR-028](./ADR-028-current-evidence-source-authority.md),
   [ADR-029](./ADR-029-rights-metadata-ownership-authority.md)
 - 관련 문서: [데이터 라이선스 정책](../data/data-license-policy.md),
-  [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md)
+  [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md),
+  [Rights Owner Decision Request](./rights-owner-decision-request.md)
 
 ## Context
 
@@ -332,6 +333,18 @@ registry`는 signed snapshot/evidence 보조 후보, `A. direct DB role`은 owne
 승인이 owner·identity·writers·authority·read owner를 모두 채우면 다음 Gate는 `READY FOR RIGHTS AUTHORITY CONTRACT`로 전환할 수
 있다. 단순히 여러 repository가 문서를 읽었다는 사실이나 한 Draft PR merge는 approval을 대신하지 않는다.
 
+### Approval evidence 재검증
+
+[현재] `ceaf1ba3f754647a33a1a0750ef61428b6f7132f` 기준 후속 Gate는 최신 공개 `develop`, accepted/approved ADR,
+병합 architecture PR, authority 문서와 GitHub issue approval record를 재검증했다. DohaMusic ADR-038·PR #109와 DohaAudio
+ADR-012·015·PR #15는 reviewer identity, assertion issuer와 semantic ReviewerAuthority만 승인한다. 각 문서는 authentication과
+semantic approval을 Rights approval에서 분리하므로 source-wide Rights owner 승인으로 확대할 수 없다.
+
+[현재] Common ADR·RightsMetadata specification, DohaVocal consent 결정과 DohaMusic voice consent policy는 여전히
+`draft`·`제안`·`계획`이다. DohaLM PR #160·#162도 조직 승인이 없다는 blocker를 명시하며, owner/team·scope·provenance를
+갖춘 별도 issue approval record는 찾지 못했다. 따라서 Option D와 `STILL BLOCKED`를 유지하고 구체적인 승인 요청은
+[Rights Owner Decision Request](./rights-owner-decision-request.md)에 기록한다.
+
 ## Overall readiness
 
 [최종] `STILL BLOCKED`.
@@ -372,4 +385,5 @@ repository, Rights authority implementation, Common 변경, runtime activation �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [현재] accepted ADR·병합 PR·authority 문서·issue approval을 재검증하고 authentication 부분 승인과 전체 Rights ownership을 분리; Decision Request와 Option D 유지 |
 | 2026-08-25 | [제안] cross-repository Rights owner 후보를 비교하고 조직 owner·source identity·writer·authority/read 미확정으로 Option D와 `STILL BLOCKED` 판정 |
