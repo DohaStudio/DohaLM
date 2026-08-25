@@ -6,10 +6,10 @@
 - 마지막 검토일: 2026-08-25
 - 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration과
   authoritative review read 기반 Dataset Approval·Publication Integration 구현; Publication v1의 별도 durable Approval
-  Authority는 미채택이며 runtime activation은 미구현
+  Authority는 미채택이며 Runtime Activation Architecture Gate는 선행 architecture 부족으로 차단
 - 구현 상태: [현재] Review Authority Python port, PostgreSQL persistence, Product Review Start Integration and
   Product Dataset Approval·Publication Integration implemented; approval result remains a transient validated input and the
-  committed frozen DatasetVersion·issued DatasetManifest pair is the durable Publication result
+  committed frozen DatasetVersion·issued DatasetManifest pair is the durable Publication result; no runtime entrypoint is active
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-024](./ADR-024-ai-music-director-product-boundary.md),
@@ -261,6 +261,94 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
   `DatasetVersionIdentity + proposal fingerprint + review record fingerprint + approval evidence IDs`다. `evaluated_at`과
   actor/reference의 identity·audit 역할은 해당 authority source가 먼저 결정된 뒤 확정한다.
 
+## Product Dataset Governance Runtime Activation Architecture Gate
+
+### Runtime inventory
+
+- [현재] 설치형 entrypoint는 `src.cli.main:main`의 argparse 기반 `dohalm` CLI다. 현재 `environment`, `config`, `paths`,
+  legacy Phase 1 `data validate/build`만 제공하며 Product Dataset Proposal·Review·Approval·Publication command는 없다.
+- [현재] FastAPI application은 inference용 health·model·chat·streaming surface와 application-lifetime provider registry만
+  구성한다. authentication, authorization, trusted principal, reviewer mapping과 governance dependency composition은 없다.
+- [현재] Product Dataset Governance chain은 Python service-only다. production runtime, API, CLI, scheduler 또는 worker에서
+  호출되지 않는다.
+- [현재] product 문서에는 이 chain을 실제로 호출하는 operator, curator, admin backend, ingestion process 또는 training
+  consumer가 확정돼 있지 않다. 가능한 actor를 현재 caller나 IAM principal로 승격하지 않는다.
+- [현재] PostgreSQL Proposal·Review adapter는 각각 role-scoped immutable settings를 받고 invocation마다 short-lived
+  connection·transaction을 열고 닫는다. 이 settings를 environment/profile에서 만들고 두 adapter를 함께 구성하는 production
+  factory는 없다.
+- [현재] `DatasetProposalCurrentEvidenceAuthority`는 protocol만 존재한다. production RightsMetadata·TrainingEligibility
+  authority coordinator나 runtime construction path는 없다.
+- [현재] Publication v1은 caller가 명시한 `publication_root`를 받지만 governance runtime용 config owner·loader가 없다.
+  hard-coded path, current working directory, repository root 또는 user home에서 production root를 추론할 수 없다.
+- [현재] Proposal·Review authoritative read는 public port에 있지만 committed publication pair의 standalone public read port는
+  없다. existing replay 검증은 publication attempt 내부의 private storage protocol이다.
+
+### Activation model decision matrix
+
+| 항목 | CLI | API | Worker | 미활성 |
+|---|---|---|---|---|
+| 현재 infrastructure 적합성 | argparse namespace가 있어 `중간` | inference API만 있어 `낮음` | governance worker가 없어 `낮음` | 현행 service-only와 일치 |
+| identity safety | explicit opaque reference 전달은 가능하나 trust policy 미정 | authenticated principal이 없어 `낮음` | human actor를 안전하게 만들 수 없어 `낮음` | actor 추론 0 |
+| reviewer source | explicit argument 후보, issuer·accountability 미정 | principal mapping 없음 | 자동 생성 금지 | 없음 |
+| config readiness | 통합 config/factory 없음 | governance settings 없음 | worker settings 없음 | secret·path 추론 없음 |
+| secret handling | CLI argument 노출을 피할 config contract 필요 | deployment secret contract 없음 | worker secret contract 없음 | 새 secret surface 없음 |
+| operator usability | read-before-write가 마련되면 `높음` | admin client·IAM 없어서 `낮음` | human review에 부적합 | write workflow 없음 |
+| automation | explicit command 단위 retry 가능 | 이론상 높지만 IAM 선행 | 높지만 human Gate 훼손 위험 | 없음 |
+| deployment cost | 후보 중 가장 낮음 | server/IAM/route 운영비 높음 | queue·worker lifecycle 비용 높음 | 추가 비용 없음 |
+| auditability | explicit input·machine result 계약 필요 | principal/audit middleware 필요 | actor handoff authority 필요 | 새 audit 주장 없음 |
+| implementation risk | `중간`, 선행 계약 후 재평가 | `높음` | `높음` | 가장 낮지만 activation 미제공 |
+
+### Security와 operation 분석
+
+- [제안] CLI는 별도 server deployment가 없고 explicit reference·timestamp·evidence를 전달할 수 있어 후보 중 공격 표면과
+  운영 비용이 가장 작다. 다만 credential을 command line에 전달하지 않는 secret source, reviewer reference trust와
+  machine-readable sanitized result가 먼저 필요하다.
+- [제안] API는 현재 inference-only dependency graph에 governance DB role과 filesystem write 권한을 추가하고도 authn/authz가
+  없어 accidental publication 위험이 가장 크다. request ID와 existing CORS surface는 principal·audit evidence가 아니다.
+- [제안] worker는 queue·handoff·heartbeat·actor provenance·crash recovery를 새로 소유해야 한다. 사람 review가 필요한 현재
+  workflow에서는 automation 이점보다 잘못된 actor 생성과 silent retry 위험이 크다.
+- [제안] PostgreSQL adapter의 short-lived per-invocation connection은 future CLI lifetime과 양립하지만 startup preflight,
+  retry observability와 role별 config construction은 아직 없다. publication pair가 commit되면 existing replay가 crash recovery를
+  담당하며 runtime layer가 새 aggregate state store를 만들지 않는다.
+
+### 판정
+
+- [제안] 최종 판정은 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`다.
+- [제안] 이번 Gate는 CLI, API, worker 또는 multiple entrypoint activation을 승인하지 않는다. first supported entrypoint는
+  아직 없으며 production source·migration·test를 추가하지 않는다.
+- [제안] 선행 조건이 충족되면 첫 재검토 후보는 operator-driven CLI다. 기존 argparse namespace, explicit timestamp·opaque
+  reference 입력과 단계별 replay/conflict 의미가 현재 workflow에 가장 가깝다. 이는 `CLI ACTIVATION REQUIRED FIRST` 승인이나
+  command 구현 승인이 아니다.
+- [제안] API는 authn/authz, trusted principal과 reviewer mapping이 생기기 전까지 premature다. inference API의 request ID,
+  provider dependency와 existing CORS surface를 governance identity나 권한으로 재해석하지 않는다.
+- [제안] worker는 review·approval의 human governance actor를 만들 수 없으므로 지원하지 않는다. Publication 성공을 Training,
+  Evaluation 또는 promotion에 자동 연결하지 않는다.
+- [현재] Product Approval contract에는 approval actor가 없다. runtime 편의를 위해 actor field나 approval authority를 추가하지
+  않으며 accountability 요구가 생기면 별도 Architecture Gate로 되돌린다.
+
+### Required prior architecture
+
+1. production `DatasetProposalCurrentEvidenceAuthority` owner·adapter·lifetime과 failure contract
+2. Proposal/Review role credential, environment/profile, publication root와 Common package pin을 묶는 governance runtime config
+   contract 및 composition-root owner
+3. secret을 CLI argument·log·result에 노출하지 않는 credential source와 role별 least-privilege construction
+4. reviewer reference issuer·trust·operator accountability 정책; OS user, Git user와 process owner 자동 추론 금지
+5. publication pair standalone read가 필요한지와, 필요할 경우 private storage protocol을 우회하지 않는 public read contract
+6. startup preflight와 invocation validation 분리: config shape·Common version은 startup, DB reachability·migration head·role
+   permission·publication root usability는 fail-closed preflight, current evidence는 매 invocation에서 검증
+7. semantic error·machine-readable result·exit status 계약; SQL, DSN, password, absolute path, stack trace와 raw evidence body 비노출
+
+### Future CLI scope and test Gate
+
+- [제안] 선행 architecture가 승인된 뒤 별도 PR에서 `dataset proposal-inspect`, `dataset review-inspect`와 승인된 publication
+  read가 있다면 `dataset publication-inspect`를 write command보다 먼저 검토한다.
+- [제안] write 후보는 `dataset propose`, `dataset review-start`, `dataset approve`, `dataset publish`의 분리된 command다.
+  하나의 hidden `propose → review → approve → publish` command나 cross-boundary DB/filesystem transaction은 금지한다.
+- [제안] 모든 timestamp, reviewer/request reference, approval evidence ID와 publication metadata는 explicit input이다. hidden
+  wall clock, actor, manifest ID, storage path와 default-now를 추가하려면 별도 contract 승인이 필요하다.
+- [제안] 후속 테스트는 dependency composition, config validation, startup fail-closed, explicit input forwarding, sanitized error,
+  replay/conflict exit status, no hidden default, no direct SQL/storage bypass, service ordering과 Training non-activation을 포함한다.
+
 ## 기각한 대안
 
 | 대안 | 기각 사유 |
@@ -287,6 +375,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
    Architecture Gate에서 `NOT REQUIRED` 판정
 8. Product Dataset Publication Integration의 fresh approval validation과 기존 Publication boundary 연결 — 구현 완료;
    runtime activation·Training은 미구현
+9. Product Dataset Governance Runtime Activation Architecture Gate — `BLOCKED — PRIOR ARCHITECTURE REQUIRED`;
+   current-evidence production composition·runtime config/secret owner·reviewer trust·publication read contract 선행 필요
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -311,17 +401,20 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
 - [검증 필요] reviewer reference issuer·roster·reassignment authority
 - [제안] Publication v1은 별도 approval persistence를 두지 않고 Product Publication Integration의 fresh approval validation과
   ADR-015 publication transaction 경계를 사용한다. approved-only observability·actor audit 요구가 생기면 별도 ADR로 재검토한다.
+- [검증 필요] production current-evidence authority와 governance runtime config/composition owner
+- [검증 필요] standalone publication read surface 필요성 및 private storage protocol owner와의 결속
 
 ## 승인 Gate
 
 이 ADR은 `draft`다. 독립 검토, 사용자 명시 승인과 병합 전에는 authoritative implementation requirement가 아니다.
-현재 구현된 persistence adapter, Product Dataset Review Start·Approval Integration의 runtime activation, durable approval
-authority, publication 또는 Training은 승인하지 않는다.
+현재 구현된 persistence adapter와 Product Dataset Review Start·Approval·Publication Integration의 runtime activation,
+durable approval authority, API·CLI·worker 또는 Training은 승인하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] Runtime Activation Architecture Gate를 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`로 판정하고 CLI를 선행 계약 완료 후 첫 재검토 후보로 한정함 |
 | 2026-08-25 | [현재] fresh authoritative Proposal·Review/current evidence와 transient approval을 기존 atomic Publication boundary에 연결하는 Product Dataset Publication Integration 구현; runtime·Training 미구현 |
 | 2026-08-25 | [제안] Architecture Gate에서 Publication v1 durable Approval Authority를 `NOT REQUIRED`로 판정하고 fresh approval validation·publication pair authority·재검토 조건을 명시함 |
 | 2026-08-25 | [현재] caller-created `reviewing` payload 대신 authoritative proposal·review read와 approval-time current evidence를 사용하는 Product Dataset Approval Integration 구현; durable Approval Authority·runtime·publication 미구현 |
