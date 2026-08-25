@@ -11,7 +11,8 @@
   [ADR-015](./ADR-015-dataset-version-publication-contract.md),
   [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md),
   [ADR-026](./ADR-026-dataset-review-authority-contract.md),
-  [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md)
+  [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md),
+  [ADR-029](./ADR-029-rights-metadata-ownership-authority.md)
 - 관련 문서: [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md)
 
 ## Context
@@ -341,7 +342,9 @@ unique-current projection, authenticated scoped read, selected cross-source snap
 
 ## Cross-repository changes와 후속 Gate
 
-1. [차단] Rights/Licensing accountable repository와 create/revoke/replacement writer를 cross-repository decision으로 승인한다.
+1. [차단] [ADR-029](./ADR-029-rights-metadata-ownership-authority.md)의 판정에 따라 Rights/Licensing accountable repository와
+   create/revoke/replacement writer를 cross-repository·organizational decision으로 승인한다. 현재 owner·logical key·read
+   authority는 `STILL BLOCKED`다.
 2. [차단] 그 repository에서 immutable Rights history, unique-current projection, authenticated scoped read와 revision/snapshot
    contract를 설계·구현한다.
 3. [계획] DohaLM TrainingEligibility producer·immutable history/current projection·writer/read authority ADR을 작성한다. Rights
@@ -379,4 +382,5 @@ unique-current projection, authenticated scoped read, selected cross-source snap
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] ADR-029의 owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Rights producer/authority와 cross-source projection/snapshot을 BLOCKED, 새 DohaLM TrainingEligibility producer·authority를 REQUIRED로 판정 |

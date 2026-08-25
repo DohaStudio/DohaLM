@@ -117,6 +117,7 @@ LearningCandidate creation and review
 - [제안] Product Dataset Governance Runtime Activation Architecture Gate 판정은 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`다. 현재 chain은 service-only이며 production current-evidence authority, governance runtime config·secret/composition owner, reviewer trust policy와 standalone publication read 필요성 결정 전에는 CLI·API·worker를 활성화하지 않는다. 선행 계약 완료 뒤 첫 재검토 후보는 operator-driven CLI지만 아직 지원·구현 승인이 아니다.
 - [제안] [ADR-027](../decisions/ADR-027-dataset-governance-production-prerequisites.md)은 production CurrentEvidence source를 `D. BLOCKED — EVIDENCE SOURCE NOT DEFINED`, config/composition을 `B. NEW DOHALM GOVERNANCE RUNTIME CONFIG REQUIRED`로 판정한다. Common validator는 source가 아니며 새 config도 reviewer trust를 만들지 않는다. 전체 prerequisite는 `STILL BLOCKED`이고 CLI 구현은 시작하지 않는다.
 - [제안] [ADR-028](../decisions/ADR-028-current-evidence-source-authority.md)은 접근 가능한 DohaStudio 구현에서 canonical producer를 찾지 못했다. Rights producer·authority와 unique-current projection/cross-source snapshot은 `BLOCKED`, TrainingEligibility는 새 DohaLM Dataset Governance producer·durable authority가 `REQUIRED`다. existing publication pair는 authority revision/snapshot을 결속하지 않으므로 Publication binding Gate 전 port/adapter design과 runtime activation을 시작하지 않는다.
+- [제안] [ADR-029](../decisions/ADR-029-rights-metadata-ownership-authority.md)은 Common의 DohaMusic Rights·Consent 방향과 voice consent 구현을 조사했지만 모든 source 유형의 accountable owner, canonical producer, logical Rights chain key, revoke writer와 authenticated read owner를 승인할 근거가 부족하다고 판정한다. Rights Authority contract는 `STILL BLOCKED`이며 다음 단계는 cross-repository·organizational ownership 결정이다.
 
 ## Product continuous learning 구현 상태
 
@@ -188,6 +189,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | ADR-029의 RightsMetadata accountable owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | ADR-028의 Rights source·projection/snapshot BLOCKED, 새 DohaLM TrainingEligibility producer/authority REQUIRED와 Publication binding blocker 반영 |
 | 2026-08-25 | ADR-027 prerequisite Gate의 CurrentEvidence source `BLOCKED`, 새 DohaLM governance config `REQUIRED`, overall `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | Runtime Activation Architecture Gate를 선행 current-evidence/config·secret/reviewer trust/publication read architecture 부족으로 `BLOCKED` 판정하고 CLI를 첫 재검토 후보로 한정 |

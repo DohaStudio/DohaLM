@@ -40,8 +40,9 @@
 | ADR-026 | [Dataset Review Authority 영속성 계약](./ADR-026-dataset-review-authority-contract.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-024](./ADR-024-ai-music-director-product-boundary.md), [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md) | immutable proposal과 분리된 durable review owner·authoritative reads·atomic STARTED/REPLAYED/CONFLICT·current evidence Gate 제안; Python port·PostgreSQL persistence·Product Review Start·Approval·Publication Integration 구현 | Publication v1 durable Approval Authority `NOT REQUIRED`; Runtime Activation은 선행 architecture 부족으로 `BLOCKED` |
 | ADR-027 | [Product Dataset Governance production prerequisite 경계](./ADR-027-dataset-governance-production-prerequisites.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md), [ADR-026](./ADR-026-dataset-review-authority-contract.md) | CurrentEvidence source option과 governance runtime config·secret·composition ownership 비교; 새 DohaLM config contract 제안 | CurrentEvidence source `BLOCKED`, config `REQUIRED`, overall `STILL BLOCKED` |
 | ADR-028 | [CurrentEvidence source authority와 snapshot 경계](./ADR-028-current-evidence-source-authority.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md) | Rights/Eligibility producer·writer·history/projection·authenticated read와 cross-source snapshot·Publication TOCTOU 판정 | Rights producer/authority·projection/snapshot `BLOCKED`; DohaLM Eligibility producer/authority `REQUIRED`; overall `STILL BLOCKED` |
+| ADR-029 | [RightsMetadata producer와 authority ownership 경계](./ADR-029-rights-metadata-ownership-authority.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-028](./ADR-028-current-evidence-source-authority.md) | accountable owner·writer·logical key·projection·authenticated read와 Common change 필요성 판정 | owner·producer·logical key·revoke/read authority `BLOCKED`; overall `STILL BLOCKED` |
 
-- [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020·024~028을 등록했다.
+- [확정] 승인 ADR-001부터 ADR-010과 ADR-021~023, draft ADR-011·013~020·024~029를 등록했다.
 - [제안] Open Draft PR #103이 ADR-012 번호를 사용하므로 충돌을 피하고자 Common AI Contract 소비 경계 제안을 ADR-013으로 등록했다.
 - [제안] ADR-014는 특정 Common resource를 선택하지 않고 ADR-013에 선행하는 Dataset product governance ownership을 제안한다.
 - [제안] ADR-015는 ADR-014의 첫 Gate로 DatasetVersion·DatasetManifest resource pair와 publication transaction을 설계하며 구현·consumer 활성화는 승인하지 않는다.
@@ -62,6 +63,7 @@
 - [제안] ADR-026은 immutable proposal과 별도의 Dataset Review Authority를 두고 proposal·review authoritative read, explicit reviewer/time, current evidence와 durable STARTED·REPLAYED·CONFLICT 의미를 제안한다. Review Authority Python port·PostgreSQL persistence·Product Review Start·Approval·Publication Integration은 구현됐다. Publication v1의 durable Approval Authority는 `NOT REQUIRED`이며 approved candidate는 fresh validation으로 만드는 transient input이다. Runtime Activation Gate는 production current-evidence composition·config/secret owner·reviewer trust·publication read 결정 부족으로 `BLOCKED`이며 CLI는 선행 계약 뒤 첫 재검토 후보일 뿐 승인된 entrypoint가 아니다.
 - [제안] ADR-027은 production CurrentEvidence source를 찾지 못해 `BLOCKED`로 유지하고, role-separated protected secret reference·explicit publication root·typed preflight를 소유하는 새 DohaLM governance runtime config/composition contract를 요구한다. overall prerequisite는 `STILL BLOCKED`다.
 - [제안] ADR-028은 Common과 접근 가능한 DohaStudio 구현 조사 뒤 Rights producer/authority와 cross-source projection/snapshot을 계속 `BLOCKED`로 두고, TrainingEligibility의 새 DohaLM producer·durable authority 필요성만 구체화한다. Publication snapshot binding 전에는 port/adapter design과 runtime activation을 시작하지 않는다.
+- [제안] ADR-029는 source-level authority 방향을 유지하지만 voice-only consent 구현과 제안 문서만으로 전체 Rights accountable owner를 확정하지 않는다. canonical producer·logical key·revoke/read authority가 미정이므로 Rights Authority contract는 `STILL BLOCKED`다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
 - [확정] Foundation Model·Model Family·Domain 확장 문서는 현재 `review` 단계의 장기 제안이다. 승인된 아키텍처·데이터·평가·Gate 정책을 변경하는 구현 결정이 생길 때 별도 ADR을 작성한다.
@@ -70,6 +72,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-25 | [제안] ADR-029 RightsMetadata owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 등록 |
 | 2026-08-25 | [제안] ADR-028 Rights/Eligibility CurrentEvidence producer·authority·projection·snapshot과 Publication TOCTOU Gate 등록 |
 | 2026-08-25 | [제안] ADR-027 CurrentEvidence source `BLOCKED`, 새 DohaLM governance config `REQUIRED`, overall `STILL BLOCKED` prerequisite 판정 등록 |
 | 2026-08-25 | [제안] ADR-026 Runtime Activation Architecture Gate의 `BLOCKED — PRIOR ARCHITECTURE REQUIRED` 판정과 CLI 첫 재검토 후보 경계 반영 |
