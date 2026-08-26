@@ -38,9 +38,12 @@ from .dataset_proposal_authority import (
     validate_dataset_proposal_authority_record,
 )
 from .dataset_publication import (
+    DatasetPublicationAuthority,
     DatasetPublicationError,
     DatasetPublicationMetadata,
+    DatasetPublicationRecord,
     DatasetPublicationResult,
+    FilesystemDatasetPublicationAuthority,
     publish_dataset_version,
 )
 from .dataset_review_authority import (
@@ -137,8 +140,10 @@ __all__ = [
     "DatasetProposalEvidenceDecision",
     "DatasetProposalEvidenceStatus",
     "DatasetProposalOutcome",
+    "DatasetPublicationAuthority",
     "DatasetPublicationError",
     "DatasetPublicationMetadata",
+    "DatasetPublicationRecord",
     "DatasetPublicationResult",
     "DatasetReviewAuthority",
     "DatasetReviewAuthorityError",
@@ -148,6 +153,7 @@ __all__ = [
     "DatasetReviewStartResult",
     "DatasetVersionIdentity",
     "DatasetVersionProposal",
+    "FilesystemDatasetPublicationAuthority",
     "LearningCandidateConsumerError",
     "LearningCandidateReviewAuthority",
     "LearningCandidateReviewError",

@@ -10,6 +10,11 @@ from pathlib import Path
 import pytest
 
 from src.data.checksums import checksum_value
+from src.data.dataset_governance import DatasetVersionIdentity
+from src.data.dataset_publication import (
+    DatasetPublicationError,
+    FilesystemDatasetPublicationAuthority,
+)
 
 WORKER = Path(__file__).with_name("dataset_publication_process_worker.py")
 VERSION_FILE = "dataset-version.json"
@@ -300,3 +305,65 @@ def test_restart_rejects_corrupt_final_without_repair_or_overwrite(
         len(tuple(path for path in root.iterdir() if not path.name.startswith(".")))
         == 1
     )
+
+
+def test_separate_processes_read_the_same_committed_authority(tmp_path: Path) -> None:
+    root = tmp_path / "read-authority"
+    publish_result = tmp_path / "read-authority-publish.json"
+    published = _finish(_spawn(root, publish_result), publish_result)
+    assert published["outcome"] == "success"
+
+    read_results = [tmp_path / f"read-authority-{index}.json" for index in range(2)]
+    processes = [_spawn(root, result, mode="read") for result in read_results]
+    try:
+        records = [
+            _finish(process, result)
+            for process, result in zip(processes, read_results, strict=True)
+        ]
+    finally:
+        for process in processes:
+            _stop(process)
+
+    assert records[0] == records[1]
+    assert records[0]["outcome"] == "success"
+    assert records[0]["pair_fingerprint"] == published["pair_fingerprint"]
+    assert (
+        _fingerprint(records[0]["dataset_version"], records[0]["dataset_manifest"])
+        == published["pair_fingerprint"]
+    )
+
+
+def test_read_during_atomic_publish_observes_not_found_then_complete_pair(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "concurrent-read"
+    paused_result = tmp_path / "concurrent-read-paused.json"
+    marker = tmp_path / "concurrent-read.marker"
+    paused = _spawn(root, paused_result, mode="before-rename", marker=marker)
+    identity = DatasetVersionIdentity(
+        object_id="dataset_version_1",
+        dataset_id="dataset_lyrics",
+        dataset_version="1.0.0",
+    )
+    try:
+        _wait_for(marker)
+        with pytest.raises(DatasetPublicationError) as absent:
+            FilesystemDatasetPublicationAuthority(root).read_authoritative_publication(
+                identity
+            )
+        assert absent.value.code == "PUBLICATION_NOT_FOUND"
+        paused.terminate()
+        paused.communicate(timeout=30)
+    finally:
+        _stop(paused)
+    assert not paused_result.exists()
+
+    committed_result = tmp_path / "concurrent-read-committed.json"
+    committed = _finish(_spawn(root, committed_result), committed_result)
+    record = FilesystemDatasetPublicationAuthority(root).read_authoritative_publication(
+        identity
+    )
+    assert record.pair_fingerprint == committed["pair_fingerprint"]
+    assert {
+        entry.name for entry in root.iterdir() if not entry.name.startswith(".")
+    } == {committed["storage_key"]}
