@@ -9,6 +9,8 @@ on:
       - "requirements-c1.lock"
       - "src/postgres_c1.py"
       - "src/postgres_migrations/**"
+      - "src/data/postgres_dataset_proposal_authority.py"
+      - "src/data/postgres_dataset_review_authority.py"
       - "tests/test_postgres_c1*.py"
   push:
     branches: [develop]
@@ -19,6 +21,8 @@ on:
       - "requirements-c1.lock"
       - "src/postgres_c1.py"
       - "src/postgres_migrations/**"
+      - "src/data/postgres_dataset_proposal_authority.py"
+      - "src/data/postgres_dataset_review_authority.py"
       - "tests/test_postgres_c1*.py"
 
 permissions:
