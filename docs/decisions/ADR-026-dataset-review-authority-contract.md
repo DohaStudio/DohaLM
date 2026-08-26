@@ -3,7 +3,7 @@
 - 문서 상태: `draft`
 - 결정일: 미결정
 - 작성일: 2026-08-21
-- 마지막 검토일: 2026-08-25
+- 마지막 검토일: 2026-08-26
 - 실행 영향: Review Authority Python port·PostgreSQL durable persistence·Product Review Start Integration과
   authoritative review read 기반 Dataset Approval·Publication Integration 구현; Publication v1의 별도 durable Approval
   Authority는 미채택이며 Runtime Activation Architecture Gate는 선행 architecture 부족으로 차단
@@ -282,7 +282,9 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
 - [현재] Publication v1은 caller가 명시한 `publication_root`를 받지만 governance runtime용 config owner·loader가 없다.
   hard-coded path, current working directory, repository root 또는 user home에서 production root를 추론할 수 없다.
 - [현재] Proposal·Review authoritative read는 public port에 있지만 committed publication pair의 standalone public read port는
-  없다. existing replay 검증은 publication attempt 내부의 private storage protocol이다.
+  아직 구현되지 않았다. existing replay 검증은 publication attempt 내부의 private storage protocol이다. 후속
+  [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)은 exact identity Authority Protocol과 full pair-local
+  verification을 `READY FOR IMPLEMENTATION`으로 제안한다.
 
 ### Activation model decision matrix
 
@@ -334,7 +336,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
    contract 및 composition-root owner
 3. secret을 CLI argument·log·result에 노출하지 않는 credential source와 role별 least-privilege construction
 4. reviewer reference issuer·trust·operator accountability 정책; OS user, Git user와 process owner 자동 추론 금지
-5. publication pair standalone read가 필요한지와, 필요할 경우 private storage protocol을 우회하지 않는 public read contract
+5. [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)의 standalone publication pair public read contract
+   제안 승인과 별도 구현
 6. startup preflight와 invocation validation 분리: config shape·Common version은 startup, DB reachability·migration head·role
    permission·publication root usability는 fail-closed preflight, current evidence는 매 invocation에서 검증
 7. semantic error·machine-readable result·exit status 계약; SQL, DSN, password, absolute path, stack trace와 raw evidence body 비노출
@@ -380,6 +383,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
    current-evidence production composition·runtime config/secret owner·reviewer trust·publication read contract 선행 필요
 10. Production Prerequisites Architecture Gate — CurrentEvidence source는 `BLOCKED`, 새 DohaLM governance runtime
     config/composition은 `REQUIRED`, 전체 prerequisite는 `STILL BLOCKED`
+11. Standalone Dataset Publication Pair Public Read Contract Gate — `C. NEW PUBLIC READ PORT REQUIRED`,
+    `READY FOR IMPLEMENTATION`; source 구현·runtime activation은 별도 PR/Gate
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -406,7 +411,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
   ADR-015 publication transaction 경계를 사용한다. approved-only observability·actor audit 요구가 생기면 별도 ADR로 재검토한다.
 - [검증 필요] production current-evidence source·unique-current selection·revocation owner; ADR-027에서 source 미정으로 차단
 - [제안] governance runtime config/composition owner는 ADR-027의 새 DohaLM-owned typed contract이며 구현은 미승인
-- [검증 필요] standalone publication read surface 필요성 및 private storage protocol owner와의 결속
+- [제안] ADR-031은 standalone publication read surface를 `REQUIRED`로 판정하고 Dataset Publication module-owned exact identity
+  Authority Protocol과 private filesystem adapter 결속을 제안한다. 구현은 별도 PR 전까지 미완료다.
 
 ## 승인 Gate
 
@@ -418,6 +424,7 @@ durable approval authority, API·CLI·worker 또는 Training은 승인하지 않
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-26 | [제안] ADR-031 standalone publication pair public read Gate의 `NEW PUBLIC READ PORT REQUIRED`·`READY FOR IMPLEMENTATION` 판정 연결 |
 | 2026-08-25 | [제안] ADR-027 prerequisite Gate의 CurrentEvidence `BLOCKED`, 새 DohaLM governance config `REQUIRED`, 전체 `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Runtime Activation Architecture Gate를 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`로 판정하고 CLI를 선행 계약 완료 후 첫 재검토 후보로 한정함 |
 | 2026-08-25 | [현재] fresh authoritative Proposal·Review/current evidence와 transient approval을 기존 atomic Publication boundary에 연결하는 Product Dataset Publication Integration 구현; runtime·Training 미구현 |
