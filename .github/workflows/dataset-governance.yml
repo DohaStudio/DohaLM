@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/dataset-governance.yml"
+      - "docs/quality/test-strategy.md"
       - "pyproject.toml"
       - "src/data/**"
       - "tests/test_dataset_*.py"
@@ -15,6 +16,7 @@ on:
       - develop
     paths:
       - ".github/workflows/dataset-governance.yml"
+      - "docs/quality/test-strategy.md"
       - "pyproject.toml"
       - "src/data/**"
       - "tests/test_dataset_*.py"
@@ -82,6 +84,9 @@ jobs:
             tests/test_product_dataset_publication.py \
             tests/test_dataset_publication_process.py \
             tests/dataset_publication_process_worker.py
+
+      - name: Check Dataset format contract
+        run: |
           ruff format --check \
             src/data/common_dataset_contracts.py \
             src/data/dataset_governance.py \
@@ -108,6 +113,25 @@ jobs:
             tests/test_dataset_publication_process.py \
             tests/dataset_publication_process_worker.py
 
+      - name: Check changed Dataset source static contract
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          changed_source=()
+          while IFS= read -r -d '' path; do
+            if [[ "$path" == *.py ]]; then
+              changed_source+=("$path")
+            fi
+          done < <(git diff --name-only --diff-filter=ACMR -z "$BASE_SHA...HEAD" -- src/data)
+          if ((${#changed_source[@]})); then
+            ruff check --select E4,E7,E9,F -- "${changed_source[@]}"
+            ruff format --check -- "${changed_source[@]}"
+          fi
+
       - name: Run Dataset Governance unit regression
         run: |
           python -m pytest -q \
@@ -127,19 +151,7 @@ jobs:
 
       - name: Compile and import Dataset Governance modules
         run: |
-          python -m compileall -q \
-            src/data/common_dataset_contracts.py \
-            src/data/dataset_governance.py \
-            src/data/dataset_proposal_authority.py \
-            src/data/dataset_review_authority.py \
-            src/data/dataset_publication.py \
-            src/data/product_dataset_composition.py \
-            src/data/product_dataset_governance.py \
-            src/data/product_dataset_review.py \
-            src/data/product_dataset_approval.py \
-            src/data/product_dataset_publication.py \
-            src/data/postgres_dataset_proposal_authority.py \
-            src/data/postgres_dataset_review_authority.py
+          python -m compileall -q src/data
           python -c "import src.data.dataset_governance, src.data.dataset_proposal_authority, src.data.dataset_review_authority, src.data.dataset_publication, src.data.product_dataset_review, src.data.product_dataset_approval, src.data.product_dataset_publication"
 
       - name: Check patch whitespace
