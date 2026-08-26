@@ -3,7 +3,7 @@
 - 문서 상태: `draft`
 - 마지막 검토일: 2026-08-26
 - 결정 상태: `proposed`
-- 실행 영향: 없음; public Python/library read port 설계만 제안
+- 실행 영향: public Python/library read port 구현; runtime·CLI·API·worker activation 없음
 - 기준 DohaLM commit: `733f93fca5176aaad343b1018b053076446495ff`
 - 기준 DohaLM tree: `51ba5899901ab73e7a4dd2266de35caa2c8b4352`
 - 선행 ADR: [ADR-015](./ADR-015-dataset-version-publication-contract.md),
@@ -18,13 +18,12 @@
 `DatasetManifest` pair다. `ApprovedDatasetVersion`, process-local approval result, replay cache, index DB, latest pointer와
 mutable projection은 authority가 아니다.
 
-[현재] `publish_dataset_version()`은 새 pair를 commit하거나 같은 command 입력의 replay를 검증할 수 있지만, exact identity만
-받아 이미 commit된 pair를 읽는 public query는 없다. process restart 후 확인, operator/library inspection, downstream read,
-future runtime read-before-write와 republish 없는 replay/debug에는 command와 분리된 standalone read가 필요하다.
+[현재] `publish_dataset_version()`은 새 pair를 commit하거나 같은 command 입력의 replay를 검증한다. exact identity만 받아 이미
+commit된 pair를 읽는 public query는 `DatasetPublicationAuthority`와 `FilesystemDatasetPublicationAuthority`로 구현됐다. 이
+standalone read는 process restart 후 확인, operator/library inspection과 republish 없는 검증을 command에서 분리한다.
 
-[제안] 최종 Architecture Gate 판정은 `C. NEW PUBLIC READ PORT REQUIRED`이며 implementation readiness는
-`READY FOR IMPLEMENTATION`이다. 이 판정은 Python/library 계약만 승인 후보로 만들며 runtime, CLI, API, worker, IAM,
-CurrentEvidence 또는 Training activation을 승인하지 않는다.
+[현재] Architecture Gate의 `C. NEW PUBLIC READ PORT REQUIRED` 판정에 따라 Python/library port를 구현했다. 구현 완료는 runtime,
+CLI, API, worker, IAM, CurrentEvidence 또는 Training activation을 승인하지 않는다.
 
 ## Existing publication inventory
 
@@ -40,7 +39,7 @@ CurrentEvidence 또는 Training activation을 승인하지 않는다.
 | atomicity | `AtomicArtifactDirectory`, same-parent staging, no-replace directory rename | commit 전 final 부재, commit 후 complete final |
 | replay | `_replay()` → `_verify_directory()` | caller가 다시 계산한 expected pair와 persisted pair 비교 |
 | process evidence | `tests/test_dataset_publication_process.py` | two-process race, termination boundary, restart corruption 거부 |
-| public standalone read | 없음 | 새 query port 필요 |
+| public standalone read | `DatasetPublicationAuthority`, `FilesystemDatasetPublicationAuthority`, `DatasetPublicationRecord` | exact identity query와 full pair-local verification 구현 |
 
 ### Private verifier assumptions
 
@@ -208,10 +207,10 @@ chaining으로 내부에 보존할 수 있지만 public serialization에는 포�
 [제안] `Authority Protocol`을 선택한다. fixed local filesystem adapter는 port의 첫 implementation이고 generic DB/object-store API를
 설계하지 않는다. exact identity-to-path mapping과 pair-local validation이 모두 결정돼 `D. BLOCKED` 조건은 성립하지 않는다.
 
-## Future implementation scope와 tests
+## 구현 범위와 tests
 
-[제안] 후속 별도 PR의 production 범위는 Dataset Publication module의 public port/result/error와 filesystem adapter, package export,
-직접 unit/process tests 및 문서 동기화다. migration, DB/index, runtime config, CLI/API/worker와 Training 연결은 0이다.
+[현재] Dataset Publication module의 public port/result/error와 explicit-root filesystem adapter, package export, 직접 unit/process
+tests를 구현했다. migration, DB/index, runtime config, CLI/API/worker와 Training 연결은 0이다.
 
 최소 acceptance tests는 다음과 같다.
 
@@ -263,7 +262,7 @@ chaining으로 내부에 보존할 수 있지만 public serialization에는 포�
 | Listing/latest/search | `NOT SUPPORTED` |
 | Runtime/API/CLI | `NOT ACTIVATED` |
 | DB/migration/index | `0` |
-| Implementation readiness | `READY FOR IMPLEMENTATION` |
+| Implementation state | `IMPLEMENTED` |
 
 ## Boundaries, consequences와 remaining blockers
 
@@ -273,31 +272,32 @@ chaining으로 내부에 보존할 수 있지만 public serialization에는 포�
 - [제안] future format의 extra file, unknown schema/version 또는 lifecycle은 자동 downgrade·guess 없이 fail closed한다. v2 format은
   별도 ADR과 adapter/version dispatch가 필요하다.
 - [제안] filesystem capability는 storage access일 뿐 business IAM이 아니다.
-- [검증 필요] 후속 구현에서 final public symbol 이름과 package export 위치를 확정한다.
-- [검증 필요] filesystem adapter root capability validation의 정확한 platform rule과 error-stage mapping을 테스트로 고정한다.
+- [현재] public symbol은 `DatasetPublicationAuthority`, `DatasetPublicationRecord`,
+  `FilesystemDatasetPublicationAuthority`이며 `src.data`에서 export한다.
+- [현재] filesystem adapter는 absolute explicit root만 받으며 unavailable root와 read I/O를
+  `PUBLICATION_STORAGE_UNAVAILABLE`로 fail closed한다.
 - [제외] CurrentEvidence, Proposal/Review/Approval 재검증과 publication scenario 재구성
 - [제외] Rights owner, reviewer authority, governance runtime config/secret와 production composition 구현
 - [제외] listing/latest/search, repair, migration, DB/index/object store와 network filesystem 지원
 - [제외] CLI, API, worker, runtime activation, Dataset artifact open, Training/Evaluation/promotion
 
 [현재] Rights owner, CurrentEvidence projection/snapshot, reviewer trust와 runtime config/composition은 계속 별도 blocker다. 이
-read contract가 `READY FOR IMPLEMENTATION`이어도 ADR-027 overall prerequisite와 Dataset Governance Runtime Activation은
-`STILL BLOCKED`다.
+read port가 구현됐어도 ADR-027 overall prerequisite와 Dataset Governance Runtime Activation은 `STILL BLOCKED`다.
 
 ## Acceptance와 approval Gate
 
-- [제안] exact identity와 deterministic location을 actual code와 ADR-015에서 확인했다.
-- [제안] private replay verifier assumption과 public query validation을 분리했다.
-- [제안] full pair-local verification, immutable result, read-only/no-repair와 sanitized failure taxonomy를 결정했다.
-- [제안] restart, multi-process와 concurrent publish/read visibility를 기존 atomic final-directory contract에 결속했다.
-- [제안] production source·test·migration·runtime·CLI/API/worker 변경은 0이어야 한다.
+- [현재] exact identity와 deterministic location을 production code와 ADR-015에서 확인했다.
+- [현재] private replay verifier와 분리된 public query validation을 구현했다.
+- [현재] full pair-local verification, immutable result, read-only/no-repair와 sanitized failure taxonomy를 테스트로 고정했다.
+- [현재] restart, multi-process와 concurrent publish/read visibility를 기존 atomic final-directory contract에 결속해 검증했다.
+- [현재] migration·runtime·CLI/API/worker 변경은 0이다.
 
-이 ADR은 `draft`·`proposed`다. 독립 검토, 사용자 명시 승인과 merge 전 authoritative implementation requirement가 아니다.
-merge되더라도 Runtime/API/CLI, CurrentEvidence, Training 또는 publication write를 활성화하지 않는다. 승인·병합 뒤 별도 PR에서
-`Dataset Publication Pair Public Read` 구현을 진행한다.
+이 ADR은 계속 `draft`·`proposed`다. 구현 사실만으로 문서 상태를 승격하지 않는다. 구현이 merge되더라도 Runtime/API/CLI,
+CurrentEvidence, Training 또는 publication write를 추가로 활성화하지 않는다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-26 | [현재] exact-identity public Authority Protocol·immutable record·explicit-root filesystem adapter와 full pair-local verification 구현 및 unit/process 검증 반영 |
 | 2026-08-26 | [제안] exact-identity Authority Protocol, pair-local full verification, immutable query result와 read-only failure 계약 결정 |

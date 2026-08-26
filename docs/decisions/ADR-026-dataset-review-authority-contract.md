@@ -281,10 +281,9 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
   authority coordinator나 runtime construction path는 없다.
 - [현재] Publication v1은 caller가 명시한 `publication_root`를 받지만 governance runtime용 config owner·loader가 없다.
   hard-coded path, current working directory, repository root 또는 user home에서 production root를 추론할 수 없다.
-- [현재] Proposal·Review authoritative read는 public port에 있지만 committed publication pair의 standalone public read port는
-  아직 구현되지 않았다. existing replay 검증은 publication attempt 내부의 private storage protocol이다. 후속
-  [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)은 exact identity Authority Protocol과 full pair-local
-  verification을 `READY FOR IMPLEMENTATION`으로 제안한다.
+- [현재] Proposal·Review authoritative read와 committed publication pair의 standalone public read port가 구현됐다.
+  [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)의 exact identity Authority Protocol, explicit-root filesystem
+  adapter와 full pair-local verification을 사용하며 existing replay command와 분리된다.
 
 ### Activation model decision matrix
 
@@ -336,8 +335,7 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
    contract 및 composition-root owner
 3. secret을 CLI argument·log·result에 노출하지 않는 credential source와 role별 least-privilege construction
 4. reviewer reference issuer·trust·operator accountability 정책; OS user, Git user와 process owner 자동 추론 금지
-5. [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)의 standalone publication pair public read contract
-   제안 승인과 별도 구현
+5. [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)의 standalone publication pair public read contract와 구현 — 완료
 6. startup preflight와 invocation validation 분리: config shape·Common version은 startup, DB reachability·migration head·role
    permission·publication root usability는 fail-closed preflight, current evidence는 매 invocation에서 검증
 7. semantic error·machine-readable result·exit status 계약; SQL, DSN, password, absolute path, stack trace와 raw evidence body 비노출
@@ -380,11 +378,11 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
 8. Product Dataset Publication Integration의 fresh approval validation과 기존 Publication boundary 연결 — 구현 완료;
    runtime activation·Training은 미구현
 9. Product Dataset Governance Runtime Activation Architecture Gate — `BLOCKED — PRIOR ARCHITECTURE REQUIRED`;
-   current-evidence production composition·runtime config/secret owner·reviewer trust·publication read contract 선행 필요
+   publication read prerequisite는 완료됐고 current-evidence production composition·runtime config/secret owner·reviewer trust는 선행 필요
 10. Production Prerequisites Architecture Gate — CurrentEvidence source는 `BLOCKED`, 새 DohaLM governance runtime
     config/composition은 `REQUIRED`, 전체 prerequisite는 `STILL BLOCKED`
-11. Standalone Dataset Publication Pair Public Read Contract Gate — `C. NEW PUBLIC READ PORT REQUIRED`,
-    `READY FOR IMPLEMENTATION`; source 구현·runtime activation은 별도 PR/Gate
+11. Standalone Dataset Publication Pair Public Read — `C. NEW PUBLIC READ PORT REQUIRED` contract에 따른 source·tests 구현 완료;
+    runtime activation은 별도 Gate
 
 각 단계는 별도 Ready·검증·승인을 요구한다.
 
@@ -411,8 +409,8 @@ restart-readable authority라는 계약을 유지한다. ADR-015 수정, 새 App
   ADR-015 publication transaction 경계를 사용한다. approved-only observability·actor audit 요구가 생기면 별도 ADR로 재검토한다.
 - [검증 필요] production current-evidence source·unique-current selection·revocation owner; ADR-027에서 source 미정으로 차단
 - [제안] governance runtime config/composition owner는 ADR-027의 새 DohaLM-owned typed contract이며 구현은 미승인
-- [제안] ADR-031은 standalone publication read surface를 `REQUIRED`로 판정하고 Dataset Publication module-owned exact identity
-  Authority Protocol과 private filesystem adapter 결속을 제안한다. 구현은 별도 PR 전까지 미완료다.
+- [현재] ADR-031의 Dataset Publication module-owned exact identity Authority Protocol과 explicit-root filesystem adapter가 구현됐다.
+  이 read capability는 runtime activation이나 current authorization을 의미하지 않는다.
 
 ## 승인 Gate
 
@@ -424,6 +422,7 @@ durable approval authority, API·CLI·worker 또는 Training은 승인하지 않
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-26 | [현재] ADR-031 standalone publication pair public read port·filesystem adapter·full pair-local verification 구현 반영; runtime activation은 계속 별도 Gate |
 | 2026-08-26 | [제안] ADR-031 standalone publication pair public read Gate의 `NEW PUBLIC READ PORT REQUIRED`·`READY FOR IMPLEMENTATION` 판정 연결 |
 | 2026-08-25 | [제안] ADR-027 prerequisite Gate의 CurrentEvidence `BLOCKED`, 새 DohaLM governance config `REQUIRED`, 전체 `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Runtime Activation Architecture Gate를 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`로 판정하고 CLI를 선행 계약 완료 후 첫 재검토 후보로 한정함 |

@@ -44,8 +44,8 @@ def _pause_at_publish(stage: str, marker: Path) -> None:
 
 
 def _inject_cleanup_failure(marker: Path) -> None:
-    import src.data.artifacts as artifacts
     import src.data.dataset_publication as publication
+    from src.data import artifacts
     from src.data.errors import DataIssue, DataPipelineError
 
     def fail_publish(_transaction) -> None:
@@ -69,7 +69,13 @@ def main() -> int:
     parser.add_argument("--marker", type=Path)
     parser.add_argument(
         "--mode",
-        choices=("publish", "before-rename", "after-rename", "cleanup-failure"),
+        choices=(
+            "publish",
+            "read",
+            "before-rename",
+            "after-rename",
+            "cleanup-failure",
+        ),
         default="publish",
     )
     parser.add_argument("--variant", default="identical")
@@ -90,23 +96,36 @@ def main() -> int:
             raise RuntimeError("cleanup marker is required")
         _inject_cleanup_failure(args.marker)
 
-    metadata = fixtures.metadata()
-    if args.variant != "identical":
-        metadata = fixtures.metadata(source={"alias": args.variant})
-
     try:
-        publication = fixtures.publish(args.root, metadata=metadata)
+        if args.mode == "read":
+            from src.data.dataset_publication import (
+                FilesystemDatasetPublicationAuthority,
+            )
+
+            record = FilesystemDatasetPublicationAuthority(
+                args.root
+            ).read_authoritative_publication(fixtures.approved_version().identity)
+            outcome = {
+                "outcome": "success",
+                "dataset_version": record.dataset_version,
+                "dataset_manifest": record.dataset_manifest,
+                "pair_fingerprint": record.pair_fingerprint,
+            }
+        else:
+            metadata = fixtures.metadata()
+            if args.variant != "identical":
+                metadata = fixtures.metadata(source={"alias": args.variant})
+            publication = fixtures.publish(args.root, metadata=metadata)
+            outcome = {
+                "outcome": "success",
+                "published": publication.published,
+                "storage_key": publication.storage_key,
+                "pair_fingerprint": publication.pair_fingerprint,
+            }
     except fixtures.DatasetPublicationError as exc:
         outcome = {"outcome": "error", "code": exc.code, "stage": exc.stage}
-    except Exception as exc:  # test worker must never serialize raw exception details
+    except Exception as exc:  # noqa: BLE001 - sanitize test worker failures
         outcome = {"outcome": "unexpected-error", "type": type(exc).__name__}
-    else:
-        outcome = {
-            "outcome": "success",
-            "published": publication.published,
-            "storage_key": publication.storage_key,
-            "pair_fingerprint": publication.pair_fingerprint,
-        }
     args.result.write_text(
         json.dumps(outcome, ensure_ascii=True, sort_keys=True), encoding="utf-8"
     )

@@ -216,17 +216,16 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 - [제안] review-start CLI는 Proposal·Review inspect와 reviewer authority가 필요하지만 publication inspect에 의존하지 않는다.
 - [제안] approve/publish operator workflow를 활성화하기 전에는 committed frozen DatasetVersion·issued DatasetManifest pair의
   public read/inspect contract가 필요하다. private replay storage protocol이나 새 aggregate state store로 우회하지 않는다.
-- [제안] ADR-031은 이 contract를 `C. NEW PUBLIC READ PORT REQUIRED`, `READY FOR IMPLEMENTATION`으로 판정했다. exact
-  `DatasetVersionIdentity`, Dataset Publication module-owned Authority Protocol, explicit-root filesystem adapter와 full pair-local
-  verification을 사용하며 listing/latest, repair와 CurrentEvidence 재검증은 지원하지 않는다. 아직 source 구현이나 runtime
-  activation은 없다.
+- [현재] ADR-031의 `C. NEW PUBLIC READ PORT REQUIRED` contract에 따라 exact `DatasetVersionIdentity`, Dataset Publication
+  module-owned Authority Protocol, explicit-root filesystem adapter와 full pair-local verification을 구현했다. listing/latest,
+  repair와 CurrentEvidence 재검증은 지원하지 않으며 runtime activation은 없다.
 
 ## CLI reconsideration readiness
 
 - [제안] proposal CLI 재검토에는 production CurrentEvidence source·selection/revocation contract, approved governance config,
   role-separated secret source, publication root owner와 typed preflight가 모두 필요하다.
 - [제안] review-start CLI에는 위 조건과 reviewer trust policy가 추가로 필요하다.
-- [제안] approve/publish CLI에는 approval action UX 재검토와 standalone publication read contract가 추가로 필요하다.
+- [제안] approve/publish CLI에는 approval action UX 재검토와 standalone publication read capability의 runtime wiring이 추가로 필요하다.
 - [제안] 이번 Gate 뒤에도 위 첫 조건이 충족되지 않으므로 CLI implementation은 시작하지 않는다.
 
 ## Overall decision
@@ -257,7 +256,7 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 2. Rights immutable authority/current projection/authenticated read와 TrainingEligibility producer·authority contract
 3. cross-source revision token 또는 evidence bundle snapshot 선택과 ADR-015 Publication binding 변경 Gate
 4. reviewer issuer·trust·accountability Gate
-5. standalone publication pair public read contract Gate — ADR-031에서 `READY FOR IMPLEMENTATION`; 별도 구현 PR 필요
+5. standalone publication pair public read contract와 구현 — 완료; runtime composition은 별도 Gate
 6. 위 결정 승인 뒤 governance config/secret loader·composition·read-only preflight contract 구현 PR
 7. production CurrentEvidence source adapter와 DohaLM coordinator 구현 PR
 8. 별도 Runtime Activation Gate에서 first supported CLI surface 재검토
@@ -280,7 +279,7 @@ API, worker, migration 또는 Training을 활성화하지 않는다.
 - [검증 필요] protected secret reference의 exact environment names, provider wire format과 platform ACL validation
 - [검증 필요] publication root atomic-usability preflight의 non-publication probe contract
 - [검증 필요] reviewer authority
-- [제안] standalone publication read public port contract는 ADR-031에서 결정됐으며 구현은 별도 PR 전까지 미완료
+- [현재] standalone publication read public port는 ADR-031 contract에 따라 구현됐으며 runtime capability wiring은 미구현
 
 ## 승인 Gate
 
@@ -292,6 +291,7 @@ Training을 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-26 | [현재] ADR-031 exact-identity publication pair public read port 구현 반영; CurrentEvidence·runtime prerequisite는 계속 `STILL BLOCKED` |
 | 2026-08-26 | [제안] ADR-031 exact-identity publication pair public read contract의 `READY FOR IMPLEMENTATION` 판정 연결; overall runtime prerequisite는 계속 `STILL BLOCKED` |
 | 2026-08-25 | [제안] ADR-028의 Rights owner/authority·projection/snapshot BLOCKED와 새 DohaLM TrainingEligibility producer/authority REQUIRED 판정 연결 |
 | 2026-08-25 | [제안] CurrentEvidence source를 `BLOCKED`, 새 DohaLM governance config/composition을 `REQUIRED`, 전체 prerequisite를 `STILL BLOCKED`로 판정 |

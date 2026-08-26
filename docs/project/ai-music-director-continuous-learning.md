@@ -115,12 +115,12 @@ LearningCandidate creation and review
 - [현재] Dataset Proposal Authority public authoritative read는 기존 restricted PostgreSQL function을 통해 구현됐으며 identity·canonical payload·fingerprint·authority metadata를 재검증한다. Product Dataset Review Start Integration은 이 public read, `review_started_at` 기준 current evidence Gate, Review Authority atomic start와 `begin_dataset_review()` 순수 transition을 순서대로 연결한다. proposal row는 계속 immutable `draft`이며 approval·publication·Training side effect와 runtime activation은 없다.
 - [현재] Product Dataset Approval Integration은 identity·proposal fingerprint·approval evidence IDs·explicit approval 평가 시각만 받고 authoritative proposal read와 immutable Review Authority read를 검증한 뒤 approval-time current evidence와 기존 순수 `approve_dataset_version()`을 연결한다. caller-created `reviewing` payload를 받지 않으며 proposal·review row를 수정하지 않는다. 결과는 Publication v1의 transient validated input candidate이고 별도 durable Approval Authority·approval replay/conflict는 두지 않는다.
 - [현재] `publish_product_dataset_version()`은 매 invocation마다 Product Approval Integration을 다시 실행한 뒤 transient `ApprovedDatasetVersion`만 기존 `publish_dataset_version()`에 전달한다. caller-created approved/frozen/Manifest payload를 받지 않으며, committed frozen DatasetVersion·issued DatasetManifest pair가 유일한 durable Publication 결과다. runtime activation·Training 연결은 없다.
-- [제안] Product Dataset Governance Runtime Activation Architecture Gate 판정은 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`다. 현재 chain은 service-only이며 production current-evidence authority, governance runtime config·secret/composition owner, reviewer trust policy와 standalone publication read 구현 전에는 CLI·API·worker를 활성화하지 않는다. 선행 계약 완료 뒤 첫 재검토 후보는 operator-driven CLI지만 아직 지원·구현 승인이 아니다.
+- [제안] Product Dataset Governance Runtime Activation Architecture Gate 판정은 `BLOCKED — PRIOR ARCHITECTURE REQUIRED`다. standalone publication read는 구현됐지만 현재 chain은 service-only이며 production current-evidence authority, governance runtime config·secret/composition owner와 reviewer trust policy 전에는 CLI·API·worker를 활성화하지 않는다. 선행 계약 완료 뒤 첫 재검토 후보는 operator-driven CLI지만 아직 지원·구현 승인이 아니다.
 - [제안] [ADR-027](../decisions/ADR-027-dataset-governance-production-prerequisites.md)은 production CurrentEvidence source를 `D. BLOCKED — EVIDENCE SOURCE NOT DEFINED`, config/composition을 `B. NEW DOHALM GOVERNANCE RUNTIME CONFIG REQUIRED`로 판정한다. Common validator는 source가 아니며 새 config도 reviewer trust를 만들지 않는다. 전체 prerequisite는 `STILL BLOCKED`이고 CLI 구현은 시작하지 않는다.
 - [제안] [ADR-028](../decisions/ADR-028-current-evidence-source-authority.md)은 접근 가능한 DohaStudio 구현에서 canonical producer를 찾지 못했다. Rights producer·authority와 unique-current projection/cross-source snapshot은 `BLOCKED`, TrainingEligibility는 새 DohaLM Dataset Governance producer·durable authority가 `REQUIRED`다. existing publication pair는 authority revision/snapshot을 결속하지 않으므로 Publication binding Gate 전 port/adapter design과 runtime activation을 시작하지 않는다.
 - [제안] [ADR-029](../decisions/ADR-029-rights-metadata-ownership-authority.md)은 Common의 DohaMusic Rights·Consent 방향과 voice consent 구현을 조사했지만 모든 source 유형의 accountable owner, canonical producer, logical Rights chain key, revoke writer와 authenticated read owner를 승인할 근거가 부족하다고 판정한다. Rights Authority contract는 `STILL BLOCKED`이며 다음 단계는 cross-repository·organizational ownership 결정이다.
 - [제안] [ADR-030](../decisions/ADR-030-cross-repository-rights-domain-ownership.md)은 여섯 repository를 비교해 DohaMusic을 strongest existing candidate, 새 Rights domain을 leading architecture alternative로 식별했지만 organizational/legal actor·stable source identity·writer·authority/read owner가 승인되지 않아 Option D와 overall `STILL BLOCKED`를 선택한다. DohaLM ownership은 Dataset consumer 경계 위반으로 기각하며 구현은 시작하지 않는다.
-- [제안] [ADR-031](../decisions/ADR-031-dataset-publication-pair-public-read-contract.md)은 committed frozen/issued pair의 standalone read를 `C. NEW PUBLIC READ PORT REQUIRED`, `READY FOR IMPLEMENTATION`으로 판정한다. exact identity Authority Protocol, explicit-root filesystem adapter, immutable result와 full pair-local verification을 제안하며 source 구현·runtime/CLI/API와 current Training permission은 활성화하지 않는다.
+- [현재] [ADR-031](../decisions/ADR-031-dataset-publication-pair-public-read-contract.md)의 committed frozen/issued pair standalone read를 exact identity Authority Protocol, explicit-root filesystem adapter, immutable result와 full pair-local verification으로 구현했다. runtime/CLI/API와 current Training permission은 활성화하지 않는다.
 - [현재] [Rights Owner Decision Request](../decisions/rights-owner-decision-request.md)는 accepted authentication ADR과 병합 PR을 재검증했다. DohaMusic identity/issuer와 DohaAudio semantic ReviewerAuthority는 부분 승인됐지만 source-wide Rights business owner·identity·writers·authority/read owner는 승인되지 않아 Option D를 유지한다.
 
 ## Product continuous learning 구현 상태
@@ -141,8 +141,8 @@ LearningCandidate creation and review
 | Dataset Review Start Integration | `CURRENT` |
 | Dataset Approval Integration | `CURRENT` |
 | Dataset Publication Integration | `CURRENT` |
-| Dataset Publication Pair Public Read Contract | `DRAFT — READY FOR IMPLEMENTATION` |
-| Dataset Publication Pair Public Read Implementation | `NOT IMPLEMENTED` |
+| Dataset Publication Pair Public Read Contract | `DRAFT — PROPOSED` |
+| Dataset Publication Pair Public Read Implementation | `IMPLEMENTED` |
 | Production RightsMetadata Producer/Authority | `BLOCKED` |
 | Production TrainingEligibility Producer/Authority | `REQUIRED` |
 | Production CurrentEvidence Source | `BLOCKED` |
@@ -195,6 +195,7 @@ LearningCandidate creation and review
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-26 | Dataset Publication Pair exact-identity public read port·immutable record·explicit-root filesystem adapter와 full pair-local verification 구현 반영; runtime activation은 계속 차단 |
 | 2026-08-25 | Rights Owner Decision Request의 explicit approval READY 기준과 authentication 부분 승인·전체 Rights ownership 분리, Option D 유지 반영 |
 | 2026-08-25 | ADR-030의 cross-repository Rights ownership Option D·organizational approval `REQUIRED`·overall `STILL BLOCKED` 판정 반영 |
 | 2026-08-25 | ADR-029의 RightsMetadata accountable owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 반영 |

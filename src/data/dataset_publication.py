@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
+import re
+import stat
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from .artifacts import AtomicArtifactDirectory
 from .checksums import canonical_json_bytes, checksum_value
 from .common_dataset_contracts import (
+    CommonContractRuntimeError,
     CommonDatasetValidationError,
     validate_dataset_manifest,
     validate_dataset_publication_scenario,
@@ -48,6 +52,8 @@ _OPTIONAL_METADATA = frozenset(
 _VERSION_FILE = "dataset-version.json"
 _MANIFEST_FILE = "dataset-manifest.json"
 _FILES = frozenset({_VERSION_FILE, _MANIFEST_FILE})
+_IDENTITY_COMPONENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}")
+_FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class DatasetPublicationError(RuntimeError):
@@ -132,6 +138,99 @@ class DatasetPublicationResult:
         return _decode_object(self._manifest_bytes, "result")
 
 
+@dataclass(frozen=True, init=False)
+class DatasetPublicationRecord:
+    """Immutable authoritative snapshot of one committed publication pair."""
+
+    identity: DatasetVersionIdentity
+    pair_fingerprint: str
+    _version_bytes: bytes = field(repr=False, compare=False)
+    _manifest_bytes: bytes = field(repr=False, compare=False)
+
+    @classmethod
+    def _create(
+        cls,
+        version: Mapping[str, Any],
+        manifest: Mapping[str, Any],
+        *,
+        pair_fingerprint: str,
+    ) -> DatasetPublicationRecord:
+        value = object.__new__(cls)
+        object.__setattr__(
+            value,
+            "identity",
+            DatasetVersionIdentity(
+                object_id=version["object_id"],
+                dataset_id=version["dataset_id"],
+                dataset_version=version["dataset_version"],
+            ),
+        )
+        object.__setattr__(value, "pair_fingerprint", pair_fingerprint)
+        object.__setattr__(value, "_version_bytes", canonical_json_bytes(version))
+        object.__setattr__(value, "_manifest_bytes", canonical_json_bytes(manifest))
+        return value
+
+    @property
+    def dataset_version(self) -> dict[str, Any]:
+        return _decode_object(self._version_bytes, "record")
+
+    @property
+    def dataset_manifest(self) -> dict[str, Any]:
+        return _decode_object(self._manifest_bytes, "record")
+
+
+class DatasetPublicationAuthority(Protocol):
+    """Read one committed publication through its exact logical identity."""
+
+    def read_authoritative_publication(
+        self,
+        identity: DatasetVersionIdentity,
+        *,
+        expected_pair_fingerprint: str | None = None,
+    ) -> DatasetPublicationRecord:
+        """Return a fully verified immutable pair without storage mutation."""
+
+
+class FilesystemDatasetPublicationAuthority:
+    """Read-only authority adapter for the Publication v1 filesystem layout."""
+
+    def __init__(self, publication_root: Path) -> None:
+        if not isinstance(publication_root, Path) or not publication_root.is_absolute():
+            raise DatasetPublicationError(
+                "PUBLICATION_STORAGE_UNAVAILABLE", "configuration"
+            )
+        self._publication_root = publication_root
+
+    def __repr__(self) -> str:
+        return "FilesystemDatasetPublicationAuthority(<redacted>)"
+
+    def read_authoritative_publication(
+        self,
+        identity: DatasetVersionIdentity,
+        *,
+        expected_pair_fingerprint: str | None = None,
+    ) -> DatasetPublicationRecord:
+        """Read one exact final directory with full pair-local verification."""
+
+        requested = _require_read_request(identity, expected_pair_fingerprint)
+        _require_publication_root(self._publication_root)
+        final_path = self._publication_root / _storage_key(requested)
+        version, manifest = _read_committed_pair(final_path)
+        _validate_read_pair(version, manifest, requested)
+        fingerprint = _pair_fingerprint(version, manifest)
+        if expected_pair_fingerprint is not None and not _fingerprints_equal(
+            fingerprint, expected_pair_fingerprint
+        ):
+            raise DatasetPublicationError(
+                "PUBLICATION_FINGERPRINT_MISMATCH", "verification"
+            )
+        return DatasetPublicationRecord._create(
+            version,
+            manifest,
+            pair_fingerprint=fingerprint,
+        )
+
+
 def publish_dataset_version(
     approved: ApprovedDatasetVersion,
     *,
@@ -156,15 +255,13 @@ def publish_dataset_version(
     }
     _validate_pair(frozen, manifest, scenario)
 
-    storage_key = checksum_value(
-        {
-            "dataset_id": frozen["dataset_id"],
-            "dataset_version": frozen["dataset_version"],
-            "object_id": frozen["object_id"],
-        }
-    ).removeprefix("sha256:")
-    if len(storage_key) != 64 or any(c not in "0123456789abcdef" for c in storage_key):
-        raise DatasetPublicationError("PUBLICATION_STORAGE_KEY_INVALID", "identity")
+    storage_key = _storage_key(
+        DatasetVersionIdentity(
+            object_id=frozen["object_id"],
+            dataset_id=frozen["dataset_id"],
+            dataset_version=frozen["dataset_version"],
+        )
+    )
     pair_fingerprint = _pair_fingerprint(frozen, manifest)
     expected = {
         _VERSION_FILE: canonical_json_bytes(frozen),
@@ -348,6 +445,132 @@ def _pair_fingerprint(version: Mapping[str, Any], manifest: Mapping[str, Any]) -
     return checksum_value({"dataset_manifest": manifest, "dataset_version": version})
 
 
+def _storage_key(identity: DatasetVersionIdentity) -> str:
+    storage_key = checksum_value(
+        {
+            "dataset_id": identity.dataset_id,
+            "dataset_version": identity.dataset_version,
+            "object_id": identity.object_id,
+        }
+    ).removeprefix("sha256:")
+    if len(storage_key) != 64 or any(c not in "0123456789abcdef" for c in storage_key):
+        raise DatasetPublicationError("PUBLICATION_STORAGE_KEY_INVALID", "identity")
+    return storage_key
+
+
+def _require_read_request(
+    identity: object, expected_pair_fingerprint: object
+) -> DatasetVersionIdentity:
+    if type(identity) is not DatasetVersionIdentity or any(
+        not isinstance(component, str)
+        or _IDENTITY_COMPONENT.fullmatch(component) is None
+        for component in (
+            identity.object_id,
+            identity.dataset_id,
+            identity.dataset_version,
+        )
+    ):
+        raise DatasetPublicationError("PUBLICATION_READ_REQUEST_INVALID", "request")
+    if expected_pair_fingerprint is not None and (
+        not isinstance(expected_pair_fingerprint, str)
+        or _FINGERPRINT.fullmatch(expected_pair_fingerprint) is None
+    ):
+        raise DatasetPublicationError("PUBLICATION_READ_REQUEST_INVALID", "request")
+    return identity
+
+
+def _require_publication_root(root: Path) -> None:
+    try:
+        root_status = root.lstat()
+    except OSError:
+        raise DatasetPublicationError(
+            "PUBLICATION_STORAGE_UNAVAILABLE", "storage"
+        ) from None
+    if root.is_symlink() or not stat.S_ISDIR(root_status.st_mode):
+        raise DatasetPublicationError("PUBLICATION_STORAGE_UNAVAILABLE", "storage")
+
+
+def _read_committed_pair(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    try:
+        path_status = path.lstat()
+    except FileNotFoundError:
+        raise DatasetPublicationError("PUBLICATION_NOT_FOUND", "read") from None
+    except OSError:
+        raise DatasetPublicationError(
+            "PUBLICATION_STORAGE_UNAVAILABLE", "storage"
+        ) from None
+    if path.is_symlink() or not stat.S_ISDIR(path_status.st_mode):
+        raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification")
+
+    try:
+        entries = tuple(path.iterdir())
+        if {entry.name for entry in entries} != _FILES:
+            raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification")
+        for entry in entries:
+            entry_status = entry.lstat()
+            if entry.is_symlink() or not stat.S_ISREG(entry_status.st_mode):
+                raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification")
+        actual = {name: (path / name).read_bytes() for name in _FILES}
+    except DatasetPublicationError:
+        raise
+    except OSError:
+        raise DatasetPublicationError(
+            "PUBLICATION_STORAGE_UNAVAILABLE", "storage"
+        ) from None
+
+    try:
+        decoded = {name: _strict_json(payload) for name, payload in actual.items()}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification") from None
+
+    version = decoded[_VERSION_FILE]
+    manifest = decoded[_MANIFEST_FILE]
+    try:
+        validate_dataset_version(version)
+        validate_dataset_manifest(manifest)
+    except (CommonContractRuntimeError, CommonDatasetValidationError):
+        raise DatasetPublicationError(
+            "PUBLICATION_SCHEMA_INVALID", "validation"
+        ) from None
+
+    try:
+        if any(canonical_json_bytes(decoded[name]) != actual[name] for name in _FILES):
+            raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification")
+    except (TypeError, ValueError):
+        raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification") from None
+    return version, manifest
+
+
+def _validate_read_pair(
+    version: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    requested: DatasetVersionIdentity,
+) -> None:
+    if (
+        version.get("status") != "frozen"
+        or version.get("approved") is not True
+        or version.get("frozen") is not True
+        or version.get("training_allowed") is not True
+        or manifest.get("manifest_status") != "issued"
+        or manifest.get("training_allowed") is not True
+    ):
+        raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification")
+    if (
+        version.get("object_id") != requested.object_id
+        or version.get("dataset_id") != requested.dataset_id
+        or version.get("dataset_version") != requested.dataset_version
+    ):
+        raise DatasetPublicationError("PUBLICATION_IDENTITY_MISMATCH", "verification")
+    try:
+        _require_domain_identity(version, manifest)
+    except DatasetPublicationError:
+        raise DatasetPublicationError("PUBLICATION_CORRUPT", "verification") from None
+
+
+def _fingerprints_equal(actual: str, expected: str) -> bool:
+    return hmac.compare_digest(actual, expected)
+
+
 def _replay(
     final_path: Path,
     expected: Mapping[str, bytes],
@@ -429,7 +652,7 @@ def _strict_json(payload: bytes) -> dict[str, Any]:
         parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("constant")),
     )
     if not isinstance(value, dict):
-        raise ValueError("JSON object required")
+        raise TypeError("JSON object required")
     return value
 
 
@@ -453,8 +676,11 @@ def _decode_object(payload: bytes, stage: str) -> dict[str, Any]:
 
 
 __all__ = [
+    "DatasetPublicationAuthority",
     "DatasetPublicationError",
     "DatasetPublicationMetadata",
+    "DatasetPublicationRecord",
     "DatasetPublicationResult",
+    "FilesystemDatasetPublicationAuthority",
     "publish_dataset_version",
 ]
