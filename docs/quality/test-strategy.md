@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-26 |
+| 마지막 검토일 | 2026-08-27 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -102,13 +102,16 @@
 
 ### 7.1 Dataset Governance CI
 
-- [확정] `.github/workflows/dataset-governance.yml`은 `src/data/**`, Dataset/Product Dataset 테스트, Common 계약 테스트와 workflow 자체가 바뀐 pull request에서 실행한다.
-- [확정] 빠른 권한·거버넌스·Publication 회귀와 Publication 멀티프로세스 회귀를 분리된 step으로 실행한다.
+- [확정] `.github/workflows/dataset-governance.yml`의 `Dataset Governance Unit / Publication` check는 모든 pull request에서 생성한다.
+- [확정] Dataset 관련 경로가 바뀌면 빠른 권한·거버넌스·Publication 회귀와 Publication 멀티프로세스 회귀를 분리된 step으로 실행하고, 무관한 변경이면 heavy step을 생략한 cheap success를 보고한다.
+- [확정] cheap success 경로는 checkout, changed-path 분류, 확인 step만 실행하며 Python setup과 Dataset dependency 설치를 생략한다.
+- [확정] Dataset unit discovery는 `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py`, Common 계약 테스트를 자동 포함하되 Publication process는 별도 실행하고 Training/Torch 경계인 `tests/test_dataset_training_*.py`는 제외한다.
 - [확정] PostgreSQL adapter·migration 통합 검증은 기존 C1/C2 workflow 책임으로 유지하며, pure Dataset 변경에 PostgreSQL service를 강제하지 않는다.
 - [확정] Python 3.12 Ubuntu runner에서 Common 계약, PyYAML, pytest, Ruff만 설치하고 Training·Transformers·GPU dependency와 production secret은 사용하지 않는다.
 - [확정] 정적 검사는 관련 Dataset Governance 파일의 critical Ruff 규칙, format, compile/import와 patch whitespace를 검사한다. 저장소 전체 Ruff debt는 이 workflow에서 새 blocker로 만들지 않는다.
-- [확정] ADR·Dataset 문서만 바뀐 경우 production regression은 실행하지 않고 Markdown 문서 검증 정책을 적용한다.
+- [확정] ADR·project 문서만 바뀐 경우 Dataset heavy regression은 실행하지 않지만 동일 check context는 cheap success로 존재하며 Markdown 문서 검증 정책을 별도로 적용한다.
 - [확정] workflow 실행과 branch protection의 required check 지정은 별도 운영 결정이며, 이 구현은 branch protection을 변경하지 않는다.
+- [검증 필요] always-present check는 향후 required check 후보이며 실제 branch protection 적용은 별도 Gate에서 결정한다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
 |---|---|---|---|---|---|
@@ -118,7 +121,7 @@
 | `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | 아니요 |
 | `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 아니요 | 예 | 아니요 |
 | 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 아니요 | 기존 C2 filter 기준 | 예 |
-| Dataset governance ADR·project docs only | 아니요 | 아니요 | 아니요 | 아니요 | 아니요 |
+| Dataset governance ADR·project docs only | 생략(check success) | 생략 | 아니요 | 아니요 | 아니요 |
 | `.github/workflows/dataset-governance.yml` | 예 | 예 | 아니요 | 아니요 | 아니요 |
 
 - [검증 필요] Dataset Governance 외 영역의 통합 CI matrix, coverage 임계값과 전체 합격 시간은 후속 결정한다.
@@ -127,5 +130,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-27 | [확정] Dataset Governance always-present check, path-aware heavy regression, bounded test 자동 discovery와 cheap success 경계 추가 |
 | 2026-08-26 | [확정] Dataset Governance 전용 unit·Publication process CI 범위, PostgreSQL·Training·docs-only 경계와 changed-path matrix 추가 |
 | 2026-07-23 | [확정] 9개 test 수준, CPU/GPU 경계, test data, 회귀와 실패 정책 정의 |
