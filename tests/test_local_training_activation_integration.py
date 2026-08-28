@@ -23,6 +23,18 @@ from src.training.local_activation import (
 LABEL = "com.dohastudio.local-training.activation"
 
 
+def _expected_repository_migration_versions() -> tuple[int, ...]:
+    migration_paths = sorted(Path("src/postgres_migrations").glob("*.sql"))
+    assert migration_paths
+    versions = tuple(int(path.name.split("_", 1)[0]) for path in migration_paths)
+    assert all(
+        path.name.startswith(f"{version:04d}_")
+        for path, version in zip(migration_paths, versions, strict=True)
+    )
+    assert versions == tuple(range(1, len(versions) + 1))
+    return versions
+
+
 def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["docker", *arguments],
@@ -116,8 +128,9 @@ def test_local_durable_bootstrap_readiness_and_explicit_cleanup(
         first = bootstrapper.bootstrap()
         second = bootstrapper.bootstrap()
         assert first.port == second.port
-        assert first.migration_versions == (1, 2, 3)
-        assert second.migration_versions == (1, 2, 3)
+        expected_migration_versions = _expected_repository_migration_versions()
+        assert first.migration_versions == expected_migration_versions
+        assert second.migration_versions == expected_migration_versions
         assert first.binding_verified is True
         assert first.durable_volume_preserved is True
 
