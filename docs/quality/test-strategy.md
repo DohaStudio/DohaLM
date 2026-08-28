@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-27 |
+| 마지막 검토일 | 2026-08-28 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -110,8 +110,10 @@
 - [확정] Python 3.12 Ubuntu runner에서 Common 계약, PyYAML, pytest, Ruff만 설치하고 Training·Transformers·GPU dependency와 production secret은 사용하지 않는다.
 - [확정] 정적 검사는 관련 Dataset Governance 파일의 critical Ruff 규칙, format, compile/import와 patch whitespace를 검사한다. 저장소 전체 Ruff debt는 이 workflow에서 새 blocker로 만들지 않는다.
 - [확정] ADR·project 문서만 바뀐 경우 Dataset heavy regression은 실행하지 않지만 동일 check context는 cheap success로 존재하며 Markdown 문서 검증 정책을 별도로 적용한다.
-- [확정] workflow 실행과 branch protection의 required check 지정은 별도 운영 결정이며, 이 구현은 branch protection을 변경하지 않는다.
-- [검증 필요] always-present check는 향후 required check 후보이며 실제 branch protection 적용은 별도 Gate에서 결정한다.
+- [확정] `Dataset Governance Unit / Publication`은 repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)이 `develop`에 요구하는 유일한 required status check다. enforcement source는 classic branch protection이 아니라 repository ruleset이다.
+- [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
+- [확정] C1·C2·Training workflow는 존재하지만 각 `contract` check는 required가 아니다. 세 workflow의 동일한 context 이름은 알려진 제한이며 별도 normalization Gate에서 다룬다.
+- [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
 |---|---|---|---|---|---|
@@ -130,6 +132,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-28 | [확정] `develop` 대상 Dataset Governance required status check repository ruleset과 strict·PR·review·admin bypass·C1/C2/Training 비적용 경계를 동기화 |
 | 2026-08-27 | [확정] Dataset Governance always-present check, path-aware heavy regression, bounded test 자동 discovery와 cheap success 경계 추가 |
 | 2026-08-26 | [확정] Dataset Governance 전용 unit·Publication process CI 범위, PostgreSQL·Training·docs-only 경계와 changed-path matrix 추가 |
 | 2026-07-23 | [확정] 9개 test 수준, CPU/GPU 경계, test data, 회귀와 실패 정책 정의 |
