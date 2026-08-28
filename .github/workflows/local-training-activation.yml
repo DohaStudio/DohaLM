@@ -56,6 +56,7 @@ concurrency:
 
 jobs:
   contract:
+    name: Local Training Activation Contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

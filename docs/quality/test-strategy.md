@@ -112,7 +112,7 @@
 - [확정] ADR·project 문서만 바뀐 경우 Dataset heavy regression은 실행하지 않지만 동일 check context는 cheap success로 존재하며 Markdown 문서 검증 정책을 별도로 적용한다.
 - [확정] `Dataset Governance Unit / Publication`은 repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)이 `develop`에 요구하는 유일한 required status check다. enforcement source는 classic branch protection이 아니라 repository ruleset이다.
 - [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
-- [확정] C1·C2·Training workflow는 존재하지만 각 `contract` check는 required가 아니다. 세 workflow의 동일한 context 이름은 알려진 제한이며 별도 normalization Gate에서 다룬다.
+- [확정] C1·C2·Training workflow의 check context는 각각 `C1 PostgreSQL Contract`, `C2 PostgreSQL Training Adapters`, `Local Training Activation Contract`로 고유하다. 세 workflow는 path-filtered 상태이며 required check가 아니다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
@@ -132,6 +132,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-28 | [확정] C1·C2·Training의 중복 `contract` context를 workflow별 고유 check 이름으로 분리하고 path-filtered·non-required 경계를 유지 |
 | 2026-08-28 | [확정] `develop` 대상 Dataset Governance required status check repository ruleset과 strict·PR·review·admin bypass·C1/C2/Training 비적용 경계를 동기화 |
 | 2026-08-27 | [확정] Dataset Governance always-present check, path-aware heavy regression, bounded test 자동 discovery와 cheap success 경계 추가 |
 | 2026-08-26 | [확정] Dataset Governance 전용 unit·Publication process CI 범위, PostgreSQL·Training·docs-only 경계와 changed-path matrix 추가 |
