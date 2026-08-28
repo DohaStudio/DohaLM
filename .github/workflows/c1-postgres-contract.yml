@@ -34,6 +34,7 @@ concurrency:
 
 jobs:
   contract:
+    name: C1 PostgreSQL Contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
