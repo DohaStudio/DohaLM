@@ -120,18 +120,20 @@
 | `src/data/dataset_publication.py` 등 pure Dataset Governance | 예 | 예 | 아니요 | 아니요 | 아니요 |
 | `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py` | 예 | 관련 process 경로이면 예 | 아니요 | 아니요 | 아니요 |
 | Dataset Proposal/Review PostgreSQL adapter | 예 | 예 | 예 | 예 | 아니요 |
-| `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | 아니요 |
+| `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | `tests/test_postgres_c1_integration.py`만 예 |
 | `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 아니요 | 예 | 아니요 |
 | 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 아니요 | 기존 C2 filter 기준 | 예 |
 | Dataset governance ADR·project docs only | 생략(check success) | 생략 | 아니요 | 아니요 | 아니요 |
 | `.github/workflows/dataset-governance.yml` | 예 | 예 | 아니요 | 아니요 | 아니요 |
 
 - [검증 필요] Dataset Governance 외 영역의 통합 CI matrix, coverage 임계값과 전체 합격 시간은 후속 결정한다.
+- [확정] Local Training workflow는 shared PostgreSQL/C3 fixture 계약인 `tests/test_postgres_c1_integration.py`가 변경될 때도 실행한다.
 
 ## 8. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-29 | [확정] shared PostgreSQL/C3 fixture 변경을 Local Training workflow의 pull request·push trigger에 포함 |
 | 2026-08-28 | [확정] C1·C2·Training의 중복 `contract` context를 workflow별 고유 check 이름으로 분리하고 path-filtered·non-required 경계를 유지 |
 | 2026-08-28 | [확정] `develop` 대상 Dataset Governance required status check repository ruleset과 strict·PR·review·admin bypass·C1/C2/Training 비적용 경계를 동기화 |
 | 2026-08-27 | [확정] Dataset Governance always-present check, path-aware heavy regression, bounded test 자동 discovery와 cheap success 경계 추가 |
