@@ -110,9 +110,9 @@
 - [확정] Python 3.12 Ubuntu runner에서 Common 계약, PyYAML, pytest, Ruff만 설치하고 Training·Transformers·GPU dependency와 production secret은 사용하지 않는다.
 - [확정] 정적 검사는 관련 Dataset Governance 파일의 critical Ruff 규칙, format, compile/import와 patch whitespace를 검사한다. 저장소 전체 Ruff debt는 이 workflow에서 새 blocker로 만들지 않는다.
 - [확정] ADR·project 문서만 바뀐 경우 Dataset heavy regression은 실행하지 않지만 동일 check context는 cheap success로 존재하며 Markdown 문서 검증 정책을 별도로 적용한다.
-- [확정] `Dataset Governance Unit / Publication`은 repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)이 `develop`에 요구하는 유일한 required status check다. enforcement source는 classic branch protection이 아니라 repository ruleset이다.
+- [확정] repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)은 `develop`에 `Dataset Governance Unit / Publication`과 `C1 PostgreSQL Contract`를 required status check로 요구한다. 두 context는 모두 GitHub Actions App(`integration_id 15368`)에 binding되며 enforcement source는 classic branch protection이 아니라 repository ruleset이다.
 - [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
-- [확정] C1 workflow의 `C1 PostgreSQL Contract` context는 모든 pull request와 `develop` push에서 생성하며, 관련 경로는 PostgreSQL heavy regression을 실행하고 무관한 경로는 dependency·Docker 없이 cheap success를 보고한다. C1은 아직 required check가 아니다.
+- [확정] C1 workflow의 `C1 PostgreSQL Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. 관련 경로는 PostgreSQL heavy regression을 실행하고 무관한 경로는 dependency·Docker 없이 cheap success를 보고하므로, required 적용이 모든 pull request의 heavy 실행을 의미하지는 않는다.
 - [확정] C2·Training workflow의 check context는 각각 `C2 PostgreSQL Training Adapters`, `Local Training Activation Contract`로 고유하며 path-filtered·non-required 상태를 유지한다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
@@ -135,6 +135,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-29 | [확정] live repository ruleset에 맞춰 Dataset과 C1을 `develop` required status check로, C2·Training을 non-required로 동기화 |
 | 2026-08-29 | [확정] C1 PostgreSQL check를 always-present, path-aware heavy/cheap, non-required 구조로 정규화 |
 | 2026-08-29 | [확정] shared PostgreSQL/C3 fixture 변경을 Local Training workflow의 pull request·push trigger에 포함 |
 | 2026-08-28 | [확정] C1·C2·Training의 중복 `contract` context를 workflow별 고유 check 이름으로 분리하고 path-filtered·non-required 경계를 유지 |
