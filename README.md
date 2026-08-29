@@ -127,3 +127,5 @@ scripts/       검증·학습·평가 실행 진입점
 
 AIHUB-71748은 학생·비상업 연구 범위입니다. 상업 이용과 원본·파생 데이터 재배포는 승인되지 않았으며 대용량 데이터,
 checkpoint와 Adapter는 Git에 포함하지 않습니다. 모델·checkpoint·tokenizer·dataset publication과 배포는 각각 별도 승인 대상입니다.
+
+<!-- C2 always-present cheap-path simulation; draft-only and not intended for merge. -->
