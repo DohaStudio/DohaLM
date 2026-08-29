@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-28 |
+| 마지막 검토일 | 2026-08-29 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -112,27 +112,30 @@
 - [확정] ADR·project 문서만 바뀐 경우 Dataset heavy regression은 실행하지 않지만 동일 check context는 cheap success로 존재하며 Markdown 문서 검증 정책을 별도로 적용한다.
 - [확정] `Dataset Governance Unit / Publication`은 repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)이 `develop`에 요구하는 유일한 required status check다. enforcement source는 classic branch protection이 아니라 repository ruleset이다.
 - [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
-- [확정] C1·C2·Training workflow의 check context는 각각 `C1 PostgreSQL Contract`, `C2 PostgreSQL Training Adapters`, `Local Training Activation Contract`로 고유하다. 세 workflow는 path-filtered 상태이며 required check가 아니다.
+- [확정] C1 workflow의 `C1 PostgreSQL Contract` context는 모든 pull request와 `develop` push에서 생성하며, 관련 경로는 PostgreSQL heavy regression을 실행하고 무관한 경로는 dependency·Docker 없이 cheap success를 보고한다. C1은 아직 required check가 아니다.
+- [확정] C2·Training workflow의 check context는 각각 `C2 PostgreSQL Training Adapters`, `Local Training Activation Contract`로 고유하며 path-filtered·non-required 상태를 유지한다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
 |---|---|---|---|---|---|
-| `src/data/dataset_publication.py` 등 pure Dataset Governance | 예 | 예 | 아니요 | 아니요 | 아니요 |
-| `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py` | 예 | 관련 process 경로이면 예 | 아니요 | 아니요 | 아니요 |
+| `src/data/dataset_publication.py` 등 pure Dataset Governance | 예 | 예 | 생략(check success) | 아니요 | 아니요 |
+| `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py` | 예 | 관련 process 경로이면 예 | 생략(check success) | 아니요 | 아니요 |
 | Dataset Proposal/Review PostgreSQL adapter | 예 | 예 | 예 | 예 | 아니요 |
 | `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | `tests/test_postgres_c1_integration.py`만 예 |
-| `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 아니요 | 예 | 아니요 |
-| 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 아니요 | 기존 C2 filter 기준 | 예 |
-| Dataset governance ADR·project docs only | 생략(check success) | 생략 | 아니요 | 아니요 | 아니요 |
-| `.github/workflows/dataset-governance.yml` | 예 | 예 | 아니요 | 아니요 | 아니요 |
+| `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 생략(check success) | 예 | 아니요 |
+| 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 생략(check success) | 기존 C2 filter 기준 | 예 |
+| Dataset governance ADR·project docs only | 생략(check success) | 생략 | 생략(check success) | 아니요 | 아니요 |
+| `.github/workflows/dataset-governance.yml` | 예 | 예 | 생략(check success) | 아니요 | 아니요 |
 
 - [검증 필요] Dataset Governance 외 영역의 통합 CI matrix, coverage 임계값과 전체 합격 시간은 후속 결정한다.
 - [확정] Local Training workflow는 shared PostgreSQL/C3 fixture 계약인 `tests/test_postgres_c1_integration.py`가 변경될 때도 실행한다.
+- [확정] C1 heavy classifier는 normalization 전 pull request·push path filter의 workflow, dependency, C1 source·migration, Proposal/Review PostgreSQL adapter와 `tests/test_postgres_c1*.py` 범위를 그대로 보존하며 추가·수정·복사·이름 변경·삭제를 모두 감지한다.
 
 ## 8. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-29 | [확정] C1 PostgreSQL check를 always-present, path-aware heavy/cheap, non-required 구조로 정규화 |
 | 2026-08-29 | [확정] shared PostgreSQL/C3 fixture 변경을 Local Training workflow의 pull request·push trigger에 포함 |
 | 2026-08-28 | [확정] C1·C2·Training의 중복 `contract` context를 workflow별 고유 check 이름으로 분리하고 path-filtered·non-required 경계를 유지 |
 | 2026-08-28 | [확정] `develop` 대상 Dataset Governance required status check repository ruleset과 strict·PR·review·admin bypass·C1/C2/Training 비적용 경계를 동기화 |
