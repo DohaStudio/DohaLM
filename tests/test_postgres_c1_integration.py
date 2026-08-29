@@ -8,18 +8,18 @@ import subprocess
 import threading
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Any, Self
 
 import pytest
 
 from src.postgres_c1 import (
     C1PostgresConnectionFactory,
-    C1PostgresError,
     C1PostgresSettings,
     apply_c1_migrations,
     map_c1_postgres_error,
@@ -40,6 +40,8 @@ IMAGE = (
 )
 LABEL_KEY = "com.dohastudio.c1.correlation"
 SCHEMA = "dohalm_training_v1"
+POSTGRES_READINESS_TIMEOUT_SECONDS = 30.0
+POSTGRES_READINESS_POLL_INTERVAL_SECONDS = 0.25
 
 
 def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -97,6 +99,197 @@ def _assert_loopback_listener(container: str, port: int) -> None:
         assert listeners
         local_addresses = [line.split()[3] for line in listeners]
         assert local_addresses == [f"127.0.0.1:{port}"]
+
+
+def _is_retryable_postgres_readiness_error(error: BaseException) -> bool:
+    sqlstate = getattr(error, "sqlstate", None)
+    if isinstance(sqlstate, str):
+        return sqlstate.startswith("08") or sqlstate == "57P03"
+    try:
+        from psycopg import OperationalError
+    except ImportError:
+        return False
+    return isinstance(error, OperationalError)
+
+
+def _wait_for_postgres_connection(
+    settings: C1PostgresSettings,
+    *,
+    connect: Callable[..., Any] | None = None,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    timeout_seconds: float = POSTGRES_READINESS_TIMEOUT_SECONDS,
+    poll_interval_seconds: float = POSTGRES_READINESS_POLL_INTERVAL_SECONDS,
+) -> None:
+    if timeout_seconds <= 0 or poll_interval_seconds <= 0:
+        raise ValueError("PostgreSQL readiness timing must be positive")
+    if connect is None:
+        import psycopg
+
+        connect = psycopg.connect
+
+    deadline = clock() + timeout_seconds
+    while True:
+        try:
+            with connect(
+                host=settings.host,
+                port=settings.port,
+                dbname=settings.database,
+                user=settings.user,
+                password=settings.password,
+                connect_timeout=5,
+                options="-c timezone=UTC -c client_encoding=UTF8",
+                autocommit=True,
+            ) as connection:
+                assert connection.execute("SELECT 1").fetchone() == (1,)
+            return
+        except Exception as error:
+            if not _is_retryable_postgres_readiness_error(error):
+                raise
+            now = clock()
+            if now >= deadline:
+                error_type = type(error).__name__
+                raise AssertionError(
+                    "isolated PostgreSQL host readiness probe timed out after "
+                    f"{timeout_seconds:g}s; "
+                    f"last_error_type={error_type}"
+                ) from None
+            sleep(min(poll_interval_seconds, deadline - now))
+
+
+class _ReadinessProbeError(Exception):
+    def __init__(self, sqlstate: str) -> None:
+        self.sqlstate = sqlstate
+        super().__init__("synthetic readiness failure")
+
+
+class _ReadinessProbeResult:
+    def __init__(self, queries: list[str]) -> None:
+        self._queries = queries
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+    def execute(self, query: str) -> _ReadinessProbeResult:
+        self._queries.append(query)
+        return self
+
+    def fetchone(self) -> tuple[int]:
+        return (1,)
+
+
+class _ReadinessProbeConnector:
+    def __init__(self, outcomes: list[BaseException | None]) -> None:
+        self._outcomes = iter(outcomes)
+        self.calls: list[dict[str, object]] = []
+        self.queries: list[str] = []
+
+    def __call__(self, **kwargs: object) -> _ReadinessProbeResult:
+        self.calls.append(kwargs)
+        outcome = next(self._outcomes)
+        if outcome is not None:
+            raise outcome
+        return _ReadinessProbeResult(self.queries)
+
+
+class _ReadinessProbeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.sleeps: list[float] = []
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def _readiness_settings() -> C1PostgresSettings:
+    return C1PostgresSettings(
+        environment="local_ephemeral",
+        host="127.0.0.1",
+        port=54321,
+        database="dohalm_c1_readiness",
+        user="dohalm_c1_readiness_owner",
+        password="synthetic-readiness-password",
+    )
+
+
+def test_postgres_readiness_retries_only_transient_failures_before_query() -> None:
+    from psycopg import OperationalError
+
+    connector = _ReadinessProbeConnector(
+        [
+            OperationalError("synthetic connection refusal"),
+            _ReadinessProbeError("57P03"),
+            None,
+        ]
+    )
+    clock = _ReadinessProbeClock()
+
+    _wait_for_postgres_connection(
+        _readiness_settings(),
+        connect=connector,
+        clock=clock,
+        sleep=clock.sleep,
+        timeout_seconds=1.0,
+        poll_interval_seconds=0.25,
+    )
+
+    assert len(connector.calls) == 3
+    assert connector.queries == ["SELECT 1"]
+    assert clock.sleeps == [0.25, 0.25]
+    assert connector.calls[-1]["user"] == "dohalm_c1_readiness_owner"
+    assert connector.calls[-1]["autocommit"] is True
+
+
+def test_postgres_readiness_fails_authentication_without_retry() -> None:
+    authentication_error = _ReadinessProbeError("28P01")
+    connector = _ReadinessProbeConnector([authentication_error])
+    clock = _ReadinessProbeClock()
+
+    with pytest.raises(_ReadinessProbeError) as captured:
+        _wait_for_postgres_connection(
+            _readiness_settings(),
+            connect=connector,
+            clock=clock,
+            sleep=clock.sleep,
+        )
+
+    assert captured.value is authentication_error
+    assert len(connector.calls) == 1
+    assert clock.sleeps == []
+
+
+def test_postgres_readiness_deadline_is_bounded_and_sanitized() -> None:
+    connector = _ReadinessProbeConnector(
+        [
+            _ReadinessProbeError("08006"),
+            _ReadinessProbeError("08006"),
+            _ReadinessProbeError("08006"),
+        ]
+    )
+    clock = _ReadinessProbeClock()
+
+    with pytest.raises(
+        AssertionError, match="host readiness probe timed out"
+    ) as captured:
+        _wait_for_postgres_connection(
+            _readiness_settings(),
+            connect=connector,
+            clock=clock,
+            sleep=clock.sleep,
+            timeout_seconds=0.5,
+            poll_interval_seconds=0.25,
+        )
+
+    assert len(connector.calls) == 3
+    assert clock.sleeps == [0.25, 0.25]
+    assert "synthetic-readiness-password" not in str(captured.value)
 
 
 @dataclass(frozen=True)
@@ -173,6 +366,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
             user=user,
             password=password,
         )
+        _wait_for_postgres_connection(settings)
         factory = C1PostgresConnectionFactory(settings)
 
         def migrate() -> tuple[int, ...]:
@@ -1989,15 +2183,7 @@ def test_migration_idempotency_advisory_lock_and_restart(
     restart_factory = C1PostgresConnectionFactory(
         replace(c1_postgres.settings, port=restart_port)
     )
-    deadline = time.monotonic() + 30
-    while True:
-        try:
-            with restart_factory.connection():
-                break
-        except C1PostgresError:
-            if time.monotonic() >= deadline:
-                raise
-            time.sleep(0.5)
+    _wait_for_postgres_connection(replace(c1_postgres.settings, port=restart_port))
     with restart_factory.connection() as connection:
         assert connection.execute("SELECT value FROM c1_restart_probe").fetchone() == (
             1,

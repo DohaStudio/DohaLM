@@ -23,6 +23,7 @@ on:
       - "tests/fixtures/local_training_activation_mapping.json"
       - "tests/test_local_training_activation*.py"
       - "tests/test_full_pretraining_continuation.py"
+      - "tests/test_postgres_c1_integration.py"
   push:
     branches: [develop]
     paths:
@@ -46,6 +47,7 @@ on:
       - "tests/fixtures/local_training_activation_mapping.json"
       - "tests/test_local_training_activation*.py"
       - "tests/test_full_pretraining_continuation.py"
+      - "tests/test_postgres_c1_integration.py"
 
 permissions:
   contents: read
