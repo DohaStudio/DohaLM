@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-29 |
+| 마지막 검토일 | 2026-08-30 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -113,28 +113,31 @@
 - [확정] repository ruleset `Dataset Governance required check (develop)`(ID `21693103`)은 `develop`에 `Dataset Governance Unit / Publication`과 `C1 PostgreSQL Contract`를 required status check로 요구한다. 두 context는 모두 GitHub Actions App(`integration_id 15368`)에 binding되며 enforcement source는 classic branch protection이 아니라 repository ruleset이다.
 - [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
 - [확정] C1 workflow의 `C1 PostgreSQL Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. 관련 경로는 PostgreSQL heavy regression을 실행하고 무관한 경로는 dependency·Docker 없이 cheap success를 보고하므로, required 적용이 모든 pull request의 heavy 실행을 의미하지는 않는다.
-- [확정] C2·Training workflow의 check context는 각각 `C2 PostgreSQL Training Adapters`, `Local Training Activation Contract`로 고유하며 path-filtered·non-required 상태를 유지한다.
+- [확정] C2 workflow의 `C2 PostgreSQL Training Adapters` context는 모든 pull request와 `develop` push에서 생성하되 non-required 상태를 유지한다. pull request에서는 기존 C2/C3/Host/PostgreSQL 관련 경로를 내부 classifier로 판정해 관련 변경이면 heavy regression을 실행하고 무관한 변경이면 dependency·PostgreSQL·test 없이 cheap success를 보고한다. `develop` push에서는 변경 경로와 무관하게 항상 heavy regression을 실행한다.
+- [확정] Training workflow의 `Local Training Activation Contract` context는 고유하며 path-filtered·non-required 상태와 enforcement HOLD를 유지한다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
 |---|---|---|---|---|---|
-| `src/data/dataset_publication.py` 등 pure Dataset Governance | 예 | 예 | 생략(check success) | 아니요 | 아니요 |
-| `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py` | 예 | 관련 process 경로이면 예 | 생략(check success) | 아니요 | 아니요 |
+| `src/data/dataset_publication.py` 등 pure Dataset Governance | 예 | 예 | 생략(check success) | 생략(check success) | 아니요 |
+| `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py` | 예 | 관련 process 경로이면 예 | 생략(check success) | 생략(check success) | 아니요 |
 | Dataset Proposal/Review PostgreSQL adapter | 예 | 예 | 예 | 예 | 아니요 |
 | `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | `tests/test_postgres_c1_integration.py`만 예 |
 | `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 생략(check success) | 예 | 아니요 |
-| 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 생략(check success) | 기존 C2 filter 기준 | 예 |
-| Dataset governance ADR·project docs only | 생략(check success) | 생략 | 생략(check success) | 아니요 | 아니요 |
-| `.github/workflows/dataset-governance.yml` | 예 | 예 | 생략(check success) | 아니요 | 아니요 |
+| 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 생략(check success) | 기존 C2 classifier 관련 경로이면 예, 아니면 생략(check success) | 예 |
+| Dataset governance ADR·project docs only | 생략(check success) | 생략 | 생략(check success) | 생략(check success) | 아니요 |
+| `.github/workflows/dataset-governance.yml` | 예 | 예 | 생략(check success) | 생략(check success) | 아니요 |
 
 - [검증 필요] Dataset Governance 외 영역의 통합 CI matrix, coverage 임계값과 전체 합격 시간은 후속 결정한다.
 - [확정] Local Training workflow는 shared PostgreSQL/C3 fixture 계약인 `tests/test_postgres_c1_integration.py`가 변경될 때도 실행한다.
 - [확정] C1 heavy classifier는 normalization 전 pull request·push path filter의 workflow, dependency, C1 source·migration, Proposal/Review PostgreSQL adapter와 `tests/test_postgres_c1*.py` 범위를 그대로 보존하며 추가·수정·복사·이름 변경·삭제를 모두 감지한다.
+- [확정] C2 heavy classifier는 normalization 전 pull request·push path filter의 20개 workflow, dependency, C2/C3/Host source·test, migration, Proposal/Review PostgreSQL adapter와 C1 shared fixture 범위를 그대로 보존하며 추가·수정·복사·이름 변경·삭제를 모두 감지한다.
 
 ## 8. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-30 | [확정] C2 PostgreSQL check를 always-present, pull request path-aware heavy/cheap, `develop` push always-heavy, non-required 구조로 정규화 |
 | 2026-08-29 | [확정] live repository ruleset에 맞춰 Dataset과 C1을 `develop` required status check로, C2·Training을 non-required로 동기화 |
 | 2026-08-29 | [확정] C1 PostgreSQL check를 always-present, path-aware heavy/cheap, non-required 구조로 정규화 |
 | 2026-08-29 | [확정] shared PostgreSQL/C3 fixture 변경을 Local Training workflow의 pull request·push trigger에 포함 |
