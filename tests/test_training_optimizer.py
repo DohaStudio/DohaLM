@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import pytest
 import torch
+from _training_helpers import tiny_model_config, training_config
 from torch import nn
 
 from src.model import DohaLMTiny
 from src.training import TrainingError, create_optimizer
-
-from tests._training_helpers import tiny_model_config, training_config
 
 
 def test_adamw_groups_decay_and_no_decay():

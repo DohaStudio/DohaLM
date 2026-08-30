@@ -6,11 +6,15 @@ import random
 
 import pytest
 import torch
+from _training_helpers import build_tiny_trainer, training_config
 
 from src.data.checksums import file_checksum
-from src.training import CheckpointManager, TrainingError, capture_rng_state, restore_rng_state
-
-from tests._training_helpers import build_tiny_trainer, training_config
+from src.training import (
+    CheckpointManager,
+    TrainingError,
+    capture_rng_state,
+    restore_rng_state,
+)
 
 
 def saved_checkpoint(tmp_path, *, maximum=2):

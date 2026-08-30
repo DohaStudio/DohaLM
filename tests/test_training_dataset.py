@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import pytest
 import torch
+from _training_helpers import repeated_dataset, training_config
 
-from src.training import CausalLMCollator, SyntheticTokenDataset, TrainingError, create_dataloader
-
-from tests._training_helpers import repeated_dataset, training_config
+from src.training import (
+    CausalLMCollator,
+    SyntheticTokenDataset,
+    TrainingError,
+    create_dataloader,
+)
 
 
 def test_synthetic_dataset_is_deterministic():

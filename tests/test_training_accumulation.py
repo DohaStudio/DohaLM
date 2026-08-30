@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import torch
-
-from tests._training_helpers import build_tiny_trainer, training_config
+from _training_helpers import build_tiny_trainer, training_config
 
 
 def test_accumulation_one_updates_once_per_micro_batch(tmp_path):
@@ -49,7 +48,11 @@ def test_large_batch_and_accumulation_have_close_single_update(tmp_path):
     )
     large, _ = build_tiny_trainer(tmp_path / "large", config=large_config)
     accumulated, _ = build_tiny_trainer(tmp_path / "accumulated", config=accumulation_config)
+    # Compare reduction order in float64 so CPU kernel selection cannot dominate
+    # the accumulation contract on a clean Linux runner.
+    large.model.double()
+    accumulated.model.double()
     large.train(); accumulated.train()
     for left, right in zip(large.model.parameters(), accumulated.model.parameters(), strict=True):
-        # Separate micro-batch reductions may change float32 summation order.
+        # Separate micro-batch reductions may still change summation order.
         assert torch.allclose(left, right, atol=3e-4, rtol=1e-4)

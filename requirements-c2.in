@@ -2,6 +2,7 @@
 --find-links https://download.pytorch.org/whl/cpu/torch/
 
 dohastudio-common-ai-contracts @ https://github.com/DohaStudio/.github/releases/download/dohastudio-common-ai-contracts-v0.1.0/dohastudio_common_ai_contracts-0.1.0-py3-none-any.whl
+numpy==1.26.4
 psycopg[binary]==3.3.4
 PyYAML==6.0.3
 sentencepiece==0.2.2

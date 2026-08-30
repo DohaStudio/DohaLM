@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-08-30 |
+| 마지막 검토일 | 2026-08-31 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -114,7 +114,11 @@
 - [확정] ruleset의 strict/up-to-date 정책은 `false`이며 required pull request, approving review와 approval count는 설정하지 않는다.
 - [확정] C1 workflow의 `C1 PostgreSQL Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. 관련 경로는 PostgreSQL heavy regression을 실행하고 무관한 경로는 dependency·Docker 없이 cheap success를 보고하므로, required 적용이 모든 pull request의 heavy 실행을 의미하지는 않는다.
 - [확정] C2 workflow의 `C2 PostgreSQL Training Adapters` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. pull request에서는 기존 C2/C3/Host/PostgreSQL 관련 경로를 내부 classifier로 판정해 관련 변경이면 heavy regression을 실행하고 무관한 변경이면 dependency·PostgreSQL·test 없이 cheap success를 보고한다. 비관련 pull request에서도 context 자체는 사라지지 않고 cheap confirmation이 성공하므로 required condition을 충족한다. `develop` push에서는 변경 경로와 무관하게 항상 heavy regression을 실행한다.
-- [확정] Training workflow의 `Local Training Activation Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. pull request에서는 Local Activation·Training production·shared persistence/Host 계약 경로를 내부 classifier로 판정해 관련 변경이면 기존 heavy regression을 실행하고 무관한 변경이면 dependency·Docker·test 없이 동일 context의 cheap success를 보고하므로 required condition을 충족한다. `develop` push에서는 변경 경로와 무관하게 항상 heavy regression을 실행하며 Training required enforcement는 `ENABLED`다.
+- [확정] Training workflow의 `Local Training Activation Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. pull request에서는 Local Activation·Training production·shared persistence/Host 계약 경로를 내부 classifier로 판정해 관련 변경이면 manifest 기반 heavy regression을 실행하고 무관한 변경이면 dependency·Docker·test 없이 동일 context의 cheap success를 보고하므로 required condition을 충족한다. `develop` push에서는 변경 경로와 무관하게 항상 heavy regression을 실행하며 Training required enforcement는 `ENABLED`다.
+- [확정] `.github/ci/training-test-manifest.json`은 Training test ownership과 required 실행 대상을 정의하는 machine-readable single source of truth다. 각 항목은 `path`, `tier`, `owner`, `required`, `reason`, `group`을 가지며 workflow YAML은 전체 test file 목록을 중복 보유하지 않고 validator가 NUL-delimited로 내보낸 required group만 실행한다.
+- [확정] `scripts/ci/training_test_manifest.py`는 `training|pretraining` filename 또는 `src.training` 참조를 Training 후보로 감지한다. 후보는 required 또는 `slow`, `gpu`, `external`, `experimental`, `historical`, `optional` 중 하나로 명시 분류해야 하며, 미분류·stale path·중복·unknown tier·필수 metadata 누락은 CI를 실패시킨다. activation·trainer·checkpoint·continuation 단어만으로 후보를 넓히면 무관 영역 false positive가 발생하므로 독립 신호로 사용하지 않는다.
+- [확정] 2026-08-31 기준 manifest는 59개 항목이며 repository 후보 57/57을 분류한다. required는 기존 canonical 14파일, coverage defect의 critical 18파일, ownership guard 1파일을 합친 33파일이고 non-required는 26파일이다. C1 22-test와 C2/C3/Host 229-test overlap은 축소하지 않는다.
+- [확정] Training canonical required suite는 기존 283, critical 211, guard 9를 합친 503 tests다. 로컬 재시도 없는 실행은 503/503 pass였고 critical 18파일은 211/211 pass, skip·deselect 0이었다. Training checksum 계약이 사용하는 기존 project dependency NumPy 1.26.4는 재사용하는 hash-lock에도 포함한다. test-only 합산 시간은 약 117.56초로 기존 대표값 약 80초 대비 37.56초(46.9%) 증가해 runtime 영향은 `HIGH`로 분류한다. clean GitHub Actions end-to-end 시간은 PR run evidence로 별도 기록한다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
 | 변경 경로 | Dataset Unit | Publication Process | C1 | C2 | Training |
@@ -132,12 +136,13 @@
 - [확정] Local Training workflow는 shared PostgreSQL/C3 fixture 계약인 `tests/test_postgres_c1_integration.py`가 변경될 때도 실행한다.
 - [확정] C1 heavy classifier는 normalization 전 pull request·push path filter의 workflow, dependency, C1 source·migration, Proposal/Review PostgreSQL adapter와 `tests/test_postgres_c1*.py` 범위를 그대로 보존하며 추가·수정·복사·이름 변경·삭제를 모두 감지한다.
 - [확정] C2 heavy classifier는 normalization 전 pull request·push path filter의 20개 workflow, dependency, C2/C3/Host source·test, migration, Proposal/Review PostgreSQL adapter와 C1 shared fixture 범위를 그대로 보존하며 추가·수정·복사·이름 변경·삭제를 모두 감지한다.
-- [확정] Training heavy classifier는 normalization 전 21개 path filter를 보존하고 실제 heavy dependency·Training production/model·runner/config·Dataset→Training·PostgreSQL migration·C1/C2/C3/Host test 경계를 추가하며, NUL-safe ACMRD diff에서 복사·이름 변경의 source와 destination을 모두 검사한다. 명시 test discovery와 C1/C2 regression ownership 최적화는 별도 후속 작업으로 유지한다.
+- [확정] Training heavy classifier는 normalization 전 21개 path filter를 보존하고 실제 heavy dependency·Training production/model·runner/config·Dataset→Training·PostgreSQL migration·C1/C2/C3/Host test 경계와 manifest·validator를 포함하며, NUL-safe ACMRD diff에서 복사·이름 변경의 source와 destination을 모두 검사한다. explicit discovery gap은 ownership manifest와 static guard로 해소했으며 C1/C2 regression ownership 최적화만 별도 후속 작업으로 유지한다.
 
 ## 8. 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-08-31 | [확정] Training coverage defect의 critical 18파일·211 tests를 required suite에 편입하고 59-entry ownership manifest, static missing-test guard, 503-test canonical baseline과 runtime 영향을 반영 |
 | 2026-08-30 | [확정] Training check를 네 번째 `develop` required status check로 동기화하고 pull request always-present heavy/cheap, `develop` push always-heavy enforcement를 `ENABLED`로 반영 |
 | 2026-08-30 | [확정] Training check를 pull request always-present heavy/cheap과 `develop` push always-heavy 구조로 정규화하되 non-required·enforcement HOLD 유지 |
 | 2026-08-30 | [확정] live repository ruleset에 맞춰 C2 PostgreSQL check를 세 번째 `develop` required status check로 동기화하고 Training enforcement HOLD를 유지 |
