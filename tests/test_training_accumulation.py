@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import torch
-
-from tests._training_helpers import build_tiny_trainer, training_config
+from _training_helpers import build_tiny_trainer, training_config
 
 
 def test_accumulation_one_updates_once_per_micro_batch(tmp_path):

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from _training_helpers import training_config
 
 from src.training import TrainingConfig, TrainingError
-
-from tests._training_helpers import training_config
 
 
 def test_default_training_config_contract():

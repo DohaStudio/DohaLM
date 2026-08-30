@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests._training_helpers import build_tiny_trainer, training_config
+from _training_helpers import build_tiny_trainer, training_config
 
 
 def test_repeated_single_batch_loss_decreases(tmp_path):

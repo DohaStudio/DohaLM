@@ -4,11 +4,10 @@ import json
 
 import pytest
 import torch
+from _training_helpers import build_tiny_trainer
 
 from src.model.outputs import DohaLMOutput
 from src.training import TrainingError
-
-from tests._training_helpers import build_tiny_trainer, training_config
 
 
 def test_cpu_training_updates_state_logs_and_clips(tmp_path):

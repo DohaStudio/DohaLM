@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import json
 
-from scripts.training import inspect_checkpoint, resume_training_smoke, run_training_smoke
+from _training_helpers import build_tiny_trainer, training_config
 
-from tests._training_helpers import build_tiny_trainer, training_config
+from scripts.training import (
+    inspect_checkpoint,
+    resume_training_smoke,
+    run_training_smoke,
+)
 
 
 def test_training_cli_cpu_json(tmp_path, monkeypatch, capsys):

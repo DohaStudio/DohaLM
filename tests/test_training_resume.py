@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import pytest
 import torch
+from _training_helpers import build_tiny_trainer, training_config
 
 from src.training import CheckpointManager, TrainingError
-
-from tests._training_helpers import build_tiny_trainer, training_config
 
 
 def prepare(tmp_path):
