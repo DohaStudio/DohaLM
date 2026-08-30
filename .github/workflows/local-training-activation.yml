@@ -38,7 +38,7 @@ jobs:
           fi
           is_training_path() {
             case "$1" in
-              .github/ci/training-test-manifest.json|.github/workflows/local-training-activation.yml|pyproject.toml|requirements-c2.in|requirements-c2.lock|configs/local-training-*.example.json|configs/full-pretraining*.yaml|configs/pilot-pretraining*.yaml|configs/training/*|docs/training/local-single-user-activation.md|docs/training/full-pretraining-one-epoch-continuation.md|scripts/ci/training_test_manifest.py|scripts/training/*|src/training/*|src/model/*|src/postgres_c1.py|src/postgres_migrations/*|src/data/aihub_71748_tokenizer_corpus.py|src/data/checksums.py|src/data/common_dataset_contracts.py|src/data/tokenized_dataset.py|src/runtime/environment.py|src/runtime/paths.py|src/tokenizer/operating.py|tests/_training_helpers.py|tests/fixtures/local_training_activation_mapping.json|tests/test_*training*.py|tests/test_*pretraining*.py|tests/test_postgres_c1*.py|tests/test_postgres_c2*.py|tests/test_postgres_c3*.py|tests/test_production_host_foundation.py|tests/test_production_orchestration_seams.py|tests/test_production_full_pretraining_host.py)
+              .github/ci/training-test-manifest.json|.github/workflows/local-training-activation.yml|pyproject.toml|requirements-c2.in|requirements-c2.lock|configs/local-training-*.example.json|configs/full-pretraining*.yaml|configs/pilot-pretraining*.yaml|configs/training/*|docs/training/local-single-user-activation.md|docs/training/full-pretraining-one-epoch-continuation.md|scripts/ci/training_test_manifest.py|scripts/training/*|src/training/*|src/model/*|src/postgres_c1.py|src/postgres_migrations/*|src/data/aihub_71748_tokenizer_corpus.py|src/data/checksums.py|src/data/common_dataset_contracts.py|src/data/tokenized_dataset.py|src/runtime/environment.py|src/runtime/paths.py|src/tokenizer/operating.py|tests/_training_helpers.py|tests/fixtures/local_training_activation_mapping.json|tests/test_*training*.py|tests/test_*pretraining*.py|tests/test_production_host_foundation.py|tests/test_production_orchestration_seams.py|tests/test_production_full_pretraining_host.py)
                 return 0
                 ;;
               *)
@@ -116,21 +116,6 @@ jobs:
           mapfile -d '' -t targets < <(python3 scripts/ci/training_test_manifest.py emit-required --group manifest_guard)
           ((${#targets[@]} > 0))
           python -m pytest "${targets[@]}" -q
-      - name: Run C1 C2 C3 direct regressions
-        if: steps.changes.outputs.training_changed == 'true'
-        run: |
-          run_group() {
-            local group="$1"
-            local -a targets
-            mapfile -d '' -t targets < <(python3 scripts/ci/training_test_manifest.py emit-required --group "$group")
-            ((${#targets[@]} > 0))
-            python -m pytest "${targets[@]}" -q
-          }
-          run_group c1
-          run_group c2_unit
-          run_group c2_integration
-          run_group c3_unit
-          run_group c3_integration
       - name: Run Host activation and lifecycle regressions
         if: steps.changes.outputs.training_changed == 'true'
         run: |

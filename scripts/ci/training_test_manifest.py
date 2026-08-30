@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -14,9 +15,11 @@ from typing import BinaryIO, TextIO
 FILENAME_PATTERN = re.compile(r"(?:training|pretraining)", re.IGNORECASE)
 CONTENT_MARKER = "src.training"
 REQUIRED_TIER = "required_cpu"
+DELEGATED_TIER = "delegated"
 ALLOWED_TIERS = frozenset(
     {
         REQUIRED_TIER,
+        DELEGATED_TIER,
         "slow",
         "gpu",
         "external",
@@ -30,17 +33,24 @@ ALLOWED_GROUPS = frozenset(
         "local_activation",
         "continuation",
         "postgres_activation",
-        "c1",
-        "c2_unit",
-        "c2_integration",
-        "c3_unit",
-        "c3_integration",
         "host",
         "critical",
         "manifest_guard",
     }
 )
 ENTRY_KEYS = frozenset({"path", "tier", "owner", "required", "reason", "group"})
+DELEGATED_WORKFLOWS = {
+    "c1": Path(".github/workflows/c1-postgres-contract.yml"),
+    "c2": Path(".github/workflows/c2-postgres-training-adapters.yml"),
+}
+DELEGATED_CONTEXTS = {
+    "c1": "C1 PostgreSQL Contract",
+    "c2": "C2 PostgreSQL Training Adapters",
+}
+PYTEST_COMMAND = re.compile(
+    r"^\s*(?:run:\s*)?python -m pytest\s+(?P<arguments>[^\r\n]+)$",
+    re.MULTILINE,
+)
 
 
 class ManifestError(ValueError):
@@ -162,7 +172,64 @@ def _entry(value: object, repository: Path, index: int) -> TestOwnership:
         if group_value is not None:
             raise ManifestError(f"{path}: non-required entries must set group=null")
         group = None
+        if tier == DELEGATED_TIER:
+            _delegated_classifier_pattern(path, owner)
     return TestOwnership(path, tier, owner, required, reason, group)
+
+
+def _delegated_classifier_pattern(path: str, owner: str) -> str:
+    if owner == "c1" and path.startswith("tests/test_postgres_c1"):
+        return "tests/test_postgres_c1*.py"
+    if owner == "c2" and path.startswith("tests/test_postgres_c2"):
+        return "tests/test_postgres_c2*.py"
+    if owner == "c2" and path.startswith("tests/test_postgres_c3"):
+        return "tests/test_postgres_c3*.py"
+    if owner not in DELEGATED_WORKFLOWS:
+        raise ManifestError(f"{path}: unknown delegated owner: {owner}")
+    raise ManifestError(f"{path}: delegated path is not owned by {owner}")
+
+
+def _pytest_targets(workflow: str) -> frozenset[str]:
+    targets: set[str] = set()
+    for match in PYTEST_COMMAND.finditer(workflow):
+        try:
+            arguments = shlex.split(match.group("arguments"), posix=True)
+        except ValueError as error:
+            raise ManifestError(
+                f"cannot parse upstream pytest command: {error}"
+            ) from error
+        targets.update(
+            argument for argument in arguments if argument.startswith("tests/")
+        )
+    return frozenset(targets)
+
+
+def _validate_delegated_upstream(
+    repository: Path, entries: tuple[TestOwnership, ...]
+) -> None:
+    delegated = tuple(entry for entry in entries if entry.tier == DELEGATED_TIER)
+    for owner in sorted({entry.owner for entry in delegated}):
+        workflow_path = repository / DELEGATED_WORKFLOWS[owner]
+        try:
+            workflow = workflow_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise ManifestError(
+                f"cannot read delegated owner workflow {workflow_path}: {error}"
+            ) from error
+        context = DELEGATED_CONTEXTS[owner]
+        if f"name: {context}" not in workflow:
+            raise ManifestError(f"delegated owner context is missing: {context}")
+        targets = _pytest_targets(workflow)
+        for entry in (item for item in delegated if item.owner == owner):
+            if entry.path not in targets:
+                raise ManifestError(
+                    f"delegated test is not an upstream pytest target: {entry.path}"
+                )
+            classifier = _delegated_classifier_pattern(entry.path, owner)
+            if classifier not in workflow:
+                raise ManifestError(
+                    f"delegated test is not covered by upstream classifier: {entry.path}"
+                )
 
 
 def validate_manifest(repository: Path, manifest_path: Path) -> ManifestInventory:
@@ -196,6 +263,7 @@ def validate_manifest(repository: Path, manifest_path: Path) -> ManifestInventor
         raise ManifestError(f"unclassified Training candidates: {missing}")
     if not any(entry.required for entry in entries):
         raise ManifestError("required test set must not be empty")
+    _validate_delegated_upstream(repository, entries)
     return ManifestInventory(entries, candidates)
 
 
