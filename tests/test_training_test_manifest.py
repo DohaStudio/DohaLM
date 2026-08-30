@@ -62,7 +62,16 @@ def test_repository_manifest_is_complete() -> None:
     root = Path(__file__).resolve().parents[1]
     inventory = validate_manifest(root, root / ".github/ci/training-test-manifest.json")
     assert set(inventory.candidates) <= {entry.path for entry in inventory.entries}
-    assert len(inventory.required) >= 33
+    delegated = [entry for entry in inventory.entries if entry.tier == "delegated"]
+    assert len(inventory.required) == 27
+    assert [(entry.path, entry.owner) for entry in delegated] == [
+        ("tests/test_postgres_c1.py", "c1"),
+        ("tests/test_postgres_c1_integration.py", "c1"),
+        ("tests/test_postgres_c2.py", "c2"),
+        ("tests/test_postgres_c2_integration.py", "c2"),
+        ("tests/test_postgres_c3.py", "c2"),
+        ("tests/test_postgres_c3_integration.py", "c2"),
+    ]
 
 
 def test_unclassified_training_candidate_fails(isolated_repository: Path) -> None:
@@ -101,6 +110,90 @@ def test_unknown_tier_fails(isolated_repository: Path) -> None:
             isolated_repository,
             _manifest(isolated_repository, [_entry(path, tier="unknown")]),
         )
+
+
+def test_unknown_delegated_owner_fails(isolated_repository: Path) -> None:
+    required = _test_file(isolated_repository, "test_training_required.py")
+    delegated = _test_file(
+        isolated_repository,
+        "test_postgres_c1.py",
+        "import src." + "training\n",
+    )
+    entries = [
+        _entry(required),
+        _entry(
+            delegated,
+            tier="delegated",
+            required=False,
+            group=None,
+            owner="unknown",
+        ),
+    ]
+    entries.sort(key=lambda entry: str(entry["path"]))
+    with pytest.raises(ManifestError, match="unknown delegated owner"):
+        validate_manifest(isolated_repository, _manifest(isolated_repository, entries))
+
+
+def test_delegated_test_missing_from_upstream_pytest_fails(
+    isolated_repository: Path,
+) -> None:
+    required = _test_file(isolated_repository, "test_training_required.py")
+    delegated = _test_file(
+        isolated_repository,
+        "test_postgres_c1.py",
+        "import src." + "training\n",
+    )
+    workflow = isolated_repository / ".github/workflows/c1-postgres-contract.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        "jobs:\n  contract:\n    name: C1 PostgreSQL Contract\n"
+        "    classifier: tests/test_postgres_c1*.py\n",
+        encoding="utf-8",
+    )
+    entries = [
+        _entry(required),
+        _entry(
+            delegated,
+            tier="delegated",
+            required=False,
+            group=None,
+            owner="c1",
+        ),
+    ]
+    entries.sort(key=lambda entry: str(entry["path"]))
+    with pytest.raises(ManifestError, match="not an upstream pytest target"):
+        validate_manifest(isolated_repository, _manifest(isolated_repository, entries))
+
+
+def test_delegated_test_missing_from_upstream_classifier_fails(
+    isolated_repository: Path,
+) -> None:
+    required = _test_file(isolated_repository, "test_training_required.py")
+    delegated = _test_file(
+        isolated_repository,
+        "test_postgres_c1.py",
+        "import src." + "training\n",
+    )
+    workflow = isolated_repository / ".github/workflows/c1-postgres-contract.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        "jobs:\n  contract:\n    name: C1 PostgreSQL Contract\n"
+        "    run: python -m pytest tests/test_postgres_c1.py -q\n",
+        encoding="utf-8",
+    )
+    entries = [
+        _entry(required),
+        _entry(
+            delegated,
+            tier="delegated",
+            required=False,
+            group=None,
+            owner="c1",
+        ),
+    ]
+    entries.sort(key=lambda entry: str(entry["path"]))
+    with pytest.raises(ManifestError, match="not covered by upstream classifier"):
+        validate_manifest(isolated_repository, _manifest(isolated_repository, entries))
 
 
 def test_missing_owner_and_reason_fail(isolated_repository: Path) -> None:
