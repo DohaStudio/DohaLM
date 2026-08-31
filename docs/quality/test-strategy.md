@@ -117,8 +117,8 @@
 - [확정] Training workflow의 `Local Training Activation Contract` context는 모든 pull request와 `develop` push에서 생성하며 required status check로 적용한다. pull request에서는 Local Activation·Training production·shared persistence/Host 계약 경로를 내부 classifier로 판정해 관련 변경이면 manifest 기반 heavy regression을 실행하고 무관한 변경이면 dependency·Docker·test 없이 동일 context의 cheap success를 보고하므로 required condition을 충족한다. `develop` push에서는 변경 경로와 무관하게 항상 heavy regression을 실행하며 Training required enforcement는 `ENABLED`다.
 - [확정] `.github/ci/training-test-manifest.json`은 Training test ownership과 required 실행 대상을 정의하는 machine-readable single source of truth다. 각 항목은 `path`, `tier`, `owner`, `required`, `reason`, `group`을 가지며 workflow YAML은 전체 test file 목록을 중복 보유하지 않고 validator가 NUL-delimited로 내보낸 required group만 실행한다.
 - [확정] `scripts/ci/training_test_manifest.py`는 `training|pretraining` filename 또는 `src.training` 참조를 Training 후보로 감지한다. 후보는 required 또는 `delegated`, `slow`, `gpu`, `external`, `experimental`, `historical`, `optional` 중 하나로 명시 분류해야 하며, 미분류·stale path·중복·unknown tier·필수 metadata 누락은 CI를 실패시킨다. activation·trainer·checkpoint·continuation 단어만으로 후보를 넓히면 무관 영역 false positive가 발생하므로 독립 신호로 사용하지 않는다.
-- [확정] 2026-08-31 기준 manifest는 59개 항목이며 repository 후보 57/57을 분류한다. required는 27파일, non-required는 32파일이며 이 중 6파일은 `delegated`다. C1 22 tests는 `C1 PostgreSQL Contract`, C2 24 tests와 C3 28 tests는 `C2 PostgreSQL Training Adapters`에 위임한다. Host 177 tests는 Training-owned 경계이므로 C2와 Training 양쪽 실행을 유지한다.
-- [확정] Training canonical required suite는 직전 503 tests에서 upstream-owned C1/C2/C3 74 tests를 제외하고 fail-closed guard 3 tests를 추가한 432 tests다(`503 - 74 + 3`). 구성은 critical 211, ownership guard 12, Dataset→Training activation 9, Host 177과 Local Activation·continuation·PostgreSQL seam이다. 위임된 경로는 validator가 owner workflow의 exact context, pytest target, classifier에 모두 존재하는지 정적으로 검증하며 live ruleset binding은 policy Gate에서 별도로 검증한다. 직전 503/503 baseline은 historical evidence로 보존한다.
+- [확정] 2026-09-01 기준 manifest는 60개 항목이며 repository 후보 59/59를 분류한다. required는 28파일, non-required는 32파일이며 이 중 6파일은 `delegated`다. ADR-032 foundation unit 28 tests는 Training required와 C2 adapter regression에서 실행하고, migration·권한·동시성 통합 3 tests 추가로 C1 canonical은 25 tests다.
+- [확정] Training canonical required suite는 직전 432 tests에 ADR-032 immutable intent·idempotency·binding·validate-only 28 tests를 추가한 460 tests다. C2 canonical은 같은 adapter contract 28 tests를 포함해 257 tests이며 Dataset canonical 384 tests는 변하지 않는다. 위임된 경로는 validator가 owner workflow의 exact context, pytest target, classifier에 모두 존재하는지 정적으로 검증하며 live ruleset binding은 policy Gate에서 별도로 검증한다. 직전 503/503과 432/432 baseline은 historical evidence로 보존한다.
 - [확정] C1 shared fixture와 Local Training durable PostgreSQL bootstrap의 readiness 실패는 기존 retry 대상·timeout·poll interval을 변경하지 않고 최종 실패에만 attempt 수, 경과 시간, 예외 유형, SQLSTATE, loopback publish port, 안전한 container 상태와 최대 100줄의 log tail을 기록한다. 진단 수집 실패는 원래 readiness 실패를 대체하지 않으며 알려진 credential·DSN·password 값은 redaction한다. C1·C2·Training cleanup 실패는 기존 ownership label selector를 유지하면서 남은 container·volume·network 식별자를 출력한다. 성공 경로, package/image download, migration, schema와 test rerun 정책은 변경하지 않는다.
 - [확정] `RepositoryRole` admin(`actor_id 5`)만 ruleset을 `always` bypass할 수 있으며 일반 contributor bypass를 허용하지 않는다.
 
@@ -130,6 +130,7 @@
 | `src/postgres_migrations/**`, `tests/test_postgres_c1*.py` | 아니요 | 아니요 | 예 | 예 | migration·production 경계는 예, delegated C1 test-only는 생략(check success) |
 | `tests/test_postgres_c2*.py`, `tests/test_postgres_c3*.py` | 아니요 | 아니요 | 생략(check success) | 예 | 생략(check success) |
 | 선택된 `src/training/**`와 Training 테스트 | 아니요 | 아니요 | 생략(check success) | 기존 C2 classifier 관련 경로이면 예, 아니면 생략(check success) | 예 |
+| ADR-032 intent domain·PostgreSQL adapter·migration·tests | 아니요 | 아니요 | 예 | 예 | 예 |
 | Dataset governance ADR·project docs only | 생략(check success) | 생략 | 생략(check success) | 생략(check success) | 생략(check success) |
 | `.github/workflows/dataset-governance.yml` | 예 | 예 | 생략(check success) | 생략(check success) | 생략(check success) |
 
@@ -143,6 +144,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [확정] ADR-032 foundation을 C1/C2/Training heavy classifier와 required manifest에 편입하고 C1 25·C2 257·Training 460 canonical count를 반영 |
 | 2026-09-01 | [확정] PostgreSQL required check의 terminal failure-only readiness·container·bounded log·cleanup residue 진단과 secret redaction을 반영하고 retry·timeout·성공 경로 불변을 명시 |
 | 2026-08-31 | [확정] C1 22·C2 24·C3 28 tests를 owning required check에 위임하고 upstream target/classifier static guard와 432-test Training canonical baseline을 반영 |
 | 2026-08-31 | [확정] Training coverage defect의 critical 18파일·211 tests를 required suite에 편입하고 59-entry ownership manifest, static missing-test guard, 503-test canonical baseline과 runtime 영향을 반영 |

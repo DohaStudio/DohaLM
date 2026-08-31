@@ -43,7 +43,7 @@
 | ADR-029 | [RightsMetadata producer와 authority ownership 경계](./ADR-029-rights-metadata-ownership-authority.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-028](./ADR-028-current-evidence-source-authority.md) | accountable owner·writer·logical key·projection·authenticated read와 Common change 필요성 판정 | owner·producer·logical key·revoke/read authority `BLOCKED`; overall `STILL BLOCKED` |
 | ADR-030 | [Cross-repository Rights domain ownership 결정 Gate](./ADR-030-cross-repository-rights-domain-ownership.md) | `draft` | 미결정 | [ADR-028](./ADR-028-current-evidence-source-authority.md), [ADR-029](./ADR-029-rights-metadata-ownership-authority.md) | 기존/신규/DohaLM owner, source identity, writer·authority·read와 cross-repository approval 판정 | Option D `ORGANIZATIONAL OWNERSHIP STILL BLOCKED`; overall `STILL BLOCKED` |
 | ADR-031 | [Dataset Publication Pair public read 계약](./ADR-031-dataset-publication-pair-public-read-contract.md) | `draft` | 미결정 | [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-026](./ADR-026-dataset-review-authority-contract.md), [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md) | exact identity Authority Protocol, explicit-root filesystem adapter, immutable result와 full pair-local verification | public source·tests 구현; runtime/CLI/API 미구현 |
-| ADR-032 | [Production Training Intent Authority](./ADR-032-production-training-intent-authority.md) | `approved` | 2026-09-01 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [C3 PostgreSQL Training Composition](../architecture/c3-postgresql-training-composition.md) | dedicated submitter authority, immutable intent/idempotency, validated request projection과 append-only decision binding 승인 | foundation 구현 진입 허용; application entrypoint·Training activation은 별도 Gate 전 금지 |
+| ADR-032 | [Production Training Intent Authority](./ADR-032-production-training-intent-authority.md) | `approved` | 2026-09-01 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [C3 PostgreSQL Training Composition](../architecture/c3-postgresql-training-composition.md), [Foundation 구현](../architecture/production-training-intent-authority-foundation.md) | dedicated submitter authority, immutable intent/idempotency, validated request projection과 append-only decision binding 승인; foundation 구현 review 중 | application entrypoint·Training activation은 별도 Gate 전 금지 |
 
 ## Decision Request
 
@@ -86,6 +86,7 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-09-01 | [확정] 사용자 `DDORINY` 명시 architecture approval에 따라 ADR-032를 `approved`로 동기화하고 foundation 구현 진입과 activation 금지를 분리 |
+| 2026-09-01 | [구현] ADR-032 foundation의 dedicated submitter, immutable intent/idempotency, exact request projection, append-only binding과 validate-only STOP을 구현 review에 등록; activation은 금지 유지 |
 | 2026-09-01 | [제안] ADR-032 Production Training Intent Authority의 dedicated submitter, immutable intake/idempotency와 append-only decision binding 계약 등록 |
 | 2026-08-26 | [현재] ADR-031 Dataset Publication Pair public read port·filesystem adapter와 full pair-local verification 구현 반영; runtime activation 경계 유지 |
 | 2026-08-26 | [제안] ADR-031 Dataset Publication Pair public read의 `NEW PUBLIC READ PORT REQUIRED`·`READY FOR IMPLEMENTATION` 판정 등록 |

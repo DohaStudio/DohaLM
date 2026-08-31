@@ -42,6 +42,7 @@
     {"path": "tests/test_training_dataset.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Deterministic synthetic data and loader contracts are required.", "group": "critical"},
     {"path": "tests/test_training_execution_approval.py", "tier": "required_cpu", "owner": "training_integration", "required": true, "reason": "Execution approval capability and consumption are production-critical.", "group": "critical"},
     {"path": "tests/test_training_execution_issuer.py", "tier": "required_cpu", "owner": "host_runtime", "required": true, "reason": "Production execution issuer trust boundaries remain required.", "group": "host"},
+    {"path": "tests/test_training_intent_authority.py", "tier": "required_cpu", "owner": "training_intent", "required": true, "reason": "Immutable production Training intent, approval binding, and validate-only boundaries are required.", "group": "host"},
     {"path": "tests/test_training_memory_probe.py", "tier": "optional", "owner": "training_observability", "required": false, "reason": "Memory telemetry is hardware-sensitive observability coverage.", "group": null},
     {"path": "tests/test_training_optimizer.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Optimizer grouping and tied-parameter behavior are required.", "group": "critical"},
     {"path": "tests/test_training_overfit.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Bounded deterministic overfit validates actual optimizer progress.", "group": "critical"},
