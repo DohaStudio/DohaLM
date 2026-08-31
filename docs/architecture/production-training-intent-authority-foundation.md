@@ -6,7 +6,7 @@
 
 ## 구현 경계
 
-이 foundation은 production Training 요청을 실행하지 않고 다음 경계까지만 구현한다.
+이 foundation과 후속 application wiring은 production Training 요청을 실행하지 않고 다음 경계까지만 구현한다.
 
 ```text
 current dedicated submitter authority
@@ -16,10 +16,13 @@ current dedicated submitter authority
   -> TrainingExecutionRequest v1 projection
   -> append-only decision binding
   -> validate-only boundary
+  -> non-CLI application entrypoint
+  -> read-only C3 composition resolution
+  -> immutable activation plan + transient dry-run evidence
   -> STOP
 ```
 
-`ProductionFullPretrainingHost.run()`, backend, GPU, checkpoint, artifact, execution journal claim과 public entrypoint는 호출하거나 추가하지 않는다.
+`ProductionFullPretrainingHost.run()`, backend, GPU, checkpoint, artifact와 execution journal claim은 호출하지 않는다. application entrypoint는 transport-independent Python service이며 CLI, HTTP, websocket과 external queue를 추가하지 않는다.
 
 ## 구성 요소
 
@@ -29,6 +32,8 @@ current dedicated submitter authority
 | `postgres_training_intent_authority.py` | producer/writer/resolver role로 제한된 PostgreSQL function adapter와 안정적인 오류 분류 |
 | migration `0006` | dedicated submitter authority, immutable submission, immutable decision binding, restricted function과 GRANT |
 | C1/C2 persistence coverage | C1 migration·restore와 C2-owned shared PostgreSQL fixture에서 exact/conflicting concurrent replay, cross-submitter scope, decision bind, immutable DML와 journal 비변경 검증 |
+| `production_training_application.py` | durable intent ID와 observed source commit만 받는 frozen non-CLI command, exact activation plan/fingerprint와 transient `READY_FOR_ACTIVATION` evidence |
+| C3 `prepare_activation` | actual intent의 prerequisite/decision/current source/output/continuation 및 journal collision을 read-only로 재검증하고 Host-compatible plan facts 반환 |
 
 ## 영속성 및 권한
 
@@ -47,11 +52,16 @@ Python과 PostgreSQL은 UTF-8, lexicographic key order, compact separators, trai
 
 validate-only는 intent, submitter, Dataset version/manifest/pair, config, readiness, decision, issuer와 approver currentness, request fingerprint와 source commit을 한 repeatable-read snapshot에서 검증한다. 승인 성공도 typed validated representation만 반환한다.
 
+application entrypoint는 이 결과를 복제하지 않고 그대로 재사용한다. construction-bound C3 factory는 actual intent의 prerequisite와 decision을 다시 읽고, requested run journal collision, output availability와 fresh/R3 continuation을 검증한다. 결과 plan은 frozen projection이며 dry-run evidence는 마지막 Activation Gate에서 currentness를 다시 확인해야 하는 시점성 증거다. C3 `startup`, Host bootstrap/`run`, journal claim/transition은 호출하지 않는다.
+
 현재 상태:
 
 - Architecture approved: `YES`
-- Foundation implementation: `IN REVIEW`; merge 후 `YES`
+- Foundation implementation: `YES`
 - Actual Training activation: `NO`
-- Application entrypoint: `NO`
+- Application entrypoint: `ACTIVE`
+- Activation dry-run: `ACTIVE`
 - Host/backend invocation: `0`
 - Ruleset mutation: `0`
+
+다음 단계는 `Production Training Activation Gate / First Real Run`이며, 그 Gate 전까지 actual Training activation은 계속 금지한다.
