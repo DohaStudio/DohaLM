@@ -48,9 +48,13 @@ if TYPE_CHECKING:
 
 
 _SCHEMA = "dohalm_training_v1"
+_AUTHORITY_PRODUCER_ROLE = "dohalm_training_authority_producer"
+_INTENT_WRITER_ROLE = "dohalm_training_intent_writer"
 _RESOLVER_ROLE = "dohalm_training_resolver"
 _JOURNAL_ROLE = "dohalm_training_journal"
-_ROLES = frozenset({_RESOLVER_ROLE, _JOURNAL_ROLE})
+_ROLES = frozenset(
+    {_AUTHORITY_PRODUCER_ROLE, _INTENT_WRITER_ROLE, _RESOLVER_ROLE, _JOURNAL_ROLE}
+)
 _REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}")
 _APPLICATION_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}")
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")

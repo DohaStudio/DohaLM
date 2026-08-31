@@ -34,7 +34,7 @@ jobs:
           c1_changed=false
           while IFS= read -r -d '' path; do
             case "$path" in
-              .github/workflows/c1-postgres-contract.yml|.github/workflows/c2-postgres-training-adapters.yml|pyproject.toml|requirements-c1.lock|src/postgres_c1.py|src/postgres_migrations/*|src/data/postgres_dataset_proposal_authority.py|src/data/postgres_dataset_review_authority.py|tests/test_postgres_c1*.py)
+              .github/workflows/c1-postgres-contract.yml|.github/workflows/c2-postgres-training-adapters.yml|pyproject.toml|requirements-c1.lock|src/postgres_c1.py|src/postgres_migrations/*|src/data/postgres_dataset_proposal_authority.py|src/data/postgres_dataset_review_authority.py|src/training/production_intent_authority.py|src/training/postgres_training_intent_authority.py|tests/test_postgres_c1*.py|tests/test_training_intent_authority.py)
                 c1_changed=true
                 break
                 ;;

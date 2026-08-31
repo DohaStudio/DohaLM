@@ -410,6 +410,15 @@ application entrypoint와 actual Training activation은 각각 후속 Gate를 �
 
 Foundation implementation authorization은 `YES`이고 actual Training activation은 `NO`다.
 
+### Foundation implementation mapping
+
+[구현] `src/training/production_intent_authority.py`는 frozen intent model, canonical fingerprint,
+construction-bound local submitter 선택, 기존 `TrainingExecutionRequest v1` exact projection과 validate-only STOP을 구현한다.
+`src/training/postgres_training_intent_authority.py`와 forward-only migration `0006_training_intent_authority.sql`은
+기존 identity/event/current pattern을 재사용한 submitter family, immutable submission, restricted writer/read surface와
+append-only decision binding을 구현한다. 구현 PR이 병합되기 전 문서 상태는 `approved`를 유지하며,
+application entrypoint와 actual Training activation은 계속 금지한다.
+
 ## Revisit conditions
 
 - production scope가 multi-user, cross-process 또는 network-authenticated topology로 바뀐다.
@@ -423,5 +432,6 @@ Foundation implementation authorization은 `YES`이고 actual Training activatio
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [구현] dedicated submitter authority, immutable intent/idempotency, exact request projection, append-only decision binding과 validate-only STOP foundation을 구현 review에 반영; Host/backend/Training activation 0 유지 |
 | 2026-09-01 | [확정] 사용자 `DDORINY` 명시 architecture approval로 `draft/proposed`에서 `approved/approved`로 전환하고 foundation 구현 진입만 허용; actual Training activation은 계속 금지 |
 | 2026-09-01 | [제안] dedicated submitter authority, immutable intent/idempotency, validated request projection과 append-only decision binding architecture 초안 작성 |

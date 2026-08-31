@@ -133,6 +133,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql",
         "0004_dataset_proposal_authority.sql",
         "0005_dataset_review_authority.sql",
+        "0006_training_intent_authority.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -177,7 +178,7 @@ def test_dataset_proposal_migration_has_separate_immutable_restricted_authority(
 
 
 def test_dataset_review_migration_has_bound_immutable_restricted_authority() -> None:
-    migration = load_c1_migrations()[-1]
+    migration = load_c1_migrations()[4]
     assert migration.name == "0005_dataset_review_authority.sql"
     sql = migration.sql
     assert (
@@ -212,3 +213,40 @@ def test_dataset_review_migration_has_bound_immutable_restricted_authority() -> 
     assert "REVOKE ALL ON ALL TABLES" in sql
     assert "GRANT EXECUTE ON FUNCTION" in sql
     assert "dohalm_training_v1.dataset_version_authority" not in sql
+
+
+def test_training_intent_migration_is_immutable_restricted_and_journal_free() -> None:
+    migration = load_c1_migrations()[-1]
+    assert migration.name == "0006_training_intent_authority.sql"
+    sql = migration.sql
+    for table_name in (
+        "training_intent_submitter_authority",
+        "training_intent_submission",
+        "training_intent_decision_binding",
+    ):
+        assert f"CREATE TABLE dohalm_training_v1.{table_name}" in sql
+    for function_name in (
+        "provision_training_intent_submitter",
+        "read_training_intent_submitter",
+        "submit_training_intent",
+        "read_training_intent",
+        "read_training_intent_by_idempotency",
+        "bind_training_intent_decision",
+        "read_training_intent_validation_state",
+    ):
+        assert f"CREATE FUNCTION dohalm_training_v1.{function_name}" in sql
+    assert "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA dohalm_training_v1" in sql
+    assert "dohalm_training_intent_writer" in sql
+    assert "BEFORE UPDATE OR DELETE" in sql
+    assert "SECURITY DEFINER" in sql
+    assert "SET search_path = pg_catalog, pg_temp" in sql
+    assert "GRANT EXECUTE ON FUNCTION" in sql
+    assert (
+        "bind_training_intent_decision(uuid, uuid) TO dohalm_training_intent_writer"
+        in sql
+    )
+    assert (
+        "bind_training_intent_decision(uuid, uuid) TO dohalm_training_authority_producer"
+        not in sql
+    )
+    assert "ALTER TABLE dohalm_training_v1.training_execution_journal" not in sql

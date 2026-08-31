@@ -63,7 +63,7 @@ def test_repository_manifest_is_complete() -> None:
     inventory = validate_manifest(root, root / ".github/ci/training-test-manifest.json")
     assert set(inventory.candidates) <= {entry.path for entry in inventory.entries}
     delegated = [entry for entry in inventory.entries if entry.tier == "delegated"]
-    assert len(inventory.required) == 27
+    assert len(inventory.required) == 28
     assert [(entry.path, entry.owner) for entry in delegated] == [
         ("tests/test_postgres_c1.py", "c1"),
         ("tests/test_postgres_c1_integration.py", "c1"),
@@ -71,6 +71,7 @@ def test_repository_manifest_is_complete() -> None:
         ("tests/test_postgres_c2_integration.py", "c2"),
         ("tests/test_postgres_c3.py", "c2"),
         ("tests/test_postgres_c3_integration.py", "c2"),
+        ("tests/test_postgres_training_intent_authority.py", "c2"),
     ]
 
 

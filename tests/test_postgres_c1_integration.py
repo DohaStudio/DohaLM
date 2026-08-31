@@ -543,6 +543,259 @@ class C1Fixture:
     concurrent_results: tuple[tuple[int, ...], ...]
 
 
+@dataclass(frozen=True)
+class _C1RoleFactory:
+    fixture: C1Fixture
+    role: str
+
+    @contextmanager
+    def transaction(self, *, isolation: str, read_only: bool) -> Iterator[Any]:
+        access = "READ ONLY" if read_only else "READ WRITE"
+        with self.fixture.factory.connection() as connection:
+            with connection.transaction():
+                connection.execute(
+                    f"SET TRANSACTION ISOLATION LEVEL {isolation.upper()} {access}"
+                )
+                connection.execute(f"SET LOCAL ROLE {self.role}")
+                yield connection
+
+
+def _intent_adapter(c1_postgres: C1Fixture):
+    from src.training.postgres_training_intent_authority import (
+        PostgresTrainingIntentAuthority,
+    )
+
+    return PostgresTrainingIntentAuthority(
+        producer=_C1RoleFactory(c1_postgres, "dohalm_training_authority_producer"),
+        writer=_C1RoleFactory(c1_postgres, "dohalm_training_intent_writer"),
+        resolver=_C1RoleFactory(c1_postgres, "dohalm_training_resolver"),
+    )
+
+
+def _seed_current_intent_authorities(c1_postgres: C1Fixture, suffix: str):
+    from src.data.checksums import sha256_bytes
+    from src.training.production_intent_authority import (
+        TrainingIntentMode,
+        TrainingIntentSubmission,
+    )
+
+    ids = {
+        name: str(uuid.uuid4())
+        for name in ("submitter", "version", "manifest", "pair", "config", "readiness")
+    }
+    source_commit = "a" * 40
+    pair_fingerprint = "sha256:" + hashlib.sha256(f"pair:{suffix}".encode()).hexdigest()
+    payloads = {
+        name: _canonical_payload(
+            {"fixture": "intent-foundation", "kind": name, "suffix": suffix}
+        )
+        for name in ids
+    }
+    config_fingerprint = sha256_bytes(payloads["config"])
+    readiness_fingerprint = sha256_bytes(payloads["readiness"])
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+            connection.execute(
+                f"SELECT * FROM {SCHEMA}.provision_training_intent_submitter("
+                "%s,%s,%s,%s,%s,transaction_timestamp(),transaction_timestamp() + interval '1 day',%s,%s,%s)",
+                (
+                    ids["submitter"],
+                    f"local-operator-{suffix}",
+                    payloads["submitter"],
+                    sha256_bytes(payloads["submitter"]),
+                    source_commit,
+                    str(uuid.uuid4()),
+                    f"correlation:submitter:{suffix}",
+                    f"evidence:submitter:{suffix}",
+                ),
+            ).fetchone()
+            for family in (
+                "dataset_version",
+                "dataset_manifest",
+                "dataset_pair",
+                "config",
+                "readiness",
+            ):
+                key = (
+                    family.removeprefix("dataset_")
+                    if family in {"dataset_version", "dataset_manifest", "dataset_pair"}
+                    else family
+                )
+                connection.execute(
+                    f"INSERT INTO {SCHEMA}.training_authority_identity "
+                    "(authority_id,subject_family,domain_key) VALUES (%s,%s,%s)",
+                    (ids[key], family, f"{family}:{suffix}"),
+                )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_version_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s)",
+                (
+                    ids["version"],
+                    payloads["version"],
+                    sha256_bytes(payloads["version"]),
+                    source_commit,
+                    f"dataset-version-{suffix}",
+                ),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_manifest_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s)",
+                (
+                    ids["manifest"],
+                    payloads["manifest"],
+                    sha256_bytes(payloads["manifest"]),
+                    source_commit,
+                    f"dataset-manifest-{suffix}",
+                ),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_pair_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s,%s,%s,'intent-foundation')",
+                (
+                    ids["pair"],
+                    payloads["pair"],
+                    sha256_bytes(payloads["pair"]),
+                    source_commit,
+                    ids["version"],
+                    ids["manifest"],
+                    pair_fingerprint,
+                ),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_config_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,config_kind,config_schema_version) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,'full_pretraining',1)",
+                (ids["config"], payloads["config"], config_fingerprint, source_commit),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.training_readiness_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,valid_until,source_commit,dataset_pair_fingerprint,config_fingerprint,evaluated_at,readiness_result) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),transaction_timestamp() + interval '1 day',%s,%s,%s,transaction_timestamp(),'READY')",
+                (
+                    ids["readiness"],
+                    payloads["readiness"],
+                    readiness_fingerprint,
+                    source_commit,
+                    pair_fingerprint,
+                    config_fingerprint,
+                ),
+            )
+            for family, key in (
+                ("dataset_version", "version"),
+                ("dataset_manifest", "manifest"),
+                ("dataset_pair", "pair"),
+                ("config", "config"),
+                ("readiness", "readiness"),
+            ):
+                connection.execute(
+                    f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,%s,0,'published',NULL,transaction_timestamp(),%s,%s)).state",
+                    (
+                        str(uuid.uuid4()),
+                        ids[key],
+                        family,
+                        f"correlation:{family}:{suffix}",
+                        f"evidence:{family}:{suffix}",
+                    ),
+                ).fetchone()
+    submission = TrainingIntentSubmission(
+        client_request_id=f"client-request-{suffix}",
+        requested_run_id=f"production-run-{suffix}",
+        execution_mode=TrainingIntentMode.FRESH,
+        dataset_version_authority_id=ids["version"],
+        dataset_manifest_authority_id=ids["manifest"],
+        dataset_pair_authority_id=ids["pair"],
+        dataset_version_id=f"dataset-version-{suffix}",
+        dataset_manifest_id=f"dataset-manifest-{suffix}",
+        dataset_pair_fingerprint=pair_fingerprint,
+        config_authority_id=ids["config"],
+        config_fingerprint=config_fingerprint,
+        readiness_authority_id=ids["readiness"],
+        readiness_fingerprint=readiness_fingerprint,
+        source_commit=source_commit,
+        output_logical_root=f"production/runs/{suffix}",
+    )
+    return ids, submission
+
+
+def _seed_intent_decision(
+    c1_postgres: C1Fixture,
+    request_fingerprint: str,
+    suffix: str,
+    decision: str = "approved",
+) -> str:
+    from src.data.checksums import sha256_bytes
+
+    ids = {name: str(uuid.uuid4()) for name in ("issuer", "approver", "decision")}
+    source_commit = "a" * 40
+    with c1_postgres.factory.connection() as connection:
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+            for family in ids:
+                connection.execute(
+                    f"INSERT INTO {SCHEMA}.training_authority_identity (authority_id,subject_family,domain_key) VALUES (%s,%s,%s)",
+                    (ids[family], family, f"{family}:intent:{suffix}"),
+                )
+            for family in ("issuer", "approver", "decision"):
+                payload = _canonical_payload(
+                    {"fixture": "intent-decision", "kind": family, "suffix": suffix}
+                )
+                if family == "issuer":
+                    connection.execute(
+                        f"INSERT INTO {SCHEMA}.training_issuer_registry (authority_id,payload_bytes,payload_sha256,valid_from,source_commit,issuer_id,adapter_kind,active_from) VALUES (%s,%s,%s,transaction_timestamp(),%s,%s,'same_process_training_execution_issuer',transaction_timestamp())",
+                        (
+                            ids[family],
+                            payload,
+                            sha256_bytes(payload),
+                            source_commit,
+                            f"issuer:{suffix}",
+                        ),
+                    )
+                elif family == "approver":
+                    connection.execute(
+                        f"INSERT INTO {SCHEMA}.training_approver_registry (authority_id,payload_bytes,payload_sha256,valid_from,source_commit,approver_reference,active_from) VALUES (%s,%s,%s,transaction_timestamp(),%s,%s,transaction_timestamp())",
+                        (
+                            ids[family],
+                            payload,
+                            sha256_bytes(payload),
+                            source_commit,
+                            f"approver:{suffix}",
+                        ),
+                    )
+                else:
+                    connection.execute(
+                        f"INSERT INTO {SCHEMA}.training_execution_decision_authority (authority_id,payload_bytes,payload_sha256,valid_from,valid_until,source_commit,decision,authorization_id,issuer_authority_id,issuer_id,approver_authority_id,approver_reference,evidence_reference,request_fingerprint,issued_at) VALUES (%s,%s,%s,transaction_timestamp(),transaction_timestamp() + interval '1 day',%s,%s,%s,%s,%s,%s,%s,%s,%s,transaction_timestamp())",
+                        (
+                            ids[family],
+                            payload,
+                            sha256_bytes(payload),
+                            source_commit,
+                            decision,
+                            f"authorization:{suffix}",
+                            ids["issuer"],
+                            f"issuer:{suffix}",
+                            ids["approver"],
+                            f"approver:{suffix}",
+                            f"decision:{uuid.uuid4()}",
+                            request_fingerprint,
+                        ),
+                    )
+                connection.execute(
+                    f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,%s,0,'published',NULL,transaction_timestamp(),%s,%s)).state",
+                    (
+                        str(uuid.uuid4()),
+                        ids[family],
+                        family,
+                        f"correlation:{family}:{suffix}",
+                        f"evidence:{family}:{suffix}",
+                    ),
+                ).fetchone()
+    return ids["decision"]
+
+
 @pytest.fixture(scope="session")
 def c1_postgres() -> Iterator[C1Fixture]:
     correlation = uuid.uuid4().hex
@@ -620,7 +873,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6)]
         yield C1Fixture(
             correlation,
             container,
@@ -672,6 +925,203 @@ def test_exact_versions_locale_and_private_binding(c1_postgres: C1Fixture) -> No
             "(SELECT datcollate FROM pg_database WHERE datname = current_database())"
         ).fetchone()
     assert row == ("160015", "UTF8", "UTC", "C")
+
+
+def check_training_intent_exact_conflicting_concurrent_and_cross_submitter_replay(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.training.errors import TrainingError
+    from src.training.production_intent_authority import TrainingIntentSubmitOutcome
+
+    adapter = _intent_adapter(c1_postgres)
+    ids, submission = _seed_current_intent_authorities(
+        c1_postgres, f"replay-{uuid.uuid4().hex[:8]}"
+    )
+    submitter = adapter.resolve_current(ids["submitter"])
+    first_outcome, first = adapter.submit(submitter, submission)
+    replay_outcome, replay = adapter.submit(submitter, submission)
+    assert (first_outcome, replay_outcome) == (
+        TrainingIntentSubmitOutcome.CREATED,
+        TrainingIntentSubmitOutcome.REPLAYED,
+    )
+    assert first == replay
+    with c1_postgres.factory.connection() as connection:
+        assert connection.execute(
+            f"SELECT count(*) FROM {SCHEMA}.training_intent_submission WHERE submitter_authority_id=%s AND client_request_id=%s",
+            (ids["submitter"], submission.client_request_id),
+        ).fetchone() == (1,)
+
+    exact = replace(
+        submission,
+        client_request_id=f"parallel-exact-{uuid.uuid4().hex}",
+        requested_run_id=f"parallel-exact-run-{uuid.uuid4().hex}",
+    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        exact_results = tuple(
+            executor.map(lambda _: adapter.submit(submitter, exact), range(2))
+        )
+    assert {result[0] for result in exact_results} == {
+        TrainingIntentSubmitOutcome.CREATED,
+        TrainingIntentSubmitOutcome.REPLAYED,
+    }
+    assert len({result[1].intent_id for result in exact_results}) == 1
+
+    conflict_key = f"parallel-conflict-{uuid.uuid4().hex}"
+    conflicting = (
+        replace(
+            submission,
+            client_request_id=conflict_key,
+            requested_run_id=f"parallel-conflict-a-{uuid.uuid4().hex}",
+        ),
+        replace(
+            submission,
+            client_request_id=conflict_key,
+            requested_run_id=f"parallel-conflict-b-{uuid.uuid4().hex}",
+        ),
+    )
+
+    def submit_conflict(value: object):
+        try:
+            return adapter.submit(submitter, value)  # type: ignore[arg-type]
+        except TrainingError as error:
+            return error
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        conflict_results = tuple(executor.map(submit_conflict, conflicting))
+    assert sum(isinstance(result, TrainingError) for result in conflict_results) == 1
+    assert any(
+        "TRAINING_INTENT_CONFLICT" in str(result)
+        for result in conflict_results
+        if isinstance(result, TrainingError)
+    )
+
+    other_ids, other_template = _seed_current_intent_authorities(
+        c1_postgres, f"cross-{uuid.uuid4().hex[:8]}"
+    )
+    other_submitter = adapter.resolve_current(other_ids["submitter"])
+    cross_submission = replace(
+        other_template,
+        client_request_id=submission.client_request_id,
+    )
+    cross_outcome, cross = adapter.submit(other_submitter, cross_submission)
+    assert cross_outcome is TrainingIntentSubmitOutcome.CREATED
+    assert cross.intent_id != first.intent_id
+
+
+def check_training_intent_binding_validation_immutability_and_role_boundaries(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.training.errors import TrainingError
+    from src.training.production_intent_authority import (
+        TrainingIntentLifecycle,
+        project_training_execution_request,
+        validate_intent_for_execution,
+    )
+
+    adapter = _intent_adapter(c1_postgres)
+    suffix = f"binding-{uuid.uuid4().hex[:8]}"
+    ids, submission = _seed_current_intent_authorities(c1_postgres, suffix)
+    submitter = adapter.resolve_current(ids["submitter"])
+    _, intent = adapter.submit(submitter, submission)
+    request = project_training_execution_request(intent)
+    decision_id = _seed_intent_decision(
+        c1_postgres, request.request_fingerprint, suffix
+    )
+    with c1_postgres.factory.connection() as connection:
+        with pytest.raises(Exception) as denied_producer_bind:
+            with connection.transaction():
+                connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.bind_training_intent_decision(%s,%s)",
+                    (intent.intent_id, decision_id),
+                )
+        assert getattr(denied_producer_bind.value, "sqlstate", None) == "42501"
+        journal_before = connection.execute(
+            f"SELECT count(*) FROM {SCHEMA}.training_execution_journal"
+        ).fetchone()
+    binding = adapter.bind_decision(intent.intent_id, decision_id)
+    assert adapter.bind_decision(intent.intent_id, decision_id) == binding
+    assert binding.request_fingerprint == request.request_fingerprint
+    assert (
+        intent.lifecycle(adapter.get_decision_binding(intent.intent_id))
+        is TrainingIntentLifecycle.DECISION_BOUND_APPROVED
+    )
+    validated = validate_intent_for_execution(
+        intent.intent_id, submission.source_commit, adapter
+    )
+    assert validated.execution_request == request
+    with c1_postgres.factory.connection() as connection:
+        assert (
+            connection.execute(
+                f"SELECT count(*) FROM {SCHEMA}.training_execution_journal"
+            ).fetchone()
+            == journal_before
+        )
+        for statement in (
+            f"UPDATE {SCHEMA}.training_intent_submission SET output_logical_root='changed' WHERE intent_id=%s",
+            f"DELETE FROM {SCHEMA}.training_intent_decision_binding WHERE intent_id=%s",
+        ):
+            with pytest.raises(Exception):
+                with connection.transaction():
+                    connection.execute("SET LOCAL ROLE dohalm_training_owner")
+                    connection.execute(statement, (intent.intent_id,))
+        for role in (
+            "dohalm_training_intent_writer",
+            "dohalm_training_resolver",
+            "dohalm_training_journal",
+            "dohalm_training_runtime",
+        ):
+            with pytest.raises(Exception) as denied:
+                with connection.transaction():
+                    connection.execute(f"SET LOCAL ROLE {role}")
+                    connection.execute(
+                        f"INSERT INTO {SCHEMA}.training_intent_submission (submitter_authority_id) VALUES (%s)",
+                        (ids["submitter"],),
+                    )
+            assert getattr(denied.value, "sqlstate", None) == "42501"
+
+    other_decision_id = _seed_intent_decision(
+        c1_postgres, request.request_fingerprint, f"{suffix}-other"
+    )
+    with pytest.raises(TrainingError, match="TRAINING_INTENT_CONFLICT"):
+        adapter.bind_decision(intent.intent_id, other_decision_id)
+    adapter.append_submitter_event(
+        event_id=str(uuid.uuid4()),
+        authority_id=ids["submitter"],
+        expected_stream_version=1,
+        event_kind="revoked",
+        superseded_by_authority_id=None,
+        effective_at=datetime.now(timezone.utc),
+        correlation_reference=f"correlation:revoke:{suffix}",
+        evidence_reference=f"evidence:revoke:{suffix}",
+    )
+    with pytest.raises(TrainingError, match="TRAINING_INTENT_AUTHORITY_STALE"):
+        validate_intent_for_execution(
+            intent.intent_id, submission.source_commit, adapter
+        )
+    assert adapter.get(intent.intent_id) == intent
+
+    denied_ids, denied_submission = _seed_current_intent_authorities(
+        c1_postgres, f"denied-{uuid.uuid4().hex[:8]}"
+    )
+    denied_submitter = adapter.resolve_current(denied_ids["submitter"])
+    _, denied_intent = adapter.submit(denied_submitter, denied_submission)
+    denied_request = project_training_execution_request(denied_intent)
+    denied_decision = _seed_intent_decision(
+        c1_postgres,
+        denied_request.request_fingerprint,
+        f"denied-decision-{uuid.uuid4().hex[:8]}",
+        "denied",
+    )
+    denied_binding = adapter.bind_decision(denied_intent.intent_id, denied_decision)
+    assert (
+        denied_intent.lifecycle(denied_binding)
+        is TrainingIntentLifecycle.DECISION_BOUND_DENIED
+    )
+    with pytest.raises(TrainingError, match="TRAINING_INTENT_DECISION_DENIED"):
+        validate_intent_for_execution(
+            denied_intent.intent_id, denied_submission.source_commit, adapter
+        )
 
 
 @pytest.mark.integration
@@ -750,12 +1200,19 @@ def test_schema_envelopes_roles_and_immutable_boundary(c1_postgres: C1Fixture) -
         roles = dict(
             connection.execute(
                 "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = ANY(%s)",
-                (["dohalm_training_owner", "dohalm_training_runtime"],),
+                (
+                    [
+                        "dohalm_training_owner",
+                        "dohalm_training_runtime",
+                        "dohalm_training_intent_writer",
+                    ],
+                ),
             ).fetchall()
         )
         assert roles == {
             "dohalm_training_owner": False,
             "dohalm_training_runtime": True,
+            "dohalm_training_intent_writer": True,
         }
         function = connection.execute(
             "SELECT p.prosecdef, p.proconfig FROM pg_proc p "
@@ -1844,7 +2301,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4, 5)
+            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -1922,6 +2379,13 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 "0005_dataset_review_authority.sql",
                 hashlib.sha256(
                     (migration_root / "0005_dataset_review_authority.sql").read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                6,
+                "0006_training_intent_authority.sql",
+                hashlib.sha256(
+                    (migration_root / "0006_training_intent_authority.sql").read_bytes()
                 ).hexdigest(),
             ),
         ]
@@ -2360,6 +2824,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (3, "0003_c1_2_c2_typed_snapshot_and_journal_contracts.sql"),
                 (4, "0004_dataset_proposal_authority.sql"),
                 (5, "0005_dataset_review_authority.sql"),
+                (6, "0006_training_intent_authority.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
