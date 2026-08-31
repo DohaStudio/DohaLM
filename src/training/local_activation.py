@@ -55,6 +55,10 @@ _SAFE_NAME = re.compile(r"dohalm-local-[a-z0-9-]{1,40}\Z")
 _DB_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_]{0,62}\Z")
 _REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}\Z")
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES = 100
+_POSTGRES_DSN = re.compile(r"postgres(?:ql)?://[^\s]+", re.IGNORECASE)
+_SENSITIVE_FIELD = re.compile(r"(?i)((?:password|secret|token)\s*[=:]\s*)[^\s,;]+")
+_GITHUB_TOKEN = re.compile(r"\bgh[pousr]_[A-Za-z0-9_]+\b")
 _ROLE_FILES = {
     "migration_owner": "migration_owner.password",
     "producer": "producer.password",
@@ -532,8 +536,12 @@ class LocalDurablePostgresBootstrapper:
                 )
 
     def _wait_for_database(self, port: int) -> None:
-        deadline = time.monotonic() + 60
+        started_at = time.monotonic()
+        deadline = started_at + 60
+        attempts = 0
+        last_error: BaseException | None = None
         while time.monotonic() < deadline:
+            attempts += 1
             try:
                 import psycopg
 
@@ -547,12 +555,102 @@ class LocalDurablePostgresBootstrapper:
                     sslmode="disable",
                 ):
                     return
-            except Exception:
+            except Exception as error:
+                last_error = error
                 time.sleep(0.25)
+        now = time.monotonic()
+        sqlstate = getattr(last_error, "sqlstate", None)
+        error_type = type(last_error).__name__ if last_error is not None else "none"
+        try:
+            diagnostics = self._postgres_failure_diagnostics()
+        except Exception as diagnostic_error:  # noqa: BLE001
+            diagnostics = (
+                "POSTGRES_CONTAINER_DIAGNOSTIC "
+                f"collection_warning={type(diagnostic_error).__name__}",
+            )
+        suffix = "" if not diagnostics else "\n" + "\n".join(diagnostics)
         raise _failure(
             "LOCAL_TRAINING_POSTGRES_UNAVAILABLE",
-            "The local PostgreSQL database did not become ready.",
+            "The local PostgreSQL database did not become ready. "
+            "POSTGRES_READINESS_DIAGNOSTIC "
+            f"attempts={attempts} elapsed_seconds={max(0.0, now - started_at):.2f} "
+            "timeout_seconds=60 poll_interval_seconds=0.25 "
+            f"exception_type={error_type} sqlstate={sqlstate or 'none'} "
+            f"host=loopback published_port={port} container_port=5432{suffix}",
         )
+
+    def _sanitize_postgres_diagnostic(self, value: object) -> str:
+        text = str(value)
+        for secret in (
+            self._credentials.migration_owner,
+            self._credentials.producer,
+            self._credentials.resolver,
+            self._credentials.journal,
+        ):
+            if secret:
+                text = text.replace(secret, "[REDACTED]")
+        text = _POSTGRES_DSN.sub("postgresql://[REDACTED]", text)
+        text = _SENSITIVE_FIELD.sub(r"\1[REDACTED]", text)
+        return _GITHUB_TOKEN.sub("[REDACTED]", text)
+
+    def _postgres_failure_diagnostics(self) -> tuple[str, ...]:
+        container = self._configuration.docker.container_name
+        lines: list[str] = []
+        try:
+            inspected = self._run(("docker", "inspect", container))
+            document = json.loads(inspected.stdout)[0]
+            state = document.get("State", {})
+            health = state.get("Health") or {}
+            bindings = (document.get("NetworkSettings", {}).get("Ports", {}) or {}).get(
+                "5432/tcp"
+            )
+            published = "none"
+            if isinstance(bindings, list) and len(bindings) == 1:
+                binding = bindings[0]
+                published = f"{binding.get('HostIp', 'unknown')}:{binding.get('HostPort', 'unknown')}"
+            correlation = (document.get("Config", {}).get("Labels", {}) or {}).get(
+                _LABEL, "none"
+            )
+            lines.append(
+                "POSTGRES_CONTAINER_DIAGNOSTIC "
+                f"container_id={str(document.get('Id', 'unknown'))[:12]} "
+                f"container_status={state.get('Status', 'unknown')} "
+                f"running={str(state.get('Running', False)).lower()} "
+                f"exit_code={state.get('ExitCode', 'unknown')} "
+                f"health_status={health.get('Status', 'none')} "
+                f"published_binding={published} container_port=5432 "
+                f"ownership_correlation={correlation}"
+            )
+        except Exception as error:
+            lines.append(
+                f"POSTGRES_CONTAINER_DIAGNOSTIC inspect_warning={type(error).__name__}"
+            )
+        try:
+            result = self._run(
+                (
+                    "docker",
+                    "logs",
+                    "--tail",
+                    str(_POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES),
+                    container,
+                )
+            )
+            raw_lines = (result.stdout + "\n" + result.stderr).splitlines()
+            bounded = raw_lines[-_POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES:]
+            lines.append(
+                "POSTGRES_LOG_TAIL_DIAGNOSTIC "
+                f"tail_limit={_POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES} lines={len(bounded)}"
+            )
+            lines.extend(
+                "POSTGRES_LOG_TAIL " + self._sanitize_postgres_diagnostic(line)
+                for line in bounded
+            )
+        except Exception as error:
+            lines.append(
+                "POSTGRES_LOG_TAIL_DIAGNOSTIC "
+                f"collection_warning={type(error).__name__}"
+            )
+        return tuple(lines)
 
     def _migrate_and_configure_roles(self, port: int) -> tuple[int, ...]:
         try:

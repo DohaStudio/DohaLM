@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import re
 import secrets
 import subprocess
 import threading
@@ -42,6 +43,10 @@ LABEL_KEY = "com.dohastudio.c1.correlation"
 SCHEMA = "dohalm_training_v1"
 POSTGRES_READINESS_TIMEOUT_SECONDS = 30.0
 POSTGRES_READINESS_POLL_INTERVAL_SECONDS = 0.25
+POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES = 100
+_POSTGRES_DSN = re.compile(r"postgres(?:ql)?://[^\s]+", re.IGNORECASE)
+_SENSITIVE_FIELD = re.compile(r"(?i)((?:password|secret|token)\s*[=:]\s*)[^\s,;]+")
+_GITHUB_TOKEN = re.compile(r"\bgh[pousr]_[A-Za-z0-9_]+\b")
 
 
 def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -54,17 +59,42 @@ def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[
     )
 
 
-def _wait_healthy(container: str) -> None:
-    deadline = time.monotonic() + 90
-    while time.monotonic() < deadline:
-        result = _docker(
+def _wait_healthy(
+    container: str,
+    *,
+    docker: Callable[..., subprocess.CompletedProcess[str]] = _docker,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    timeout_seconds: float = 90.0,
+    poll_interval_seconds: float = 1.0,
+    redactions: tuple[str, ...] = (),
+) -> None:
+    started_at = clock()
+    deadline = started_at + timeout_seconds
+    attempts = 0
+    last_status = "unknown"
+    while clock() < deadline:
+        attempts += 1
+        result = docker(
             "inspect", "--format", "{{.State.Health.Status}}", container, check=False
         )
-        if result.returncode == 0 and result.stdout.strip() == "healthy":
+        last_status = result.stdout.strip() or f"inspect_exit_{result.returncode}"
+        if result.returncode == 0 and last_status == "healthy":
             return
-        time.sleep(1)
-    logs = _docker("logs", container, check=False).stderr[-2000:]
-    raise AssertionError(f"isolated PostgreSQL fixture did not become healthy: {logs}")
+        sleep(poll_interval_seconds)
+    now = clock()
+    diagnostics = _container_diagnostics(
+        container, docker=docker, redactions=redactions
+    )
+    suffix = "" if not diagnostics else "\n" + "\n".join(diagnostics)
+    raise AssertionError(
+        "isolated PostgreSQL fixture did not become healthy; "
+        "POSTGRES_READINESS_DIAGNOSTIC phase=docker_health "
+        f"attempts={attempts} elapsed_seconds={max(0.0, now - started_at):.2f} "
+        f"timeout_seconds={timeout_seconds:g} "
+        f"poll_interval_seconds={poll_interval_seconds:g} "
+        f"exception_type=none sqlstate=none last_health_status={last_status}{suffix}"
+    )
 
 
 def _assert_loopback_listener(container: str, port: int) -> None:
@@ -112,6 +142,76 @@ def _is_retryable_postgres_readiness_error(error: BaseException) -> bool:
     return isinstance(error, OperationalError)
 
 
+def _sanitize_diagnostic(value: object, redactions: tuple[str, ...]) -> str:
+    text = str(value)
+    for secret in redactions:
+        if secret:
+            text = text.replace(secret, "[REDACTED]")
+    text = _POSTGRES_DSN.sub("postgresql://[REDACTED]", text)
+    text = _SENSITIVE_FIELD.sub(r"\1[REDACTED]", text)
+    return _GITHUB_TOKEN.sub("[REDACTED]", text)
+
+
+def _container_diagnostics(
+    container: str,
+    *,
+    docker: Callable[..., subprocess.CompletedProcess[str]] = _docker,
+    redactions: tuple[str, ...] = (),
+) -> tuple[str, ...]:
+    lines: list[str] = []
+    try:
+        inspected = json.loads(docker("inspect", container).stdout)[0]
+        state = inspected.get("State", {})
+        health = state.get("Health") or {}
+        bindings = (inspected.get("NetworkSettings", {}).get("Ports", {}) or {}).get(
+            "5432/tcp"
+        )
+        published = "none"
+        if isinstance(bindings, list) and len(bindings) == 1:
+            binding = bindings[0]
+            published = f"{binding.get('HostIp', 'unknown')}:{binding.get('HostPort', 'unknown')}"
+        correlation = (inspected.get("Config", {}).get("Labels", {}) or {}).get(
+            LABEL_KEY, "none"
+        )
+        lines.append(
+            "POSTGRES_CONTAINER_DIAGNOSTIC "
+            f"container_id={str(inspected.get('Id', 'unknown'))[:12]} "
+            f"container_status={state.get('Status', 'unknown')} "
+            f"running={str(state.get('Running', False)).lower()} "
+            f"exit_code={state.get('ExitCode', 'unknown')} "
+            f"health_status={health.get('Status', 'none')} "
+            f"published_binding={published} container_port=5432 "
+            f"ownership_correlation={correlation}"
+        )
+    except Exception as error:
+        lines.append(
+            f"POSTGRES_CONTAINER_DIAGNOSTIC inspect_warning={type(error).__name__}"
+        )
+    try:
+        result = docker(
+            "logs",
+            "--tail",
+            str(POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES),
+            container,
+            check=False,
+        )
+        raw_lines = (result.stdout + "\n" + result.stderr).splitlines()
+        bounded = raw_lines[-POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES:]
+        lines.append(
+            "POSTGRES_LOG_TAIL_DIAGNOSTIC "
+            f"tail_limit={POSTGRES_DIAGNOSTIC_LOG_TAIL_LINES} lines={len(bounded)}"
+        )
+        lines.extend(
+            "POSTGRES_LOG_TAIL " + _sanitize_diagnostic(line, redactions)
+            for line in bounded
+        )
+    except Exception as error:
+        lines.append(
+            f"POSTGRES_LOG_TAIL_DIAGNOSTIC collection_warning={type(error).__name__}"
+        )
+    return tuple(lines)
+
+
 def _wait_for_postgres_connection(
     settings: C1PostgresSettings,
     *,
@@ -120,6 +220,7 @@ def _wait_for_postgres_connection(
     sleep: Callable[[float], None] = time.sleep,
     timeout_seconds: float = POSTGRES_READINESS_TIMEOUT_SECONDS,
     poll_interval_seconds: float = POSTGRES_READINESS_POLL_INTERVAL_SECONDS,
+    terminal_diagnostics: Callable[[], tuple[str, ...]] | None = None,
 ) -> None:
     if timeout_seconds <= 0 or poll_interval_seconds <= 0:
         raise ValueError("PostgreSQL readiness timing must be positive")
@@ -128,8 +229,11 @@ def _wait_for_postgres_connection(
 
         connect = psycopg.connect
 
-    deadline = clock() + timeout_seconds
+    started_at = clock()
+    deadline = started_at + timeout_seconds
+    attempts = 0
     while True:
+        attempts += 1
         try:
             with connect(
                 host=settings.host,
@@ -149,10 +253,28 @@ def _wait_for_postgres_connection(
             now = clock()
             if now >= deadline:
                 error_type = type(error).__name__
+                sqlstate = getattr(error, "sqlstate", None)
+                diagnostic_lines: tuple[str, ...] = ()
+                if terminal_diagnostics is not None:
+                    try:
+                        diagnostic_lines = terminal_diagnostics()
+                    except Exception as diagnostic_error:
+                        diagnostic_lines = (
+                            "POSTGRES_CONTAINER_DIAGNOSTIC "
+                            f"collection_warning={type(diagnostic_error).__name__}",
+                        )
+                suffix = (
+                    "" if not diagnostic_lines else "\n" + "\n".join(diagnostic_lines)
+                )
                 raise AssertionError(
                     "isolated PostgreSQL host readiness probe timed out after "
-                    f"{timeout_seconds:g}s; "
-                    f"last_error_type={error_type}"
+                    f"{timeout_seconds:g}s; POSTGRES_READINESS_DIAGNOSTIC "
+                    f"attempts={attempts} elapsed_seconds={max(0.0, now - started_at):.2f} "
+                    f"timeout_seconds={timeout_seconds:g} "
+                    f"poll_interval_seconds={poll_interval_seconds:g} "
+                    f"exception_type={error_type} sqlstate={sqlstate or 'none'} "
+                    f"host=loopback published_port={settings.port} container_port=5432"
+                    f"{suffix}"
                 ) from None
             sleep(min(poll_interval_seconds, deadline - now))
 
@@ -274,6 +396,54 @@ def test_postgres_readiness_deadline_is_bounded_and_sanitized() -> None:
         ]
     )
     clock = _ReadinessProbeClock()
+    secret = "super-secret-test-password"
+
+    def diagnostic_docker(
+        *arguments: str, check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        if arguments[0] == "inspect":
+            return subprocess.CompletedProcess(
+                arguments,
+                0,
+                stdout=json.dumps(
+                    [
+                        {
+                            "Id": "a" * 64,
+                            "State": {
+                                "Status": "running",
+                                "Running": True,
+                                "ExitCode": 0,
+                                "Health": {"Status": "unhealthy"},
+                            },
+                            "NetworkSettings": {
+                                "Ports": {
+                                    "5432/tcp": [
+                                        {"HostIp": "127.0.0.1", "HostPort": "54321"}
+                                    ]
+                                }
+                            },
+                            "Config": {"Labels": {LABEL_KEY: "synthetic-correlation"}},
+                        }
+                    ]
+                ),
+                stderr="",
+            )
+        assert arguments[:3] == ("logs", "--tail", "100")
+        lines = [f"postgres-log-{index}" for index in range(104)]
+        lines.append(
+            f"password={secret} token=super-secret-test-token "
+            f"postgresql://owner:{secret}@127.0.0.1/db ghp_SyntheticTokenValue"
+        )
+        return subprocess.CompletedProcess(
+            arguments, 0, stdout="\n".join(lines), stderr=""
+        )
+
+    diagnostics = _container_diagnostics(
+        "synthetic-container",
+        docker=diagnostic_docker,
+        redactions=(secret,),
+    )
 
     with pytest.raises(
         AssertionError, match="host readiness probe timed out"
@@ -285,11 +455,81 @@ def test_postgres_readiness_deadline_is_bounded_and_sanitized() -> None:
             sleep=clock.sleep,
             timeout_seconds=0.5,
             poll_interval_seconds=0.25,
+            terminal_diagnostics=lambda: diagnostics,
         )
 
     assert len(connector.calls) == 3
     assert clock.sleeps == [0.25, 0.25]
-    assert "synthetic-readiness-password" not in str(captured.value)
+    message = str(captured.value)
+    assert "POSTGRES_READINESS_DIAGNOSTIC attempts=3 elapsed_seconds=0.50" in message
+    assert "exception_type=_ReadinessProbeError sqlstate=08006" in message
+    assert "published_port=54321 container_port=5432" in message
+    assert "health_status=unhealthy" in message
+    assert "tail_limit=100 lines=100" in message
+    assert "postgres-log-0" not in message
+    assert secret not in message
+    assert "super-secret-test-token" not in message
+    assert "ghp_SyntheticTokenValue" not in message
+    assert "postgresql://owner" not in message
+
+    health_clock = _ReadinessProbeClock()
+
+    def unhealthy_docker(
+        *arguments: str, check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        if arguments[:2] == ("inspect", "--format"):
+            return subprocess.CompletedProcess(
+                arguments, 0, stdout="starting\n", stderr=""
+            )
+        return diagnostic_docker(*arguments, check=check)
+
+    with pytest.raises(AssertionError, match="phase=docker_health") as unhealthy:
+        _wait_healthy(
+            "synthetic-container",
+            docker=unhealthy_docker,
+            clock=health_clock,
+            sleep=health_clock.sleep,
+            timeout_seconds=2.0,
+            poll_interval_seconds=1.0,
+            redactions=(secret,),
+        )
+    health_message = str(unhealthy.value)
+    assert "attempts=2 elapsed_seconds=2.00" in health_message
+    assert "timeout_seconds=2 poll_interval_seconds=1" in health_message
+    assert "last_health_status=starting" in health_message
+    assert secret not in health_message
+
+    def unavailable_docker(
+        *arguments: str, check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        del arguments, check
+        raise subprocess.CalledProcessError(1, "docker")
+
+    warnings = _container_diagnostics("synthetic-container", docker=unavailable_docker)
+    assert warnings == (
+        "POSTGRES_CONTAINER_DIAGNOSTIC inspect_warning=CalledProcessError",
+        "POSTGRES_LOG_TAIL_DIAGNOSTIC collection_warning=CalledProcessError",
+    )
+
+    isolated_connector = _ReadinessProbeConnector(
+        [_ReadinessProbeError("08006"), _ReadinessProbeError("08006")]
+    )
+    isolated_clock = _ReadinessProbeClock()
+    with pytest.raises(
+        AssertionError, match="POSTGRES_READINESS_DIAGNOSTIC"
+    ) as isolated:
+        _wait_for_postgres_connection(
+            _readiness_settings(),
+            connect=isolated_connector,
+            clock=isolated_clock,
+            sleep=isolated_clock.sleep,
+            timeout_seconds=0.25,
+            poll_interval_seconds=0.25,
+            terminal_diagnostics=lambda: (_ for _ in ()).throw(
+                RuntimeError("diagnostic collector unavailable")
+            ),
+        )
+    assert "collection_warning=RuntimeError" in str(isolated.value)
 
 
 @dataclass(frozen=True)
@@ -353,7 +593,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
             "60",
             IMAGE,
         )
-        _wait_healthy(container)
+        _wait_healthy(container, redactions=(password,))
         inspect = json.loads(_docker("inspect", container).stdout)[0]
         binding = inspect["NetworkSettings"]["Ports"]["5432/tcp"][0]
         assert binding["HostIp"] == "127.0.0.1"
@@ -366,7 +606,12 @@ def c1_postgres() -> Iterator[C1Fixture]:
             user=user,
             password=password,
         )
-        _wait_for_postgres_connection(settings)
+        _wait_for_postgres_connection(
+            settings,
+            terminal_diagnostics=lambda: _container_diagnostics(
+                container, redactions=(password,)
+            ),
+        )
         factory = C1PostgresConnectionFactory(settings)
 
         def migrate() -> tuple[int, ...]:
@@ -398,7 +643,11 @@ def c1_postgres() -> Iterator[C1Fixture]:
             residue = _docker(
                 *args, "--quiet", "--filter", f"label={LABEL_KEY}={correlation}"
             )
-            assert not residue.stdout.strip(), f"C1 {noun} residue remains"
+            resources = residue.stdout.split()
+            assert not resources, (
+                "POSTGRES_CLEANUP_RESIDUE "
+                f"label={LABEL_KEY}={correlation} {noun}s={','.join(resources)}"
+            )
 
 
 @pytest.mark.integration

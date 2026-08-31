@@ -129,9 +129,15 @@ jobs:
         if: always() && steps.changes.outputs.training_changed == 'true'
         shell: bash
         run: |
-          test -z "$(docker ps -aq --filter label=com.dohastudio.local-training.activation)"
-          test -z "$(docker volume ls -q --filter label=com.dohastudio.local-training.activation)"
-          test -z "$(docker network ls -q --filter label=com.dohastudio.local-training.activation)"
-          test -z "$(docker ps -aq --filter label=com.dohastudio.c1.correlation)"
-          test -z "$(docker volume ls -q --filter label=com.dohastudio.c1.correlation)"
-          test -z "$(docker network ls -q --filter label=com.dohastudio.c1.correlation)"
+          verify_no_residue() {
+            label="$1"
+            containers="$(docker ps -aq --filter "label=$label")"
+            volumes="$(docker volume ls -q --filter "label=$label")"
+            networks="$(docker network ls -q --filter "label=$label")"
+            if [ -n "$containers$volumes$networks" ]; then
+              echo "POSTGRES_CLEANUP_RESIDUE label=$label containers=${containers:-none} volumes=${volumes:-none} networks=${networks:-none}" >&2
+              return 1
+            fi
+          }
+          verify_no_residue com.dohastudio.local-training.activation
+          verify_no_residue com.dohastudio.c1.correlation

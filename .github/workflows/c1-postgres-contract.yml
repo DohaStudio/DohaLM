@@ -63,6 +63,10 @@ jobs:
         if: always() && steps.changes.outputs.c1_changed == 'true'
         shell: bash
         run: |
-          test -z "$(docker ps -aq --filter label=com.dohastudio.c1.correlation)"
-          test -z "$(docker volume ls -q --filter label=com.dohastudio.c1.correlation)"
-          test -z "$(docker network ls -q --filter label=com.dohastudio.c1.correlation)"
+          containers="$(docker ps -aq --filter label=com.dohastudio.c1.correlation)"
+          volumes="$(docker volume ls -q --filter label=com.dohastudio.c1.correlation)"
+          networks="$(docker network ls -q --filter label=com.dohastudio.c1.correlation)"
+          if [ -n "$containers$volumes$networks" ]; then
+            echo "POSTGRES_CLEANUP_RESIDUE label=com.dohastudio.c1.correlation containers=${containers:-none} volumes=${volumes:-none} networks=${networks:-none}" >&2
+            exit 1
+          fi

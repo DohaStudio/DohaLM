@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,6 +14,7 @@ from src.training.errors import TrainingError
 from src.training.local_activation import (
     POSTGRES_IMAGE,
     LocalDockerConfiguration,
+    LocalDurablePostgresBootstrapper,
     LocalRoleCredentials,
     LocalSingleUserActivationConfiguration,
     LocalDatasetMappingConfiguration,
@@ -118,7 +122,7 @@ def test_local_profile_accepts_ipv4_loopback_only(host: str) -> None:
 
 
 def test_c2_and_c3_accept_local_loopback_without_weakening_production_tls(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings = _PostgresTrainingConnectionSettings(
         environment="local_single_user",
@@ -159,6 +163,112 @@ def test_c2_and_c3_accept_local_loopback_without_weakening_production_tls(
             application_name="dohalm-production-resolver",
             sslmode="disable",
         )
+
+    credential_directory, credentials = _credential_directory(tmp_path)
+    secret = credentials.migration_owner
+
+    def diagnostic_runner(
+        arguments: tuple[str, ...], **_: object
+    ) -> subprocess.CompletedProcess[str]:
+        if arguments[1] == "inspect":
+            return subprocess.CompletedProcess(
+                arguments,
+                0,
+                stdout=json.dumps(
+                    [
+                        {
+                            "Id": "b" * 64,
+                            "State": {
+                                "Status": "running",
+                                "Running": True,
+                                "ExitCode": 0,
+                                "Health": {"Status": "unhealthy"},
+                            },
+                            "NetworkSettings": {
+                                "Ports": {
+                                    "5432/tcp": [
+                                        {"HostIp": "127.0.0.1", "HostPort": "54321"}
+                                    ]
+                                }
+                            },
+                            "Config": {
+                                "Labels": {
+                                    "com.dohastudio.local-training.activation": (
+                                        "local-single-user-v1"
+                                    )
+                                }
+                            },
+                        }
+                    ]
+                ),
+                stderr="",
+            )
+        assert arguments[1:4] == ("logs", "--tail", "100")
+        lines = [f"local-postgres-log-{index}" for index in range(104)]
+        lines.append(
+            f"password={secret} token=super-secret-test-token "
+            f"postgresql://owner:{secret}@127.0.0.1/db ghp_SyntheticTokenValue"
+        )
+        return subprocess.CompletedProcess(
+            arguments, 0, stdout="\n".join(lines), stderr=""
+        )
+
+    bootstrapper = LocalDurablePostgresBootstrapper(
+        _configuration(),
+        credentials,
+        credential_directory,
+        command_runner=diagnostic_runner,
+    )
+
+    class SyntheticConnectionFailure(Exception):
+        sqlstate = "08006"
+
+    monkeypatch.setitem(
+        sys.modules,
+        "psycopg",
+        SimpleNamespace(
+            connect=lambda **_: (_ for _ in ()).throw(
+                SyntheticConnectionFailure(f"password={secret}")
+            )
+        ),
+    )
+    monotonic_values = iter((0.0, 0.0, 60.0, 60.0))
+    monkeypatch.setattr(
+        "src.training.local_activation.time.monotonic",
+        lambda: next(monotonic_values),
+    )
+    monkeypatch.setattr("src.training.local_activation.time.sleep", lambda _: None)
+    with pytest.raises(
+        TrainingError, match="LOCAL_TRAINING_POSTGRES_UNAVAILABLE"
+    ) as error:
+        bootstrapper._wait_for_database(54321)
+    diagnostic_message = str(error.value)
+    assert (
+        "POSTGRES_READINESS_DIAGNOSTIC attempts=1 elapsed_seconds=60.00"
+        in diagnostic_message
+    )
+    assert (
+        "exception_type=SyntheticConnectionFailure sqlstate=08006" in diagnostic_message
+    )
+    assert "health_status=unhealthy" in diagnostic_message
+    assert "tail_limit=100 lines=100" in diagnostic_message
+    assert "local-postgres-log-0" not in diagnostic_message
+    assert secret not in diagnostic_message
+    assert "super-secret-test-token" not in diagnostic_message
+    assert "ghp_SyntheticTokenValue" not in diagnostic_message
+    assert "postgresql://owner" not in diagnostic_message
+
+    monkeypatch.setattr(
+        LocalDurablePostgresBootstrapper,
+        "_postgres_failure_diagnostics",
+        lambda _: (_ for _ in ()).throw(RuntimeError("diagnostics unavailable")),
+    )
+    monotonic_values = iter((0.0, 0.0, 60.0, 60.0))
+    with pytest.raises(
+        TrainingError, match="LOCAL_TRAINING_POSTGRES_UNAVAILABLE"
+    ) as isolated:
+        bootstrapper._wait_for_database(54321)
+    assert "collection_warning=RuntimeError" in str(isolated.value)
 
 
 def test_json_configuration_rejects_duplicate_keys_and_redacts(tmp_path: Path) -> None:
