@@ -340,6 +340,7 @@ class TrainingIntentDecisionBinding:
                 )
             )
             or not _valid_fingerprint(self.request_fingerprint)
+            or self.issuer_authority_id == self.approver_authority_id
         ):
             raise _error(
                 "TRAINING_INTENT_DECISION_BINDING_INVALID",
@@ -502,6 +503,20 @@ def validate_intent_for_execution(
         raise _error(
             "TRAINING_INTENT_DECISION_DENIED",
             "The Training intent decision does not permit execution.",
+        )
+    if (
+        len(
+            {
+                snapshot.intent.submitter_authority_id,
+                snapshot.binding.issuer_authority_id,
+                snapshot.binding.approver_authority_id,
+            }
+        )
+        != 3
+    ):
+        raise _error(
+            "TRAINING_INTENT_AUTHORITY_ROLE_COLLISION",
+            "Submitter, issuer, and approver authority identities must be distinct.",
         )
     current = (
         snapshot.submitter_current,

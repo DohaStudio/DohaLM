@@ -101,6 +101,24 @@ def _binding(
     )
 
 
+def test_decision_binding_rejects_same_issuer_and_approver_authority() -> None:
+    with pytest.raises(TrainingError, match="TRAINING_INTENT_DECISION_BINDING_INVALID"):
+        replace(_binding(), approver_authority_id=ISSUER_AUTHORITY_ID)
+
+
+@pytest.mark.parametrize("role", ("issuer", "approver"))
+def test_execution_validation_rejects_submitter_role_collision(role: str) -> None:
+    record = _record()
+    binding = _binding(record)
+    if role == "issuer":
+        binding = replace(binding, issuer_authority_id=SUBMITTER_ID)
+    else:
+        binding = replace(binding, approver_authority_id=SUBMITTER_ID)
+    authority = _SnapshotAuthority(_snapshot(intent=record, binding=binding))
+    with pytest.raises(TrainingError, match="TRAINING_INTENT_AUTHORITY_ROLE_COLLISION"):
+        validate_intent_for_execution(INTENT_ID, SOURCE_COMMIT, authority)
+
+
 def _snapshot(**changes: object) -> TrainingIntentValidationSnapshot:
     record = changes.pop("intent", _record())
     values: dict[str, object] = {
