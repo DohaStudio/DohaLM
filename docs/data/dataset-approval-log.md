@@ -120,6 +120,7 @@ registered
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [확정] exact Candidate A bundle을 학생·비상업 범위의 local/on-prem `production_internal` full-pretraining 용도로 fresh 승인함. commercial service·Dataset redistribution·model publication은 계속 미승인이며 Common Dataset publication은 fresh current-evidence review를 요구함 |
 | 2026-07-28 | [확정] 과거 Pilot·Candidate A 한정 승인 소비와 현재 추가 학습 미승인 경계를 명시함 |
 | 2026-07-27 | [확정] 사용자 승인 범위에서 canonical pilot-v2 Runtime Smoke를 정확히 5 optimizer step 실행하고 checkpoint checksum·load-only resume·mismatch 차단을 검증함; 100-step·Full Pretraining은 미승인 유지 |
 | 2026-07-27 | [확정] Pilot v1의 quota control-flow bug로 추가된 48건을 전수 분류하고 canonical pilot-v2 107,226건을 생성·검증함; Source lineage blocker는 해소하되 추가 Smoke·100-step 실행은 미승인 유지 |

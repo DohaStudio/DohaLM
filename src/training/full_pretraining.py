@@ -49,6 +49,8 @@ class FullPretrainingConfig:
     output_dir: str
     path_root: str = "configured_external"
     local_dataset_config: str = "configs/local-datasets.yaml"
+    dataset_eligibility_manifest: str | None = None
+    execution_scope: str = "local_experiment"
     budget_candidate: str = "candidate_a_10m"
     token_budget: int = 10_000_000
     tokens_per_optimizer_step: int = TOKENS_PER_OPTIMIZER_STEP
@@ -95,19 +97,41 @@ class FullPretrainingConfig:
             self._validate_relative_path(name, getattr(self, name))
         if self.resume_checkpoint is not None:
             self._validate_relative_path("resume_checkpoint", self.resume_checkpoint)
+        if self.dataset_eligibility_manifest is not None:
+            self._validate_relative_path(
+                "dataset_eligibility_manifest", self.dataset_eligibility_manifest
+            )
         if self.path_root not in {"repository", "configured_external"}:
             raise TrainingError(
                 "INVALID_FULL_PRETRAINING_CONFIG", "path_root가 유효하지 않습니다."
             )
+        if self.execution_scope not in {"local_experiment", "production_internal"}:
+            raise TrainingError(
+                "FULL_PRETRAINING_EXECUTION_SCOPE_INVALID",
+                "Full Pretraining execution scope가 유효하지 않습니다.",
+            )
         if (
-            not self.local_experiment_only
-            or self.publish_allowed
+            self.publish_allowed
             or self.redistribution_allowed
             or self.model_release_allowed
         ):
             raise TrainingError(
                 "FULL_PRETRAINING_LOCAL_ONLY_VIOLATION",
-                "Full Pretraining 후보는 local-only여야 합니다.",
+                "Full Pretraining은 publication·redistribution·model release를 허용하지 않습니다.",
+            )
+        if self.execution_scope == "local_experiment":
+            if (
+                not self.local_experiment_only
+                or self.dataset_eligibility_manifest is not None
+            ):
+                raise TrainingError(
+                    "FULL_PRETRAINING_LOCAL_ONLY_VIOLATION",
+                    "Local experiment는 기존 local-only 계약을 유지해야 합니다.",
+                )
+        elif self.local_experiment_only or self.dataset_eligibility_manifest is None:
+            raise TrainingError(
+                "FULL_PRETRAINING_PRODUCTION_AUTHORITY_REQUIRED",
+                "Internal production scope에는 별도 Dataset eligibility material이 필요합니다.",
             )
         integers = {
             "token_budget": self.token_budget,

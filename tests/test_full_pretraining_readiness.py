@@ -22,6 +22,7 @@ from src.training.full_pretraining import (
 
 
 CONFIG_PATH = Path("configs/full-pretraining.example.yaml")
+PRODUCTION_CONFIG_PATH = Path("configs/full-pretraining.production.yaml")
 MANIFEST_PATH = Path("docs/training/full-pretraining-approval.manifest.yaml")
 
 
@@ -128,6 +129,35 @@ def test_config_rejects_maximum_step_mismatch(tmp_path: Path) -> None:
     path = tmp_path / "config.yaml"
     write_yaml(path, value)
     with pytest.raises(TrainingError, match="FULL_PRETRAINING_STEP_BUDGET_MISMATCH"):
+        FullPretrainingConfig.from_yaml(path)
+
+
+def test_production_config_uses_explicit_scope_and_separate_eligibility() -> None:
+    config = FullPretrainingConfig.from_yaml(PRODUCTION_CONFIG_PATH)
+    assert config.execution_scope == "production_internal"
+    assert config.local_experiment_only is False
+    assert config.dataset_eligibility_manifest == (
+        "docs/data/aihub-71748-candidate-a-internal-production-eligibility.manifest.yaml"
+    )
+    assert config.publish_allowed is False
+    assert config.redistribution_allowed is False
+    assert config.model_release_allowed is False
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"execution_scope": "production_internal", "local_experiment_only": False},
+        {"execution_scope": "unknown"},
+        {"execution_scope": "local_experiment", "local_experiment_only": False},
+    ),
+)
+def test_execution_scope_fails_closed(tmp_path: Path, changes: dict) -> None:
+    value = load_yaml(CONFIG_PATH)
+    value.update(changes)
+    path = tmp_path / "config.yaml"
+    write_yaml(path, value)
+    with pytest.raises(TrainingError):
         FullPretrainingConfig.from_yaml(path)
 
 

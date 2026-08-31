@@ -1,0 +1,21 @@
+schema_version: 1
+material_type: internal_production_training_eligibility
+status: approved
+approved_at: "2026-09-01"
+approval_provenance: user-requested Production Training Eligibility remediation
+dataset_id: AIHUB-71748
+dataset_version: pilot-v2
+source_record_count: 107226
+source_corpus_sha256: sha256:0c7119106261e9a8487b5e2e1ba76ba220761a2fdaeb14738e968b91fdbeeb00
+dataset_fingerprint: sha256:89c721902844d6242d2bbb4a5be4be80286bd7debd19c52b5382078f3110c77b
+tokenization_fingerprint: sha256:a0fbc78d4e7e55e7e79bd72362946964514d111993bd8889d312f8d6efceef6c
+packing_fingerprint: sha256:e7ad635dafa3f18a77a243ec17b2bcb9d5f29c72e081ad161bd63b2218e0680b
+tokenizer_fingerprint: sha256:9ce19a118a893fd69bad3124f94cea78f804d450a2ff6a9c4149b3064312f0ff
+usage_purpose: internal_noncommercial_full_pretraining
+execution_scope: production_internal
+internal_training_allowed: true
+commercial_usage_allowed: false
+dataset_redistribution_allowed: false
+model_publication_allowed: false
+fresh_publication_review_required: true
+historical_execution_approval_reusable: false
