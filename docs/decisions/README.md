@@ -1,7 +1,7 @@
 # DohaLM Architecture Decision Records
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-25
+- 마지막 검토일: 2026-09-01
 
 ## 목적
 
@@ -43,6 +43,7 @@
 | ADR-029 | [RightsMetadata producer와 authority ownership 경계](./ADR-029-rights-metadata-ownership-authority.md) | `draft` | 미결정 | [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-028](./ADR-028-current-evidence-source-authority.md) | accountable owner·writer·logical key·projection·authenticated read와 Common change 필요성 판정 | owner·producer·logical key·revoke/read authority `BLOCKED`; overall `STILL BLOCKED` |
 | ADR-030 | [Cross-repository Rights domain ownership 결정 Gate](./ADR-030-cross-repository-rights-domain-ownership.md) | `draft` | 미결정 | [ADR-028](./ADR-028-current-evidence-source-authority.md), [ADR-029](./ADR-029-rights-metadata-ownership-authority.md) | 기존/신규/DohaLM owner, source identity, writer·authority·read와 cross-repository approval 판정 | Option D `ORGANIZATIONAL OWNERSHIP STILL BLOCKED`; overall `STILL BLOCKED` |
 | ADR-031 | [Dataset Publication Pair public read 계약](./ADR-031-dataset-publication-pair-public-read-contract.md) | `draft` | 미결정 | [ADR-015](./ADR-015-dataset-version-publication-contract.md), [ADR-026](./ADR-026-dataset-review-authority-contract.md), [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md) | exact identity Authority Protocol, explicit-root filesystem adapter, immutable result와 full pair-local verification | public source·tests 구현; runtime/CLI/API 미구현 |
+| ADR-032 | [Production Training Intent Authority](./ADR-032-production-training-intent-authority.md) | `approved` | 2026-09-01 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [C3 PostgreSQL Training Composition](../architecture/c3-postgresql-training-composition.md) | dedicated submitter authority, immutable intent/idempotency, validated request projection과 append-only decision binding 승인 | foundation 구현 진입 허용; application entrypoint·Training activation은 별도 Gate 전 금지 |
 
 ## Decision Request
 
@@ -74,6 +75,7 @@
 - [제안] ADR-029는 source-level authority 방향을 유지하지만 voice-only consent 구현과 제안 문서만으로 전체 Rights accountable owner를 확정하지 않는다. canonical producer·logical key·revoke/read authority가 미정이므로 Rights Authority contract는 `STILL BLOCKED`다.
 - [제안] ADR-030은 DohaMusic을 strongest existing candidate, 새 cross-repository Rights domain을 leading architecture alternative로 식별하지만 조직·법무 actor와 stable source identity·writer·authority/read owner 승인이 없어 Option D와 `STILL BLOCKED`를 선택한다.
 - [현재] ADR-031의 committed frozen DatasetVersion·issued DatasetManifest pair standalone read를 exact identity Authority Protocol과 full pair-local verification으로 구현했다. runtime/CLI/API, CurrentEvidence와 Training activation은 아직 없다.
+- [확정] ADR-032는 dedicated local submitter authority, 별도 intent/run identity, immutable submission, submitter-scoped idempotency와 validated request projection 뒤 append-only decision binding을 승인한다. Foundation 구현 진입만 허용하며 application entrypoint와 production Training activation은 별도 Gate 전까지 금지한다.
 - [확정] Rights Owner Decision Request는 accepted authentication ADR·병합 PR과 전체 Rights ownership을 분리하고, 완전한 owner/team·scope·provenance가 기록될 때까지 Option D를 유지한다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
@@ -83,6 +85,8 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [확정] 사용자 `DDORINY` 명시 architecture approval에 따라 ADR-032를 `approved`로 동기화하고 foundation 구현 진입과 activation 금지를 분리 |
+| 2026-09-01 | [제안] ADR-032 Production Training Intent Authority의 dedicated submitter, immutable intake/idempotency와 append-only decision binding 계약 등록 |
 | 2026-08-26 | [현재] ADR-031 Dataset Publication Pair public read port·filesystem adapter와 full pair-local verification 구현 반영; runtime activation 경계 유지 |
 | 2026-08-26 | [제안] ADR-031 Dataset Publication Pair public read의 `NEW PUBLIC READ PORT REQUIRED`·`READY FOR IMPLEMENTATION` 판정 등록 |
 | 2026-08-25 | [확정] Cross-Repository Rights Owner Decision Request와 explicit approval READY 기준 등록; Option D 유지 |
