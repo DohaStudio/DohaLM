@@ -38,7 +38,7 @@ jobs:
           fi
           is_c2_path() {
             case "$1" in
-              .github/workflows/c2-postgres-training-adapters.yml|requirements-c2.in|requirements-c2.lock|src/training/postgres_training_adapters.py|src/training/postgres_training_intent_authority.py|src/training/production_intent_authority.py|src/training/production_composition.py|src/training/production_full_pretraining_host.py|src/training/execution_issuer.py|src/training/dataset_training_entry.py|src/training/production_host_foundation.py|src/training/production_orchestration_seams.py|src/postgres_migrations/*|src/data/postgres_dataset_proposal_authority.py|src/data/postgres_dataset_review_authority.py|tests/test_postgres_c1*.py|tests/test_postgres_c2*.py|tests/test_postgres_c3*.py|tests/test_production_host_foundation.py|tests/test_production_orchestration_seams.py|tests/test_production_full_pretraining_host.py|tests/test_training_execution_issuer.py|tests/test_training_intent_authority.py)
+              .github/ci/training-test-manifest.json|.github/workflows/c2-postgres-training-adapters.yml|requirements-c2.in|requirements-c2.lock|scripts/ci/training_test_manifest.py|src/training/postgres_training_adapters.py|src/training/postgres_training_intent_authority.py|src/training/production_intent_authority.py|src/training/production_composition.py|src/training/production_full_pretraining_host.py|src/training/execution_issuer.py|src/training/dataset_training_entry.py|src/training/production_host_foundation.py|src/training/production_orchestration_seams.py|src/postgres_migrations/*|src/data/postgres_dataset_proposal_authority.py|src/data/postgres_dataset_review_authority.py|tests/test_postgres_c1*.py|tests/test_postgres_c2*.py|tests/test_postgres_c3*.py|tests/test_postgres_training_intent_authority.py|tests/test_production_host_foundation.py|tests/test_production_orchestration_seams.py|tests/test_production_full_pretraining_host.py|tests/test_training_execution_issuer.py|tests/test_training_intent_authority.py)
                 return 0
                 ;;
               *)
@@ -91,14 +91,14 @@ jobs:
       - name: Verify C2 Ruff contract
         if: steps.changes.outputs.c2_changed == 'true'
         run: |
-          python -m ruff check src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_training_intent_authority.py
-          python -m ruff format --check src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_training_intent_authority.py
+          python -m ruff check src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_postgres_training_intent_authority.py tests/test_training_intent_authority.py
+          python -m ruff format --check src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_postgres_training_intent_authority.py tests/test_training_intent_authority.py
       - name: Run C2 unit contracts
         if: steps.changes.outputs.c2_changed == 'true'
         run: python -m pytest tests/test_postgres_c2.py tests/test_training_intent_authority.py -q
       - name: Run C2 PostgreSQL integration contracts
         if: steps.changes.outputs.c2_changed == 'true'
-        run: python -m pytest tests/test_postgres_c2_integration.py -q
+        run: python -m pytest tests/test_postgres_c2_integration.py tests/test_postgres_training_intent_authority.py -q
       - name: Run C3 composition unit contracts
         if: steps.changes.outputs.c2_changed == 'true'
         run: python -m pytest tests/test_postgres_c3.py -q
@@ -110,7 +110,7 @@ jobs:
         run: python -m pytest tests/test_production_host_foundation.py tests/test_production_orchestration_seams.py tests/test_production_full_pretraining_host.py tests/test_training_execution_issuer.py -q
       - name: Compile C2 Python boundary
         if: steps.changes.outputs.c2_changed == 'true'
-        run: python -m compileall -q src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_training_intent_authority.py
+        run: python -m compileall -q src/training/postgres_training_adapters.py src/training/postgres_training_intent_authority.py src/training/production_intent_authority.py src/training/production_composition.py src/training/production_full_pretraining_host.py src/training/execution_issuer.py tests/test_postgres_c2.py tests/test_postgres_c2_integration.py tests/test_postgres_c3.py tests/test_postgres_c3_integration.py tests/test_postgres_training_intent_authority.py tests/test_training_intent_authority.py
       - name: Verify disposable resource cleanup
         if: always() && steps.changes.outputs.c2_changed == 'true'
         shell: bash

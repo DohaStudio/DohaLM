@@ -28,7 +28,7 @@ current dedicated submitter authority
 | `production_intent_authority.py` | frozen domain model, canonical fingerprint, construction-bound submitter selection, exact request projection, validate-only fail-closed 검증 |
 | `postgres_training_intent_authority.py` | producer/writer/resolver role로 제한된 PostgreSQL function adapter와 안정적인 오류 분류 |
 | migration `0006` | dedicated submitter authority, immutable submission, immutable decision binding, restricted function과 GRANT |
-| C1 integration | exact/conflicting concurrent replay, cross-submitter scope, decision bind, immutable DML와 journal 비변경 검증 |
+| C1/C2 persistence coverage | C1 migration·restore와 C2-owned shared PostgreSQL fixture에서 exact/conflicting concurrent replay, cross-submitter scope, decision bind, immutable DML와 journal 비변경 검증 |
 
 ## 영속성 및 권한
 

@@ -71,6 +71,7 @@ def test_repository_manifest_is_complete() -> None:
         ("tests/test_postgres_c2_integration.py", "c2"),
         ("tests/test_postgres_c3.py", "c2"),
         ("tests/test_postgres_c3_integration.py", "c2"),
+        ("tests/test_postgres_training_intent_authority.py", "c2"),
     ]
 
 

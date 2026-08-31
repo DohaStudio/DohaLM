@@ -184,6 +184,8 @@ def _delegated_classifier_pattern(path: str, owner: str) -> str:
         return "tests/test_postgres_c2*.py"
     if owner == "c2" and path.startswith("tests/test_postgres_c3"):
         return "tests/test_postgres_c3*.py"
+    if owner == "c2" and path == "tests/test_postgres_training_intent_authority.py":
+        return path
     if owner not in DELEGATED_WORKFLOWS:
         raise ManifestError(f"{path}: unknown delegated owner: {owner}")
     raise ManifestError(f"{path}: delegated path is not owned by {owner}")

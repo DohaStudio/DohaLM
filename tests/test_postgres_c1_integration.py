@@ -927,8 +927,7 @@ def test_exact_versions_locale_and_private_binding(c1_postgres: C1Fixture) -> No
     assert row == ("160015", "UTF8", "UTC", "C")
 
 
-@pytest.mark.integration
-def test_training_intent_exact_conflicting_concurrent_and_cross_submitter_replay(
+def check_training_intent_exact_conflicting_concurrent_and_cross_submitter_replay(
     c1_postgres: C1Fixture,
 ) -> None:
     from src.training.errors import TrainingError
@@ -1009,8 +1008,7 @@ def test_training_intent_exact_conflicting_concurrent_and_cross_submitter_replay
     assert cross.intent_id != first.intent_id
 
 
-@pytest.mark.integration
-def test_training_intent_binding_validation_immutability_and_role_boundaries(
+def check_training_intent_binding_validation_immutability_and_role_boundaries(
     c1_postgres: C1Fixture,
 ) -> None:
     from src.training.errors import TrainingError
