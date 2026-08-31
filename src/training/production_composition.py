@@ -2,12 +2,13 @@
 
 Import and construction are side-effect free.  The package-private root owns
 configuration validation, role-scoped adapter construction, a non-mutating
-preflight, guarded Host bootstrap, and deterministic shutdown.  It deliberately
-does not expose an intent-intake or Training execution entrypoint.
+preflight, guarded Host bootstrap, and deterministic shutdown.  Its application
+wiring remains package-private and stops before Host bootstrap or execution.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import threading
 from contextlib import contextmanager
@@ -18,6 +19,7 @@ from typing import Iterator
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from .errors import TrainingError
+from .full_pretraining import FullPretrainingConfig, resolve_full_pretraining_path
 from .postgres_training_adapters import (
     _PostgresTrainingConnectionFactory,
     _PostgresTrainingConnectionSettings,
@@ -32,11 +34,25 @@ from .production_full_pretraining_host import (
 )
 from .production_host_foundation import (
     ProductionTrainingHostIntent,
+    TrainingOrchestrationPhase,
+    TrainingOrchestrationRecord,
     TrainingDecisionResolutionRequest,
+    _resolve_trusted_training_decision_resolution,
+)
+from .production_intent_authority import (
+    TrainingIntentMode,
+    TrainingIntentValidationPort,
+    ValidatedTrainingIntent,
 )
 from .production_orchestration_seams import (
     TrainingPrerequisiteResolutionRequest,
+    _build_training_execution_request_from_prerequisites,
     _canonical_training_host_intent_fingerprint,
+    _resolve_training_prerequisites,
+)
+from .production_training_application import (
+    ProductionTrainingApplicationEntrypoint,
+    ProductionTrainingCompositionReadiness,
 )
 
 
@@ -334,6 +350,152 @@ class _PostgresTrainingPreflightResult:
     mutation_count: int
 
 
+def _host_intent_from_validated(
+    validated: ValidatedTrainingIntent,
+) -> ProductionTrainingHostIntent:
+    submission = validated.intent.submission
+    return ProductionTrainingHostIntent(
+        action=submission.action,
+        execution_mode=submission.execution_mode.value,
+        dataset_version_reference=(
+            f"dataset-version:{submission.dataset_version_authority_id}"
+        ),
+        dataset_manifest_reference=(
+            f"dataset-manifest:{submission.dataset_manifest_authority_id}"
+        ),
+        expected_dataset_pair_fingerprint=submission.dataset_pair_fingerprint,
+        training_config_reference=f"config:{submission.config_authority_id}",
+        expected_config_fingerprint=submission.config_fingerprint,
+        readiness_evidence_reference=(f"readiness:{submission.readiness_authority_id}"),
+        expected_readiness_fingerprint=submission.readiness_fingerprint,
+        run_id=submission.requested_run_id,
+        output_logical_root=submission.output_logical_root,
+        decision_evidence_reference=validated.binding.evidence_reference,
+    )
+
+
+def _output_available(resolved: object) -> bool:
+    try:
+        config = FullPretrainingConfig.from_yaml(resolved.config_path)
+        output = resolve_full_pretraining_path(config, config.output_dir)
+        if output.exists():
+            raise _error(
+                "TRAINING_APPLICATION_OUTPUT_UNAVAILABLE",
+                "The approved Training output root is not available.",
+            )
+        ancestor = output.parent
+        while not ancestor.exists() and ancestor != ancestor.parent:
+            ancestor = ancestor.parent
+        if not ancestor.is_dir() or not os.access(ancestor, os.W_OK | os.X_OK):
+            raise _error(
+                "TRAINING_APPLICATION_OUTPUT_UNAVAILABLE",
+                "The approved Training output root is not available.",
+            )
+        return True
+    except TrainingError as error:
+        if error.code == "TRAINING_APPLICATION_OUTPUT_UNAVAILABLE":
+            raise
+        raise _error(
+            "TRAINING_APPLICATION_OUTPUT_UNAVAILABLE",
+            "The approved Training output root is not available.",
+        ) from None
+    except Exception:
+        raise _error(
+            "TRAINING_APPLICATION_OUTPUT_UNAVAILABLE",
+            "The approved Training output root is not available.",
+        ) from None
+
+
+def _continuation_verified(
+    validated: ValidatedTrainingIntent,
+    resolved: object,
+    journal: _PostgresTrainingExecutionJournal,
+) -> bool:
+    submission = validated.intent.submission
+    continuation = submission.continuation
+    try:
+        config = FullPretrainingConfig.from_yaml(resolved.config_path)
+        if submission.execution_mode is TrainingIntentMode.FRESH:
+            if continuation is not None or config.resume_checkpoint is not None:
+                raise ValueError("fresh continuation mismatch")
+            return True
+        if continuation is None or config.resume_checkpoint is None:
+            raise ValueError("continuation missing")
+        resume_parts = tuple(
+            part
+            for part in config.resume_checkpoint.replace("\\", "/").split("/")
+            if part
+        )
+        contract = config.continuation
+        if (
+            len(resume_parts) < 2
+            or resume_parts[-2:]
+            != (
+                continuation.predecessor_run_id,
+                continuation.checkpoint_reference,
+            )
+            or contract.get("source_run_id") != continuation.predecessor_run_id
+            or contract.get("source_checkpoint") != continuation.checkpoint_reference
+            or contract.get("source_step") != continuation.source_step
+            or contract.get("target_cumulative_steps")
+            != continuation.target_cumulative_steps
+        ):
+            raise ValueError("continuation contract mismatch")
+        checkpoint = resolve_full_pretraining_path(config, config.resume_checkpoint)
+        if (
+            not checkpoint.is_dir()
+            or not (checkpoint / "checksums.json").is_file()
+            or not (checkpoint / "config.json").is_file()
+        ):
+            raise ValueError("checkpoint metadata unavailable")
+        predecessor = journal.read(continuation.predecessor_run_id)
+        if (
+            type(predecessor) is not TrainingOrchestrationRecord
+            or predecessor.phase is not TrainingOrchestrationPhase.COMPLETED
+            or predecessor.backend_entered is not True
+        ):
+            raise ValueError("predecessor is not a completed execution")
+        return True
+    except TrainingError as error:
+        if error.code == "TRAINING_APPLICATION_CONTINUATION_MISMATCH":
+            raise
+        raise _error(
+            "TRAINING_APPLICATION_CONTINUATION_MISMATCH",
+            "The approved continuation is unavailable or no longer exact.",
+        ) from None
+    except Exception:
+        raise _error(
+            "TRAINING_APPLICATION_CONTINUATION_MISMATCH",
+            "The approved continuation is unavailable or no longer exact.",
+        ) from None
+
+
+def _require_bound_decision(
+    validated: ValidatedTrainingIntent, resolution: object
+) -> None:
+    binding = validated.binding
+    decision = resolution.decision
+    provenance = resolution.provenance
+    if (
+        decision.decision is not binding.decision
+        or decision.authorization_id != binding.authorization_id
+        or decision.issuer_id != binding.issuer_id
+        or decision.approver_reference != binding.approver_reference
+        or decision.evidence_reference != binding.evidence_reference
+        or decision.request_fingerprint != binding.request_fingerprint
+        or provenance.decision_authority_id != binding.decision_authority_id
+        or provenance.issuer_authority_id != binding.issuer_authority_id
+        or provenance.approver_authority_id != binding.approver_authority_id
+        or provenance.current is not True
+        or provenance.issuer_current is not True
+        or provenance.approver_current is not True
+    ):
+        raise _error(
+            "TRAINING_APPLICATION_DECISION_STALE",
+            "The bound Training approval decision is no longer current and exact.",
+        )
+
+
 class _PostgresTrainingComposition:
     """Construction-owned C3 lifecycle; no public execution boundary."""
 
@@ -409,6 +571,113 @@ class _PostgresTrainingComposition:
                 raise
             self._preflight_complete = True
             return self._preflight_result()
+
+    def prepare_activation(
+        self, validated: ValidatedTrainingIntent
+    ) -> ProductionTrainingCompositionReadiness:
+        """Resolve one real intent through read-only C3 paths and stop before Host."""
+
+        with self._lock:
+            if type(validated) is not ValidatedTrainingIntent:
+                raise _error(
+                    "TRAINING_APPLICATION_INTENT_INVALID",
+                    "A validated durable Training intent is required.",
+                )
+            if self._lease.state is _PostgresTrainingLifecycleState.NEW:
+                self._lease.begin_starting()
+            elif self._lease.state is not _PostgresTrainingLifecycleState.STARTING:
+                raise _lifecycle_error()
+            if (
+                validated.binding.decision_authority_id
+                != self._configuration.decision_authority_id
+            ):
+                raise _error(
+                    "TRAINING_APPLICATION_COMPOSITION_UNAVAILABLE",
+                    "The trusted composition does not own the bound decision authority.",
+                )
+            host_intent = _host_intent_from_validated(validated)
+            resolved = None
+            try:
+                resolved = _resolve_training_prerequisites(
+                    self._required_prerequisite(), host_intent
+                )
+                request = _build_training_execution_request_from_prerequisites(
+                    host_intent, resolved
+                )
+                if request != validated.execution_request:
+                    raise _error(
+                        "TRAINING_APPLICATION_HOST_INCOMPATIBLE",
+                        "The C3 request projection does not match the durable intent.",
+                    )
+                existing = self._required_journal().read(request.run_id)
+                if existing is not None:
+                    raise _error(
+                        "TRAINING_APPLICATION_RUN_COLLISION",
+                        "The requested Training run identity is already present.",
+                    )
+                output_available = _output_available(resolved)
+                continuation_verified = _continuation_verified(
+                    validated, resolved, self._required_journal()
+                )
+                decision_request = TrainingDecisionResolutionRequest(
+                    intent=host_intent,
+                    decision_authority_id=validated.binding.decision_authority_id,
+                    request_fingerprint=request.request_fingerprint,
+                    dataset_version_id=resolved.dataset_version_id,
+                    dataset_manifest_id=resolved.dataset_manifest_id,
+                    dataset_pair_authority_id=resolved.dataset_pair_authority_id,
+                    dataset_pair_fingerprint=resolved.dataset_pair_fingerprint,
+                    config_fingerprint=resolved.config_fingerprint,
+                    readiness_fingerprint=resolved.readiness_fingerprint,
+                    source_commit=resolved.source_commit,
+                    prerequisite_policy_reference=(
+                        resolved.provenance.resolution_policy_reference
+                    ),
+                )
+                resolution = _resolve_trusted_training_decision_resolution(
+                    self._required_decision(), decision_request
+                )
+                _require_bound_decision(validated, resolution)
+                return ProductionTrainingCompositionReadiness(
+                    host_intent=host_intent,
+                    execution_request=request,
+                    provider=self._configuration.provider,
+                    process_boundary_id=self._configuration.process_boundary_id,
+                    prerequisite_policy_reference=(
+                        resolved.provenance.resolution_policy_reference
+                    ),
+                    decision_policy_reference=resolution.provenance.policy_reference,
+                    prerequisite_evaluated_at=resolved.provenance.evaluated_at,
+                    decision_issued_at=resolution.decision.issued_at,
+                    run_unused=True,
+                    output_available=output_available,
+                    continuation_verified=continuation_verified,
+                    host_contract_compatible=True,
+                    mutation_count=0,
+                )
+            except TrainingError:
+                self._cleanup_locked(failed=True)
+                raise
+            except Exception:
+                self._cleanup_locked(failed=True)
+                raise _error(
+                    "TRAINING_APPLICATION_COMPOSITION_UNAVAILABLE",
+                    "The redacted production composition dry-run failed.",
+                ) from None
+            finally:
+                if resolved is not None and self._prerequisite_resolver is not None:
+                    try:
+                        self._prerequisite_resolver.release(resolved)
+                    except Exception:
+                        if (
+                            self._lease.state
+                            is not _PostgresTrainingLifecycleState.SHUTDOWN
+                        ):
+                            self._cleanup_locked(failed=True)
+                        raise _error(
+                            "TRAINING_APPLICATION_COMPOSITION_UNAVAILABLE",
+                            "The redacted prerequisite material could not be released.",
+                        ) from None
 
     def startup(
         self, decision: _ProductionTrainingActivationDecision
@@ -707,6 +976,33 @@ def _compose_postgres_training_host(
             "TRAINING_COMPOSITION_CONSTRUCTION_FAILED",
             "The production training composition could not be constructed.",
         ) from None
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _PostgresTrainingActivationCompositionFactory:
+    configuration: _PostgresTrainingCompositionConfiguration
+
+    def __post_init__(self) -> None:
+        if type(self.configuration) is not _PostgresTrainingCompositionConfiguration:
+            raise _configuration_error()
+
+    def compose(self) -> _PostgresTrainingComposition:
+        return _compose_postgres_training_host(self.configuration)
+
+    def __repr__(self) -> str:
+        return "_PostgresTrainingActivationCompositionFactory(<redacted>)"
+
+
+def _compose_production_training_application(
+    authority: TrainingIntentValidationPort,
+    configuration: _PostgresTrainingCompositionConfiguration,
+) -> ProductionTrainingApplicationEntrypoint:
+    """Construct the non-CLI service without connecting or activating Training."""
+
+    return ProductionTrainingApplicationEntrypoint(
+        authority,
+        _PostgresTrainingActivationCompositionFactory(configuration),
+    )
 
 
 __all__: list[str] = []

@@ -28,6 +28,7 @@
     {"path": "tests/test_production_full_pretraining_host.py", "tier": "required_cpu", "owner": "host_runtime", "required": true, "reason": "Production host activation and lifecycle are required.", "group": "host"},
     {"path": "tests/test_production_host_foundation.py", "tier": "required_cpu", "owner": "host_runtime", "required": true, "reason": "Production host intent and journal foundations are required.", "group": "host"},
     {"path": "tests/test_production_orchestration_seams.py", "tier": "required_cpu", "owner": "host_runtime", "required": true, "reason": "Production orchestration ownership seams are required.", "group": "host"},
+    {"path": "tests/test_production_training_application.py", "tier": "required_cpu", "owner": "training_application", "required": true, "reason": "The non-CLI production application entrypoint and activation dry-run must remain fail-closed and side-effect free.", "group": "host"},
     {"path": "tests/test_qlora_sft_evaluation.py", "tier": "external", "owner": "training_adapter", "required": false, "reason": "QLoRA evaluation requires the separate Transformers adapter environment.", "group": null},
     {"path": "tests/test_qlora_training.py", "tier": "external", "owner": "training_adapter", "required": false, "reason": "QLoRA training requires external Transformers dependencies.", "group": null},
     {"path": "tests/test_sampler_state.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Sampler state continuity is required for exact resume.", "group": "critical"},
