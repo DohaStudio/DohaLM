@@ -36,6 +36,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--checksum-inventory", type=Path, required=True)
     parser.add_argument("--tokenizer-model", type=Path, required=True)
     parser.add_argument("--eligibility-material", type=Path, required=True)
+    parser.add_argument("--allocation-contract", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--rights-subject-id", required=True)
     parser.add_argument("--rights-source-authority-id", required=True)
@@ -59,11 +60,14 @@ def main() -> int:
         checksum_inventory=args.checksum_inventory,
         tokenizer_model=args.tokenizer_model,
         eligibility_material=args.eligibility_material,
+        allocation_contract=args.allocation_contract,
         rights=rights,
         output=args.output,
         reviewed_at=datetime.now(timezone.utc),
     )
-    verified = verify_candidate_a_production_dataset(result.output)
+    verified = verify_candidate_a_production_dataset(
+        result.output, allocation_contract=args.allocation_contract
+    )
     print(f"status={verified['status']}")
     print(f"dataset_fingerprint={verified['dataset_fingerprint']}")
     print(

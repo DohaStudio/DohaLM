@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `approved` |
-| 마지막 검토일 | 2026-09-01 |
+| 마지막 검토일 | 2026-09-02 |
 | 적용 대상 | `AIHUB-71748 / Candidate A / production_internal` Product Dataset rebuild |
 | 결정 문서 | [ADR-035](../decisions/ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md), [ADR-036](../decisions/ADR-036-existing-aihub-current-use-rights-authority.md) |
 | 선행 정책 | [Phase 1 데이터 계약](./phase1-data-contract.md), [분할 및 누수 방지](./data-split-and-leakage-policy.md), [ADR-034](../decisions/ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md) |
@@ -60,11 +60,25 @@ source-document boundary로 채택하지만 raw text는 authority ID로 노출�
 
 - cross-split group overlap: `0`
 - reversed-order deterministic replay: `PASS`
-- allocation fingerprint: `sha256:0eee73ff569f1608183805deca1180bb3d8aa909c5fa0dd93d93904691c8308c`
+- allocation fingerprint contract: `aihub-71748-production-allocation-fingerprint-v1`
+- allocation fingerprint: `sha256:055e82a5103043b769a9d2ea56b9efc4243c50e4c38261d87177b8fb63d66f3c`
+- canonical bytes: `19,177,444`
 - train, validation, test non-empty: `PASS`
 
 ratio는 record 수를 강제로 맞추는 quota가 아니라 group hash bucket threshold다. 따라서 실제 record 비율은 정확히
 90/5/5가 아닐 수 있다. group을 쪼개 ratio를 맞추는 것은 금지한다.
+
+### Allocation fingerprint serialization
+
+authoritative machine contract는
+[`aihub-71748-production-allocation-fingerprint.contract.json`](./aihub-71748-production-allocation-fingerprint.contract.json)이다.
+logical row는 canonical ASCII `source_id`, `group_key`, `split`만 포함하고 `source_id` UTF-8 bytes 오름차순으로 정렬한다.
+payload는 `contract_version`과 `allocations`를 가진 JSON object이며 기존 `canonical_json_bytes` 계약인 sorted keys,
+compact separators, `ensure_ascii=false`, UTF-8, trailing LF 1개를 사용한다. SHA-256은 이 complete bytes에 적용한다.
+
+최초 승인 값 `sha256:0eee73ff...c8308c`는 recipe와 input bytes가 보존되지 않아
+`LEGACY_APPROVED_FINGERPRINT_UNREPRODUCIBLE`로 남긴다. allocation content는 변경하지 않았으며 unversioned implementation
+projection `sha256:805f65e2...a99f83`도 새 authority로 사용하지 않는다.
 
 ## Producer and review acceptance
 
@@ -102,3 +116,10 @@ split regeneration decision 없이 현재 allocation을 변경할 수 없다.
 
 이 문서와 simulation은 Dataset artifact, publication, Training approval 또는 commercial/publication 권한이 아니다. 실제 rebuild는
 별도 implementation Gate에서 exact producer port, authority material과 manifests를 만들고 검증해야 한다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-09-02 | versioned allocation fingerprint contract와 machine-readable authority manifest 반영 |
+| 2026-09-01 | Candidate A production provenance policy 최초 승인 |

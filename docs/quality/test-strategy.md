@@ -5,7 +5,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-09-01 |
+| 마지막 검토일 | 2026-09-02 |
 | 선행 문서 | [개발 규칙](../governance/development-rules.md), [개발 로드맵](./development-roadmap.md), [Definition of Ready](../governance/definition-of-ready.md), [Definition of Done](../governance/definition-of-done.md), [ADR-006](../decisions/ADR-006-development-quality-gates.md) |
 | 후속 문서 | [테스트 체크리스트](./testing-checklist.md), 실제 test 구현 [검증 필요] |
 | 구현 전 필수 여부 | 예 |
@@ -105,7 +105,7 @@
 - [확정] `.github/workflows/dataset-governance.yml`의 `Dataset Governance Unit / Publication` check는 모든 pull request에서 생성한다.
 - [확정] Dataset 관련 경로가 바뀌면 빠른 권한·거버넌스·Publication 회귀와 Publication 멀티프로세스 회귀를 분리된 step으로 실행하고, 무관한 변경이면 heavy step을 생략한 cheap success를 보고한다.
 - [확정] cheap success 경로는 checkout, changed-path 분류, 확인 step만 실행하며 Python setup과 Dataset dependency 설치를 생략한다.
-- [확정] Dataset unit discovery는 `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py`, Common 계약 테스트를 자동 포함하되 Publication process는 별도 실행하고 Training/Torch 경계인 `tests/test_dataset_training_*.py`는 제외한다.
+- [확정] Dataset unit discovery는 `tests/test_candidate_a_*.py`, `tests/test_dataset_*.py`, `tests/test_product_dataset_*.py`, Common 계약 테스트를 자동 포함하되 Publication process는 별도 실행하고 Training/Torch 경계인 `tests/test_dataset_training_*.py`는 제외한다.
 - [확정] 일반 PostgreSQL adapter·migration 통합 검증은 기존 C1/C2 workflow 책임으로 유지한다. 단, DohaRights current-use read contract는 Dataset/Rights integration owner가 exact DohaRights commit의 실제 `0001 → 0002` migration을 ephemeral PostgreSQL에 적용해 16열 schema와 Common projection을 검증한다. pure Dataset 변경에 다른 PostgreSQL service를 강제하지 않는다.
 - [확정] Python 3.12 Ubuntu runner에서 Common 계약, PyYAML, pytest, Ruff와 Rights 통합에 필요한 pinned psycopg만 설치한다. DohaRights source는 exact commit으로 checkout하며 Training·Transformers·GPU dependency와 production secret은 사용하지 않는다.
 - [확정] 정적 검사는 관련 Dataset Governance 파일의 critical Ruff 규칙, format, compile/import와 patch whitespace를 검사한다. 저장소 전체 Ruff debt는 이 workflow에서 새 blocker로 만들지 않는다.
@@ -146,6 +146,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-02 | [확정] Candidate A allocation fingerprint의 versioned canonical contract·full-source verifier와 10 tests를 Dataset owner에 편입하고 Dataset 406(397 unit + 9 process) canonical count 반영 |
 | 2026-09-01 | [확정] DohaRights 16열 current-use read contract의 named mapping·schema drift guard와 actual `0001 → 0002` PostgreSQL integration 5 tests를 Dataset owner에 편입하고 Dataset 396·C1 28·C2 269·Training 514 canonical count 반영 |
 | 2026-09-01 | [확정] ADR-034 Model C snapshot, concrete Dataset source-token adapter, PostgreSQL durable binding과 Training 이중 currentness recheck를 required owner에 편입하고 Dataset 391·C1 28·C2 269·Training 514 canonical count 반영 |
 | 2026-09-01 | [확정] non-CLI Production Training application entrypoint와 read-only activation dry-run 22 tests를 required host group에 편입하고 Training 482 canonical count 반영 |
