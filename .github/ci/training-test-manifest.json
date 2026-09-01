@@ -2,6 +2,7 @@
   "schema_version": 1,
   "tests": [
     {"path": "tests/test_candidate_b_backend.py", "tier": "experimental", "owner": "training_experiment", "required": false, "reason": "Candidate B experimental backend is outside the active production Training contract.", "group": null},
+    {"path": "tests/test_dataset_current_evidence_snapshot.py", "tier": "required_cpu", "owner": "dataset_training_governance", "required": true, "reason": "ADR-034 Model C snapshot and activation currentness are required Dataset and Training contracts.", "group": "host"},
     {"path": "tests/test_dataset_training_activation.py", "tier": "required_cpu", "owner": "dataset_training", "required": true, "reason": "Dataset permission must gate Training activation.", "group": "host"},
     {"path": "tests/test_dataset_training_entry.py", "tier": "required_cpu", "owner": "training_integration", "required": true, "reason": "Dataset identity and readiness must fail closed at the Training entry boundary.", "group": "critical"},
     {"path": "tests/test_full_pretraining_backend.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "The production full-pretraining backend safety contract is Training-critical.", "group": "critical"},

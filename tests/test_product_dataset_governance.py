@@ -50,6 +50,7 @@ class _CurrentEvidenceAuthority:
         self.status = status
         self.identity_mismatch = identity_mismatch
         self.calls: list[tuple[object, str, datetime]] = []
+        self.bindings: list[tuple[object, str, object]] = []
 
     def evaluate_current_proposal_evidence(
         self,
@@ -73,6 +74,10 @@ class _CurrentEvidenceAuthority:
             authority_reference="authority:product-dataset-evidence:test",
             authority_version=1,
         )
+
+    def freeze_stage(self, *, identity, proposal_fingerprint: str, stage):
+        self.bindings.append((identity, proposal_fingerprint, stage))
+        return object()
 
 
 class _AtomicProposalAuthority:

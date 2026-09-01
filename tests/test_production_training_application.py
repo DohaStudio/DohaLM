@@ -125,20 +125,32 @@ def _snapshot(**changes: object) -> TrainingIntentValidationSnapshot:
         "decision_current": True,
         "issuer_current": True,
         "approver_current": True,
+        "current_evidence_current": True,
     }
     values.update(changes)
     return TrainingIntentValidationSnapshot(**values)  # type: ignore[arg-type]
 
 
 class _Authority:
-    def __init__(self, snapshot: TrainingIntentValidationSnapshot) -> None:
+    def __init__(
+        self,
+        snapshot: TrainingIntentValidationSnapshot,
+        *,
+        stale_on_recheck: bool = False,
+    ) -> None:
         self.snapshot = snapshot
+        self.stale_on_recheck = stale_on_recheck
 
     def read_validation_snapshot(
         self, intent_id: str
     ) -> TrainingIntentValidationSnapshot:
         assert intent_id == self.snapshot.intent.intent_id
         return self.snapshot
+
+    def verify_current_evidence(self, intent: TrainingIntentRecord) -> None:
+        assert intent == self.snapshot.intent
+        if self.stale_on_recheck:
+            raise TrainingError("TRAINING_CURRENT_EVIDENCE_STALE", "stale")
 
 
 def _host_intent(record: TrainingIntentRecord) -> ProductionTrainingHostIntent:
@@ -323,6 +335,19 @@ def test_approved_r3_continuation_is_preserved_exactly() -> None:
     assert result.plan.execution_request.execution_mode == "r3_one_epoch_continuation"
 
 
+def test_activate_stops_stale_rights_before_journal_and_host() -> None:
+    snapshot = _snapshot()
+    root = _Composition(snapshot.intent)
+    entrypoint = ProductionTrainingApplicationEntrypoint(
+        _Authority(snapshot, stale_on_recheck=True), _Factory(root)
+    )
+    with pytest.raises(TrainingError, match="TRAINING_CURRENT_EVIDENCE_STALE"):
+        entrypoint.activate(ProductionTrainingApplicationCommand(INTENT_ID, SOURCE))
+    assert root.activations == 0
+    root.journal_write.assert_not_called()
+    root.host_run.assert_not_called()
+
+
 def test_activation_plan_fingerprint_is_deterministic() -> None:
     first = _entrypoint()[0].dry_run(
         ProductionTrainingApplicationCommand(INTENT_ID, SOURCE)
@@ -359,6 +384,7 @@ def test_host_projection_mismatch_fails_closed() -> None:
         ({"decision_current": False}, "TRAINING_INTENT_AUTHORITY_STALE"),
         ({"issuer_current": False}, "TRAINING_INTENT_AUTHORITY_STALE"),
         ({"approver_current": False}, "TRAINING_INTENT_AUTHORITY_STALE"),
+        ({"current_evidence_current": False}, "TRAINING_INTENT_AUTHORITY_STALE"),
     ],
 )
 def test_entrypoint_reuses_fail_closed_foundation(

@@ -24,6 +24,7 @@ from .production_intent_authority import (
     project_training_execution_request,
     training_intent_fingerprint,
 )
+from .current_evidence_gate import TrainingCurrentEvidencePort
 
 
 _PRODUCER_ROLE = "dohalm_training_authority_producer"
@@ -170,6 +171,7 @@ class PostgresTrainingIntentAuthority:
         producer: _ConnectionFactory,
         writer: _ConnectionFactory,
         resolver: _ConnectionFactory,
+        current_evidence: TrainingCurrentEvidencePort,
     ) -> None:
         if (
             producer.role != _PRODUCER_ROLE
@@ -183,6 +185,7 @@ class PostgresTrainingIntentAuthority:
         self._producer = producer
         self._writer = writer
         self._resolver = resolver
+        self._current_evidence = current_evidence
 
     def __repr__(self) -> str:
         return "PostgresTrainingIntentAuthority(<redacted>)"
@@ -483,8 +486,17 @@ class PostgresTrainingIntentAuthority:
                     )
                 )
             assert intent_row is not None and state_row is not None
+            intent = _map_intent(intent_row)
+            current_evidence_current = True
+            try:
+                self._current_evidence.verify_currentness(
+                    intent.submission.readiness_authority_id,
+                    intent.submission.readiness_fingerprint,
+                )
+            except TrainingError:
+                current_evidence_current = False
             return TrainingIntentValidationSnapshot(
-                intent=_map_intent(intent_row),
+                intent=intent,
                 binding=None if binding_row is None else _map_binding(binding_row),
                 submitter_current=state_row["submitter_current"],
                 dataset_version_current=state_row["dataset_version_current"],
@@ -495,11 +507,18 @@ class PostgresTrainingIntentAuthority:
                 decision_current=state_row["decision_current"],
                 issuer_current=state_row["issuer_current"],
                 approver_current=state_row["approver_current"],
+                current_evidence_current=current_evidence_current,
             )
         except TrainingError:
             raise
         except Exception as exc:
             raise _map_error(exc) from None
+
+    def verify_current_evidence(self, intent: TrainingIntentRecord) -> None:
+        self._current_evidence.verify_currentness(
+            intent.submission.readiness_authority_id,
+            intent.submission.readiness_fingerprint,
+        )
 
 
 __all__ = ["PostgresTrainingIntentAuthority"]

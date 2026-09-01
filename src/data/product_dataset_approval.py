@@ -25,6 +25,7 @@ from .dataset_review_authority import (
     DatasetReviewAuthorityError,
     validate_dataset_review_authority_record,
 )
+from .product_dataset_current_evidence import DatasetLifecycleStage
 
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 
@@ -57,6 +58,16 @@ def approve_product_dataset_version(
         proposal_fingerprint=authoritative.proposal_fingerprint,
         authority=current_evidence_authority,
         evaluated_at=submitted.approved_at,
+    )
+    bind = getattr(current_evidence_authority, "freeze_stage", None)
+    if not callable(bind):
+        raise DatasetProposalAuthorityError(
+            "CURRENT_EVIDENCE_BINDING_AUTHORITY_MISSING", "approval"
+        )
+    bind(
+        identity=submitted.identity,
+        proposal_fingerprint=submitted.proposal_fingerprint,
+        stage=DatasetLifecycleStage.APPROVAL,
     )
 
     reviewing = begin_dataset_review(authoritative.proposal)

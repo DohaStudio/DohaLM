@@ -24,6 +24,7 @@ from .product_dataset_approval import (
     ProductDatasetApprovalRequest,
     approve_product_dataset_version,
 )
+from .product_dataset_current_evidence import DatasetLifecycleStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,16 @@ def publish_product_dataset_version(
         proposal_authority=proposal_authority,
         review_authority=review_authority,
         current_evidence_authority=current_evidence_authority,
+    )
+    bind = getattr(current_evidence_authority, "freeze_stage", None)
+    if not callable(bind):
+        raise DatasetPublicationError(
+            "CURRENT_EVIDENCE_BINDING_AUTHORITY_MISSING", "publication"
+        )
+    bind(
+        identity=request.identity,
+        proposal_fingerprint=request.proposal_fingerprint,
+        stage=DatasetLifecycleStage.PUBLICATION,
     )
     return publish_dataset_version(
         approved,

@@ -337,6 +337,7 @@ class ProductionTrainingApplicationEntrypoint:
             composition.preflight()
             readiness = composition.prepare_activation(validated)
             plan = self._plan(validated, readiness)
+            self._authority.verify_current_evidence(validated.intent)
             execution = composition.activate(readiness)
             return ProductionTrainingActivationResult(plan=plan, execution=execution)
         finally:

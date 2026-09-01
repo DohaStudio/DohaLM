@@ -25,6 +25,7 @@ from .dataset_review_authority import (
     validate_dataset_review_start_request,
     validate_dataset_review_start_result,
 )
+from .product_dataset_current_evidence import DatasetLifecycleStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +113,16 @@ def start_product_dataset_review(
             "integration",
             identity=submitted.identity,
         )
+    bind = getattr(current_evidence_authority, "freeze_stage", None)
+    if not callable(bind):
+        raise DatasetProposalAuthorityError(
+            "CURRENT_EVIDENCE_BINDING_AUTHORITY_MISSING", "review"
+        )
+    bind(
+        identity=submitted.identity,
+        proposal_fingerprint=submitted.proposal_fingerprint,
+        stage=DatasetLifecycleStage.REVIEW,
+    )
 
     reviewing = begin_dataset_review(authoritative.proposal)
     if (
