@@ -71,6 +71,7 @@ jobs:
             pytest==8.4.2 \
             ruff==0.15.22 \
             PyYAML==6.0.3 \
+            sentencepiece==0.2.2 \
             'psycopg[binary]==3.3.4' \
             https://github.com/DohaStudio/.github/releases/download/dohastudio-common-ai-contracts-v0.1.0/dohastudio_common_ai_contracts-0.1.0-py3-none-any.whl
           python -m pip check
