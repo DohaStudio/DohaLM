@@ -202,7 +202,6 @@ def _require_validated_candidate(
         or not _is_reference(candidate.training_eligibility_id)
         or not _FINGERPRINT.fullmatch(candidate.content_fingerprint)
         or not candidate.review_evidence_ids
-        or not candidate.consent_evidence_refs
     ):
         raise LearningCandidateReviewError("VALIDATED_CANDIDATE_INVALID", "candidate")
     if (
@@ -348,16 +347,35 @@ def _rights_reason(rights: Any, checked_at: datetime) -> ReviewReason | None:
     if (
         status not in {"approved", "approved_limited"}
         or rights["training_allowed"] is not True
-        or not isinstance(retention, dict)
+    ):
+        return ReviewReason.REJECTED_RIGHTS_INVALID
+    if not _has_rights_evidence(rights):
+        return ReviewReason.NEEDS_REVIEW_EVIDENCE_UNRESOLVED
+    if retention is True:
+        return None
+    if (
+        not isinstance(retention, dict)
         or retention.get("allowed") is not True
         or retention.get("scope") != "training"
     ):
         return ReviewReason.REJECTED_RIGHTS_INVALID
-    if not rights["consent_evidence_refs"]:
-        return ReviewReason.NEEDS_REVIEW_EVIDENCE_UNRESOLVED
     if _parse_time(retention.get("expires_at"), "rights") <= checked_at:
         return ReviewReason.REJECTED_RIGHTS_EXPIRED
     return None
+
+
+def _has_rights_evidence(rights: Any) -> bool:
+    if rights["consent_evidence_refs"]:
+        return True
+    extension = rights.get("extensions", {}).get("doharights.current_use", {})
+    typed = extension.get("typed_evidence_references")
+    return (
+        rights.get("source_type") in {"external", "reference"}
+        and extension.get("consent_basis") == "not_applicable"
+        and extension.get("current_use_authorized") is True
+        and isinstance(typed, list)
+        and bool(typed)
+    )
 
 
 def _eligibility_reason(

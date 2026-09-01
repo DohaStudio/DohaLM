@@ -17,6 +17,7 @@ from .dataset_proposal_authority import (
     DatasetProposalEvidenceStatus,
     dataset_version_proposal_fingerprint,
 )
+from .rights_metadata_projection import AuthorityRightsMetadata
 
 _FP = re.compile(r"sha256:[0-9a-f]{64}")
 _REF = re.compile(r"[A-Za-z][A-Za-z0-9._:@-]{1,255}")
@@ -58,6 +59,7 @@ class RightsReadModel:
     model_publication: bool
     record_fingerprint: str
     token: SourceToken
+    metadata: AuthorityRightsMetadata | None = None
 
     def __post_init__(self) -> None:
         if (

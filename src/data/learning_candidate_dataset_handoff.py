@@ -288,7 +288,7 @@ def _require_accepted_review(
         or not _valid_producer(review.rights_producer)
         or not _valid_producer(review.eligibility_producer)
         or not _valid_references(review.candidate_review_evidence_ids)
-        or not _valid_references(review.consent_evidence_refs)
+        or not _valid_optional_references(review.consent_evidence_refs)
     ):
         raise DatasetInclusionHandoffError("REVIEW_IDENTITY_INVALID", "identity")
     if (
@@ -437,7 +437,7 @@ def _valid_handoff_fields(handoff: DatasetInclusionHandoff) -> bool:
         and _valid_producer(handoff.rights_producer)
         and _valid_producer(handoff.eligibility_producer)
         and _valid_references(handoff.candidate_review_evidence_ids)
-        and _valid_references(handoff.consent_evidence_refs)
+        and _valid_optional_references(handoff.consent_evidence_refs)
         and isinstance(handoff.input_references, tuple)
         and isinstance(handoff.output_references, tuple)
         and isinstance(handoff.parent_candidate_ids, tuple)
@@ -484,6 +484,10 @@ def _valid_references(values: object) -> bool:
         and bool(values)
         and all(_is_reference(value) for value in values)
     )
+
+
+def _valid_optional_references(values: object) -> bool:
+    return isinstance(values, tuple) and all(_is_reference(value) for value in values)
 
 
 def _valid_producer(value: ProducerIdentity) -> bool:

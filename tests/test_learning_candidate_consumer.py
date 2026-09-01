@@ -207,10 +207,10 @@ def test_terminal_rights_status_fails_closed(status: str, code: str) -> None:
     _assert_error(code, lambda: _consume(rights=rights))
 
 
-def test_rights_retention_and_expiry_fail_closed() -> None:
-    invalid = _rights()
-    invalid["retention_allowed"] = True
-    _assert_error("RIGHTS_INVALID", lambda: _consume(rights=invalid))
+def test_indefinite_rights_retention_and_expiry_are_distinct() -> None:
+    indefinite = _rights()
+    indefinite["retention_allowed"] = True
+    assert _consume(rights=indefinite).rights_expires_at is None
     expired = _rights()
     expired["retention_allowed"]["expires_at"] = "2026-08-20T00:00:00Z"
     _assert_error("RIGHTS_EXPIRED", lambda: _consume(rights=expired))
@@ -236,6 +236,29 @@ def test_review_and_consent_evidence_are_required() -> None:
     rights = _rights()
     rights["consent_evidence_refs"] = []
     _assert_error("EVIDENCE_MISSING", lambda: _consume(rights=rights))
+
+
+def test_external_rights_can_use_typed_license_evidence_without_fake_consent() -> None:
+    rights = _rights()
+    rights.update(
+        source_type="external",
+        user_created=False,
+        external=True,
+        consent_evidence_refs=[],
+        extensions={
+            "doharights.current_use": {
+                "consent_basis": "not_applicable",
+                "current_use_authorized": True,
+                "typed_evidence_references": [
+                    {
+                        "reference_id": "evidence:aihub-current-policy",
+                        "evidence_type": "provider_usage_policy",
+                    }
+                ],
+            }
+        },
+    )
+    assert _consume(rights=rights).consent_evidence_refs == ()
 
 
 def test_identity_usage_purpose_and_status_bindings_are_exact() -> None:
