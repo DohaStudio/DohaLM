@@ -13,6 +13,15 @@ from .common_dataset_contracts import (
     verify_common_contract_runtime,
 )
 from .config import DataConfig, load_data_config, validate_data_config
+from .current_evidence_snapshot import (
+    CurrentEvidenceError,
+    DatasetEvidence,
+    DatasetGovernanceSnapshot,
+    DatasetGovernanceSnapshotCoordinator,
+    RightsReadModel,
+    SnapshotBoundProposalEvidenceAuthority,
+    SourceToken,
+)
 from .dataset_governance import (
     ApprovedDatasetVersion,
     DatasetGovernanceError,
@@ -96,6 +105,16 @@ from .postgres_dataset_review_authority import (
     PostgresDatasetReviewAuthority,
     PostgresDatasetReviewAuthoritySettings,
 )
+from .postgres_current_evidence import (
+    PostgresCurrentEvidenceBindingAuthority,
+    PostgresCurrentRightsAuthority,
+    PostgresSnapshotAuthority,
+)
+from .product_dataset_current_evidence import (
+    BoundDatasetLifecycleCurrentEvidence,
+    CurrentEvidenceBinding,
+    DatasetLifecycleStage,
+)
 from .product_dataset_approval import (
     ProductDatasetApprovalRequest,
     approve_product_dataset_version,
@@ -123,11 +142,17 @@ __all__ = [
     "CommonDatasetValidationError",
     "CommonObjectReference",
     "CurrentLearningCandidateEvidence",
+    "CurrentEvidenceBinding",
+    "CurrentEvidenceError",
     "DataConfig",
     "DataIssue",
     "DataPipelineError",
     "DatasetGovernanceError",
     "DatasetGovernanceIssue",
+    "DatasetGovernanceSnapshot",
+    "DatasetGovernanceSnapshotCoordinator",
+    "DatasetEvidence",
+    "DatasetLifecycleStage",
     "DatasetInclusionHandoff",
     "DatasetInclusionHandoffError",
     "DatasetInclusionHandoffRejected",
@@ -162,6 +187,9 @@ __all__ = [
     "PostgresDatasetProposalAuthoritySettings",
     "PostgresDatasetReviewAuthority",
     "PostgresDatasetReviewAuthoritySettings",
+    "PostgresCurrentEvidenceBindingAuthority",
+    "PostgresCurrentRightsAuthority",
+    "PostgresSnapshotAuthority",
     "ProducerIdentity",
     "ProductDatasetApprovalRequest",
     "ProductDatasetComposition",
@@ -173,6 +201,10 @@ __all__ = [
     "ProductDatasetReviewStartResult",
     "ReviewDecision",
     "ReviewReason",
+    "RightsReadModel",
+    "SnapshotBoundProposalEvidenceAuthority",
+    "SourceToken",
+    "BoundDatasetLifecycleCurrentEvidence",
     "ValidatedLearningCandidate",
     "adjudicate_dataset_version_proposal",
     "approve_dataset_version",

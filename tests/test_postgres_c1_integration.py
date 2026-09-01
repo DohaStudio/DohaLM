@@ -565,10 +565,15 @@ def _intent_adapter(c1_postgres: C1Fixture):
         PostgresTrainingIntentAuthority,
     )
 
+    class CurrentEvidence:
+        def verify_currentness(self, authority_id: str, fingerprint: str) -> None:
+            assert authority_id and fingerprint.startswith("sha256:")
+
     return PostgresTrainingIntentAuthority(
         producer=_C1RoleFactory(c1_postgres, "dohalm_training_authority_producer"),
         writer=_C1RoleFactory(c1_postgres, "dohalm_training_intent_writer"),
         resolver=_C1RoleFactory(c1_postgres, "dohalm_training_resolver"),
+        current_evidence=CurrentEvidence(),
     )
 
 
@@ -873,7 +878,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8)]
         yield C1Fixture(
             correlation,
             container,
@@ -1365,7 +1370,7 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                 6,
             )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (7,)
+            assert apply_c1_migrations(connection) == (7, 8)
             assert connection.execute(
                 "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
                 "has_function_privilege('public', %s, 'EXECUTE')",
@@ -1717,6 +1722,46 @@ def test_schema_envelopes_roles_and_immutable_boundary(c1_postgres: C1Fixture) -
                 connection.execute(
                     f"SELECT count(*) FROM {SCHEMA}.training_authority_identity"
                 )
+        assert "C1_POSTGRES_PERMISSION_DENIED" in str(
+            map_c1_postgres_error(captured.value)
+        )
+
+
+@pytest.mark.integration
+def test_current_evidence_snapshot_is_durable_and_resolver_cannot_write(
+    c1_postgres: C1Fixture,
+) -> None:
+    snapshot_id = str(uuid.uuid4())
+    fingerprint = "sha256:" + hashlib.sha256(snapshot_id.encode()).hexdigest()
+    proposal_fingerprint = "sha256:" + hashlib.sha256(b"proposal").hexdigest()
+    payload = {"snapshot_id": snapshot_id, "fixture": "current-evidence"}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    with c1_postgres.factory.connection() as connection, connection.transaction():
+        connection.execute("SET LOCAL ROLE dohalm_current_evidence_coordinator")
+        created = connection.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1.put_current_evidence_snapshot(%s,%s,%s,%s,%s::jsonb,%s,transaction_timestamp())",
+            (
+                snapshot_id,
+                f"proposal:{uuid.uuid4().hex}",
+                fingerprint,
+                proposal_fingerprint,
+                json.dumps(payload),
+                canonical,
+            ),
+        ).fetchone()
+        assert created is not None and str(created[0]) == snapshot_id
+    with c1_postgres.factory.connection() as connection, connection.transaction():
+        connection.execute("SET LOCAL ROLE dohalm_current_evidence_resolver")
+        read = connection.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1.read_current_evidence_snapshot(%s)",
+            (snapshot_id,),
+        ).fetchone()
+        assert read is not None and str(read[0]) == snapshot_id
+        with pytest.raises(Exception) as captured:
+            connection.execute(
+                "DELETE FROM dohalm_dataset_governance_v1.current_evidence_snapshot WHERE snapshot_id=%s",
+                (snapshot_id,),
+            )
         assert "C1_POSTGRES_PERMISSION_DENIED" in str(
             map_c1_postgres_error(captured.value)
         )
@@ -2785,7 +2830,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7)
+            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7, 8)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -2879,6 +2924,13 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root / "0007_production_authority_provisioning.sql"
                     ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                8,
+                "0008_current_evidence_snapshot.sql",
+                hashlib.sha256(
+                    (migration_root / "0008_current_evidence_snapshot.sql").read_bytes()
                 ).hexdigest(),
             ),
         ]
@@ -3319,6 +3371,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (5, "0005_dataset_review_authority.sql"),
                 (6, "0006_training_intent_authority.sql"),
                 (7, "0007_production_authority_provisioning.sql"),
+                (8, "0008_current_evidence_snapshot.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()

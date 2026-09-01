@@ -135,6 +135,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0005_dataset_review_authority.sql",
         "0006_training_intent_authority.sql",
         "0007_production_authority_provisioning.sql",
+        "0008_current_evidence_snapshot.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -254,7 +255,7 @@ def test_training_intent_migration_is_immutable_restricted_and_journal_free() ->
 
 
 def test_production_provisioning_migration_is_narrow_and_role_restricted() -> None:
-    migration = load_c1_migrations()[-1]
+    migration = load_c1_migrations()[6]
     assert migration.name == "0007_production_authority_provisioning.sql"
     sql = migration.sql
     for function_name in (
@@ -274,3 +275,32 @@ def test_production_provisioning_migration_is_narrow_and_role_restricted() -> No
     assert "TO dohalm_training_resolver" not in sql
     assert "TO dohalm_training_journal" not in sql
     assert "TO dohalm_training_intent_writer" not in sql
+
+
+def test_current_evidence_migration_is_append_only_scoped_and_durable() -> None:
+    migration = load_c1_migrations()[7]
+    assert migration.name == "0008_current_evidence_snapshot.sql"
+    sql = migration.sql
+    for table_name in (
+        "current_evidence_snapshot",
+        "current_evidence_lifecycle_binding",
+        "readiness_current_evidence_binding",
+    ):
+        assert f"CREATE TABLE dohalm_dataset_governance_v1.{table_name}" in sql
+        assert (
+            f"REVOKE ALL ON dohalm_dataset_governance_v1.{table_name} FROM PUBLIC"
+            in sql
+        )
+    for function_name in (
+        "put_current_evidence_snapshot",
+        "read_current_evidence_snapshot",
+        "bind_current_evidence_lifecycle",
+        "read_current_evidence_lifecycle",
+        "bind_readiness_current_evidence",
+        "resolve_readiness_current_evidence",
+    ):
+        assert f"CREATE FUNCTION dohalm_dataset_governance_v1.{function_name}" in sql
+    assert "dohalm_current_evidence_coordinator" in sql
+    assert "dohalm_current_evidence_resolver" in sql
+    assert "TO dohalm_current_evidence_coordinator" in sql
+    assert "INSERT/UPDATE/DELETE" not in sql

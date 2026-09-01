@@ -386,6 +386,7 @@ repository, Rights authority implementation, Common 변경, runtime activation �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] shared `DohaStudio/DohaRights` public Apache-2.0 repository 생성, authority PR #1 merge 및 DohaLM consumer 구현 완료. 기존 repository ownership은 이전하지 않음 |
 | 2026-09-01 | [후속] 명시적 조직 승인과 ADR-034가 shared DohaRights domain을 선택해 당시 Option D blocker를 해소; 원래 조사·판정은 역사 기록으로 보존 |
 | 2026-08-25 | [현재] accepted ADR·병합 PR·authority 문서·issue approval을 재검증하고 authentication 부분 승인과 전체 Rights ownership을 분리; Decision Request와 Option D 유지 |
 | 2026-08-25 | [제안] cross-repository Rights owner 후보를 비교하고 조직 owner·source identity·writer·authority/read 미확정으로 Option D와 `STILL BLOCKED` 판정 |

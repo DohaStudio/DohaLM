@@ -383,6 +383,7 @@ unique-current projection, authenticated scoped read, selected cross-source snap
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] source-issued Dataset/Rights token, durable composite snapshot, lifecycle binding과 currentness 검증 구현 완료. 원래 조사 결과는 보존 |
 | 2026-09-01 | [후속] ADR-034가 DohaRights authority·unique-current projection과 Model C composite snapshot·publication binding을 승인해 당시 blocker를 해소 |
 | 2026-08-25 | [제안] ADR-029의 owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Rights producer/authority와 cross-source projection/snapshot을 BLOCKED, 새 DohaLM TrainingEligibility producer·authority를 REQUIRED로 판정 |

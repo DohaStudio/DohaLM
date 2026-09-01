@@ -276,10 +276,11 @@ Training 실행 승인이 아니다. ruleset과 required checks도 변경하지 
 - [확정] append-only history, unique-current, authenticated read와 fail-closed source failure를 승인했다.
 - [확정] Model C와 exact review·approval·publication binding, publication/Training currentness 재검증을 승인했다.
 - [확정] 사용자 `DDORINY`가 2026-09-01 owner·identity·key·actors·snapshot·binding을 명시적으로 승인했다.
-- [확정] 문서 상태와 결정 상태는 `approved`다. 구현 상태는 `not_implemented`다.
+- [확정] 문서 상태와 결정 상태는 `approved`다. 구현 상태는 `implemented`다.
 
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [구현] DohaRights PR #1과 DohaLM typed reader, PostgreSQL snapshot/binding authority, Dataset lifecycle 및 Training intent/activation currentness gate 구현·검증. 승인 의미는 변경하지 않으며 actual production record/publication/Training은 0 |
 | 2026-09-01 | [확정] DohaRights accountable owner, source identity, logical key, lifecycle actors, Model C composite snapshot, publication binding과 Training currentness recheck 승인 |

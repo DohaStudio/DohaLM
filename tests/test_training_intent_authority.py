@@ -133,6 +133,7 @@ def _snapshot(**changes: object) -> TrainingIntentValidationSnapshot:
         "decision_current": True,
         "issuer_current": True,
         "approver_current": True,
+        "current_evidence_current": True,
     }
     values.update(changes)
     return TrainingIntentValidationSnapshot(**values)  # type: ignore[arg-type]
@@ -150,6 +151,20 @@ class _SnapshotAuthority:
         self.reads += 1
         return self.snapshot
 
+    def verify_current_evidence(self, intent: TrainingIntentRecord) -> None:
+        assert intent == self.snapshot.intent
+
+
+class _CurrentEvidence:
+    def __init__(self, *, current: bool = True) -> None:
+        self.current = current
+
+    def verify_currentness(self, authority_id: str, fingerprint: str) -> None:
+        assert authority_id == READINESS_AUTHORITY_ID
+        assert fingerprint == READINESS_FINGERPRINT
+        if not self.current:
+            raise TrainingError("TRAINING_CURRENT_EVIDENCE_STALE", "stale")
+
 
 class _RoleOnlyFactory:
     def __init__(self, role: str) -> None:
@@ -161,6 +176,7 @@ def test_postgres_adapter_requires_exact_separated_roles() -> None:
         producer=_RoleOnlyFactory("dohalm_training_authority_producer"),  # type: ignore[arg-type]
         writer=_RoleOnlyFactory("dohalm_training_intent_writer"),  # type: ignore[arg-type]
         resolver=_RoleOnlyFactory("dohalm_training_resolver"),  # type: ignore[arg-type]
+        current_evidence=_CurrentEvidence(),
     )
     assert repr(adapter) == "PostgresTrainingIntentAuthority(<redacted>)"
     with pytest.raises(
@@ -170,6 +186,7 @@ def test_postgres_adapter_requires_exact_separated_roles() -> None:
             producer=_RoleOnlyFactory("dohalm_training_runtime"),  # type: ignore[arg-type]
             writer=_RoleOnlyFactory("dohalm_training_intent_writer"),  # type: ignore[arg-type]
             resolver=_RoleOnlyFactory("dohalm_training_resolver"),  # type: ignore[arg-type]
+            current_evidence=_CurrentEvidence(),
         )
 
 
@@ -290,7 +307,7 @@ def test_local_selector_is_construction_bound() -> None:
             return TrainingIntentSubmitOutcome.CREATED, _record(submission)
 
     service = ProductionTrainingIntentSubmissionService(
-        SUBMITTER_ID, Submitters(), Intents()
+        SUBMITTER_ID, Submitters(), Intents(), _CurrentEvidence()
     )
     outcome, record = service.submit(_submission())
     assert outcome is TrainingIntentSubmitOutcome.CREATED
@@ -313,6 +330,18 @@ def test_validate_only_approved_intent_stops_before_runtime() -> None:
     artifact_writer.assert_not_called()
 
 
+def test_intent_submission_rechecks_current_evidence_before_write() -> None:
+    submitters = Mock()
+    intents = Mock()
+    service = ProductionTrainingIntentSubmissionService(
+        SUBMITTER_ID, submitters, intents, _CurrentEvidence(current=False)
+    )
+    with pytest.raises(TrainingError, match="TRAINING_CURRENT_EVIDENCE_STALE"):
+        service.submit(_submission())
+    submitters.resolve_current.assert_not_called()
+    intents.submit.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("snapshot", "code"),
     [
@@ -332,6 +361,7 @@ def test_validate_only_approved_intent_stops_before_runtime() -> None:
         (_snapshot(decision_current=False), "TRAINING_INTENT_AUTHORITY_STALE"),
         (_snapshot(issuer_current=False), "TRAINING_INTENT_AUTHORITY_STALE"),
         (_snapshot(approver_current=False), "TRAINING_INTENT_AUTHORITY_STALE"),
+        (_snapshot(current_evidence_current=False), "TRAINING_INTENT_AUTHORITY_STALE"),
     ],
 )
 def test_validate_only_rejects_missing_denied_and_stale_authority(

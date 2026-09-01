@@ -18,6 +18,7 @@ from src.data.checksums import checksum_value
 
 from .errors import TrainingError
 from .execution_approval import TrainingExecutionRequest
+from .current_evidence_gate import TrainingCurrentEvidencePort
 from .execution_issuer import TrainingExecutionIssuerDecisionValue
 
 
@@ -421,6 +422,7 @@ class TrainingIntentValidationSnapshot:
     decision_current: bool
     issuer_current: bool
     approver_current: bool
+    current_evidence_current: bool
 
     def __repr__(self) -> str:
         return "TrainingIntentValidationSnapshot(<redacted>)"
@@ -430,6 +432,8 @@ class TrainingIntentValidationPort(Protocol):
     def read_validation_snapshot(
         self, intent_id: str
     ) -> TrainingIntentValidationSnapshot: ...
+
+    def verify_current_evidence(self, intent: TrainingIntentRecord) -> None: ...
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -450,6 +454,7 @@ class ProductionTrainingIntentSubmissionService:
         selected_submitter_authority_id: str,
         submitters: TrainingIntentSubmitterAuthorityPort,
         intents: TrainingIntentAuthorityPort,
+        current_evidence: TrainingCurrentEvidencePort,
     ) -> None:
         if not _valid_uuid(selected_submitter_authority_id):
             raise _error(
@@ -459,10 +464,15 @@ class ProductionTrainingIntentSubmissionService:
         self._selected_submitter_authority_id = selected_submitter_authority_id
         self._submitters = submitters
         self._intents = intents
+        self._current_evidence = current_evidence
 
     def submit(
         self, submission: TrainingIntentSubmission
     ) -> tuple[TrainingIntentSubmitOutcome, TrainingIntentRecord]:
+        self._current_evidence.verify_currentness(
+            submission.readiness_authority_id,
+            submission.readiness_fingerprint,
+        )
         submitter = self._submitters.resolve_current(
             self._selected_submitter_authority_id
         )
@@ -528,6 +538,7 @@ def validate_intent_for_execution(
         snapshot.decision_current,
         snapshot.issuer_current,
         snapshot.approver_current,
+        snapshot.current_evidence_current,
     )
     if not all(value is True for value in current):
         raise _error(

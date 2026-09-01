@@ -292,6 +292,7 @@ Training을 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] DohaRights authority와 DohaLM Model C snapshot/runtime boundary 구현 완료. 본 ADR의 historical BLOCKED 판정은 보존 |
 | 2026-09-01 | [후속] ADR-034가 DohaRights owner·source identity와 Model C snapshot을 승인해 당시 CurrentEvidence source blocker를 해소; runtime 구현은 별도 Gate |
 | 2026-08-26 | [현재] ADR-031 exact-identity publication pair public read port 구현 반영; CurrentEvidence·runtime prerequisite는 계속 `STILL BLOCKED` |
 | 2026-08-26 | [제안] ADR-031 exact-identity publication pair public read contract의 `READY FOR IMPLEMENTATION` 판정 연결; overall runtime prerequisite는 계속 `STILL BLOCKED` |
