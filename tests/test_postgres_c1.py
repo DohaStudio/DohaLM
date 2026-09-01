@@ -134,6 +134,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0004_dataset_proposal_authority.sql",
         "0005_dataset_review_authority.sql",
         "0006_training_intent_authority.sql",
+        "0007_production_authority_provisioning.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -216,7 +217,7 @@ def test_dataset_review_migration_has_bound_immutable_restricted_authority() -> 
 
 
 def test_training_intent_migration_is_immutable_restricted_and_journal_free() -> None:
-    migration = load_c1_migrations()[-1]
+    migration = load_c1_migrations()[5]
     assert migration.name == "0006_training_intent_authority.sql"
     sql = migration.sql
     for table_name in (
@@ -250,3 +251,26 @@ def test_training_intent_migration_is_immutable_restricted_and_journal_free() ->
         not in sql
     )
     assert "ALTER TABLE dohalm_training_v1.training_execution_journal" not in sql
+
+
+def test_production_provisioning_migration_is_narrow_and_role_restricted() -> None:
+    migration = load_c1_migrations()[-1]
+    assert migration.name == "0007_production_authority_provisioning.sql"
+    sql = migration.sql
+    for function_name in (
+        "provision_training_issuer",
+        "provision_training_approver",
+        "provision_training_config",
+        "provision_training_readiness",
+        "register_training_dataset_publication",
+        "create_training_execution_decision",
+    ):
+        assert f"CREATE FUNCTION dohalm_training_v1.{function_name}" in sql
+        assert f"ALTER FUNCTION dohalm_training_v1.{function_name}" in sql
+        assert f"REVOKE ALL ON FUNCTION dohalm_training_v1.{function_name}" in sql
+    assert sql.count("SECURITY DEFINER SET search_path = pg_catalog, pg_temp") == 6
+    assert "EXECUTE IMMEDIATE" not in sql
+    assert "dohalm_training_authority_producer" in sql
+    assert "TO dohalm_training_resolver" not in sql
+    assert "TO dohalm_training_journal" not in sql
+    assert "TO dohalm_training_intent_writer" not in sql

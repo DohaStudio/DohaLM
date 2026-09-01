@@ -37,7 +37,7 @@ jobs:
           dataset_changed=false
           while IFS= read -r -d '' path; do
             case "$path" in
-              .github/workflows/dataset-governance.yml|docs/quality/test-strategy.md|pyproject.toml|src/data/*|tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/dataset_publication_process_worker.py)
+              .github/workflows/dataset-governance.yml|docs/quality/test-strategy.md|pyproject.toml|src/data/*|src/training/dataset_publication_authority_bridge.py|tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/dataset_publication_process_worker.py)
                 dataset_changed=true
                 break
                 ;;
@@ -81,6 +81,8 @@ jobs:
             src/data/product_dataset_publication.py \
             src/data/postgres_dataset_proposal_authority.py \
             src/data/postgres_dataset_review_authority.py \
+            src/data/product_dataset_authority_registration.py \
+            src/training/dataset_publication_authority_bridge.py \
             tests/test_common_dataset_contracts.py \
             tests/test_dataset_governance.py \
             tests/test_dataset_proposal_authority.py \
@@ -92,6 +94,7 @@ jobs:
             tests/test_product_dataset_approval.py \
             tests/test_product_dataset_publication.py \
             tests/test_dataset_publication_process.py \
+            tests/test_dataset_publication_authority_registration.py \
             tests/dataset_publication_process_worker.py
 
       - name: Check Dataset format contract
@@ -110,6 +113,8 @@ jobs:
             src/data/product_dataset_publication.py \
             src/data/postgres_dataset_proposal_authority.py \
             src/data/postgres_dataset_review_authority.py \
+            src/data/product_dataset_authority_registration.py \
+            src/training/dataset_publication_authority_bridge.py \
             tests/test_common_dataset_contracts.py \
             tests/test_dataset_governance.py \
             tests/test_dataset_proposal_authority.py \
@@ -121,6 +126,7 @@ jobs:
             tests/test_product_dataset_approval.py \
             tests/test_product_dataset_publication.py \
             tests/test_dataset_publication_process.py \
+            tests/test_dataset_publication_authority_registration.py \
             tests/dataset_publication_process_worker.py
 
       - name: Check changed Dataset source static contract
@@ -137,7 +143,7 @@ jobs:
             if [[ "$path" == *.py ]]; then
               changed_source+=("$path")
             fi
-          done < <(git diff --name-only --diff-filter=ACMR -z "$BASE_SHA...HEAD" -- src/data)
+          done < <(git diff --name-only --diff-filter=ACMR -z "$BASE_SHA...HEAD" -- src/data src/training/dataset_publication_authority_bridge.py)
           if ((${#changed_source[@]})); then
             ruff check --select E4,E7,E9,F -- "${changed_source[@]}"
             ruff format --check -- "${changed_source[@]}"

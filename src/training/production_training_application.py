@@ -29,6 +29,9 @@ from .production_intent_authority import (
     _valid_uuid,
     validate_intent_for_execution,
 )
+from .production_full_pretraining_host import (
+    ProductionTrainingHostResult,
+)
 
 
 def _error(code: str, message: str) -> TrainingError:
@@ -136,9 +139,15 @@ class ProductionTrainingCompositionReadiness:
 
 
 class ProductionTrainingActivationComposition(Protocol):
+    def preflight(self) -> object: ...
+
     def prepare_activation(
         self, validated: ValidatedTrainingIntent
     ) -> ProductionTrainingCompositionReadiness: ...
+
+    def activate(
+        self, readiness: ProductionTrainingCompositionReadiness
+    ) -> ProductionTrainingHostResult: ...
 
     def shutdown(self) -> None: ...
 
@@ -267,8 +276,32 @@ class ProductionTrainingDryRunResult:
         return "ProductionTrainingDryRunResult(<redacted>)"
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class ProductionTrainingActivationResult:
+    """Sanitized application result for one Host-owned activation attempt."""
+
+    plan: ProductionTrainingActivationPlan
+    execution: ProductionTrainingHostResult
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.plan) is not ProductionTrainingActivationPlan
+            or type(self.execution) is not ProductionTrainingHostResult
+            or self.execution.identity.run_id != self.plan.execution_request.run_id
+            or self.execution.identity.request_fingerprint
+            != self.plan.execution_request.request_fingerprint
+        ):
+            raise _error(
+                "TRAINING_APPLICATION_RESULT_INVALID",
+                "The Host result must match the exact approved activation plan.",
+            )
+
+    def __repr__(self) -> str:
+        return "ProductionTrainingActivationResult(<redacted>)"
+
+
 class ProductionTrainingApplicationEntrypoint:
-    """Construction-bound non-CLI application service for activation dry-runs."""
+    """Construction-bound non-CLI application service for dry-run and activation."""
 
     def __init__(
         self,
@@ -281,21 +314,53 @@ class ProductionTrainingApplicationEntrypoint:
     def dry_run(
         self, command: ProductionTrainingApplicationCommand
     ) -> ProductionTrainingDryRunResult:
+        validated = self._validated(command)
+        composition = self._compositions.compose()
+        try:
+            readiness = composition.prepare_activation(validated)
+            plan = self._plan(validated, readiness)
+        finally:
+            composition.shutdown()
+        return ProductionTrainingDryRunResult(
+            ProductionTrainingDryRunStatus.READY_FOR_ACTIVATION,
+            plan,
+        )
+
+    def activate(
+        self, command: ProductionTrainingApplicationCommand
+    ) -> ProductionTrainingActivationResult:
+        """Revalidate, reserve only through Host, and execute one approved intent."""
+
+        validated = self._validated(command)
+        composition = self._compositions.compose()
+        try:
+            composition.preflight()
+            readiness = composition.prepare_activation(validated)
+            plan = self._plan(validated, readiness)
+            execution = composition.activate(readiness)
+            return ProductionTrainingActivationResult(plan=plan, execution=execution)
+        finally:
+            composition.shutdown()
+
+    def _validated(
+        self, command: ProductionTrainingApplicationCommand
+    ) -> ValidatedTrainingIntent:
         if type(command) is not ProductionTrainingApplicationCommand:
             raise _error(
                 "TRAINING_APPLICATION_COMMAND_INVALID",
                 "A typed production Training application command is required.",
             )
-        validated = validate_intent_for_execution(
+        return validate_intent_for_execution(
             command.intent_id,
             command.expected_source_commit,
             self._authority,
         )
-        composition = self._compositions.compose()
-        try:
-            readiness = composition.prepare_activation(validated)
-        finally:
-            composition.shutdown()
+
+    @staticmethod
+    def _plan(
+        validated: ValidatedTrainingIntent,
+        readiness: ProductionTrainingCompositionReadiness,
+    ) -> ProductionTrainingActivationPlan:
         if type(
             readiness
         ) is not ProductionTrainingCompositionReadiness or not _host_matches(
@@ -325,16 +390,14 @@ class ProductionTrainingApplicationEntrypoint:
             decision_issued_at=readiness.decision_issued_at,
             continuation=intent.submission.continuation,
         )
-        return ProductionTrainingDryRunResult(
-            ProductionTrainingDryRunStatus.READY_FOR_ACTIVATION,
-            plan,
-        )
+        return plan
 
 
 __all__ = [
     "ProductionTrainingActivationComposition",
     "ProductionTrainingActivationCompositionFactory",
     "ProductionTrainingActivationPlan",
+    "ProductionTrainingActivationResult",
     "ProductionTrainingApplicationCommand",
     "ProductionTrainingApplicationEntrypoint",
     "ProductionTrainingCompositionReadiness",

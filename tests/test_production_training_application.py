@@ -18,9 +18,12 @@ from src.training.production_composition import (
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
     ResolvedTrainingExecutionDecision,
+    TrainingOrchestrationIdentity,
+    TrainingOrchestrationPhase,
     TrustedDecisionProvenance,
     TrustedDecisionResolution,
 )
+from src.training.production_full_pretraining_host import ProductionTrainingHostResult
 from src.training.production_intent_authority import (
     TrainingIntentContinuation,
     TrainingIntentDecisionBinding,
@@ -163,12 +166,18 @@ class _Composition:
         self.record = record
         self.failure = failure
         self.prepares = 0
+        self.preflights = 0
+        self.activations = 0
         self.shutdowns = 0
         self.host_run = Mock()
         self.backend = Mock()
         self.journal_write = Mock()
         self.checkpoint_write = Mock()
         self.artifact_write = Mock()
+
+    def preflight(self):
+        self.preflights += 1
+        return object()
 
     def prepare_activation(self, validated):
         self.prepares += 1
@@ -188,6 +197,22 @@ class _Composition:
             continuation_verified=True,
             host_contract_compatible=True,
             mutation_count=0,
+        )
+
+    def activate(self, readiness):
+        self.activations += 1
+        self.journal_write(readiness.execution_request.run_id)
+        self.host_run(readiness.host_intent)
+        return ProductionTrainingHostResult(
+            identity=TrainingOrchestrationIdentity(
+                run_id=readiness.execution_request.run_id,
+                request_fingerprint=readiness.execution_request.request_fingerprint,
+            ),
+            phase=TrainingOrchestrationPhase.COMPLETED,
+            backend_entered=True,
+            reconciliation_required=False,
+            replayed=False,
+            reason_code=None,
         )
 
     def shutdown(self) -> None:
@@ -239,6 +264,43 @@ def test_approved_fresh_intent_builds_immutable_transient_plan_without_side_effe
         spy.assert_not_called()
     with pytest.raises(FrozenInstanceError):
         plan.intent_id = "override"  # type: ignore[misc]
+
+
+def test_activate_revalidates_then_invokes_only_composition_host_boundary() -> None:
+    entrypoint, root = _entrypoint()
+    result = entrypoint.activate(
+        ProductionTrainingApplicationCommand(INTENT_ID, SOURCE)
+    )
+    assert result.plan.intent_id == INTENT_ID
+    assert result.execution.phase is TrainingOrchestrationPhase.COMPLETED
+    assert root.preflights == root.prepares == root.activations == root.shutdowns == 1
+    root.journal_write.assert_called_once_with("production-run-1")
+    root.host_run.assert_called_once()
+    root.backend.assert_not_called()
+    root.checkpoint_write.assert_not_called()
+    root.artifact_write.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"binding": None},
+        {"submitter_current": False},
+        {"dataset_pair_current": False},
+        {"config_current": False},
+        {"readiness_current": False},
+        {"decision_current": False},
+    ],
+)
+def test_activate_stale_or_missing_authority_stops_before_journal_and_host(
+    changes: dict[str, object],
+) -> None:
+    entrypoint, root = _entrypoint(_snapshot(**changes))
+    with pytest.raises(TrainingError):
+        entrypoint.activate(ProductionTrainingApplicationCommand(INTENT_ID, SOURCE))
+    assert root.preflights == root.prepares == root.activations == 0
+    root.journal_write.assert_not_called()
+    root.host_run.assert_not_called()
 
 
 def test_approved_r3_continuation_is_preserved_exactly() -> None:

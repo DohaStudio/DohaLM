@@ -29,6 +29,7 @@ from .postgres_training_adapters import (
 )
 from .production_full_pretraining_host import (
     ProductionFullPretrainingHost,
+    ProductionTrainingHostResult,
     _bootstrap_production_full_pretraining_host,
     _release_production_full_pretraining_host,
 )
@@ -507,6 +508,7 @@ class _PostgresTrainingComposition:
         "_journal_factory",
         "_lease",
         "_lock",
+        "_prepared_readiness",
         "_preflight_complete",
         "_prerequisite_resolver",
         "_resolver_factory",
@@ -530,6 +532,7 @@ class _PostgresTrainingComposition:
         self._decision_resolver = decision_resolver
         self._journal = journal
         self._host: ProductionFullPretrainingHost | None = None
+        self._prepared_readiness: ProductionTrainingCompositionReadiness | None = None
         self._preflight_complete = False
         self._lock = threading.RLock()
 
@@ -638,7 +641,7 @@ class _PostgresTrainingComposition:
                     self._required_decision(), decision_request
                 )
                 _require_bound_decision(validated, resolution)
-                return ProductionTrainingCompositionReadiness(
+                readiness = ProductionTrainingCompositionReadiness(
                     host_intent=host_intent,
                     execution_request=request,
                     provider=self._configuration.provider,
@@ -655,6 +658,8 @@ class _PostgresTrainingComposition:
                     host_contract_compatible=True,
                     mutation_count=0,
                 )
+                self._prepared_readiness = readiness
+                return readiness
             except TrainingError:
                 self._cleanup_locked(failed=True)
                 raise
@@ -678,6 +683,29 @@ class _PostgresTrainingComposition:
                             "TRAINING_APPLICATION_COMPOSITION_UNAVAILABLE",
                             "The redacted prerequisite material could not be released.",
                         ) from None
+
+    def activate(
+        self, readiness: ProductionTrainingCompositionReadiness
+    ) -> ProductionTrainingHostResult:
+        """Invoke only the existing Host after exact read-only preparation."""
+
+        with self._lock:
+            if (
+                type(readiness) is not ProductionTrainingCompositionReadiness
+                or readiness is not self._prepared_readiness
+                or not self._preflight_complete
+                or self._lease.state is not _PostgresTrainingLifecycleState.STARTING
+            ):
+                raise _activation_error()
+            decision = _ProductionTrainingActivationDecision(
+                authorized=True,
+                provider=self._configuration.provider,
+                authority_reference=self._configuration.activation_authority_reference,
+                evidence_reference=self._configuration.activation_evidence_reference,
+                process_boundary_id=self._configuration.process_boundary_id,
+            )
+            host = self.startup(decision)
+        return host.run(readiness.host_intent)
 
     def startup(
         self, decision: _ProductionTrainingActivationDecision
