@@ -55,6 +55,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Check out exact DohaRights production contract
+        if: steps.changes.outputs.dataset_changed == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: DohaStudio/DohaRights
+          ref: b697eda5ee8deee2dcc9c3be4b4afc730b72232d
+          path: .ci/doharights
+          persist-credentials: false
+
       - name: Install minimal Dataset dependencies
         if: steps.changes.outputs.dataset_changed == 'true'
         run: |
@@ -62,6 +71,7 @@ jobs:
             pytest==8.4.2 \
             ruff==0.15.22 \
             PyYAML==6.0.3 \
+            'psycopg[binary]==3.3.4' \
             https://github.com/DohaStudio/.github/releases/download/dohastudio-common-ai-contracts-v0.1.0/dohastudio_common_ai_contracts-0.1.0-py3-none-any.whl
           python -m pip check
 
@@ -174,6 +184,8 @@ jobs:
       - name: Run Dataset Governance unit regression
         if: steps.changes.outputs.dataset_changed == 'true'
         shell: bash
+        env:
+          DOHARIGHTS_SOURCE_ROOT: ${{ github.workspace }}/.ci/doharights
         run: |
           unit_tests=("tests/test_common_dataset_contracts.py")
           while IFS= read -r -d '' path; do
