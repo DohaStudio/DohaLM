@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -11,8 +12,10 @@ from uuid import UUID, uuid5
 from .checksums import checksum_value
 from .dataset_governance import DatasetVersionProposal
 from .dataset_proposal_authority import (
+    DatasetProposalCurrentEvidenceAuthority,
     DatasetProposalEvidenceDecision,
     DatasetProposalEvidenceStatus,
+    dataset_version_proposal_fingerprint,
 )
 
 _FP = re.compile(r"sha256:[0-9a-f]{64}")
@@ -97,6 +100,114 @@ class CurrentRightsAuthority(Protocol):
 class CurrentDatasetEvidenceAuthority(Protocol):
     def get_current_evidence(self, subject_id: str) -> DatasetEvidence: ...
     def verify_currentness(self, token: SourceToken) -> bool: ...
+
+
+class ProposalDatasetEvidenceTokenAuthority:
+    """Issue and verify Dataset source tokens from the authoritative proposal evidence."""
+
+    def __init__(
+        self,
+        *,
+        source_authority_id: str,
+        subject_id: str,
+        proposal: DatasetVersionProposal,
+        authority: DatasetProposalCurrentEvidenceAuthority,
+        clock: Callable[[], datetime],
+    ) -> None:
+        if (
+            not _valid_uuid(source_authority_id)
+            or _IDENT.fullmatch(subject_id) is None
+            or type(proposal) is not DatasetVersionProposal
+            or not callable(clock)
+        ):
+            raise CurrentEvidenceError("DATASET_EVIDENCE_AUTHORITY_INVALID")
+        self._source_authority_id = source_authority_id
+        self._subject_id = subject_id
+        self._proposal = proposal
+        self._proposal_fingerprint = dataset_version_proposal_fingerprint(proposal)
+        self._authority = authority
+        self._clock = clock
+
+    def get_current_evidence(self, subject_id: str) -> DatasetEvidence:
+        if subject_id != self._subject_id:
+            raise CurrentEvidenceError("DATASET_EVIDENCE_SUBJECT_MISMATCH")
+        decision = self._resolve()
+        provisional = SourceToken(
+            source_authority_id=self._source_authority_id,
+            schema_version="dataset-evidence-source-token-v1",
+            subject_id=self._subject_id,
+            evidence_id=decision.authority_reference,
+            evidence_fingerprint=self._proposal_fingerprint,
+            projection_revision=decision.authority_version,
+            token_fingerprint="sha256:" + "0" * 64,
+        )
+        token = SourceToken(
+            source_authority_id=provisional.source_authority_id,
+            schema_version=provisional.schema_version,
+            subject_id=provisional.subject_id,
+            evidence_id=provisional.evidence_id,
+            evidence_fingerprint=provisional.evidence_fingerprint,
+            projection_revision=provisional.projection_revision,
+            token_fingerprint=source_token_fingerprint(provisional),
+        )
+        return DatasetEvidence(
+            subject_id=self._subject_id,
+            evidence_id=decision.authority_reference,
+            evidence_fingerprint=self._proposal_fingerprint,
+            source_authority_id=self._source_authority_id,
+            schema_version=token.schema_version,
+            training_allowed=True,
+            token=token,
+        )
+
+    def verify_currentness(self, token: SourceToken) -> bool:
+        if (
+            type(token) is not SourceToken
+            or token.source_authority_id != self._source_authority_id
+            or token.subject_id != self._subject_id
+            or token.evidence_fingerprint != self._proposal_fingerprint
+            or token.token_fingerprint != source_token_fingerprint(token)
+        ):
+            return False
+        decision = self._resolve()
+        return (
+            token.evidence_id == decision.authority_reference
+            and token.projection_revision == decision.authority_version
+        )
+
+    def _resolve(self) -> DatasetProposalEvidenceDecision:
+        evaluate = getattr(self._authority, "evaluate_current_proposal_evidence", None)
+        if not callable(evaluate):
+            raise CurrentEvidenceError("DATASET_EVIDENCE_SOURCE_UNAVAILABLE")
+        try:
+            evaluated_at = self._clock()
+            if (
+                type(evaluated_at) is not datetime
+                or evaluated_at.tzinfo is None
+                or evaluated_at.utcoffset() is None
+            ):
+                raise CurrentEvidenceError("DATASET_EVIDENCE_CLOCK_INVALID")
+            decision = evaluate(
+                self._proposal,
+                proposal_fingerprint=self._proposal_fingerprint,
+                proposed_at=evaluated_at,
+            )
+        except CurrentEvidenceError:
+            raise
+        except Exception:
+            raise CurrentEvidenceError("DATASET_EVIDENCE_SOURCE_UNAVAILABLE") from None
+        if (
+            type(decision) is not DatasetProposalEvidenceDecision
+            or decision.identity != self._proposal.identity
+            or decision.proposal_fingerprint != self._proposal_fingerprint
+            or _IDENT.fullmatch(decision.authority_reference) is None
+            or type(decision.authority_version) is not int
+            or decision.authority_version < 1
+        ):
+            raise CurrentEvidenceError("DATASET_EVIDENCE_RESPONSE_MALFORMED")
+        if decision.status is not DatasetProposalEvidenceStatus.CURRENT:
+            raise CurrentEvidenceError("DATASET_EVIDENCE_NOT_CURRENT")
+        return decision
 
 
 @dataclass(frozen=True, slots=True)
@@ -378,6 +489,7 @@ __all__ = [
     "DatasetGovernanceSnapshot",
     "DatasetGovernanceSnapshotCoordinator",
     "InMemorySnapshotAuthority",
+    "ProposalDatasetEvidenceTokenAuthority",
     "RightsReadModel",
     "SnapshotAuthority",
     "SnapshotBoundProposalEvidenceAuthority",
