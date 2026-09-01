@@ -9,7 +9,7 @@ import re
 import shutil
 import zipfile
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -130,10 +130,8 @@ def _iter_source_records(
                             "document_id": f"sha256:{digest}",
                             "source_id": f"sha256:{hashlib.sha256(source_material).hexdigest()}",
                             "source_archive": archive["relative_path"],
-                            "source_entry": entry.filename,
                             "source_entry_sha256": f"sha256:{hashlib.sha256(entry.filename.encode('utf-8')).hexdigest()}",
                             "source_record_index": event.record_index,
-                            "data_file": event.value.get("data_file"),
                             "raw_sha256": f"sha256:{hashlib.sha256(raw_encoded).hexdigest()}",
                             "raw_bytes": len(raw_encoded),
                             "raw_characters": len(value),

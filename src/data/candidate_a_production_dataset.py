@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import unicodedata
+import zipfile
 from collections import Counter
 from dataclasses import asdict, dataclass, fields, is_dataclass
 from datetime import datetime, timedelta, timezone
@@ -16,6 +17,11 @@ from typing import Any, Iterator
 
 from src.tokenizer import DohaTokenizer
 
+from .aihub_71748_tokenizer_corpus import (
+    CorpusBuildConfig,
+    _DataInfoArrayStream,
+    _eligible_archives,
+)
 from .checksums import canonical_json_bytes, checksum_value, file_checksum
 from .common_dataset_contracts import (
     validate_learning_candidate,
@@ -32,7 +38,8 @@ from .learning_candidate_review import (
     ReviewDecision,
     review_learning_candidate,
 )
-from .pilot_dataset import _iter_source_records, pii_categories
+from .normalization import normalize_text
+from .pilot_dataset import pii_categories
 from .product_dataset_composition import (
     ProductDatasetCompositionAuthorityInput,
     ProductDatasetMemberAllocation,
@@ -81,6 +88,10 @@ class CandidateAProductionDatasetError(RuntimeError):
     def __init__(self, code: str) -> None:
         self.code = code
         super().__init__(f"{code}:candidate_a_production_dataset")
+
+
+class _QuotaReached(Exception):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +165,105 @@ def candidate_a_split(group_key: str) -> str:
 def candidate_a_id(source_id: str) -> str:
     digest = _sha_digest(source_id, "SOURCE_ID_INVALID")
     return f"candidate:aihub-71748-production-v1:{digest}"
+
+
+def _iter_source_records(
+    dataset_root: Path, inventory: Path
+) -> Iterator[dict[str, Any]]:
+    """Replay the canonical iterator while retaining ADR-035 source fields."""
+
+    from scripts.datasets.json_record_stream import RECORD_OK, scan_json_array_records
+
+    seen: set[str] = set()
+    limits = CorpusBuildConfig()
+    for archive in _eligible_archives(dataset_root, inventory):
+        accepted = byte_count = 0
+        with zipfile.ZipFile(archive["path"]) as zipped:
+            entries = sorted(
+                (
+                    entry
+                    for entry in zipped.infolist()
+                    if not entry.is_dir() and entry.filename.lower().endswith(".json")
+                ),
+                key=lambda entry: entry.filename,
+            )
+            for entry in entries:
+                if (
+                    accepted >= limits.records_per_archive
+                    or byte_count >= limits.bytes_per_archive
+                ):
+                    break
+                with zipped.open(entry) as raw:
+                    stream = _DataInfoArrayStream(raw)
+                    rows: list[dict[str, Any]] = []
+
+                    def on_record(event: Any) -> None:
+                        nonlocal accepted, byte_count
+                        if event.status != RECORD_OK or not isinstance(
+                            event.value, dict
+                        ):
+                            return
+                        value = event.value.get("contents")
+                        if not isinstance(value, str):
+                            return
+                        raw_encoded = value.encode("utf-8")
+                        try:
+                            text = normalize_text(value)
+                        except (UnicodeError, ValueError):
+                            return
+                        encoded = text.encode("utf-8")
+                        digest = hashlib.sha256(encoded).hexdigest()
+                        payload_bytes = len(encoded) + 1
+                        if digest in seen:
+                            return
+                        if (
+                            accepted >= limits.records_per_archive
+                            or byte_count + payload_bytes > limits.bytes_per_archive
+                        ):
+                            raise _QuotaReached
+                        seen.add(digest)
+                        accepted += 1
+                        byte_count += payload_bytes
+                        source_material = (
+                            f"{archive['relative_path']}\0{entry.filename}\0"
+                            f"{event.record_index}"
+                        ).encode("utf-8")
+                        rows.append(
+                            {
+                                "document_id": f"sha256:{digest}",
+                                "source_id": (
+                                    "sha256:"
+                                    f"{hashlib.sha256(source_material).hexdigest()}"
+                                ),
+                                "source_archive": archive["relative_path"],
+                                "source_entry": entry.filename,
+                                "source_record_index": event.record_index,
+                                "data_file": event.value.get("data_file"),
+                                "raw_sha256": (
+                                    f"sha256:{hashlib.sha256(raw_encoded).hexdigest()}"
+                                ),
+                                "text": text,
+                            }
+                        )
+
+                    quota_reached = False
+                    try:
+                        scan_json_array_records(
+                            stream,
+                            max_record_bytes=limits.max_record_bytes,
+                            max_read_bytes=entry.file_size,
+                            on_record=on_record,
+                        )
+                    except _QuotaReached:
+                        quota_reached = True
+                    yield from rows
+                    if quota_reached:
+                        break
+                    if (
+                        accepted >= limits.records_per_archive
+                        or byte_count >= limits.bytes_per_archive
+                    ):
+                        break
 
 
 def build_candidate_a_production_dataset(
