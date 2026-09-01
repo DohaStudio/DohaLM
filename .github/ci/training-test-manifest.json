@@ -44,6 +44,7 @@
     {"path": "tests/test_training_cli.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Training and checkpoint CLI failure contracts are required.", "group": "critical"},
     {"path": "tests/test_training_collator.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Causal LM collation and padding contracts are required.", "group": "critical"},
     {"path": "tests/test_training_config.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Resolved Training configuration and fingerprints are required.", "group": "critical"},
+    {"path": "tests/test_training_current_evidence_gate.py", "tier": "required_cpu", "owner": "training_application", "required": true, "reason": "ADR-034 activation must recheck the exact readiness-bound CurrentEvidence snapshot.", "group": "host"},
     {"path": "tests/test_training_dataset.py", "tier": "required_cpu", "owner": "training", "required": true, "reason": "Deterministic synthetic data and loader contracts are required.", "group": "critical"},
     {"path": "tests/test_training_execution_approval.py", "tier": "required_cpu", "owner": "training_integration", "required": true, "reason": "Execution approval capability and consumption are production-critical.", "group": "critical"},
     {"path": "tests/test_training_execution_issuer.py", "tier": "required_cpu", "owner": "host_runtime", "required": true, "reason": "Production execution issuer trust boundaries remain required.", "group": "host"},

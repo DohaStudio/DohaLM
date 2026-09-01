@@ -22,8 +22,6 @@ from src.data.product_dataset_current_evidence import (
     DatasetLifecycleStage,
     InMemoryCurrentEvidenceBindingAuthority,
 )
-from src.training.current_evidence_gate import SnapshotTrainingCurrentEvidenceGate
-from src.training.errors import TrainingError
 
 NOW = datetime(2026, 9, 1, tzinfo=timezone.utc)
 DATASET_SOURCE = "11111111-1111-4111-8111-111111111111"
@@ -203,34 +201,6 @@ def test_review_approval_publication_bind_exact_snapshot_and_recheck() -> None:
     rights.current = False
     with pytest.raises(CurrentEvidenceError, match="CURRENT_EVIDENCE_SNAPSHOT_STALE"):
         lifecycle.require_current_publication(identity)
-
-
-def test_training_gate_rechecks_rights_and_stops_stale_activation() -> None:
-    dataset, rights = _Dataset(), _Rights()
-    coordinator = _coordinator(dataset, rights)
-    snapshot = coordinator.capture(
-        idempotency_key="proposal:training",
-        proposal_fingerprint=FP_PROPOSAL,
-        dataset_subject_id="AIHUB-71748",
-        rights_subject_id=RIGHTS_SUBJECT,
-        captured_at=NOW,
-    )
-
-    class Bindings:
-        def resolve_snapshot_binding(self, authority_id: str, fingerprint: str):
-            assert authority_id == "66666666-6666-4666-8666-666666666666"
-            assert fingerprint == "sha256:" + "6" * 64
-            return snapshot.snapshot_id, snapshot.snapshot_fingerprint
-
-    gate = SnapshotTrainingCurrentEvidenceGate(Bindings(), coordinator)
-    gate.verify_currentness(
-        "66666666-6666-4666-8666-666666666666", "sha256:" + "6" * 64
-    )
-    rights.current = False
-    with pytest.raises(TrainingError, match="TRAINING_CURRENT_EVIDENCE_STALE"):
-        gate.verify_currentness(
-            "66666666-6666-4666-8666-666666666666", "sha256:" + "6" * 64
-        )
 
 
 class _Cursor:

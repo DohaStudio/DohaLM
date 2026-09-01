@@ -146,7 +146,7 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
-| 2026-09-01 | [확정] ADR-034 Model C snapshot, PostgreSQL durable binding과 Training 이중 currentness recheck를 required owner에 편입하고 Dataset 391·C1 28·C2 269·Training 513 canonical count 반영 |
+| 2026-09-01 | [확정] ADR-034 Model C snapshot, PostgreSQL durable binding과 Training 이중 currentness recheck를 required owner에 편입하고 Dataset 390·C1 28·C2 269·Training 513 canonical count 반영 |
 | 2026-09-01 | [확정] non-CLI Production Training application entrypoint와 read-only activation dry-run 22 tests를 required host group에 편입하고 Training 482 canonical count 반영 |
 | 2026-09-01 | [확정] ADR-032 foundation을 C1/C2/Training heavy classifier와 required manifest에 편입하고 C1 23·C2 259·Training 460 canonical count를 반영 |
 | 2026-09-01 | [확정] ADR-033 internal production eligibility/config/accountability coverage를 required manifest에 편입하고 Dataset 384·C1 23·C2 262·Training 492 canonical count를 반영 |
