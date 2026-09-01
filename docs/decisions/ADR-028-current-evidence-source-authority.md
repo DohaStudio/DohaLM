@@ -1,7 +1,7 @@
 # ADR-028: CurrentEvidence source authority와 snapshot 경계
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-08-25
+- 마지막 검토일: 2026-09-01
 - 결정 상태: `proposed`
 - 실행 영향: 없음; RightsMetadata ownership과 cross-source snapshot은 차단하고 DohaLM TrainingEligibility producer·authority 필요성만 제안
 - 기준 revision: `DohaStudio/DohaLM@05b6df6abe1f201a98b4300ccf47bde9af467470`
@@ -12,7 +12,8 @@
   [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md),
   [ADR-026](./ADR-026-dataset-review-authority-contract.md),
   [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md),
-  [ADR-029](./ADR-029-rights-metadata-ownership-authority.md)
+  [ADR-029](./ADR-029-rights-metadata-ownership-authority.md),
+  [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md)
 - 관련 문서: [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md)
 
 ## Context
@@ -382,5 +383,6 @@ unique-current projection, authenticated scoped read, selected cross-source snap
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] ADR-034가 DohaRights authority·unique-current projection과 Model C composite snapshot·publication binding을 승인해 당시 blocker를 해소 |
 | 2026-08-25 | [제안] ADR-029의 owner·producer·logical key·revoke/read authority `STILL BLOCKED` 판정 연결 |
 | 2026-08-25 | [제안] Rights producer/authority와 cross-source projection/snapshot을 BLOCKED, 새 DohaLM TrainingEligibility producer·authority를 REQUIRED로 판정 |

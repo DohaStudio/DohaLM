@@ -1,7 +1,7 @@
 # ADR-030: Cross-repository Rights domain ownership 결정 Gate
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-08-25
+- 마지막 검토일: 2026-09-01
 - 결정 상태: `proposed`
 - 실행 영향: 없음
 - 기준 DohaLM commit: `5127d594869b289ec60ed414dcdfcd22b32bb031`
@@ -9,6 +9,7 @@
 - Common 권위 기준: `DohaStudio/.github@dd75fc88c16e9ae9a04acfafb72756a905f6365b`
 - 선행 ADR: [ADR-028](./ADR-028-current-evidence-source-authority.md),
   [ADR-029](./ADR-029-rights-metadata-ownership-authority.md)
+- 후속 결정: [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md)
 - 관련 문서: [데이터 라이선스 정책](../data/data-license-policy.md),
   [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md),
   [Rights Owner Decision Request](./rights-owner-decision-request.md)
@@ -385,5 +386,6 @@ repository, Rights authority implementation, Common 변경, runtime activation �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] 명시적 조직 승인과 ADR-034가 shared DohaRights domain을 선택해 당시 Option D blocker를 해소; 원래 조사·판정은 역사 기록으로 보존 |
 | 2026-08-25 | [현재] accepted ADR·병합 PR·authority 문서·issue approval을 재검증하고 authentication 부분 승인과 전체 Rights ownership을 분리; Decision Request와 Option D 유지 |
 | 2026-08-25 | [제안] cross-repository Rights owner 후보를 비교하고 조직 owner·source identity·writer·authority/read 미확정으로 Option D와 `STILL BLOCKED` 판정 |
