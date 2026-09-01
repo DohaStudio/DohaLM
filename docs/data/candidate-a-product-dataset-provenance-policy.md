@@ -7,9 +7,9 @@
 | 문서 상태 | `approved` |
 | 마지막 검토일 | 2026-09-01 |
 | 적용 대상 | `AIHUB-71748 / Candidate A / production_internal` Product Dataset rebuild |
-| 결정 문서 | [ADR-035](../decisions/ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md) |
+| 결정 문서 | [ADR-035](../decisions/ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md), [ADR-036](../decisions/ADR-036-existing-aihub-current-use-rights-authority.md) |
 | 선행 정책 | [Phase 1 데이터 계약](./phase1-data-contract.md), [분할 및 누수 방지](./data-split-and-leakage-policy.md), [ADR-034](../decisions/ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md) |
-| 구현 상태 | architecture approved; rebuild implementation pending |
+| 구현 상태 | rebuild implementation complete; production artifact execution is an operational Gate |
 
 ## 적용 계약
 
@@ -28,6 +28,7 @@
 | Rights | shared current AIHUB-71748 source Rights Subject record/token |
 | eligibility | candidate-specific deterministic projection |
 | review | validation-backed immutable review; all required checks pass only |
+| current-use review validity | `candidate-a-current-review-24h-v1`; legal Rights expiry가 아닌 operational recheck window |
 
 같은 source, selector, group policy, split version과 seed는 exact same allocation을 만들어야 한다. member·group 중복,
 missing metadata, cross-split group, non-current authority와 fingerprint mismatch는 rebuild를 중단한다.

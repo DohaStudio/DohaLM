@@ -318,13 +318,57 @@ def test_postgres_rights_reader_uses_only_owner_functions_and_rejects_wrong_role
             "source_authority_id": RIGHTS_SOURCE,
             "schema_version": "rights-authority-v1",
         },
-        "subject": {"rights_subject_id": RIGHTS_SUBJECT},
+        "subject": {
+            "rights_subject_id": RIGHTS_SUBJECT,
+            "dataset_source_identity": "AIHUB-71748",
+            "kind": "source_dataset",
+            "bound_identity": "AIHUB-71748",
+        },
         "permissions": {
             "internal_training": True,
             "commercial_use": False,
             "redistribution": False,
             "external_model_publication": False,
+            "analysis": True,
+            "derivative_generation": True,
         },
+        "status": "approved_limited",
+        "source_classification": {
+            "source_type": "external",
+            "user_created": False,
+            "generated": False,
+            "reference": False,
+            "uploaded": False,
+            "external": True,
+        },
+        "retention": {
+            "allowed": True,
+            "mode": "indefinite_while_current",
+            "scope": "training",
+            "expires_at": None,
+        },
+        "consent_evidence_references": [],
+        "jurisdiction": "KR",
+        "review": {
+            "reviewer_authority_id": COORDINATOR,
+            "reviewed_at": NOW.isoformat(),
+        },
+        "producer_authority_id": DATASET_SOURCE,
+        "effective_at": NOW.isoformat(),
+        "current_use_authorization": {
+            "authorized": True,
+            "scope": "internal_noncommercial_model_training_and_evaluation",
+            "fresh_acquisition_required": False,
+            "existing_material_reuse": True,
+            "historical_acquisition_receipt": "not_recovered",
+            "provider_reacquisition_requirement_found": False,
+        },
+        "evidence_references": [
+            {
+                "reference_id": "evidence:aihub-current-policy",
+                "evidence_type": "provider_usage_policy",
+            }
+        ],
     }
     cursor = _Cursor([(payload, RIGHTS_RECORD, FP_RIGHTS, 1, "sha256:" + "7" * 64)])
     adapter = PostgresCurrentRightsAuthority(
@@ -332,7 +376,9 @@ def test_postgres_rights_reader_uses_only_owner_functions_and_rejects_wrong_role
     )
     read = adapter.get_current_rights(RIGHTS_SUBJECT)
     assert read.internal_training is True
-    assert "get_current_rights" in cursor.query
+    assert read.metadata is not None
+    assert read.metadata.retention_mode == "indefinite_while_current"
+    assert "get_current_use_rights" in cursor.query
     assert all(
         word not in cursor.query.upper() for word in ("INSERT", "UPDATE", "DELETE")
     )

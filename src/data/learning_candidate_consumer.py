@@ -79,7 +79,7 @@ class ValidatedLearningCandidate:
     rights_producer: ProducerIdentity
     eligibility_producer: ProducerIdentity
     evaluated_at: str
-    rights_expires_at: str
+    rights_expires_at: str | None
     eligibility_expires_at: str
     contract_package_version: str = COMMON_CONTRACT_PACKAGE_VERSION
     contract_policy_version: str = COMMON_CONTRACT_POLICY_VERSION
@@ -195,7 +195,7 @@ def _require_candidate_state(candidate: dict[str, Any]) -> None:
         raise LearningCandidateConsumerError("ELIGIBILITY_INVALID", "candidate_state")
 
 
-def _require_rights(rights: dict[str, Any], evaluated_at: datetime) -> str:
+def _require_rights(rights: dict[str, Any], evaluated_at: datetime) -> str | None:
     status = rights["rights_status"]
     if status == "revoked":
         raise LearningCandidateConsumerError("RIGHTS_REVOKED", "rights")
@@ -205,7 +205,12 @@ def _require_rights(rights: dict[str, Any], evaluated_at: datetime) -> str:
     if (
         status not in {"approved", "approved_limited"}
         or rights["training_allowed"] is not True
-        or not isinstance(retention, dict)
+    ):
+        raise LearningCandidateConsumerError("RIGHTS_INVALID", "rights")
+    if retention is True:
+        return None
+    if (
+        not isinstance(retention, dict)
         or retention.get("allowed") is not True
         or retention.get("scope") != "training"
     ):
@@ -237,7 +242,27 @@ def _require_eligibility(
 
 
 def _require_evidence(candidate: dict[str, Any], rights: dict[str, Any]) -> None:
-    if not candidate["review_evidence_ids"] or not rights["consent_evidence_refs"]:
+    if not candidate["review_evidence_ids"]:
+        raise LearningCandidateConsumerError("EVIDENCE_MISSING", "evidence")
+    if rights["consent_evidence_refs"]:
+        return
+    extension = rights.get("extensions", {}).get("doharights.current_use", {})
+    typed = extension.get("typed_evidence_references")
+    if (
+        rights.get("source_type") not in {"external", "reference"}
+        or extension.get("consent_basis") != "not_applicable"
+        or extension.get("current_use_authorized") is not True
+        or not isinstance(typed, list)
+        or not typed
+        or any(
+            not isinstance(value, dict)
+            or not isinstance(value.get("reference_id"), str)
+            or not value["reference_id"]
+            or not isinstance(value.get("evidence_type"), str)
+            or not value["evidence_type"]
+            for value in typed
+        )
+    ):
         raise LearningCandidateConsumerError("EVIDENCE_MISSING", "evidence")
 
 

@@ -20,6 +20,7 @@ from .product_dataset_current_evidence import (
     CurrentEvidenceBinding,
     DatasetLifecycleStage,
 )
+from .rights_metadata_projection import AuthorityRightsMetadata, TypedRightsEvidence
 
 _RIGHTS_READER_ROLE = "doharights_reader"
 _COORDINATOR_ROLE = "dohalm_current_evidence_coordinator"
@@ -53,7 +54,7 @@ class PostgresCurrentRightsAuthority:
             with self._factory.connection() as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        "SELECT * FROM doharights_v1.get_current_rights(%s::uuid)",
+                        "SELECT * FROM doharights_v1.get_current_use_rights(%s::uuid)",
                         (subject_id,),
                     )
                     rows = cursor.fetchall()
@@ -94,6 +95,7 @@ class PostgresCurrentRightsAuthority:
                 model_publication=permissions["external_model_publication"] is True,
                 record_fingerprint=str(record_fp).rstrip(),
                 token=token,
+                metadata=_rights_metadata(payload),
             )
         except (KeyError, TypeError, ValueError, CurrentEvidenceError):
             raise CurrentEvidenceError("RIGHTS_RESPONSE_MALFORMED") from None
@@ -282,6 +284,20 @@ def _token_payload(token: SourceToken) -> dict[str, object]:
 
 
 def _snapshot_payload(snapshot: DatasetGovernanceSnapshot) -> dict[str, object]:
+    rights_payload: dict[str, object] = {
+        "subject_id": snapshot.rights.subject_id,
+        "record_id": snapshot.rights.record_id,
+        "source_authority_id": snapshot.rights.source_authority_id,
+        "schema_version": snapshot.rights.schema_version,
+        "internal_training": snapshot.rights.internal_training,
+        "commercial_use": snapshot.rights.commercial_use,
+        "redistribution": snapshot.rights.redistribution,
+        "model_publication": snapshot.rights.model_publication,
+        "record_fingerprint": snapshot.rights.record_fingerprint,
+        "token": _token_payload(snapshot.rights.token),
+    }
+    if snapshot.rights.metadata is not None:
+        rights_payload["metadata"] = _rights_metadata_payload(snapshot.rights.metadata)
     return {
         "snapshot_id": snapshot.snapshot_id,
         "schema_version": snapshot.schema_version,
@@ -297,18 +313,7 @@ def _snapshot_payload(snapshot: DatasetGovernanceSnapshot) -> dict[str, object]:
             "token": _token_payload(snapshot.dataset_evidence.token),
         },
         "rights_subject_id": snapshot.rights_subject_id,
-        "rights": {
-            "subject_id": snapshot.rights.subject_id,
-            "record_id": snapshot.rights.record_id,
-            "source_authority_id": snapshot.rights.source_authority_id,
-            "schema_version": snapshot.rights.schema_version,
-            "internal_training": snapshot.rights.internal_training,
-            "commercial_use": snapshot.rights.commercial_use,
-            "redistribution": snapshot.rights.redistribution,
-            "model_publication": snapshot.rights.model_publication,
-            "record_fingerprint": snapshot.rights.record_fingerprint,
-            "token": _token_payload(snapshot.rights.token),
-        },
+        "rights": rights_payload,
         "captured_at": snapshot.captured_at.isoformat(),
         "coordinator_authority_id": snapshot.coordinator_authority_id,
         "snapshot_fingerprint": snapshot.snapshot_fingerprint,
@@ -352,6 +357,11 @@ def _snapshot_from_row(rows: list[tuple[Any, ...]]) -> DatasetGovernanceSnapshot
                 rights["model_publication"],
                 rights["record_fingerprint"],
                 _source_token(rights["token"]),
+                (
+                    _rights_metadata(rights["metadata"])
+                    if rights.get("metadata") is not None
+                    else None
+                ),
             ),
             captured_at=datetime.fromisoformat(payload["captured_at"]),
             coordinator_authority_id=payload["coordinator_authority_id"],
@@ -359,6 +369,115 @@ def _snapshot_from_row(rows: list[tuple[Any, ...]]) -> DatasetGovernanceSnapshot
         )
     except (KeyError, TypeError, ValueError):
         raise CurrentEvidenceError("SNAPSHOT_AUTHORITY_CORRUPT") from None
+
+
+def _rights_metadata(payload: dict[str, Any]) -> AuthorityRightsMetadata:
+    subject = payload["subject"]
+    classification = payload["source_classification"]
+    permissions = payload["permissions"]
+    retention = payload["retention"]
+    review = payload["review"]
+    current_use = payload["current_use_authorization"]
+    return AuthorityRightsMetadata(
+        dataset_source_identity=subject["dataset_source_identity"],
+        subject_kind=subject["kind"],
+        bound_identity=subject["bound_identity"],
+        rights_status=payload["status"],
+        source_type=classification["source_type"],
+        user_created=classification["user_created"],
+        generated=classification["generated"],
+        reference=classification["reference"],
+        uploaded=classification["uploaded"],
+        external=classification["external"],
+        analysis_allowed=permissions["analysis"],
+        derivative_generation_allowed=permissions["derivative_generation"],
+        retention_mode=retention["mode"],
+        retention_scope=retention["scope"],
+        retention_expires_at=_optional_time(retention.get("expires_at")),
+        consent_evidence_references=tuple(payload["consent_evidence_references"]),
+        jurisdiction=payload["jurisdiction"],
+        reviewer_authority_id=review["reviewer_authority_id"],
+        reviewed_at=_time(review["reviewed_at"]),
+        producer_authority_id=payload["producer_authority_id"],
+        effective_at=_time(payload["effective_at"]),
+        current_use_authorized=current_use["authorized"],
+        current_use_scope=current_use["scope"],
+        fresh_acquisition_required=current_use["fresh_acquisition_required"],
+        existing_material_reuse=current_use["existing_material_reuse"],
+        historical_acquisition_receipt=current_use["historical_acquisition_receipt"],
+        provider_reacquisition_requirement_found=current_use[
+            "provider_reacquisition_requirement_found"
+        ],
+        typed_evidence_references=tuple(
+            TypedRightsEvidence(value["reference_id"], value["evidence_type"])
+            for value in payload["evidence_references"]
+        ),
+    )
+
+
+def _rights_metadata_payload(value: AuthorityRightsMetadata) -> dict[str, object]:
+    return {
+        "subject": {
+            "dataset_source_identity": value.dataset_source_identity,
+            "kind": value.subject_kind,
+            "bound_identity": value.bound_identity,
+        },
+        "status": value.rights_status,
+        "source_classification": {
+            "source_type": value.source_type,
+            "user_created": value.user_created,
+            "generated": value.generated,
+            "reference": value.reference,
+            "uploaded": value.uploaded,
+            "external": value.external,
+        },
+        "permissions": {
+            "analysis": value.analysis_allowed,
+            "derivative_generation": value.derivative_generation_allowed,
+        },
+        "retention": {
+            "mode": value.retention_mode,
+            "scope": value.retention_scope,
+            "expires_at": (
+                value.retention_expires_at.isoformat()
+                if value.retention_expires_at is not None
+                else None
+            ),
+        },
+        "consent_evidence_references": list(value.consent_evidence_references),
+        "jurisdiction": value.jurisdiction,
+        "review": {
+            "reviewer_authority_id": value.reviewer_authority_id,
+            "reviewed_at": value.reviewed_at.isoformat(),
+        },
+        "producer_authority_id": value.producer_authority_id,
+        "effective_at": value.effective_at.isoformat(),
+        "current_use_authorization": {
+            "authorized": value.current_use_authorized,
+            "scope": value.current_use_scope,
+            "fresh_acquisition_required": value.fresh_acquisition_required,
+            "existing_material_reuse": value.existing_material_reuse,
+            "historical_acquisition_receipt": value.historical_acquisition_receipt,
+            "provider_reacquisition_requirement_found": (
+                value.provider_reacquisition_requirement_found
+            ),
+        },
+        "evidence_references": [
+            {"reference_id": item.reference_id, "evidence_type": item.evidence_type}
+            for item in value.typed_evidence_references
+        ],
+    }
+
+
+def _time(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError
+    return parsed
+
+
+def _optional_time(value: str | None) -> datetime | None:
+    return None if value is None else _time(value)
 
 
 def _mapped(error: BaseException) -> CurrentEvidenceError:
