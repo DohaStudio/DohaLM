@@ -3,10 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
 
+import pytest
+
 import src.data.candidate_a_production_dataset as subject
-from src.data.checksums import checksum_value
+from src.data.candidate_a_allocation_fingerprint import (
+    CONTRACT_VERSION,
+    fingerprint_allocation,
+)
 from src.data.current_evidence_snapshot import RightsReadModel, SourceToken
 from src.data.rights_metadata_projection import (
     AuthorityRightsMetadata,
@@ -135,11 +141,11 @@ def test_small_rights_first_build_exercises_real_contract_chain(
     rows = [_row(names[split], index) for index, split in enumerate(names)]
     allocations = [
         {
-            "record_id": row["source_id"],
+            "source_id": row["source_id"],
             "split": subject.candidate_a_split(
                 subject.candidate_a_group_key(str(row["data_file"]))
             ),
-            "group_id": subject.candidate_a_group_key(str(row["data_file"])),
+            "group_key": subject.candidate_a_group_key(str(row["data_file"])),
         }
         for row in rows
     ]
@@ -161,10 +167,29 @@ def test_small_rights_first_build_exercises_real_contract_chain(
         "EXPECTED_SOURCE_CORPUS_SHA256",
         f"sha256:{source_digest.hexdigest()}",
     )
-    monkeypatch.setattr(
-        subject,
-        "EXPECTED_ALLOCATION_FINGERPRINT",
-        checksum_value(sorted(allocations, key=lambda value: value["record_id"])),
+    allocation = fingerprint_allocation(allocations)
+    allocation_contract = tmp_path / "allocation-contract.json"
+    allocation_contract.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "status": "approved",
+                "contract_version": CONTRACT_VERSION,
+                "logical_fields": ["source_id", "group_key", "split"],
+                "record_order": "source_id_utf8_bytes_ascending",
+                "unicode_normalization": "none_ascii_identifiers_required",
+                "serialization": "canonical_json",
+                "json_sort_keys": True,
+                "json_separators": [",", ":"],
+                "json_ensure_ascii": False,
+                "trailing_newline": "LF_exactly_one",
+                "encoding": "UTF-8",
+                "hash_algorithm": "SHA-256",
+                "expected_fingerprint": allocation.fingerprint,
+                "canonical_bytes_size": allocation.canonical_bytes_size,
+            }
+        ),
+        encoding="utf-8",
     )
     monkeypatch.setattr(subject, "_validate_eligibility_material", lambda *args: None)
     eligibility = tmp_path / "eligibility.yaml"
@@ -175,13 +200,38 @@ def test_small_rights_first_build_exercises_real_contract_chain(
         checksum_inventory=tmp_path / "checksums.yaml",
         tokenizer_model=tmp_path / "tokenizer.model",
         eligibility_material=eligibility,
+        allocation_contract=allocation_contract,
         rights=_rights(),
         output=output,
         reviewed_at=NOW,
     )
-    verified = subject.verify_candidate_a_production_dataset(output)
+    verified = subject.verify_candidate_a_production_dataset(
+        output, allocation_contract=allocation_contract
+    )
     assert result.selected_records == 3
     assert verified["status"] == "PRODUCTION_DATASET_ARTIFACTS_READY"
     assert verified["cross_split_group_overlap"] == 0
     assert (output / "candidates.jsonl").read_text(encoding="utf-8").count("\n") == 3
     assert (output / "handoffs.jsonl").read_text(encoding="utf-8").count("\n") == 3
+
+    bad_contract = tmp_path / "bad-allocation-contract.json"
+    bad_value = json.loads(allocation_contract.read_text(encoding="utf-8"))
+    bad_value["expected_fingerprint"] = "sha256:" + "f" * 64
+    bad_contract.write_text(json.dumps(bad_value), encoding="utf-8")
+    bad_output = tmp_path / "bad-production-v1"
+    with pytest.raises(
+        subject.CandidateAProductionDatasetError,
+        match="ALLOCATION_FINGERPRINT_MISMATCH",
+    ):
+        subject.build_candidate_a_production_dataset(
+            dataset_root=tmp_path,
+            checksum_inventory=tmp_path / "checksums.yaml",
+            tokenizer_model=tmp_path / "tokenizer.model",
+            eligibility_material=eligibility,
+            allocation_contract=bad_contract,
+            rights=_rights(),
+            output=bad_output,
+            reviewed_at=NOW,
+        )
+    assert not bad_output.exists()
+    assert not list(tmp_path.glob(".bad-production-v1.staging-*"))

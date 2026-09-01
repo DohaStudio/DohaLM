@@ -1,7 +1,7 @@
 # ADR-035: Candidate A Product Dataset 계보와 Producer 정책
 
 - 문서 상태: `approved`
-- 마지막 검토일: 2026-09-01
+- 마지막 검토일: 2026-09-02
 - 결정 상태: `approved`
 - 실행 영향: Candidate A Product Dataset rebuild 구현 진입을 승인한다. Dataset artifact 생성·publication,
   production authority provisioning과 Training 실행은 승인하지 않는다.
@@ -89,9 +89,38 @@ train, 0.95 미만은 validation, 나머지는 test다. Python `hash()`나 입�
 | validation | 4,770 | 4,193 |
 | test | 4,906 | 4,275 |
 
-cross-split group overlap은 0이고 source 순서를 뒤집은 replay의 allocation은 동일했다. allocation fingerprint는
-`sha256:0eee73ff569f1608183805deca1180bb3d8aa909c5fa0dd93d93904691c8308c`다. 이는 policy
-evidence이며 이번 작업에서 split artifact를 생성했다는 뜻이 아니다.
+cross-split group overlap은 0이고 source 순서를 뒤집은 replay의 allocation은 동일했다. 최초 승인 때 기록된
+`sha256:0eee73ff569f1608183805deca1180bb3d8aa909c5fa0dd93d93904691c8308c`는 입력 bytes, serialization
+recipe와 생성 도구가 보존되지 않아 2026-09-02 검증에서 `LEGACY_APPROVED_FINGERPRINT_UNREPRODUCIBLE`로
+분류했다. 이는 allocation content가 틀렸다는 판정이 아니며 아래 versioned contract가 동일 allocation의 durable authority를
+대체한다.
+
+## Allocation fingerprint canonical contract amendment
+
+[확정] 2026-09-02 사용자의 명시 요청에 따라 새 ADR 없이 이 ADR을 보완한다. member, group, split, seed와 ratio는
+변경하지 않고 동일 logical allocation의 fingerprint serialization만 명시한다. machine-readable authority는
+[`aihub-71748-production-allocation-fingerprint.contract.json`](../data/aihub-71748-production-allocation-fingerprint.contract.json)이다.
+
+```text
+CONTRACT_VERSION = aihub-71748-production-allocation-fingerprint-v1
+LOGICAL_ROW = {source_id, group_key, split}
+RECORD_ORDER = source_id UTF-8 bytes ascending
+UNICODE_NORMALIZATION = none; source_id/group_key are canonical ASCII identifiers
+PAYLOAD = {"contract_version": CONTRACT_VERSION, "allocations": SORTED_LOGICAL_ROWS}
+SERIALIZATION = JSON sort_keys=true, separators=(",", ":"), ensure_ascii=false
+ENCODING = UTF-8
+TRAILING_NEWLINE = exactly one LF
+HASH = SHA-256 over the complete canonical bytes
+```
+
+[확정] payload field names와 logical row field names는 고정된다. `source_id`, `group_key`, `split` 이외의 content,
+candidate ID, Rights token, DB UUID, review, timestamp, temporary path와 processing order는 포함하지 않는다. duplicate 또는
+non-canonical identifier와 unknown split은 fail closed한다. contract version은 payload에 포함되어 domain separator 역할을 한다.
+
+[확정] exact 97,747-row allocation의 canonical bytes는 19,177,444 bytes이고 fingerprint는
+`sha256:055e82a5103043b769a9d2ea56b9efc4243c50e4c38261d87177b8fb63d66f3c`다. reverse-order replay와
+mapping key order 변화는 동일하고 `source_id`, `group_key`, `split` 또는 contract version 변화는 fingerprint를 바꾼다.
+기존 unversioned implementation projection `sha256:805f65e2...a99f83`과 legacy approved value는 authority로 사용하지 않는다.
 
 ## Candidate producer와 review
 
@@ -159,3 +188,10 @@ prepared manifest에 내장된 exact `selection_contract` mapping의 checksum이
 - C1·C2·C3, Host, backend, Training intent, journal, DohaRights, Model C와 required-check ruleset semantic diff는 0이다.
 - production source code, migration, Dataset rebuild artifact, Dataset publication과 Training workload는 이 결정에 포함되지 않는다.
 - commercial use, redistribution, model publication과 external deployment 권한은 생성되지 않는다.
+
+## 변경 이력
+
+| 날짜 | 변경 내용 |
+|---|---|
+| 2026-09-02 | legacy allocation fingerprint provenance defect를 기록하고 versioned canonical JSON contract와 `sha256:055e82a5...d66f3c` authority를 승인 |
+| 2026-09-01 | Candidate A canonical member, group, split, producer와 authority ownership 최초 승인 |

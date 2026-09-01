@@ -23,6 +23,10 @@ from .aihub_71748_tokenizer_corpus import (
     _eligible_archives,
 )
 from .checksums import canonical_json_bytes, checksum_value, file_checksum
+from .candidate_a_allocation_fingerprint import (
+    fingerprint_allocation,
+    load_allocation_fingerprint_contract,
+)
 from .common_dataset_contracts import (
     validate_learning_candidate,
     validate_training_eligibility,
@@ -67,9 +71,6 @@ EXPECTED_SOURCE_CORPUS_SHA256 = (
 )
 EXPECTED_SOURCE_CORPUS_FINGERPRINT = (
     "sha256:2812606509281c9246c56c5bad2efbcf53897a105b75e1843d61b2101891f28c"
-)
-EXPECTED_ALLOCATION_FINGERPRINT = (
-    "sha256:0eee73ff569f1608183805deca1180bb3d8aa909c5fa0dd93d93904691c8308c"
 )
 USAGE_PURPOSE = "internal_noncommercial_full_pretraining"
 CREATED_BY = "dohalm-dataset-governance-candidate-a-production-v1"
@@ -272,6 +273,7 @@ def build_candidate_a_production_dataset(
     checksum_inventory: Path,
     tokenizer_model: Path,
     eligibility_material: Path,
+    allocation_contract: Path,
     rights: RightsReadModel,
     output: Path,
     reviewed_at: datetime,
@@ -289,6 +291,12 @@ def build_candidate_a_production_dataset(
         f"eligibility-evidence:aihub-71748-production-v1:{eligibility_fingerprint[7:]}"
     )
     _validate_eligibility_material(eligibility_material, eligibility_fingerprint)
+    try:
+        approved_allocation = load_allocation_fingerprint_contract(allocation_contract)
+    except ValueError:
+        raise CandidateAProductionDatasetError(
+            "ALLOCATION_FINGERPRINT_CONTRACT_INVALID"
+        ) from None
     expires_at = reviewed_at + timedelta(hours=24)
     tokenizer = DohaTokenizer(tokenizer_model)
     if tokenizer.vocab_size != 16_000:
@@ -310,7 +318,7 @@ def build_candidate_a_production_dataset(
     handoffs = []
     allocations = []
     review_aggregate = []
-    allocation_evidence = []
+    allocation_evidence: list[dict[str, str]] = []
     try:
         for split in EXPECTED_SPLIT_COUNTS:
             corpus_handles[split] = (staging / f"{split}-corpus.jsonl").open(
@@ -342,9 +350,29 @@ def build_candidate_a_production_dataset(
             selected_count += 1
             split_records[split] += 1
             split_groups[split].add(group_key)
+            allocation_evidence.append(
+                {
+                    "source_id": str(row["source_id"]),
+                    "group_key": group_key,
+                    "split": split,
+                }
+            )
         _require_source_counts(
             source_count, source_digest, selected_count, split_records, split_groups
         )
+        try:
+            allocation_result = fingerprint_allocation(allocation_evidence)
+        except ValueError:
+            raise CandidateAProductionDatasetError(
+                "ALLOCATION_FINGERPRINT_INPUT_INVALID"
+            ) from None
+        if (
+            allocation_result.fingerprint != approved_allocation.expected_fingerprint
+            or allocation_result.canonical_bytes_size
+            != approved_allocation.canonical_bytes_size
+            or allocation_result.allocation_count != EXPECTED_SELECTED_RECORDS
+        ):
+            raise CandidateAProductionDatasetError("ALLOCATION_FINGERPRINT_MISMATCH")
 
         authority = CandidateACurrentEvidenceAuthority(
             rights_metadata=rights_metadata,
@@ -411,13 +439,6 @@ def build_candidate_a_production_dataset(
                     "review_evidence_reference": review_reference,
                 }
             )
-            allocation_evidence.append(
-                {
-                    "record_id": row["source_id"],
-                    "split": row["split"],
-                    "group_id": row["group_key"],
-                }
-            )
             corpus_handles[row["split"]].write(
                 json.dumps(
                     {
@@ -455,12 +476,7 @@ def build_candidate_a_production_dataset(
         raise
     _close(corpus_handles, evidence_handles)
 
-    allocation_fingerprint = checksum_value(
-        sorted(allocation_evidence, key=lambda x: x["record_id"])
-    )
-    if allocation_fingerprint != EXPECTED_ALLOCATION_FINGERPRINT:
-        shutil.rmtree(staging)
-        raise CandidateAProductionDatasetError("ALLOCATION_FINGERPRINT_MISMATCH")
+    allocation_fingerprint = allocation_result.fingerprint
     approval_fingerprint = checksum_value(
         sorted(review_aggregate, key=lambda value: value["candidate_id"])
     )
@@ -511,6 +527,10 @@ def build_candidate_a_production_dataset(
         "seed": SPLIT_SEED,
         "ratios": {"train": 0.90, "validation": 0.05, "test": 0.05},
         "allocation_fingerprint": allocation_fingerprint,
+        "allocation_fingerprint_contract_version": allocation_result.contract_version,
+        "allocation_fingerprint_canonical_bytes_size": (
+            allocation_result.canonical_bytes_size
+        ),
         "cross_split_group_overlap": 0,
         "statistics": {
             name: {
@@ -602,7 +622,9 @@ def build_candidate_a_production_dataset(
     )
 
 
-def verify_candidate_a_production_dataset(output: Path) -> dict[str, object]:
+def verify_candidate_a_production_dataset(
+    output: Path, *, allocation_contract: Path
+) -> dict[str, object]:
     output = output.resolve()
     complete = _read_json(output / "COMPLETE.json")
     checksums = _read_json(output / "artifact-checksums.json")
@@ -616,10 +638,21 @@ def verify_candidate_a_production_dataset(output: Path) -> dict[str, object]:
         raise CandidateAProductionDatasetError("PRODUCTION_ARTIFACT_INVALID")
     manifest = _read_json(output / "dataset-manifest.json")
     split = _read_json(output / "split-manifest.json")
+    try:
+        approved_allocation = load_allocation_fingerprint_contract(allocation_contract)
+    except ValueError:
+        raise CandidateAProductionDatasetError(
+            "ALLOCATION_FINGERPRINT_CONTRACT_INVALID"
+        ) from None
     if (
         manifest.get("actual_dataset_publication") != 0
         or manifest.get("actual_training_workload") != 0
-        or split.get("allocation_fingerprint") != EXPECTED_ALLOCATION_FINGERPRINT
+        or split.get("allocation_fingerprint")
+        != approved_allocation.expected_fingerprint
+        or split.get("allocation_fingerprint_contract_version")
+        != approved_allocation.version
+        or split.get("allocation_fingerprint_canonical_bytes_size")
+        != approved_allocation.canonical_bytes_size
         or {
             name: (
                 split["statistics"][name]["records"],
