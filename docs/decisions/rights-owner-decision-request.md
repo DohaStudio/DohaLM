@@ -1,15 +1,16 @@
 # Cross-Repository Rights Owner Decision Request
 
-- 문서 상태: `review`
-- 마지막 검토일: 2026-08-25
-- 결정 상태: `decision_required`
-- 현재 판정: `D. ORGANIZATIONAL APPROVAL STILL BLOCKED`
-- 실행 영향: 없음
+- 문서 상태: `approved`
+- 마지막 검토일: 2026-09-01
+- 결정 상태: `resolved`
+- 현재 판정: `APPROVED — RESOLVED BY ADR-034`
+- 실행 영향: ADR-034 범위의 implementation 진입 승인; 실제 Rights record·Dataset publication·Training 실행은 미승인
 - 기준 DohaLM develop: `ceaf1ba3f754647a33a1a0750ef61428b6f7132f`
 - 기준 DohaLM tree: `93e091f9aa89b745c7353d2de13adfa4408c6180`
 - 선행 결정: [ADR-028](./ADR-028-current-evidence-source-authority.md),
   [ADR-029](./ADR-029-rights-metadata-ownership-authority.md),
   [ADR-030](./ADR-030-cross-repository-rights-domain-ownership.md)
+- 후속 결정: [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md)
 
 ## 목적
 
@@ -114,18 +115,23 @@ common_contract_change_path: <exact approval/migration path>
 - 네 consumer/effect repository와 Common contract 변경 경로가 승인됐다.
 - 승인 간 충돌과 미해결 부분 승인이 0이다.
 
-현재 충족 수는 0이며 최종 상태는 `D. ORGANIZATIONAL APPROVAL STILL BLOCKED`다.
+2026-08-25 작성 당시 충족 수는 0이었고 상태는 `D. ORGANIZATIONAL APPROVAL STILL BLOCKED`였다. 2026-09-01 사용자
+`DDORINY`가 owner·scope·identity·lifecycle·reader·snapshot·publication binding을 명시적으로 승인했으며, ADR-034가 이를 final
+architecture decision으로 기록했다.
 
-## 차단 범위
+## 당시 차단 범위
 
 승인 전에는 Rights Authority port/adapter, DB·migration, service API, source registry, runtime composition, CurrentEvidence snapshot,
 Publication binding과 production Runtime Activation을 시작하지 않는다. 이 문서는 production source, test, migration, runtime,
 Common package 또는 다른 repository를 변경하거나 그러한 변경을 승인하지 않는다.
 
-## 승인 후 절차
+## 승인 결과와 후속 절차
 
-완전한 승인 record가 생기면 새 cross-repository ADR에서 선택된 owner와 13개 책임을 승인하고 ADR-028~030의 blocker를
-재평가한다. 그 ADR이 approved되기 전에는 구현 PR을 열지 않는다.
+[확정] 완전한 승인 record는 ADR-034다. 선택된 owner는 shared `DohaRights` domain이고 13개 책임, Model C snapshot과 exact
+publication binding이 승인됐다. ADR-028~030의 당시 blocker는 ADR-034로 해소됐다.
+
+[확정] 후속 `Production CurrentEvidence + Rights Authority Implementation Remediation`은 진행할 수 있다. 다만 actual Rights record,
+Dataset publication, production PostgreSQL provisioning, Host/backend와 Training은 각 후속 Gate 전까지 0으로 유지한다.
 
 ## 문서 검증
 
@@ -139,4 +145,5 @@ Common package 또는 다른 repository를 변경하거나 그러한 변경을 �
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | 사용자 `DDORINY`의 명시적 조직 승인과 ADR-034로 Decision Request를 `resolved` 처리; implementation과 actual runtime mutation 권한 분리 |
 | 2026-08-25 | accepted/approved ADR·병합 PR·authority 문서·issue를 재검증하고 부분 authentication authority와 전체 Rights ownership을 분리; Option D 유지와 조직 Decision Request 등록 |

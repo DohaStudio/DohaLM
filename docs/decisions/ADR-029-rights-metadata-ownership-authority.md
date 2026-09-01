@@ -1,7 +1,7 @@
 # ADR-029: RightsMetadata producer와 authority ownership 경계
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-08-25
+- 마지막 검토일: 2026-09-01
 - 결정 상태: `proposed`
 - 실행 영향: 없음
 - 기준 DohaLM commit: `5127d594869b289ec60ed414dcdfcd22b32bb031`
@@ -14,6 +14,7 @@
   [ADR-026](./ADR-026-dataset-review-authority-contract.md),
   [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md),
   [ADR-028](./ADR-028-current-evidence-source-authority.md)
+- 후속 결정: [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md)
 - 관련 문서: [데이터 라이선스 정책](../data/data-license-policy.md),
   [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md)
 
@@ -377,5 +378,6 @@ stable source identity, create·replacement·revoke writer와 authority/read own
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] ADR-034가 DohaRights accountable owner, stable Rights Subject ID, mutation actors와 authenticated read를 승인해 당시 blocker를 해소 |
 | 2026-08-25 | [후속] ADR-030의 cross-repository ownership Gate가 Option D·`STILL BLOCKED`를 판정해 조직 승인 요구를 유지 |
 | 2026-08-25 | [제안] accountable owner·canonical producer·logical key·revoke/read authority 미확정으로 Rights authority를 `STILL BLOCKED` 판정 |

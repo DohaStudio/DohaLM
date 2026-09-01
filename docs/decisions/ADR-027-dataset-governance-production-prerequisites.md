@@ -1,7 +1,7 @@
 # ADR-027: Product Dataset Governance production prerequisite 경계
 
 - 문서 상태: `draft`
-- 마지막 검토일: 2026-08-26
+- 마지막 검토일: 2026-09-01
 - 결정 상태: `proposed`
 - 실행 영향: 없음; CurrentEvidence는 source 미정으로 차단하고 새 DohaLM governance runtime config/composition ownership만 제안
 - 관련 결정: [ADR-014](./ADR-014-dataset-product-governance-boundary.md),
@@ -9,7 +9,8 @@
   [ADR-025](./ADR-025-dataset-version-proposal-authority-contract.md),
   [ADR-026](./ADR-026-dataset-review-authority-contract.md),
   [ADR-028](./ADR-028-current-evidence-source-authority.md),
-  [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md)
+  [ADR-031](./ADR-031-dataset-publication-pair-public-read-contract.md),
+  [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md)
 - 관련 문서: [제품 지속 학습 경계](../project/ai-music-director-continuous-learning.md),
   [산출물 및 설정 정책](../governance/artifact-and-configuration-policy.md)
 
@@ -291,6 +292,7 @@ Training을 승인하지 않는다.
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [후속] ADR-034가 DohaRights owner·source identity와 Model C snapshot을 승인해 당시 CurrentEvidence source blocker를 해소; runtime 구현은 별도 Gate |
 | 2026-08-26 | [현재] ADR-031 exact-identity publication pair public read port 구현 반영; CurrentEvidence·runtime prerequisite는 계속 `STILL BLOCKED` |
 | 2026-08-26 | [제안] ADR-031 exact-identity publication pair public read contract의 `READY FOR IMPLEMENTATION` 판정 연결; overall runtime prerequisite는 계속 `STILL BLOCKED` |
 | 2026-08-25 | [제안] ADR-028의 Rights owner/authority·projection/snapshot BLOCKED와 새 DohaLM TrainingEligibility producer/authority REQUIRED 판정 연결 |
