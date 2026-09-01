@@ -873,7 +873,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7)]
         yield C1Fixture(
             correlation,
             container,
@@ -901,6 +901,302 @@ def c1_postgres() -> Iterator[C1Fixture]:
                 "POSTGRES_CLEANUP_RESIDUE "
                 f"label={LABEL_KEY}={correlation} {noun}s={','.join(resources)}"
             )
+
+
+@pytest.mark.integration
+def test_production_authority_provisioning_is_replay_safe_atomic_and_restricted(
+    c1_postgres: C1Fixture,
+) -> None:
+    from src.data.checksums import canonical_json_bytes
+    from src.training.execution_approval import TrainingExecutionRequest
+    from src.training.execution_issuer import TrainingExecutionIssuerDecisionValue
+    from src.training.postgres_production_authority_provisioning import (
+        PostgresProductionAuthorityProvisioning,
+    )
+    from src.training.production_authority_provisioning import (
+        ConfigAuthorityProvisionCommand,
+        DatasetAuthorityRegistrationCommand,
+        DecisionAuthorityProvisionCommand,
+        PrincipalProvisionCommand,
+        ReadinessAuthorityProvisionCommand,
+    )
+
+    adapter = PostgresProductionAuthorityProvisioning(
+        _C1RoleFactory(c1_postgres, "dohalm_training_authority_producer")
+    )
+    suffix = uuid.uuid4().hex[:12]
+    source = "a" * 40
+    now = datetime.now(timezone.utc)
+    valid_until = now + timedelta(days=1)
+    issuer = PrincipalProvisionCommand(
+        authority_id=str(uuid.uuid4()),
+        domain_key=f"issuer:production:{suffix}",
+        payload=_canonical_payload({"kind": "issuer", "suffix": suffix}),
+        source_commit=source,
+        valid_from=now,
+        valid_until=valid_until,
+        principal_reference=f"issuer:{suffix}",
+        event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:issuer:{suffix}",
+        evidence_reference=f"evidence:issuer:{suffix}",
+    )
+    approver = PrincipalProvisionCommand(
+        authority_id=str(uuid.uuid4()),
+        domain_key=f"approver:production:{suffix}",
+        payload=_canonical_payload({"kind": "approver", "suffix": suffix}),
+        source_commit=source,
+        valid_from=now,
+        valid_until=valid_until,
+        principal_reference=f"approver:{suffix}",
+        event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:approver:{suffix}",
+        evidence_reference=f"evidence:approver:{suffix}",
+    )
+    issuer_result = adapter.provision_issuer(issuer)
+    approver_result = adapter.provision_approver(approver)
+    assert adapter.provision_issuer(issuer) == issuer_result
+    assert adapter.provision_approver(approver) == approver_result
+
+    version_payload = canonical_json_bytes(
+        {"object_id": f"dataset-version-{suffix}", "training_allowed": True}
+    )
+    manifest_payload = canonical_json_bytes(
+        {"object_id": f"dataset-manifest-{suffix}", "training_allowed": True}
+    )
+    pair_fingerprint = "sha256:" + hashlib.sha256(f"pair:{suffix}".encode()).hexdigest()
+    pair_payload = canonical_json_bytes(
+        {
+            "version": f"dataset-version-{suffix}",
+            "manifest": f"dataset-manifest-{suffix}",
+            "pair_fingerprint": pair_fingerprint,
+        }
+    )
+    dataset = DatasetAuthorityRegistrationCommand(
+        version_authority_id=str(uuid.uuid4()),
+        manifest_authority_id=str(uuid.uuid4()),
+        pair_authority_id=str(uuid.uuid4()),
+        version_domain_key=f"dataset-version:{suffix}",
+        manifest_domain_key=f"dataset-manifest:{suffix}",
+        pair_domain_key=f"dataset-pair:{suffix}",
+        version_payload=version_payload,
+        manifest_payload=manifest_payload,
+        pair_payload=pair_payload,
+        dataset_version_id=f"dataset-version-{suffix}",
+        dataset_manifest_id=f"dataset-manifest-{suffix}",
+        pair_fingerprint=pair_fingerprint,
+        source_commit=source,
+        publication_scenario="internal-production-training",
+        eligibility_reference=f"eligibility:{suffix}",
+        source_lineage_reference=f"lineage:{suffix}",
+        valid_from=now,
+        valid_until=valid_until,
+        version_event_id=str(uuid.uuid4()),
+        manifest_event_id=str(uuid.uuid4()),
+        pair_event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:dataset:{suffix}",
+    )
+    rollback_probe = replace(
+        dataset,
+        version_event_id=dataset.pair_event_id,
+        manifest_event_id=dataset.pair_event_id,
+    )
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_CONFLICT"):
+        adapter.register_dataset_publication(rollback_probe)
+    dataset_result = adapter.register_dataset_publication(dataset)
+    assert adapter.register_dataset_publication(dataset) == dataset_result
+
+    config_payload = canonical_json_bytes(
+        {"execution_scope": "production_internal", "suffix": suffix}
+    )
+    config = ConfigAuthorityProvisionCommand(
+        authority_id=str(uuid.uuid4()),
+        domain_key=f"config:production:{suffix}",
+        canonical_payload=config_payload,
+        source_commit=source,
+        valid_from=now,
+        valid_until=valid_until,
+        event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:config:{suffix}",
+        evidence_reference=f"evidence:config:{suffix}",
+    )
+    config_result = adapter.provision_config(config)
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_CONFLICT"):
+        adapter.provision_config(
+            replace(config, canonical_payload=config_payload + b" ")
+        )
+    readiness_payload = canonical_json_bytes(
+        {"result": "READY", "source_commit": source, "suffix": suffix}
+    )
+    readiness = ReadinessAuthorityProvisionCommand(
+        authority_id=str(uuid.uuid4()),
+        domain_key=f"readiness:production:{suffix}",
+        canonical_payload=readiness_payload,
+        source_commit=source,
+        dataset_pair_fingerprint=pair_fingerprint,
+        config_fingerprint=config_result.payload_fingerprint,
+        evaluated_at=now,
+        valid_from=now,
+        valid_until=valid_until,
+        event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:readiness:{suffix}",
+        evidence_reference=f"evidence:readiness:{suffix}",
+    )
+    readiness_result = adapter.provision_readiness(readiness)
+    assert adapter.provision_readiness(readiness) == readiness_result
+
+    request_fingerprint = (
+        "sha256:" + hashlib.sha256(f"request:{suffix}".encode()).hexdigest()
+    )
+    request = TrainingExecutionRequest(
+        schema_version=1,
+        action="full_pretraining",
+        dataset_version_id=dataset.dataset_version_id,
+        dataset_manifest_id=dataset.dataset_manifest_id,
+        dataset_pair_fingerprint=pair_fingerprint,
+        config_fingerprint=config_result.payload_fingerprint,
+        readiness_fingerprint=readiness_result.payload_fingerprint,
+        run_id=f"run:{suffix}",
+        output_logical_root=f"production/runs/{suffix}",
+        source_commit=source,
+        execution_mode="fresh",
+        request_fingerprint=request_fingerprint,
+    )
+    evidence = f"decision:{uuid.uuid4()}"
+    decision = DecisionAuthorityProvisionCommand(
+        authority_id=str(uuid.uuid4()),
+        domain_key=f"decision:production:{suffix}",
+        canonical_payload=_canonical_payload(
+            {"decision": "approved", "request": request_fingerprint}
+        ),
+        source_commit=source,
+        request=request,
+        decision=TrainingExecutionIssuerDecisionValue.APPROVED,
+        authorization_id=f"authorization:{suffix}",
+        issuer_authority_id=issuer.authority_id,
+        issuer_id=issuer.principal_reference,
+        approver_authority_id=approver.authority_id,
+        approver_reference=approver.principal_reference,
+        evidence_reference=evidence,
+        issued_at=now,
+        valid_from=now,
+        valid_until=valid_until,
+        event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:decision:{suffix}",
+    )
+    decision_result = adapter.create_decision(decision)
+    assert adapter.create_decision(decision) == decision_result
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_INVALID"):
+        adapter.create_decision(
+            replace(decision, issuer_authority_id=str(uuid.uuid4()))
+        )
+
+    conflicting = replace(dataset, pair_payload=pair_payload + b" ")
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_CONFLICT"):
+        adapter.register_dataset_publication(conflicting)
+    with c1_postgres.factory.connection() as connection:
+        counts = connection.execute(
+            f"SELECT "
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_version_authority WHERE common_object_id=%s),"
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_manifest_authority WHERE common_object_id=%s),"
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_pair_authority WHERE pair_fingerprint=%s)",
+            (
+                dataset.dataset_version_id,
+                dataset.dataset_manifest_id,
+                dataset.pair_fingerprint,
+            ),
+        ).fetchone()
+        privileges = connection.execute(
+            "SELECT has_function_privilege('dohalm_training_resolver', %s, 'EXECUTE'),"
+            "has_function_privilege('dohalm_training_journal', %s, 'EXECUTE'),"
+            "has_function_privilege('dohalm_training_intent_writer', %s, 'EXECUTE'),"
+            "has_function_privilege('public', %s, 'EXECUTE')",
+            tuple(
+                [
+                    "dohalm_training_v1.provision_training_config(uuid,varchar,bytea,char,char,timestamptz,timestamptz,uuid,varchar,varchar)"
+                ]
+                * 4
+            ),
+        ).fetchone()
+    assert counts == (1, 1, 1)
+    assert privileges == (False, False, False, False)
+    for role in (
+        "dohalm_training_resolver",
+        "dohalm_training_journal",
+        "dohalm_training_intent_writer",
+    ):
+        with pytest.raises(Exception, match="permission denied"):
+            with _C1RoleFactory(c1_postgres, role).transaction(
+                isolation="READ COMMITTED", read_only=False
+            ) as connection:
+                connection.execute(
+                    "SELECT * FROM dohalm_training_v1.provision_training_config("
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        config.authority_id,
+                        config.domain_key,
+                        config.canonical_payload,
+                        config.payload_fingerprint,
+                        config.source_commit,
+                        config.valid_from,
+                        config.valid_until,
+                        config.event_id,
+                        config.correlation_reference,
+                        config.evidence_reference,
+                    ),
+                ).fetchone()
+
+
+@pytest.mark.integration
+def test_production_authority_provisioning_upgrades_existing_0006_database(
+    c1_postgres: C1Fixture, tmp_path: Path
+) -> None:
+    upgrade_database = f"dohalm_c1_auth_up_{c1_postgres.correlation[:8]}"
+    upgrade_factory = C1PostgresConnectionFactory(
+        replace(c1_postgres.settings, database=upgrade_database)
+    )
+    prior_migrations = tmp_path / "through-0006"
+    prior_migrations.mkdir()
+    migration_root = Path("src/postgres_migrations")
+    for path in sorted(migration_root.glob("000[1-6]_*.sql")):
+        (prior_migrations / path.name).write_bytes(path.read_bytes())
+    _docker(
+        "exec",
+        c1_postgres.container,
+        "createdb",
+        f"--username={c1_postgres.settings.user}",
+        upgrade_database,
+    )
+    try:
+        with upgrade_factory.connection() as connection:
+            assert apply_c1_migrations(connection, directory=prior_migrations) == (
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+            )
+        with upgrade_factory.connection() as connection:
+            assert apply_c1_migrations(connection) == (7,)
+            assert connection.execute(
+                "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
+                "has_function_privilege('public', %s, 'EXECUTE')",
+                (
+                    "dohalm_training_authority_producer",
+                    "dohalm_training_v1.provision_training_config(uuid,varchar,bytea,char,char,timestamptz,timestamptz,uuid,varchar,varchar)",
+                    "dohalm_training_v1.provision_training_config(uuid,varchar,bytea,char,char,timestamptz,timestamptz,uuid,varchar,varchar)",
+                ),
+            ).fetchone() == (True, False)
+    finally:
+        _docker(
+            "exec",
+            c1_postgres.container,
+            "dropdb",
+            "--if-exists",
+            f"--username={c1_postgres.settings.user}",
+            upgrade_database,
+            check=False,
+        )
 
 
 @pytest.mark.integration
@@ -2301,7 +2597,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6)
+            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -2386,6 +2682,15 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 "0006_training_intent_authority.sql",
                 hashlib.sha256(
                     (migration_root / "0006_training_intent_authority.sql").read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                7,
+                "0007_production_authority_provisioning.sql",
+                hashlib.sha256(
+                    (
+                        migration_root / "0007_production_authority_provisioning.sql"
+                    ).read_bytes()
                 ).hexdigest(),
             ),
         ]
@@ -2825,6 +3130,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (4, "0004_dataset_proposal_authority.sql"),
                 (5, "0005_dataset_review_authority.sql"),
                 (6, "0006_training_intent_authority.sql"),
+                (7, "0007_production_authority_provisioning.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
