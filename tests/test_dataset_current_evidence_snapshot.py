@@ -11,17 +11,25 @@ from src.data.current_evidence_snapshot import (
     DatasetEvidence,
     DatasetGovernanceSnapshotCoordinator,
     InMemorySnapshotAuthority,
+    ProposalDatasetEvidenceTokenAuthority,
     RightsReadModel,
     SourceToken,
     source_token_fingerprint,
 )
 from src.data.dataset_governance import DatasetVersionIdentity
+from src.data.dataset_governance import propose_dataset_version
+from src.data.dataset_proposal_authority import (
+    DatasetProposalEvidenceDecision,
+    DatasetProposalEvidenceStatus,
+    dataset_version_proposal_fingerprint,
+)
 from src.data.postgres_current_evidence import PostgresCurrentRightsAuthority
 from src.data.product_dataset_current_evidence import (
     BoundDatasetLifecycleCurrentEvidence,
     DatasetLifecycleStage,
     InMemoryCurrentEvidenceBindingAuthority,
 )
+from test_dataset_proposal_authority import _payload
 
 NOW = datetime(2026, 9, 1, tzinfo=timezone.utc)
 DATASET_SOURCE = "11111111-1111-4111-8111-111111111111"
@@ -142,6 +150,62 @@ def test_candidate_a_model_c_snapshot_is_idempotent_and_non_commercial() -> None
     assert first.rights.commercial_use is False
     assert first.rights.redistribution is False
     assert first.rights.model_publication is False
+
+
+def test_dataset_source_adapter_issues_and_revalidates_owner_token() -> None:
+    proposal = propose_dataset_version(_payload())
+
+    class Authority:
+        status = DatasetProposalEvidenceStatus.CURRENT
+        version = 7
+        unavailable = False
+
+        def evaluate_current_proposal_evidence(
+            self, actual, *, proposal_fingerprint: str, proposed_at: datetime
+        ):
+            if self.unavailable:
+                raise OSError("synthetic source failure")
+            assert actual is proposal and proposed_at == NOW
+            return DatasetProposalEvidenceDecision(
+                self.status,
+                proposal.identity,
+                proposal_fingerprint,
+                "authority:dataset-evidence:7",
+                self.version,
+            )
+
+    source = Authority()
+    adapter = ProposalDatasetEvidenceTokenAuthority(
+        source_authority_id=DATASET_SOURCE,
+        subject_id="AIHUB-71748",
+        proposal=proposal,
+        authority=source,
+        clock=lambda: NOW,
+    )
+    evidence = adapter.get_current_evidence("AIHUB-71748")
+    with pytest.raises(CurrentEvidenceError, match="DATASET_EVIDENCE_SUBJECT_MISMATCH"):
+        adapter.get_current_evidence("AIHUB-71748-other")
+    assert evidence.evidence_fingerprint == dataset_version_proposal_fingerprint(
+        proposal
+    )
+    assert evidence.token.projection_revision == 7
+    assert adapter.verify_currentness(evidence.token) is True
+    assert (
+        adapter.verify_currentness(
+            replace(evidence.token, token_fingerprint="sha256:" + "f" * 64)
+        )
+        is False
+    )
+    source.version = 8
+    assert adapter.verify_currentness(evidence.token) is False
+    source.status = DatasetProposalEvidenceStatus.REVOKED
+    with pytest.raises(CurrentEvidenceError, match="DATASET_EVIDENCE_NOT_CURRENT"):
+        adapter.get_current_evidence("AIHUB-71748")
+    source.status, source.unavailable = DatasetProposalEvidenceStatus.CURRENT, True
+    with pytest.raises(
+        CurrentEvidenceError, match="DATASET_EVIDENCE_SOURCE_UNAVAILABLE"
+    ):
+        adapter.get_current_evidence("AIHUB-71748")
 
 
 def test_rights_revoke_dataset_change_and_source_failure_fail_closed() -> None:
