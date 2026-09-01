@@ -376,6 +376,7 @@ class DecisionAuthorityProvisionCommand:
                 )
             )
             or not self.evidence_reference.startswith("decision:")
+            or not _uuid(self.evidence_reference.removeprefix("decision:"))
             or type(self.canonical_payload) is not bytes
             or not self.canonical_payload
             or _COMMIT.fullmatch(self.source_commit) is None

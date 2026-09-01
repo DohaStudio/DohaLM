@@ -9,7 +9,10 @@ from uuid import uuid4
 import pytest
 
 from src.data.checksums import canonical_json_bytes, sha256_bytes
-from src.data.dataset_publication import DatasetPublicationResult
+from src.data.dataset_publication import (
+    DatasetPublicationError,
+    DatasetPublicationResult,
+)
 from src.training.dataset_publication_authority_bridge import (
     DatasetPublicationAuthorityBridge,
     InternalProductionDatasetEligibility,
@@ -247,7 +250,9 @@ def test_dataset_bridge_registers_exact_filesystem_result_without_republication(
 
 
 def test_dataset_bridge_rejects_commercial_or_unfrozen_material() -> None:
-    with pytest.raises(TrainingError, match="PRODUCTION_DATASET_ELIGIBILITY_INVALID"):
+    with pytest.raises(
+        DatasetPublicationError, match="PRODUCTION_DATASET_ELIGIBILITY_INVALID"
+    ):
         InternalProductionDatasetEligibility(
             reference="eligibility:test",
             source_lineage_reference="lineage:test",

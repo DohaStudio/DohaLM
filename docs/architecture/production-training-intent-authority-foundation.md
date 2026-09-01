@@ -36,7 +36,7 @@ current dedicated submitter authority
 | migration `0007` | issuer·approver·config·readiness·decision과 Dataset version/manifest/pair 원자 등록을 위한 family-specific `SECURITY DEFINER` 함수 및 producer-only `EXECUTE` |
 | `production_authority_provisioning.py` | raw SQL 없는 typed command/result port, submitter/issuer/approver UUID 분리와 staged provisioning package |
 | `postgres_production_authority_provisioning.py` | producer role만 허용하는 restricted-function adapter; generic privileged CRUD 및 table DML 없음 |
-| `dataset_publication_authority_bridge.py` | 이미 frozen/issued된 Product publication 결과를 재발행하지 않고 stable identity로 PostgreSQL Dataset authority 3종에 원자 등록 |
+| `product_dataset_authority_registration.py` / `dataset_publication_authority_bridge.py` | Dataset-owned pure material builder가 frozen/issued publication과 non-commercial eligibility를 stable identity로 동결하고 Training bridge가 PostgreSQL Dataset authority 3종에 원자 등록 |
 | C1/C2 persistence coverage | C1 migration·restore와 C2-owned shared PostgreSQL fixture에서 exact/conflicting concurrent replay, cross-submitter scope, decision bind, immutable DML와 journal 비변경 검증 |
 | `production_training_application.py` | durable intent ID와 observed source commit만 받는 frozen non-CLI command, exact activation plan/fingerprint, transient `READY_FOR_ACTIVATION` evidence와 explicit `activate()` |
 | C3 `prepare_activation` / `activate` | actual intent의 prerequisite/decision/current source/output/continuation 및 journal collision을 재검증하고, 같은 prepared readiness만 기존 Host에 전달 |

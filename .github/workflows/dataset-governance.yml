@@ -37,7 +37,7 @@ jobs:
           dataset_changed=false
           while IFS= read -r -d '' path; do
             case "$path" in
-              .github/workflows/dataset-governance.yml|docs/quality/test-strategy.md|pyproject.toml|src/data/*|src/training/dataset_publication_authority_bridge.py|tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/test_production_authority_provisioning.py|tests/dataset_publication_process_worker.py)
+              .github/workflows/dataset-governance.yml|docs/quality/test-strategy.md|pyproject.toml|src/data/*|src/training/dataset_publication_authority_bridge.py|tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/dataset_publication_process_worker.py)
                 dataset_changed=true
                 break
                 ;;
@@ -81,6 +81,7 @@ jobs:
             src/data/product_dataset_publication.py \
             src/data/postgres_dataset_proposal_authority.py \
             src/data/postgres_dataset_review_authority.py \
+            src/data/product_dataset_authority_registration.py \
             src/training/dataset_publication_authority_bridge.py \
             tests/test_common_dataset_contracts.py \
             tests/test_dataset_governance.py \
@@ -93,7 +94,7 @@ jobs:
             tests/test_product_dataset_approval.py \
             tests/test_product_dataset_publication.py \
             tests/test_dataset_publication_process.py \
-            tests/test_production_authority_provisioning.py \
+            tests/test_dataset_publication_authority_registration.py \
             tests/dataset_publication_process_worker.py
 
       - name: Check Dataset format contract
@@ -112,6 +113,7 @@ jobs:
             src/data/product_dataset_publication.py \
             src/data/postgres_dataset_proposal_authority.py \
             src/data/postgres_dataset_review_authority.py \
+            src/data/product_dataset_authority_registration.py \
             src/training/dataset_publication_authority_bridge.py \
             tests/test_common_dataset_contracts.py \
             tests/test_dataset_governance.py \
@@ -124,7 +126,7 @@ jobs:
             tests/test_product_dataset_approval.py \
             tests/test_product_dataset_publication.py \
             tests/test_dataset_publication_process.py \
-            tests/test_production_authority_provisioning.py \
+            tests/test_dataset_publication_authority_registration.py \
             tests/dataset_publication_process_worker.py
 
       - name: Check changed Dataset source static contract
@@ -159,7 +161,7 @@ jobs:
           changed_tests=()
           while IFS= read -r -d '' path; do
             case "$path" in
-              tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/test_production_authority_provisioning.py|tests/dataset_publication_process_worker.py)
+              tests/test_dataset_*.py|tests/test_product_dataset_*.py|tests/test_common_dataset_contracts.py|tests/dataset_publication_process_worker.py)
                 changed_tests+=("$path")
                 ;;
             esac
@@ -183,7 +185,6 @@ jobs:
             unit_tests+=("$path")
           done < <(find tests -maxdepth 1 -type f \( -name 'test_dataset_*.py' -o -name 'test_product_dataset_*.py' \) -print0 | sort -z)
           python -m pytest -q -- "${unit_tests[@]}"
-          python -m pytest -q tests/test_production_authority_provisioning.py
 
       - name: Run publication process regression
         if: steps.changes.outputs.dataset_changed == 'true'

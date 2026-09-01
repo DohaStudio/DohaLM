@@ -903,8 +903,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
             )
 
 
-@pytest.mark.integration
-def test_production_authority_provisioning_is_replay_safe_atomic_and_restricted(
+def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
     c1_postgres: C1Fixture,
 ) -> None:
     from src.data.checksums import canonical_json_bytes
@@ -1143,6 +1142,195 @@ def test_production_authority_provisioning_is_replay_safe_atomic_and_restricted(
                         config.correlation_reference,
                         config.evidence_reference,
                     ),
+                ).fetchone()
+
+
+@pytest.mark.integration
+def test_production_authority_provisioning_is_replay_safe_atomic_and_restricted(
+    c1_postgres: C1Fixture,
+) -> None:
+    suffix = uuid.uuid4().hex[:12]
+    source = "a" * 40
+    now = datetime.now(timezone.utc)
+    valid_until = now + timedelta(days=1)
+
+    def call(function: str, parameters: tuple[object, ...]):
+        with _C1RoleFactory(
+            c1_postgres, "dohalm_training_authority_producer"
+        ).transaction(isolation="READ COMMITTED", read_only=False) as connection:
+            return connection.execute(
+                f"SELECT * FROM dohalm_training_v1.{function}("
+                + ",".join(["%s"] * len(parameters))
+                + ")",
+                parameters,
+            ).fetchone()
+
+    def principal(family: str) -> tuple[object, ...]:
+        payload = _canonical_payload({"kind": family, "suffix": suffix})
+        return (
+            str(uuid.uuid4()),
+            f"{family}:production:{suffix}",
+            payload,
+            "sha256:" + hashlib.sha256(payload).hexdigest(),
+            source,
+            now,
+            valid_until,
+            f"{family}:{suffix}",
+            str(uuid.uuid4()),
+            f"correlation:{family}:{suffix}",
+            f"evidence:{family}:{suffix}",
+        )
+
+    issuer = principal("issuer")
+    approver = principal("approver")
+    issuer_row = call("provision_training_issuer", issuer)
+    approver_row = call("provision_training_approver", approver)
+    assert call("provision_training_issuer", issuer) == issuer_row
+    assert call("provision_training_approver", approver) == approver_row
+
+    version_payload = _canonical_payload({"kind": "version", "suffix": suffix})
+    manifest_payload = _canonical_payload({"kind": "manifest", "suffix": suffix})
+    pair_payload = _canonical_payload({"kind": "pair", "suffix": suffix})
+    pair_fingerprint = "sha256:" + hashlib.sha256(pair_payload).hexdigest()
+    dataset_events = tuple(str(uuid.uuid4()) for _ in range(3))
+    dataset = (
+        str(uuid.uuid4()),
+        str(uuid.uuid4()),
+        str(uuid.uuid4()),
+        f"dataset-version:{suffix}",
+        f"dataset-manifest:{suffix}",
+        f"dataset-pair:{suffix}",
+        version_payload,
+        manifest_payload,
+        pair_payload,
+        f"dataset-version-{suffix}",
+        f"dataset-manifest-{suffix}",
+        pair_fingerprint,
+        source,
+        "internal-production-training",
+        f"eligibility:{suffix}",
+        f"lineage:{suffix}",
+        now,
+        valid_until,
+        *dataset_events,
+        f"correlation:dataset:{suffix}",
+        True,
+        False,
+        False,
+    )
+    rollback_probe = (
+        *dataset[:18],
+        dataset_events[2],
+        dataset_events[2],
+        dataset_events[2],
+        *dataset[21:],
+    )
+    with pytest.raises(Exception):
+        call("register_training_dataset_publication", rollback_probe)
+    dataset_row = call("register_training_dataset_publication", dataset)
+    assert call("register_training_dataset_publication", dataset) == dataset_row
+
+    config_payload = _canonical_payload(
+        {"scope": "production_internal", "suffix": suffix}
+    )
+    config = (
+        str(uuid.uuid4()),
+        f"config:production:{suffix}",
+        config_payload,
+        "sha256:" + hashlib.sha256(config_payload).hexdigest(),
+        source,
+        now,
+        valid_until,
+        str(uuid.uuid4()),
+        f"correlation:config:{suffix}",
+        f"evidence:config:{suffix}",
+    )
+    config_row = call("provision_training_config", config)
+    changed_config = config_payload + b" "
+    with pytest.raises(Exception):
+        call(
+            "provision_training_config",
+            (
+                *config[:2],
+                changed_config,
+                "sha256:" + hashlib.sha256(changed_config).hexdigest(),
+                *config[4:],
+            ),
+        )
+
+    readiness_payload = _canonical_payload({"result": "READY", "suffix": suffix})
+    readiness = (
+        str(uuid.uuid4()),
+        f"readiness:production:{suffix}",
+        readiness_payload,
+        "sha256:" + hashlib.sha256(readiness_payload).hexdigest(),
+        source,
+        pair_fingerprint,
+        config_row[2].rstrip(),
+        now,
+        now,
+        valid_until,
+        str(uuid.uuid4()),
+        f"correlation:readiness:{suffix}",
+        f"evidence:readiness:{suffix}",
+    )
+    readiness_row = call("provision_training_readiness", readiness)
+    assert call("provision_training_readiness", readiness) == readiness_row
+
+    decision_payload = _canonical_payload({"decision": "approved", "suffix": suffix})
+    decision_evidence = f"decision:{uuid.uuid4()}"
+    decision = (
+        str(uuid.uuid4()),
+        f"decision:production:{suffix}",
+        decision_payload,
+        "sha256:" + hashlib.sha256(decision_payload).hexdigest(),
+        source,
+        "approved",
+        f"authorization:{suffix}",
+        issuer[0],
+        issuer[7],
+        approver[0],
+        approver[7],
+        decision_evidence,
+        "sha256:" + hashlib.sha256(f"request:{suffix}".encode()).hexdigest(),
+        now,
+        now,
+        valid_until,
+        str(uuid.uuid4()),
+        f"correlation:decision:{suffix}",
+        decision_evidence,
+    )
+    decision_row = call("create_training_execution_decision", decision)
+    assert call("create_training_execution_decision", decision) == decision_row
+    with pytest.raises(Exception):
+        call(
+            "create_training_execution_decision",
+            (*decision[:7], str(uuid.uuid4()), *decision[8:]),
+        )
+
+    with c1_postgres.factory.connection() as connection:
+        counts = connection.execute(
+            f"SELECT "
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_version_authority WHERE common_object_id=%s),"
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_manifest_authority WHERE common_object_id=%s),"
+            f"(SELECT count(*) FROM {SCHEMA}.dataset_pair_authority WHERE pair_fingerprint=%s)",
+            (dataset[9], dataset[10], dataset[11]),
+        ).fetchone()
+    assert counts == (1, 1, 1)
+    for role in (
+        "dohalm_training_resolver",
+        "dohalm_training_journal",
+        "dohalm_training_intent_writer",
+    ):
+        with pytest.raises(Exception, match="permission denied"):
+            with _C1RoleFactory(c1_postgres, role).transaction(
+                isolation="READ COMMITTED", read_only=False
+            ) as connection:
+                connection.execute(
+                    "SELECT * FROM dohalm_training_v1.provision_training_config("
+                    + ",".join(["%s"] * len(config))
+                    + ")",
+                    config,
                 ).fetchone()
 
 
