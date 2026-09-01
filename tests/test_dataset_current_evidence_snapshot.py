@@ -268,9 +268,33 @@ def test_review_approval_publication_bind_exact_snapshot_and_recheck() -> None:
 
 
 class _Cursor:
-    def __init__(self, rows):
+    def __init__(self, rows, columns=None):
         self.rows = rows
         self.query = ""
+        self.description = tuple(
+            type("Column", (), {"name": name})()
+            for name in (
+                columns
+                or (
+                    "canonical_payload",
+                    "record_id",
+                    "record_fingerprint",
+                    "projection_revision",
+                    "source_token_fingerprint",
+                    "rights_status",
+                    "source_classification",
+                    "analysis_allowed",
+                    "derivative_generation_allowed",
+                    "retention",
+                    "consent_evidence_references",
+                    "jurisdiction",
+                    "reviewer_authority_id",
+                    "reviewed_at",
+                    "current_use_authorization",
+                    "typed_evidence_references",
+                )
+            )
+        )
 
     def __enter__(self):
         return self
@@ -370,7 +394,25 @@ def test_postgres_rights_reader_uses_only_owner_functions_and_rejects_wrong_role
             }
         ],
     }
-    cursor = _Cursor([(payload, RIGHTS_RECORD, FP_RIGHTS, 1, "sha256:" + "7" * 64)])
+    row = (
+        payload,
+        RIGHTS_RECORD,
+        FP_RIGHTS,
+        1,
+        "sha256:" + "7" * 64,
+        payload["status"],
+        payload["source_classification"],
+        True,
+        True,
+        payload["retention"],
+        [],
+        "KR",
+        COORDINATOR,
+        NOW,
+        payload["current_use_authorization"],
+        payload["evidence_references"],
+    )
+    cursor = _Cursor([row])
     adapter = PostgresCurrentRightsAuthority(
         _Factory(cursor), source_authority_id=RIGHTS_SOURCE
     )
@@ -400,3 +442,97 @@ def test_postgres_rights_reader_uses_only_owner_functions_and_rejects_wrong_role
         CurrentEvidenceError, match="RIGHTS_READER_CONFIGURATION_INVALID"
     ):
         PostgresCurrentRightsAuthority(Wrong(cursor), source_authority_id=RIGHTS_SOURCE)
+
+
+@pytest.mark.parametrize(
+    ("columns", "row_transform"),
+    [
+        (("canonical_payload",), lambda row: row[:1]),
+        (None, lambda row: (*row, "unexpected")),
+        (None, lambda row: (*row[:11], None, *row[12:])),
+        (None, lambda row: (*row[:5], "revoked", *row[6:])),
+    ],
+)
+def test_postgres_rights_reader_rejects_schema_and_projection_drift(
+    columns, row_transform
+) -> None:
+    payload = {
+        "source_authority": {
+            "source_authority_id": RIGHTS_SOURCE,
+            "schema_version": "rights-authority-v1",
+        },
+        "subject": {
+            "rights_subject_id": RIGHTS_SUBJECT,
+            "dataset_source_identity": "AIHUB-71748",
+            "kind": "source_dataset",
+            "bound_identity": "AIHUB-71748",
+        },
+        "permissions": {
+            "internal_training": True,
+            "commercial_use": False,
+            "redistribution": False,
+            "external_model_publication": False,
+            "analysis": True,
+            "derivative_generation": True,
+        },
+        "status": "approved_limited",
+        "source_classification": {
+            "source_type": "external",
+            "user_created": False,
+            "generated": False,
+            "reference": False,
+            "uploaded": False,
+            "external": True,
+        },
+        "retention": {
+            "allowed": True,
+            "mode": "indefinite_while_current",
+            "scope": "training",
+            "expires_at": None,
+        },
+        "consent_evidence_references": [],
+        "jurisdiction": "KR",
+        "review": {
+            "reviewer_authority_id": COORDINATOR,
+            "reviewed_at": NOW.isoformat(),
+        },
+        "producer_authority_id": DATASET_SOURCE,
+        "effective_at": NOW.isoformat(),
+        "current_use_authorization": {
+            "authorized": True,
+            "scope": "internal_noncommercial_model_training_and_evaluation",
+            "fresh_acquisition_required": False,
+            "existing_material_reuse": True,
+            "historical_acquisition_receipt": "not_recovered",
+            "provider_reacquisition_requirement_found": False,
+        },
+        "evidence_references": [
+            {
+                "reference_id": "evidence:aihub-current-policy",
+                "evidence_type": "provider_usage_policy",
+            }
+        ],
+    }
+    row = (
+        payload,
+        RIGHTS_RECORD,
+        FP_RIGHTS,
+        1,
+        "sha256:" + "7" * 64,
+        payload["status"],
+        payload["source_classification"],
+        True,
+        True,
+        payload["retention"],
+        [],
+        "KR",
+        COORDINATOR,
+        NOW,
+        payload["current_use_authorization"],
+        payload["evidence_references"],
+    )
+    cursor = _Cursor([row_transform(row)], columns=columns)
+    with pytest.raises(CurrentEvidenceError, match="RIGHTS_RESPONSE_MALFORMED"):
+        PostgresCurrentRightsAuthority(
+            _Factory(cursor), source_authority_id=RIGHTS_SOURCE
+        ).get_current_rights(RIGHTS_SUBJECT)

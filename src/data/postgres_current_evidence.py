@@ -25,6 +25,24 @@ from .rights_metadata_projection import AuthorityRightsMetadata, TypedRightsEvid
 _RIGHTS_READER_ROLE = "doharights_reader"
 _COORDINATOR_ROLE = "dohalm_current_evidence_coordinator"
 _RESOLVER_ROLE = "dohalm_current_evidence_resolver"
+_CURRENT_USE_RIGHTS_COLUMNS = (
+    "canonical_payload",
+    "record_id",
+    "record_fingerprint",
+    "projection_revision",
+    "source_token_fingerprint",
+    "rights_status",
+    "source_classification",
+    "analysis_allowed",
+    "derivative_generation_allowed",
+    "retention",
+    "consent_evidence_references",
+    "jurisdiction",
+    "reviewer_authority_id",
+    "reviewed_at",
+    "current_use_authorization",
+    "typed_evidence_references",
+)
 
 
 class AuthenticatedConnectionFactory(Protocol):
@@ -57,6 +75,7 @@ class PostgresCurrentRightsAuthority:
                         "SELECT * FROM doharights_v1.get_current_use_rights(%s::uuid)",
                         (subject_id,),
                     )
+                    columns = tuple(item.name for item in cursor.description or ())
                     rows = cursor.fetchall()
         except Exception as exc:
             raise _mapped(exc) from None
@@ -64,8 +83,12 @@ class PostgresCurrentRightsAuthority:
             raise CurrentEvidenceError("RIGHTS_CURRENT_MISSING")
         if len(rows) != 1:
             raise CurrentEvidenceError("RIGHTS_MULTIPLE_CURRENT")
-        payload, record_id, record_fp, revision, token_fp = rows[0]
         try:
+            if columns != _CURRENT_USE_RIGHTS_COLUMNS:
+                raise ValueError
+            row = dict(zip(columns, rows[0], strict=True))
+            payload = row["canonical_payload"]
+            _validate_current_use_projection(row, payload)
             source = payload["source_authority"]
             subject = payload["subject"]
             permissions = payload["permissions"]
@@ -79,21 +102,21 @@ class PostgresCurrentRightsAuthority:
                 source_authority_id=self._source_authority_id,
                 schema_version="rights-source-token-v1",
                 subject_id=subject_id,
-                evidence_id=str(record_id),
-                evidence_fingerprint=str(record_fp).rstrip(),
-                projection_revision=int(revision),
-                token_fingerprint=str(token_fp).rstrip(),
+                evidence_id=str(row["record_id"]),
+                evidence_fingerprint=str(row["record_fingerprint"]).rstrip(),
+                projection_revision=int(row["projection_revision"]),
+                token_fingerprint=str(row["source_token_fingerprint"]).rstrip(),
             )
             return RightsReadModel(
                 subject_id=subject_id,
-                record_id=str(record_id),
+                record_id=str(row["record_id"]),
                 source_authority_id=self._source_authority_id,
                 schema_version="rights-source-token-v1",
                 internal_training=permissions["internal_training"] is True,
                 commercial_use=permissions["commercial_use"] is True,
                 redistribution=permissions["redistribution"] is True,
                 model_publication=permissions["external_model_publication"] is True,
-                record_fingerprint=str(record_fp).rstrip(),
+                record_fingerprint=str(row["record_fingerprint"]).rstrip(),
                 token=token,
                 metadata=_rights_metadata(payload),
             )
@@ -413,6 +436,43 @@ def _rights_metadata(payload: dict[str, Any]) -> AuthorityRightsMetadata:
             for value in payload["evidence_references"]
         ),
     )
+
+
+def _validate_current_use_projection(
+    row: dict[str, Any], payload: dict[str, Any]
+) -> None:
+    if (
+        type(payload) is not dict
+        or any(row[name] is None for name in _CURRENT_USE_RIGHTS_COLUMNS)
+        or type(row["projection_revision"]) is not int
+        or row["projection_revision"] < 1
+    ):
+        raise ValueError
+    permissions = payload["permissions"]
+    review = payload["review"]
+    expected = {
+        "rights_status": payload["status"],
+        "source_classification": payload["source_classification"],
+        "analysis_allowed": permissions["analysis"],
+        "derivative_generation_allowed": permissions["derivative_generation"],
+        "retention": payload["retention"],
+        "consent_evidence_references": payload["consent_evidence_references"],
+        "jurisdiction": payload["jurisdiction"],
+        "reviewer_authority_id": review["reviewer_authority_id"],
+        "current_use_authorization": payload["current_use_authorization"],
+        "typed_evidence_references": payload["evidence_references"],
+    }
+    for name, value in expected.items():
+        actual = row[name]
+        if name == "reviewer_authority_id":
+            actual = str(actual)
+        if actual != value:
+            raise ValueError
+    reviewed_at = row["reviewed_at"]
+    if isinstance(reviewed_at, str):
+        reviewed_at = _time(reviewed_at)
+    if reviewed_at != _time(review["reviewed_at"]):
+        raise ValueError
 
 
 def _rights_metadata_payload(value: AuthorityRightsMetadata) -> dict[str, object]:
