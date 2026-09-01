@@ -46,6 +46,7 @@
 | ADR-032 | [Production Training Intent Authority](./ADR-032-production-training-intent-authority.md) | `approved` | 2026-09-01 | [ADR-021](./ADR-021-production-training-adapters-and-durable-journal.md), [C3 PostgreSQL Training Composition](../architecture/c3-postgresql-training-composition.md), [Foundation 구현](../architecture/production-training-intent-authority-foundation.md) | dedicated submitter authority, immutable intent/idempotency, validated request projection과 append-only decision binding 승인; foundation 구현 review 중 | application entrypoint·Training activation은 별도 Gate 전 금지 |
 | ADR-033 | [Local Production Training Accountability](./ADR-033-local-production-training-accountability.md) | `approved` | 2026-09-01 | [ADR-032](./ADR-032-production-training-intent-authority.md), [Candidate A eligibility](../data/aihub-71748-candidate-a-internal-production-eligibility.manifest.yaml) | same human/separate authority UUID, internal non-commercial Dataset eligibility와 explicit production config scope | commercial/public action 또는 multi-user topology 변경 시 |
 | ADR-034 | [Cross-Repository Rights Authority와 CurrentEvidence Snapshot](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md) | `approved` | 2026-09-01 | [ADR-027](./ADR-027-dataset-governance-production-prerequisites.md), [ADR-028](./ADR-028-current-evidence-source-authority.md), [ADR-029](./ADR-029-rights-metadata-ownership-authority.md), [ADR-030](./ADR-030-cross-repository-rights-domain-ownership.md) | shared DohaRights owner·append-only unique-current authority, authenticated read와 Model C composite snapshot·exact publication binding 승인 | CurrentEvidence/Rights implementation Gate; actual publication·Training 별도 승인 |
+| ADR-035 | [Candidate A Product Dataset 계보와 Producer 정책](./ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md) | `approved` | 2026-09-01 | [ADR-004](./ADR-004-data-governance.md), [ADR-014](./ADR-014-dataset-product-governance-boundary.md), [ADR-034](./ADR-034-cross-repository-rights-authority-and-current-evidence-snapshot.md) | canonical member·`data_file` group·90/5/5 split, record candidate producer와 Rights/eligibility·authority input ownership 승인 | Candidate A rebuild implementation; actual artifact·publication·Training 별도 승인 |
 
 ## Decision Request
 
@@ -79,6 +80,7 @@
 - [현재] ADR-031의 committed frozen DatasetVersion·issued DatasetManifest pair standalone read를 exact identity Authority Protocol과 full pair-local verification으로 구현했다. runtime/CLI/API, CurrentEvidence와 Training activation은 아직 없다.
 - [확정] ADR-032는 dedicated local submitter authority, 별도 intent/run identity, immutable submission, submitter-scoped idempotency와 validated request projection 뒤 append-only decision binding을 승인한다. Foundation 구현 진입만 허용하며 application entrypoint와 production Training activation은 별도 Gate 전까지 금지한다.
 - [확정] ADR-034는 shared DohaRights domain을 Rights accountable owner로 승인하고 stable source authority UUID·Rights Subject ID, append-only lifecycle·unique-current projection·authenticated read와 Model C composite snapshot을 고정한다. review·approval·publication은 exact snapshot에 결속되고 publication과 Training intent/activation은 currentness를 재검증한다.
+- [확정] ADR-035는 Candidate A의 existing `source_id`, hashed `data_file` group, versioned 90/5/5 split과 record-level LearningCandidate producer, source-level Rights·candidate eligibility binding 및 Product Dataset authority input owner를 승인한다.
 - [확정] Rights Owner Decision Request는 2026-08-25의 Option D history를 보존하면서 사용자 명시 승인과 ADR-034로 `resolved`됐다.
 - [확정] ADR-002는 ADR-001의 Tiny 세부 미정 사항을 후속 결정하지만 Tiny 우선 범위 결정을 대체하지 않는다.
 - [확정] deprecated ADR이 생기면 대체 ADR과 사유를 양쪽 문서 및 이 표에 기록한다.
@@ -89,6 +91,7 @@
 | 날짜 | 변경 내용 |
 |---|---|
 | 2026-09-01 | [확정] ADR-034의 shared DohaRights owner, source identity·logical key·lifecycle authority, Model C snapshot과 publication/Training currentness binding 승인; Rights Owner Decision Request resolved |
+| 2026-09-01 | [확정] ADR-035의 Candidate A canonical member/group/split, candidate producer와 Rights·eligibility·composition authority ownership 승인 |
 | 2026-09-01 | [확정] 사용자 `DDORINY` 명시 architecture approval에 따라 ADR-032를 `approved`로 동기화하고 foundation 구현 진입과 activation 금지를 분리 |
 | 2026-09-01 | [구현] ADR-032 foundation의 dedicated submitter, immutable intent/idempotency, exact request projection, append-only binding과 validate-only STOP을 구현 review에 등록; activation은 금지 유지 |
 | 2026-09-01 | [제안] ADR-032 Production Training Intent Authority의 dedicated submitter, immutable intake/idempotency와 append-only decision binding 계약 등록 |

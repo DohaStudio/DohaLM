@@ -1,12 +1,13 @@
 # AI Music Director와 Product Continuous Learning 경계
 
 - 문서 상태: `review`
-- 마지막 검토일: 2026-08-26
+- 마지막 검토일: 2026-09-01
 - 선행 결정: [ADR-014](../decisions/ADR-014-dataset-product-governance-boundary.md), [ADR-021](../decisions/ADR-021-production-training-adapters-and-durable-journal.md)
 - 제안 결정: [ADR-024](../decisions/ADR-024-ai-music-director-product-boundary.md)
 - proposal 결정: [ADR-025](../decisions/ADR-025-dataset-version-proposal-authority-contract.md)
 - review authority 결정: [ADR-026](../decisions/ADR-026-dataset-review-authority-contract.md)
 - publication read 결정: [ADR-031](../decisions/ADR-031-dataset-publication-pair-public-read-contract.md)
+- Candidate A provenance 결정: [ADR-035](../decisions/ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md)
 
 ## 목적
 
@@ -28,7 +29,8 @@
 | 책임 | owner | DohaLM 경계 |
 |---|---|---|
 | Workspace·MusicProject·Asset·AssetVersion·Artifact·Composition·Job persistence와 orchestration | DohaMusic | 제품 intelligence만 제공 |
-| `LearningCandidate`, rights·consent evidence | DohaMusic·권리 검토 계층 / Common authority | 직접 생성하지 않음 |
+| 제품 생성물 `LearningCandidate`, rights·consent evidence | DohaMusic·DohaRights / Common authority | 제품 domain source를 직접 생성하지 않음 |
+| Candidate A canonical source-record `LearningCandidate` | DohaLM Dataset ingestion/preparation | ADR-035의 deterministic producer만 허용; Rights owner는 DohaRights 유지 |
 | music/audio generation·stem separation·analysis·mix·audio runtime | DohaAudio | `ReferenceAnalysis`·`FeatureRecord` 소비 후보 |
 | singing·voice conversion·vocal correction·analysis·vocal runtime | DohaVocal | typed evidence 소비 후보 |
 | DatasetVersion·Manifest publication | DohaLM | 현행 immutable publication 유지 |
@@ -39,7 +41,7 @@
 
 | 객체·단계 | 현재 상태 | 다음 Gate |
 |---|---|---|
-| `LearningCandidate` | Common 계약 소비, current evidence review와 Dataset inclusion handoff 구현 | producer/transport와 review·handoff persistence |
+| `LearningCandidate` | Common 계약 소비, current evidence review와 Dataset inclusion handoff 구현; Candidate A producer architecture 승인 | ADR-035 rebuild producer 구현 |
 | `RightsMetadata` | upstream authoritative evidence; DohaLM producer 아님 | exact consumer boundary |
 | `TrainingEligibility` | DohaLM Dataset governance의 candidate 단위 Gate | authoritative producer workflow |
 | `DatasetVersion`, `DatasetManifest` | governance·publication 구현 | product candidate 승격 policy |
@@ -131,6 +133,7 @@ LearningCandidate creation and review
 | Candidate Review Gate | `CURRENT` |
 | Dataset Inclusion Handoff | `CURRENT` |
 | Product Dataset Composition | `CURRENT` |
+| Candidate A Provenance / Producer Policy | `APPROVED — IMPLEMENTATION PENDING` |
 | Dataset Proposal Authority Contract | `CURRENT` |
 | Product DatasetVersion Governance Integration | `CURRENT` |
 | Persistent Dataset Proposal Authority Adapter | `CURRENT` |
@@ -143,16 +146,20 @@ LearningCandidate creation and review
 | Dataset Publication Integration | `CURRENT` |
 | Dataset Publication Pair Public Read Contract | `DRAFT — PROPOSED` |
 | Dataset Publication Pair Public Read Implementation | `IMPLEMENTED` |
-| Production RightsMetadata Producer/Authority | `BLOCKED` |
-| Production TrainingEligibility Producer/Authority | `REQUIRED` |
-| Production CurrentEvidence Source | `BLOCKED` |
-| CurrentEvidence Projection/Snapshot | `BLOCKED` |
+| Production RightsMetadata Producer/Authority | `CURRENT — DOHARIGHTS` |
+| Candidate A TrainingEligibility Producer/Authority | `APPROVED — IMPLEMENTATION PENDING` |
+| Production CurrentEvidence Source | `CURRENT — MODEL C` |
+| CurrentEvidence Projection/Snapshot | `CURRENT — MODEL C` |
 | Governance Runtime Config Architecture | `DRAFT` |
 | Dataset Governance Runtime Activation | `BLOCKED` |
 | Product/Adapter Training Request | `PLANNED` |
 | Evaluation | `PLANNED` |
 | Promotion | `PLANNED` |
 | Reference/Similarity Runtime | `PLANNED` |
+
+shared DohaRights와 Model C CurrentEvidence는 ADR-034가, Candidate A member/group/split·producer·Rights/eligibility binding과
+composition authority owner는 ADR-035가 각각 승인했다. 실제 Candidate A rebuild와 publication은 여전히 후속 implementation
+Gate다.
 
 ## Product Dataset composition field authority
 

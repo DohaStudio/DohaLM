@@ -5,12 +5,13 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | `review` |
-| 마지막 검토일 | 2026-07-23 |
+| 마지막 검토일 | 2026-09-01 |
 | 선행 문서 | [Phase 1 데이터 계약](./phase1-data-contract.md), [데이터 전략](./data-strategy.md), [데이터 전처리](./preprocessing.md), [데이터셋 레지스트리](./dataset-registry.md), [ADR-004](../decisions/ADR-004-data-governance.md) |
 | 후속 문서 | [사전학습 계획](../training/pretraining-plan.md), [SFT 계획](../training/sft-plan.md), [데이터 품질 체크리스트](./data-quality-checklist.md), [평가 계획](../evaluation/evaluation-plan.md) |
 | 구현 전 필수 여부 | 예 |
 
-- [확정] 현재 split 또는 실제 평가 데이터는 없다.
+- [확정] 일반 정책의 실제 split은 Dataset별 승인 전 존재하지 않는다. Candidate A production profile은 ADR-035에서
+  architecture로 승인됐지만 실제 split artifact는 아직 생성하지 않았다.
 - [확정] 분할은 데이터 비율을 만드는 절차이고 누수 검사는 분할 간 내용·출처·정답 관계를 검증하는 별도 절차다.
 - [확정] 이 문서는 전체 누수 방지 정책을 다룬다. Phase 1의 SHA-256 group 배정과 직접 leakage 검사 계약은 [Phase 1 데이터 계약](./phase1-data-contract.md)을 따른다. near·semantic 검사는 Phase 1에서 제외되지만 후속 정책 요구로 유지한다.
 
@@ -23,7 +24,23 @@
 - [확정] split 후에도 split 간 exact·near fingerprint를 다시 비교한다.
 - [확정] seed, 분할 알고리즘, group key, 입력 manifest와 split version을 기록한다.
 - [확정] split 결과는 문서 ID만 포함한 manifest로 저장하고 원본 본체와 분리한다.
-- [검증 필요] train/validation/test 비율은 실제 데이터 규모와 평가 계획 전 확정하지 않는다.
+- [검증 필요] 일반 Dataset의 train/validation/test 비율은 실제 데이터 규모와 평가 계획 전 확정하지 않는다.
+
+### 2.1 Candidate A production profile
+
+[확정] [ADR-035](../decisions/ADR-035-candidate-a-product-dataset-provenance-and-producer-policy.md)는
+AIHUB-71748 Candidate A `production_internal` rebuild에 한해 다음 profile을 승인한다.
+
+- member identity: existing canonical `source_id`
+- group: `group:sha256:<SHA-256(NFC(data_file) UTF-8)>`
+- semantics: exact canonical source-document/file leakage boundary
+- algorithm: `src/data/splitting.py`와 동일한 group-preserving SHA-256 bucket
+- version/seed: `aihub-71748-production-split-v1` / `17`
+- thresholds: train `0.90`, validation `0.95`, test `1.00`
+- mandatory invariant: cross-split group overlap `0`
+
+이 profile은 일반 Dataset의 미결정 비율을 확정하지 않는다. semantic near-duplicate clustering은 승인된 알고리즘과
+임계치가 없어 v1에 포함하지 않으며 후속 quality task로 유지한다.
 
 ## 3. 분할 절차
 
@@ -136,5 +153,6 @@
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-09-01 | [확정] ADR-035의 Candidate A production 전용 `data_file` group, 90/5/5 SHA-256 bucket profile과 exact-only near-duplicate 경계를 반영 |
 | 2026-07-23 | [확정] 상위 누수 정책과 Phase 1 exact-only 해시 배정 계약의 적용 경계를 명시함 |
 | 2026-07-23 | [확정] 문서·그룹 단위 분할, 누수 수준, 목적별 오염 방지와 split 재생성 기준 정의 |
