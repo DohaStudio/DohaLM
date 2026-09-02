@@ -5,11 +5,14 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 import pytest
+from test_product_dataset_approval import APPROVED_AT
 from test_product_dataset_composition import _compose
 from test_product_dataset_governance import (
     _AtomicProposalAuthority,
     _CurrentEvidenceAuthority,
 )
+from test_product_dataset_publication import _metadata, _upstream
+from test_product_dataset_review import FIRST_STARTED_AT, _ReviewAuthority
 
 from src.data.checksums import canonical_json_bytes, file_checksum, sha256_bytes
 from src.data.dataset_proposal_authority import (
@@ -17,11 +20,17 @@ from src.data.dataset_proposal_authority import (
     dataset_version_proposal_fingerprint,
     validate_dataset_proposal_authority_record,
 )
+from src.data.dataset_review_authority import DatasetReviewStartRequest
 from src.data.product_dataset_governance import propose_product_dataset_version
+from src.data.product_dataset_publication import (
+    ProductDatasetPublicationRequest,
+    publish_product_dataset_version,
+)
 from src.data.product_dataset_proposal_manifest import (
     ProductDatasetManifestAuthority,
     ProductDatasetManifestAuthorityError,
 )
+from src.data.product_dataset_review import start_product_dataset_review
 
 
 def _write_json(path, value) -> None:
@@ -237,6 +246,51 @@ def test_product_governance_port_uses_root_fingerprint_and_exact_replay(tmp_path
         )
         is record
     )
+
+
+def test_manifest_proposal_reproduces_review_approval_and_publication(tmp_path):
+    composition = _artifacts(tmp_path)
+    manifests = ProductDatasetManifestAuthority(tmp_path.resolve())
+    proposals = _AtomicProposalAuthority()
+    evidence = _CurrentEvidenceAuthority()
+    proposal = propose_product_dataset_version(
+        composition,
+        authority=proposals,
+        current_evidence_authority=evidence,
+        proposed_at=datetime(2026, 9, 2, tzinfo=timezone.utc),
+        manifest_authority=manifests,
+    )
+    reviews = _ReviewAuthority()
+    started = start_product_dataset_review(
+        DatasetReviewStartRequest(
+            identity=proposal.identity,
+            proposal_fingerprint=proposal.proposal_fingerprint,
+            reviewer_reference="reviewer:large-proposal-integration",
+            review_started_at=FIRST_STARTED_AT,
+            request_reference="request:large-proposal-review",
+        ),
+        proposal_authority=proposals,
+        current_evidence_authority=evidence,
+        review_authority=reviews,
+    )
+    published = publish_product_dataset_version(
+        ProductDatasetPublicationRequest(
+            identity=proposal.identity,
+            proposal_fingerprint=proposal.proposal_fingerprint,
+            approval_evidence_ids=("dataset_review_product_1",),
+            evaluated_at=APPROVED_AT,
+        ),
+        proposal_authority=proposals,
+        review_authority=reviews,
+        current_evidence_authority=evidence,
+        metadata=_metadata(),
+        upstream_objects=_upstream(),
+        publication_root=tmp_path / "publication",
+    )
+
+    assert started.reviewing_proposal.status == "reviewing"
+    assert published.published is True
+    assert published.identity == proposal.identity
 
 
 @pytest.mark.parametrize(

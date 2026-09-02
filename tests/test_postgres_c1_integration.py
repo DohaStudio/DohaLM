@@ -3512,34 +3512,9 @@ def _proposal_payload(suffix: str, **updates: object) -> dict[str, object]:
 
 
 @pytest.mark.integration
-def test_large_dataset_manifest_reference_proposal_persists_replays_and_conflicts(
-    c1_postgres: C1Fixture, tmp_path: Path
+def test_large_dataset_manifest_reference_sql_persists_replays_and_conflicts(
+    c1_postgres: C1Fixture,
 ) -> None:
-    from test_product_dataset_approval import APPROVED_AT
-    from test_product_dataset_governance import _CurrentEvidenceAuthority
-    from test_product_dataset_proposal_manifest import _artifacts, _write_json
-    from test_product_dataset_publication import _metadata, _upstream
-    from test_product_dataset_review import FIRST_STARTED_AT, _ReviewAuthority
-
-    from src.data.checksums import file_checksum
-    from src.data.dataset_proposal_authority import (
-        DatasetProposalAuthorityError,
-        DatasetProposalOutcome,
-    )
-    from src.data.dataset_review_authority import DatasetReviewStartRequest
-    from src.data.postgres_dataset_proposal_authority import (
-        PostgresDatasetProposalAuthority,
-    )
-    from src.data.product_dataset_governance import propose_product_dataset_version
-    from src.data.product_dataset_publication import (
-        ProductDatasetPublicationRequest,
-        publish_product_dataset_version,
-    )
-    from src.data.product_dataset_proposal_manifest import (
-        ProductDatasetManifestAuthority,
-    )
-    from src.data.product_dataset_review import start_product_dataset_review
-
     binding = json.loads(_docker("inspect", c1_postgres.container).stdout)[0][
         "NetworkSettings"
     ]["Ports"]["5432/tcp"][0]
@@ -3549,97 +3524,61 @@ def test_large_dataset_manifest_reference_proposal_persists_replays_and_conflict
         settings=current_settings,
         factory=C1PostgresConnectionFactory(current_settings),
     )
-    composition = _artifacts(tmp_path)
-    manifests = ProductDatasetManifestAuthority(tmp_path.resolve())
-    evidence = _CurrentEvidenceAuthority()
-    with _dataset_proposal_adapter(c1_postgres) as base:
-        adapter = PostgresDatasetProposalAuthority(
-            base._settings, manifest_authority=manifests
-        )
-        first = propose_product_dataset_version(
-            composition,
-            authority=adapter,
-            current_evidence_authority=_CurrentEvidenceAuthority(),
-            proposed_at=datetime(2026, 9, 2, tzinfo=timezone.utc),
-            manifest_authority=manifests,
-        )
-        replay = propose_product_dataset_version(
-            composition,
-            authority=PostgresDatasetProposalAuthority(
-                base._settings, manifest_authority=manifests
-            ),
-            current_evidence_authority=_CurrentEvidenceAuthority(),
-            proposed_at=datetime(2026, 9, 2, 1, tzinfo=timezone.utc),
-            manifest_authority=manifests,
-        )
-        read = adapter.read_authoritative_proposal(first.identity)
-        assert first.outcome is DatasetProposalOutcome.CREATED
-        assert replay.outcome is DatasetProposalOutcome.REPLAYED
-        assert read.proposal.payload == first.proposal.payload
-        assert read.proposal.authority_root == first.proposal.authority_root
+    suffix = uuid.uuid4().hex
+    identity = (
+        f"dataset_version_large_{suffix}",
+        f"dataset_large_{suffix}",
+        "1.0.0",
+    )
+    root = {
+        "schema_name": "dataset_version_proposal_root",
+        "schema_version": "2.0.0",
+        "object_id": identity[0],
+        "dataset_id": identity[1],
+        "dataset_version": identity[2],
+        "status": "draft",
+        "composition": {"content_fingerprint": "sha256:" + "1" * 64},
+        "member_manifest": {"content_fingerprint": "sha256:" + "2" * 64},
+        "dataset_manifest": {"content_fingerprint": "sha256:" + "3" * 64},
+        "allocation_manifest": {"content_fingerprint": "sha256:" + "4" * 64},
+        "member_count": 97_747,
+    }
+    payload = _canonical_payload(root)
+    fingerprint = "sha256:" + hashlib.sha256(payload).hexdigest()
 
-        reviews = _ReviewAuthority()
-        started = start_product_dataset_review(
-            DatasetReviewStartRequest(
-                identity=first.identity,
-                proposal_fingerprint=first.proposal_fingerprint,
-                reviewer_reference="reviewer:large-proposal-integration",
-                review_started_at=FIRST_STARTED_AT,
-                request_reference="request:large-proposal-review",
-            ),
-            proposal_authority=adapter,
-            current_evidence_authority=evidence,
-            review_authority=reviews,
-        )
-        published = publish_product_dataset_version(
-            ProductDatasetPublicationRequest(
-                identity=first.identity,
-                proposal_fingerprint=first.proposal_fingerprint,
-                approval_evidence_ids=("dataset_review_product_1",),
-                evaluated_at=APPROVED_AT,
-            ),
-            proposal_authority=adapter,
-            review_authority=reviews,
-            current_evidence_authority=evidence,
-            metadata=_metadata(),
-            upstream_objects=_upstream(),
-            publication_root=tmp_path / "publication",
-        )
-        assert started.reviewing_proposal.status == "reviewing"
-        assert published.published is True
-        assert published.identity == first.identity
+    def compare(candidate: bytes, candidate_fingerprint: str):
+        with _C1RoleFactory(
+            c1_postgres, "dohalm_dataset_proposal_authority"
+        ).transaction(isolation="READ COMMITTED", read_only=False) as connection:
+            return connection.execute(
+                "SELECT * FROM dohalm_dataset_governance_v1."
+                "compare_and_create_dataset_version_proposal_v2"
+                "(%s,%s,%s,%s,%s,2::smallint)",
+                (*identity, candidate_fingerprint, candidate),
+            ).fetchall()
 
-        split_path = tmp_path / "split-manifest.json"
-        split = json.loads(split_path.read_text(encoding="utf-8"))
-        split["test_only_manifest_revision"] = 2
-        _write_json(split_path, split)
-        checksums_path = tmp_path / "artifact-checksums.json"
-        checksums = json.loads(checksums_path.read_text(encoding="utf-8"))
-        checksums["files"]["split-manifest.json"] = file_checksum(split_path)
-        _write_json(checksums_path, checksums)
-        changed = ProductDatasetManifestAuthority(tmp_path.resolve())
-        with pytest.raises(
-            DatasetProposalAuthorityError,
-            match="DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT",
-        ):
-            propose_product_dataset_version(
-                composition,
-                authority=PostgresDatasetProposalAuthority(
-                    base._settings, manifest_authority=changed
-                ),
-                current_evidence_authority=_CurrentEvidenceAuthority(),
-                proposed_at=datetime(2026, 9, 2, 2, tzinfo=timezone.utc),
-                manifest_authority=changed,
-            )
-
-    with c1_postgres.factory.connection() as owner:
-        row = owner.execute(
-            "SELECT proposal_schema_version, octet_length(canonical_payload), "
-            "proposal_fingerprint FROM dohalm_dataset_governance_v1."
-            "dataset_version_proposal_authority WHERE object_id=%s",
-            (composition.object_id,),
+    created = compare(payload, fingerprint)
+    replay = compare(payload, fingerprint)
+    competing = _canonical_payload({**root, "member_count": 97_748})
+    conflict = compare(
+        competing,
+        "sha256:" + hashlib.sha256(competing).hexdigest(),
+    )
+    with _C1RoleFactory(c1_postgres, "dohalm_dataset_proposal_authority").transaction(
+        isolation="READ COMMITTED", read_only=True
+    ) as connection:
+        read = connection.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1."
+            "read_dataset_version_proposal_v2(%s,%s,%s)",
+            identity,
         ).fetchone()
-    assert row == (2, len(first.proposal._authority_root), first.proposal_fingerprint)
+
+    assert len(created) == 1
+    assert created[0][0] == "CREATED"
+    assert replay == []
+    assert conflict == []
+    assert read[:5] == (*identity, fingerprint, payload)
+    assert read[-1] == 2
 
 
 def _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(
