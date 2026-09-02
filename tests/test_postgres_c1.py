@@ -139,6 +139,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0009_large_dataset_proposal_authority.sql",
         "0010_dataset_pair_c3_payload_compatibility.sql",
         "0011_dataset_pair_append_only_supersession.sql",
+        "0012_c2_current_dataset_pair_snapshot.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -369,3 +370,20 @@ def test_dataset_pair_supersession_migration_separates_content_and_current_ident
     assert "UPDATE dohalm_training_v1.dataset_pair_authority" not in sql
     assert "DELETE FROM dohalm_training_v1.dataset_pair_authority" not in sql
     assert "REVOKE ALL ON FUNCTION" in sql
+
+
+def test_c2_current_pair_snapshot_migration_filters_superseded_history() -> None:
+    migration = load_c1_migrations()[11]
+    assert migration.name == "0012_c2_current_dataset_pair_snapshot.sql"
+    sql = migration.sql
+    assert (
+        "CREATE OR REPLACE FUNCTION "
+        "dohalm_training_v1.read_c2_training_prerequisite_snapshot" in sql
+    )
+    assert "pair_current.state = 'current'" in sql
+    assert "SECURITY DEFINER" in sql
+    assert "SET search_path = pg_catalog, pg_temp" in sql
+    assert "REVOKE ALL ON FUNCTION" in sql
+    assert "TO dohalm_training_resolver" in sql
+    assert "DELETE FROM dohalm_training_v1.dataset_pair_authority" not in sql
+    assert "UPDATE dohalm_training_v1.dataset_pair_authority" not in sql
