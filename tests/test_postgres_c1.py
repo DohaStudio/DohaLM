@@ -138,6 +138,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0008_current_evidence_snapshot.sql",
         "0009_large_dataset_proposal_authority.sql",
         "0010_dataset_pair_c3_payload_compatibility.sql",
+        "0011_dataset_pair_append_only_supersession.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -348,3 +349,23 @@ def test_dataset_pair_c3_compatibility_migration_is_restricted_and_append_only()
     assert "TO dohalm_training_journal" not in sql
     assert "DELETE FROM" not in sql
     assert "UPDATE dohalm_training_v1.dataset_pair_authority" not in sql
+
+
+def test_dataset_pair_supersession_migration_separates_content_and_current_identity() -> (
+    None
+):
+    migration = load_c1_migrations()[10]
+    assert migration.name == "0011_dataset_pair_append_only_supersession.sql"
+    sql = migration.sql
+    assert (
+        "DROP CONSTRAINT "
+        "dataset_pair_authority_dataset_version_authority_id_dataset_key" in sql
+    )
+    assert "dataset_pair_logical_key" in sql
+    assert "dataset_pair_current_logical_key" in sql
+    assert "DEFERRABLE INITIALLY DEFERRED" in sql
+    assert "project_dataset_pair_logical_key" in sql
+    assert "BEFORE INSERT OR UPDATE" in sql
+    assert "UPDATE dohalm_training_v1.dataset_pair_authority" not in sql
+    assert "DELETE FROM dohalm_training_v1.dataset_pair_authority" not in sql
+    assert "REVOKE ALL ON FUNCTION" in sql

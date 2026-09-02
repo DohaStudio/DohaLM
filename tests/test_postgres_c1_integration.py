@@ -878,7 +878,10 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
+        assert sorted(results, key=len) == [
+            (),
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+        ]
         yield C1Fixture(
             correlation,
             container,
@@ -1052,6 +1055,58 @@ def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
             replace(replacement, pair_payload=replacement_payload + b" ")
         )
 
+    corrected_payload = canonical_json_bytes(
+        {
+            "artifact_references": [],
+            "dataset_manifest_id": dataset.dataset_manifest_id,
+            "dataset_version_id": dataset.dataset_version_id,
+            "evaluated_at": (now + timedelta(seconds=1)).isoformat(),
+            "expected_split_id": f"split:{suffix}",
+            "pair_fingerprint": pair_fingerprint,
+            "payload_schema": "dataset_pair_payload_v2",
+            "upstream_objects": [],
+        }
+    )
+    corrected = replace(
+        replacement,
+        previous_pair_authority_id=replacement.pair_authority_id,
+        pair_authority_id=str(uuid.uuid4()),
+        pair_domain_key=f"dataset-pair-v2-corrected:{suffix}",
+        pair_payload=corrected_payload,
+        pair_event_id=str(uuid.uuid4()),
+        supersede_event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:dataset-pair-v2-corrected:{suffix}",
+    )
+    corrected_result = adapter.replace_dataset_pair(corrected)
+    assert adapter.replace_dataset_pair(corrected) == corrected_result
+    assert corrected_result.previous_pair_authority_id == replacement.pair_authority_id
+    assert corrected_result.previous_pair_state == "superseded"
+    assert corrected_result.pair.state == "current"
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_CONFLICT"):
+        adapter.replace_dataset_pair(
+            replace(corrected, pair_payload=corrected_payload + b" ")
+        )
+
+    with c1_postgres.factory.connection() as connection:
+        pair_states = connection.execute(
+            f"SELECT p.authority_id, c.state, p.payload_sha256 "
+            f"FROM {SCHEMA}.dataset_pair_authority p "
+            f"JOIN {SCHEMA}.training_authority_current c USING (authority_id) "
+            f"WHERE p.pair_fingerprint=%s ORDER BY p.created_at, p.authority_id",
+            (pair_fingerprint,),
+        ).fetchall()
+        current_count = connection.execute(
+            f"SELECT count(*) FROM {SCHEMA}.training_authority_current "
+            f"WHERE subject_family='dataset_pair' AND state='current' "
+            f"AND dataset_pair_logical_key=("
+            f"SELECT dataset_pair_logical_key FROM {SCHEMA}.training_authority_current "
+            f"WHERE authority_id=%s)",
+            (corrected.pair_authority_id,),
+        ).fetchone()[0]
+    assert [row[1] for row in pair_states] == ["superseded", "superseded", "current"]
+    assert len({row[2] for row in pair_states}) == 3
+    assert current_count == 1
+
     config_payload = canonical_json_bytes(
         {"execution_scope": "production_internal", "suffix": suffix}
     )
@@ -1164,7 +1219,7 @@ def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
                 * 4
             ),
         ).fetchone()
-    assert counts == (1, 1, 2)
+    assert counts == (1, 1, 3)
     assert privileges == (False, False, False, False)
     for role in (
         "dohalm_training_resolver",
@@ -1413,7 +1468,7 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                 6,
             )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (7, 8, 9, 10)
+            assert apply_c1_migrations(connection) == (7, 8, 9, 10, 11)
             assert connection.execute(
                 "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
                 "has_function_privilege('public', %s, 'EXECUTE')",
@@ -1423,6 +1478,226 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                     "dohalm_training_v1.provision_training_config(uuid,varchar,bytea,char,char,timestamptz,timestamptz,uuid,varchar,varchar)",
                 ),
             ).fetchone() == (True, False)
+    finally:
+        _docker(
+            "exec",
+            c1_postgres.container,
+            "dropdb",
+            "--if-exists",
+            f"--username={c1_postgres.settings.user}",
+            upgrade_database,
+            check=False,
+        )
+
+
+@pytest.mark.integration
+def test_dataset_pair_supersession_upgrades_production_shaped_0010_state(
+    c1_postgres: C1Fixture, tmp_path: Path
+) -> None:
+    upgrade_database = f"dohalm_c1_pair_up_{c1_postgres.correlation[:8]}"
+    settings = replace(c1_postgres.settings, database=upgrade_database)
+    factory = C1PostgresConnectionFactory(settings)
+    prior_migrations = tmp_path / "through-0010"
+    prior_migrations.mkdir()
+    migration_root = Path("src/postgres_migrations")
+    for path in sorted(migration_root.glob("*.sql")):
+        if path.name <= "0010_dataset_pair_c3_payload_compatibility.sql":
+            (prior_migrations / path.name).write_bytes(path.read_bytes())
+    _docker(
+        "exec",
+        c1_postgres.container,
+        "createdb",
+        f"--username={c1_postgres.settings.user}",
+        upgrade_database,
+    )
+    version_id = str(uuid.uuid4())
+    manifest_id = str(uuid.uuid4())
+    legacy_pair_id = str(uuid.uuid4())
+    bad_pair_id = str(uuid.uuid4())
+    corrected_pair_id = str(uuid.uuid4())
+    version_payload = _canonical_payload({"object_id": "dataset-version:upgrade"})
+    manifest_payload = _canonical_payload({"object_id": "dataset-manifest:upgrade"})
+    legacy_payload = _canonical_payload({"payload_schema": "dataset_pair_payload_v1"})
+    bad_payload = _canonical_payload(
+        {
+            "evaluated_at": "2026-09-02T09:46:34+00:00",
+            "payload_schema": "dataset_pair_payload_v2",
+        }
+    )
+    corrected_payload = _canonical_payload(
+        {
+            "evaluated_at": "2026-09-02T11:55:45+00:00",
+            "payload_schema": "dataset_pair_payload_v2",
+        }
+    )
+    pair_fingerprint = "sha256:" + hashlib.sha256(b"pair-upgrade").hexdigest()
+    source_commit = "b" * 40
+
+    def payload_sha(payload: bytes) -> str:
+        return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+    try:
+        with factory.connection() as connection:
+            assert apply_c1_migrations(connection, directory=prior_migrations) == tuple(
+                range(1, 11)
+            )
+            for authority_id, family, domain_key in (
+                (version_id, "dataset_version", "dataset-version:upgrade"),
+                (manifest_id, "dataset_manifest", "dataset-manifest:upgrade"),
+                (legacy_pair_id, "dataset_pair", "dataset-pair-v1:upgrade"),
+                (bad_pair_id, "dataset_pair", "dataset-pair-v2:bad:upgrade"),
+            ):
+                connection.execute(
+                    f"INSERT INTO {SCHEMA}.training_authority_identity "
+                    "(authority_id,subject_family,domain_key) VALUES (%s,%s,%s)",
+                    (authority_id, family, domain_key),
+                )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_version_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s)",
+                (
+                    version_id,
+                    version_payload,
+                    payload_sha(version_payload),
+                    source_commit,
+                    "dataset-version:upgrade",
+                ),
+            )
+            connection.execute(
+                f"INSERT INTO {SCHEMA}.dataset_manifest_authority "
+                "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s)",
+                (
+                    manifest_id,
+                    manifest_payload,
+                    payload_sha(manifest_payload),
+                    source_commit,
+                    "dataset-manifest:upgrade",
+                ),
+            )
+            for pair_id, schema_version, payload, scenario in (
+                (legacy_pair_id, 1, legacy_payload, "internal-production-training"),
+                (
+                    bad_pair_id,
+                    2,
+                    bad_payload,
+                    "internal-production-training-c3-compatible",
+                ),
+            ):
+                connection.execute(
+                    f"INSERT INTO {SCHEMA}.dataset_pair_authority "
+                    "(authority_id,schema_version,payload_bytes,payload_sha256,valid_from,source_commit,"
+                    "dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
+                    "VALUES (%s,%s,%s,%s,transaction_timestamp(),%s,%s,%s,%s,%s)",
+                    (
+                        pair_id,
+                        schema_version,
+                        payload,
+                        payload_sha(payload),
+                        source_commit,
+                        version_id,
+                        manifest_id,
+                        pair_fingerprint,
+                        scenario,
+                    ),
+                )
+            for authority_id, family in (
+                (version_id, "dataset_version"),
+                (manifest_id, "dataset_manifest"),
+                (legacy_pair_id, "dataset_pair"),
+                (bad_pair_id, "dataset_pair"),
+            ):
+                connection.execute(
+                    f"SELECT {SCHEMA}.write_training_authority_event("
+                    "%s,%s,%s,0,'published',NULL,transaction_timestamp(),%s,%s)",
+                    (
+                        str(uuid.uuid4()),
+                        authority_id,
+                        family,
+                        f"correlation:{authority_id}",
+                        f"evidence:{authority_id}",
+                    ),
+                ).fetchone()
+            connection.execute(
+                f"SELECT {SCHEMA}.write_training_authority_event("
+                "%s,%s,'dataset_pair',1,'superseded',%s,transaction_timestamp(),%s,%s)",
+                (
+                    str(uuid.uuid4()),
+                    legacy_pair_id,
+                    bad_pair_id,
+                    "correlation:legacy-superseded",
+                    "evidence:legacy-superseded",
+                ),
+            ).fetchone()
+            before = connection.execute(
+                f"SELECT p.authority_id,p.payload_bytes,p.payload_sha256,c.state,c.projection_version "
+                f"FROM {SCHEMA}.dataset_pair_authority p JOIN {SCHEMA}.training_authority_current c USING(authority_id) "
+                "ORDER BY p.authority_id"
+            ).fetchall()
+            connection.commit()
+
+        with factory.connection() as connection:
+            assert apply_c1_migrations(connection) == (11,)
+            after = connection.execute(
+                f"SELECT p.authority_id,p.payload_bytes,p.payload_sha256,c.state,c.projection_version "
+                f"FROM {SCHEMA}.dataset_pair_authority p JOIN {SCHEMA}.training_authority_current c USING(authority_id) "
+                "ORDER BY p.authority_id"
+            ).fetchall()
+            assert after == before
+            args = (
+                bad_pair_id,
+                1,
+                version_id,
+                manifest_id,
+                corrected_pair_id,
+                "dataset-pair-v2:corrected:upgrade",
+                version_payload,
+                manifest_payload,
+                corrected_payload,
+                "dataset-version:upgrade",
+                "dataset-manifest:upgrade",
+                pair_fingerprint,
+                source_commit,
+                "internal-production-training-c3-compatible",
+                None,
+                str(uuid.uuid4()),
+                str(uuid.uuid4()),
+                "correlation:corrected:upgrade",
+                "evidence:corrected:upgrade",
+                payload_sha(corrected_payload),
+            )
+            corrected = connection.execute(
+                f"SELECT * FROM {SCHEMA}.replace_training_dataset_pair("
+                + ",".join(["%s"] * 20)
+                + ")",
+                args,
+            ).fetchone()
+            assert corrected is not None
+            replay = connection.execute(
+                f"SELECT * FROM {SCHEMA}.replace_training_dataset_pair("
+                + ",".join(["%s"] * 20)
+                + ")",
+                args,
+            ).fetchone()
+            assert replay == corrected
+            rows = connection.execute(
+                f"SELECT p.authority_id,c.state,p.payload_bytes FROM {SCHEMA}.dataset_pair_authority p "
+                f"JOIN {SCHEMA}.training_authority_current c USING(authority_id) ORDER BY p.created_at,p.authority_id"
+            ).fetchall()
+            pair_history = {str(row[0]): (row[1], row[2]) for row in rows}
+            assert pair_history == {
+                legacy_pair_id: ("superseded", legacy_payload),
+                bad_pair_id: ("superseded", bad_payload),
+                corrected_pair_id: ("current", corrected_payload),
+            }
+            assert (
+                connection.execute(
+                    f"SELECT count(*) FROM {SCHEMA}.training_authority_current "
+                    "WHERE dataset_pair_current_logical_key IS NOT NULL"
+                ).fetchone()[0]
+                == 1
+            )
     finally:
         _docker(
             "exec",
@@ -2883,6 +3158,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 8,
                 9,
                 10,
+                11,
             )
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
@@ -3002,6 +3278,16 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root
                         / "0010_dataset_pair_c3_payload_compatibility.sql"
+                    ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                11,
+                "0011_dataset_pair_append_only_supersession.sql",
+                hashlib.sha256(
+                    (
+                        migration_root
+                        / "0011_dataset_pair_append_only_supersession.sql"
                     ).read_bytes()
                 ).hexdigest(),
             ),
@@ -3446,6 +3732,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (8, "0008_current_evidence_snapshot.sql"),
                 (9, "0009_large_dataset_proposal_authority.sql"),
                 (10, "0010_dataset_pair_c3_payload_compatibility.sql"),
+                (11, "0011_dataset_pair_append_only_supersession.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
