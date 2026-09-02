@@ -15,6 +15,7 @@ from src.training.postgres_training_adapters import (
     _PostgresTrainingPrerequisiteResolver,
 )
 from src.training.production_composition import (
+    _PostgresRightsCurrentnessConfiguration,
     _PostgresTrainingCompositionConfiguration,
     _ProductionTrainingActivationDecision,
     _compose_postgres_training_host,
@@ -123,6 +124,31 @@ def test_c3_complete_configuration_constructs_exact_role_scoped_graph() -> None:
         assert root._host is None
     finally:
         root.shutdown()
+
+
+def test_c3_constructs_authenticated_rights_verifier_from_typed_configuration() -> None:
+    configuration = _configuration(
+        rights_currentness=_PostgresRightsCurrentnessConfiguration(
+            environment="isolated_test",
+            host="127.0.0.1",
+            port=5433,
+            database="doharights_contract",
+            reader_user="doharights_test_reader",
+            reader_password="synthetic-rights-reader-only",
+            source_authority_id="44444444-4444-4444-8444-444444444444",
+            application_name="dohalm-c3-rights-contract",
+            sslmode="disable",
+            sslrootcert=None,
+        )
+    )
+    root = _compose_postgres_training_host(configuration)
+    try:
+        assert root._rights_factory.role == "doharights_reader"
+        assert callable(root._prerequisite_resolver._indefinite_rights_currentness)
+    finally:
+        rights_factory = root._rights_factory
+        root.shutdown()
+        assert rights_factory._configuration is None
 
 
 def test_c3_construction_has_no_connection_or_host_registration(

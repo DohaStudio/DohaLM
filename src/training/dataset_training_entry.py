@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import weakref
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -48,6 +48,7 @@ def evaluate_dataset_training_entry(
     readiness_report: Mapping[str, Any],
     expected_split_id: str,
     artifact_references: Sequence[Mapping[str, Any]],
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None = None,
 ) -> DatasetTrainingPermission:
     """Validate explicit immutable inputs without reading data or activating training."""
 
@@ -92,7 +93,8 @@ def evaluate_dataset_training_entry(
 
     try:
         validate_dataset_publication_scenario(
-            {"evaluated_at": evaluated_at, "objects": [*upstream, version, manifest]}
+            {"evaluated_at": evaluated_at, "objects": [*upstream, version, manifest]},
+            indefinite_rights_currentness=indefinite_rights_currentness,
         )
     except (CommonContractRuntimeError, CommonDatasetValidationError):
         return _blocked("DATASET_PUBLICATION_SCENARIO_INVALID")

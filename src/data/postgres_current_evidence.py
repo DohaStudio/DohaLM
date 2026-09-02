@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import AbstractContextManager
 import json
 from datetime import datetime
@@ -9,6 +10,7 @@ from typing import Any, Protocol
 
 from .current_evidence_snapshot import (
     CurrentEvidenceError,
+    CurrentRightsAuthority,
     DatasetEvidence,
     DatasetGovernanceSnapshot,
     RightsReadModel,
@@ -20,7 +22,11 @@ from .product_dataset_current_evidence import (
     CurrentEvidenceBinding,
     DatasetLifecycleStage,
 )
-from .rights_metadata_projection import AuthorityRightsMetadata, TypedRightsEvidence
+from .rights_metadata_projection import (
+    AuthorityRightsMetadata,
+    TypedRightsEvidence,
+    project_common_rights_metadata,
+)
 
 _RIGHTS_READER_ROLE = "doharights_reader"
 _COORDINATOR_ROLE = "dohalm_current_evidence_coordinator"
@@ -145,6 +151,32 @@ class PostgresCurrentRightsAuthority:
         if len(rows) != 1 or len(rows[0]) != 1 or type(rows[0][0]) is not bool:
             raise CurrentEvidenceError("RIGHTS_RESPONSE_MALFORMED")
         return rows[0][0]
+
+
+class AuthenticatedCurrentRightsMetadataVerifier:
+    """Verify one Common RightsMetadata projection against the live owner source."""
+
+    def __init__(self, authority: CurrentRightsAuthority) -> None:
+        if not callable(getattr(authority, "get_current_rights", None)) or not callable(
+            getattr(authority, "verify_currentness", None)
+        ):
+            raise CurrentEvidenceError("RIGHTS_CURRENTNESS_VERIFIER_INVALID")
+        self._authority = authority
+
+    def __call__(self, rights: Mapping[str, Any]) -> bool:
+        try:
+            extension = rights["extensions"]["doharights.current_use"]
+            subject_id = extension["rights_subject_id"]
+            if not isinstance(subject_id, str):
+                return False
+            current = self._authority.get_current_rights(subject_id)
+            return self._authority.verify_currentness(
+                current.token
+            ) is True and canonical_json_bytes(
+                project_common_rights_metadata(current)
+            ) == canonical_json_bytes(rights)
+        except Exception:  # noqa: BLE001 - authenticated external authority boundary
+            return False
 
 
 class PostgresSnapshotAuthority:
@@ -550,6 +582,7 @@ def _mapped(error: BaseException) -> CurrentEvidenceError:
 
 
 __all__ = [
+    "AuthenticatedCurrentRightsMetadataVerifier",
     "AuthenticatedConnectionFactory",
     "PostgresCurrentEvidenceBindingAuthority",
     "PostgresCurrentRightsAuthority",

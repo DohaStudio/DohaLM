@@ -19,7 +19,10 @@ from psycopg import sql
 import pytest
 
 from src.data.current_evidence_snapshot import CurrentEvidenceError
-from src.data.postgres_current_evidence import PostgresCurrentRightsAuthority
+from src.data.postgres_current_evidence import (
+    AuthenticatedCurrentRightsMetadataVerifier,
+    PostgresCurrentRightsAuthority,
+)
 from src.data.rights_metadata_projection import project_common_rights_metadata
 
 IMAGE = (
@@ -275,9 +278,11 @@ def test_actual_doharights_migrations_issue_read_project_and_fail_closed() -> No
                 replace(current.token, source_authority_id=str(uuid4()))
             )
         common = project_common_rights_metadata(current)
+        verifier = AuthenticatedCurrentRightsMetadataVerifier(consumer)
         assert common["training_allowed"] is True
         assert common["consent_evidence_refs"] == []
         assert common["retention_allowed"] is True
+        assert verifier(common) is True
 
         replacement = replace(
             record,
@@ -297,6 +302,7 @@ def test_actual_doharights_migrations_issue_read_project_and_fail_closed() -> No
             )
         )
         assert consumer.verify_currentness(current.token) is False
+        assert verifier(common) is False
         replacement_read = consumer.get_current_rights(str(subject.rights_subject_id))
         assert replacement_read.record_id == str(replacement.record_id)
         assert replacement_read.token.projection_revision == 2
@@ -322,6 +328,7 @@ def test_actual_doharights_migrations_issue_read_project_and_fail_closed() -> No
                 ),
             )
         assert consumer.verify_currentness(replacement_read.token) is False
+        assert verifier(project_common_rights_metadata(replacement_read)) is False
         with pytest.raises(CurrentEvidenceError, match="RIGHTS_CURRENT_MISSING"):
             consumer.get_current_rights(str(subject.rights_subject_id))
     finally:
