@@ -124,7 +124,7 @@ class PostgresDatasetProposalAuthority:
                 cursor = connection.execute(
                     "SELECT * FROM "
                     "dohalm_dataset_governance_v1.read_dataset_version_proposal_v2"
-                    "(%s, %s, %s)",
+                    "(%s::varchar, %s::varchar, %s::varchar)",
                     requested,
                 )
                 row = _optional_named_row(cursor)
@@ -180,7 +180,8 @@ class PostgresDatasetProposalAuthority:
                 cursor = connection.execute(
                     "SELECT * FROM "
                     "dohalm_dataset_governance_v1.compare_and_create_dataset_version_proposal_v2"
-                    "(%s, %s, %s, %s, %s, %s)",
+                    "(%s::varchar, %s::varchar, %s::varchar, "
+                    "%s::char(71), %s::bytea, %s::smallint)",
                     (
                         proposal.identity.object_id,
                         proposal.identity.dataset_id,
@@ -200,7 +201,7 @@ class PostgresDatasetProposalAuthority:
                     read_cursor = connection.execute(
                         "SELECT * FROM "
                         "dohalm_dataset_governance_v1.read_dataset_version_proposal_v2"
-                        "(%s, %s, %s)",
+                        "(%s::varchar, %s::varchar, %s::varchar)",
                         (
                             proposal.identity.object_id,
                             proposal.identity.dataset_id,
