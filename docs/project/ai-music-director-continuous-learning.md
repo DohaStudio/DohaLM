@@ -92,6 +92,13 @@ LearningCandidate creation and review
 
 ## DatasetVersion proposal authority
 
+- [현재] ADR-037은 small/historical Dataset의 inline v1을 유지하면서 large Product Dataset에
+  `dataset_version_proposal_root / 2.0.0` manifest-reference authority를 추가한다. root fingerprint는
+  composition·member·Dataset·allocation manifest의 logical identity, SHA-256, byte size와 Dataset/Rights/
+  eligibility binding을 포함하며 filesystem path는 authority identity가 아니다.
+- [현재] manifest-reference read는 exact bytes를 다시 검증해 full Common DatasetVersion을 재구성한 후
+  기존 review·approval·publication validator로 넘긴다. missing/stale/tampered manifest에는 fallback이 없다.
+
 - [현재] `adjudicate_dataset_version_proposal()`은 완전한 proposal mapping, timezone-aware `proposed_at`, current evidence authority와 proposal authority를 모두 필수 입력으로 받는다.
 - [현재] 순수 `propose_dataset_version()`의 canonical draft payload checksum을 proposal fingerprint로 사용하며 adjudication 시각은 fingerprint에 포함하지 않는다.
 - [현재] current RightsMetadata·TrainingEligibility는 생성뿐 아니라 replay 전에도 proposal identity·fingerprint와 결속해 다시 검증한다.

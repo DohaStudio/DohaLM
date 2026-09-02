@@ -98,6 +98,11 @@ from .learning_candidate_review import (
     review_learning_candidate,
 )
 from .pipeline import build_pipeline, validate_pipeline
+from .postgres_current_evidence import (
+    PostgresCurrentEvidenceBindingAuthority,
+    PostgresCurrentRightsAuthority,
+    PostgresSnapshotAuthority,
+)
 from .postgres_dataset_proposal_authority import (
     PostgresDatasetProposalAuthority,
     PostgresDatasetProposalAuthoritySettings,
@@ -105,16 +110,6 @@ from .postgres_dataset_proposal_authority import (
 from .postgres_dataset_review_authority import (
     PostgresDatasetReviewAuthority,
     PostgresDatasetReviewAuthoritySettings,
-)
-from .postgres_current_evidence import (
-    PostgresCurrentEvidenceBindingAuthority,
-    PostgresCurrentRightsAuthority,
-    PostgresSnapshotAuthority,
-)
-from .product_dataset_current_evidence import (
-    BoundDatasetLifecycleCurrentEvidence,
-    CurrentEvidenceBinding,
-    DatasetLifecycleStage,
 )
 from .product_dataset_approval import (
     ProductDatasetApprovalRequest,
@@ -130,7 +125,18 @@ from .product_dataset_composition import (
     build_dataset_version_proposal_mapping,
     compose_product_dataset,
 )
+from .product_dataset_current_evidence import (
+    BoundDatasetLifecycleCurrentEvidence,
+    CurrentEvidenceBinding,
+    DatasetLifecycleStage,
+)
 from .product_dataset_governance import propose_product_dataset_version
+from .product_dataset_proposal_manifest import (
+    ManifestReference,
+    ManifestReferenceDatasetProposal,
+    ProductDatasetManifestAuthority,
+    ProductDatasetManifestAuthorityError,
+)
 from .product_dataset_review import (
     ProductDatasetReviewStartResult,
     start_product_dataset_review,
@@ -138,26 +144,27 @@ from .product_dataset_review import (
 
 __all__ = [
     "ApprovedDatasetVersion",
+    "BoundDatasetLifecycleCurrentEvidence",
     "CommonContractIssue",
     "CommonContractRuntimeError",
     "CommonDatasetValidationError",
     "CommonObjectReference",
-    "CurrentLearningCandidateEvidence",
     "CurrentEvidenceBinding",
     "CurrentEvidenceError",
+    "CurrentLearningCandidateEvidence",
     "DataConfig",
     "DataIssue",
     "DataPipelineError",
+    "DatasetEvidence",
     "DatasetGovernanceError",
     "DatasetGovernanceIssue",
     "DatasetGovernanceSnapshot",
     "DatasetGovernanceSnapshotCoordinator",
-    "DatasetEvidence",
-    "DatasetLifecycleStage",
     "DatasetInclusionHandoff",
     "DatasetInclusionHandoffError",
     "DatasetInclusionHandoffRejected",
     "DatasetInclusionHandoffStatus",
+    "DatasetLifecycleStage",
     "DatasetProposalAuthority",
     "DatasetProposalAuthorityError",
     "DatasetProposalAuthorityRecord",
@@ -184,14 +191,15 @@ __all__ = [
     "LearningCandidateReviewAuthority",
     "LearningCandidateReviewError",
     "LearningCandidateReviewResult",
+    "ManifestReference",
+    "ManifestReferenceDatasetProposal",
+    "PostgresCurrentEvidenceBindingAuthority",
+    "PostgresCurrentRightsAuthority",
     "PostgresDatasetProposalAuthority",
     "PostgresDatasetProposalAuthoritySettings",
     "PostgresDatasetReviewAuthority",
     "PostgresDatasetReviewAuthoritySettings",
-    "PostgresCurrentEvidenceBindingAuthority",
-    "PostgresCurrentRightsAuthority",
     "PostgresSnapshotAuthority",
-    "ProposalDatasetEvidenceTokenAuthority",
     "ProducerIdentity",
     "ProductDatasetApprovalRequest",
     "ProductDatasetComposition",
@@ -199,14 +207,16 @@ __all__ = [
     "ProductDatasetCompositionError",
     "ProductDatasetCompositionMember",
     "ProductDatasetCompositionStatus",
+    "ProductDatasetManifestAuthority",
+    "ProductDatasetManifestAuthorityError",
     "ProductDatasetMemberAllocation",
     "ProductDatasetReviewStartResult",
+    "ProposalDatasetEvidenceTokenAuthority",
     "ReviewDecision",
     "ReviewReason",
     "RightsReadModel",
     "SnapshotBoundProposalEvidenceAuthority",
     "SourceToken",
-    "BoundDatasetLifecycleCurrentEvidence",
     "ValidatedLearningCandidate",
     "adjudicate_dataset_version_proposal",
     "approve_dataset_version",

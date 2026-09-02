@@ -54,11 +54,18 @@ class DatasetVersionProposal:
     """Immutable in-memory snapshot in the draft or reviewing state."""
 
     _canonical_payload: bytes = field(repr=False)
+    _authority_root: bytes | None = field(repr=False, default=None)
 
     @classmethod
-    def _create(cls, payload: Mapping[str, Any]) -> DatasetVersionProposal:
+    def _create(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        authority_root: bytes | None = None,
+    ) -> DatasetVersionProposal:
         value = object.__new__(cls)
         object.__setattr__(value, "_canonical_payload", _canonicalize(payload))
+        object.__setattr__(value, "_authority_root", authority_root)
         return value
 
     @property
@@ -72,6 +79,14 @@ class DatasetVersionProposal:
     @property
     def status(self) -> str:
         return cast(str, self.payload["status"])
+
+    @property
+    def authority_root(self) -> dict[str, Any] | None:
+        """Return the bounded v2 authority root, when this is a manifest proposal."""
+
+        if self._authority_root is None:
+            return None
+        return _decode_payload(self._authority_root)
 
 
 @dataclass(frozen=True, init=False)
@@ -101,6 +116,34 @@ def propose_dataset_version(payload: Mapping[str, Any]) -> DatasetVersionProposa
     validate_dataset_version(payload)
     _require_domain_valid(payload, allowed_statuses=frozenset({"draft"}))
     return DatasetVersionProposal._create(payload)
+
+
+def propose_manifest_reference_dataset_version(
+    payload: Mapping[str, Any],
+    *,
+    authority_root: Mapping[str, Any],
+) -> DatasetVersionProposal:
+    """Validate a full draft while binding its bounded manifest-reference root."""
+
+    validate_dataset_version(payload)
+    _require_domain_valid(payload, allowed_statuses=frozenset({"draft"}))
+    root = _canonicalize(authority_root)
+    decoded = _decode_payload(root)
+    if (
+        decoded.get("schema_name") != "dataset_version_proposal_root"
+        or decoded.get("schema_version") != "2.0.0"
+        or decoded.get("status") != "draft"
+        or any(
+            decoded.get(name) != payload.get(name)
+            for name in (
+                "object_id",
+                "dataset_id",
+                "dataset_version",
+            )
+        )
+    ):
+        raise DatasetGovernanceError("PROPOSAL_ROOT_INVALID", "snapshot")
+    return DatasetVersionProposal._create(payload, authority_root=root)
 
 
 def begin_dataset_review(proposal: DatasetVersionProposal) -> DatasetVersionProposal:
@@ -295,4 +338,5 @@ __all__ = [
     "approve_dataset_version",
     "begin_dataset_review",
     "propose_dataset_version",
+    "propose_manifest_reference_dataset_version",
 ]
