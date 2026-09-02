@@ -308,6 +308,9 @@ def test_current_evidence_migration_is_append_only_scoped_and_durable() -> None:
 
 def test_large_dataset_proposal_migration_preserves_v1_and_adds_bounded_v2() -> None:
     migration = load_c1_migrations()[8]
+    proposal_adapter_source = Path(
+        "src/data/postgres_dataset_proposal_authority.py"
+    ).read_text(encoding="utf-8")
     assert migration.name == "0009_large_dataset_proposal_authority.sql"
     sql = migration.sql
     assert "ADD COLUMN proposal_schema_version" in sql
@@ -316,6 +319,9 @@ def test_large_dataset_proposal_migration_preserves_v1_and_adds_bounded_v2() -> 
     assert "dataset_version_proposal_root" in sql
     assert "compare_and_create_dataset_version_proposal_v2" in sql
     assert "read_dataset_version_proposal_v2" in sql
+    assert "%s::char(71)" in proposal_adapter_source
+    assert "%s::smallint" in proposal_adapter_source
+    assert "%s::varchar" in proposal_adapter_source
     assert "TO dohalm_dataset_proposal_authority" in sql
     assert "DROP" not in sql
     assert "INSERT/UPDATE/DELETE" not in sql
