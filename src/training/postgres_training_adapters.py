@@ -498,6 +498,7 @@ class _PostgresTrainingPrerequisiteResolver:
                             request.intent.expected_config_fingerprint,
                             request.intent.expected_readiness_fingerprint,
                         ),
+                        binary=True,
                     )
                 )
             if row is None:

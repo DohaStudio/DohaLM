@@ -52,9 +52,13 @@ class _C2Connection:
     def __init__(self, rows: list[dict[str, Any]] | BaseException) -> None:
         self._rows = rows
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.binary_modes: list[bool] = []
 
-    def execute(self, sql: str, params: tuple[Any, ...]) -> _C2Cursor:
+    def execute(
+        self, sql: str, params: tuple[Any, ...], *, binary: bool = False
+    ) -> _C2Cursor:
         self.calls.append((sql, params))
+        self.binary_modes.append(binary)
         if isinstance(self._rows, BaseException):
             raise self._rows
         return _C2Cursor(self._rows)
@@ -341,8 +345,9 @@ def test_c2_missing_and_malformed_results_fail_closed() -> None:
             _C2Factory("dohalm_training_resolver", []),
             policy_reference="decision-policy:c2",
         ).resolve(decision_request)
+    prerequisite_factory = _C2Factory("dohalm_training_resolver", [])
     prerequisite = _PostgresTrainingPrerequisiteResolver(
-        _C2Factory("dohalm_training_resolver", []),
+        prerequisite_factory,
         policy_reference="prerequisite-policy:c2",
     )
     try:
@@ -360,6 +365,7 @@ def test_c2_missing_and_malformed_results_fail_closed() -> None:
                     readiness_authority_id="44444444-4444-4444-8444-444444444444",
                 )
             )
+        assert prerequisite_factory.connection.binary_modes == [True]
     finally:
         prerequisite.close()
 
@@ -426,6 +432,7 @@ def test_c2_decision_snapshot_maps_named_authority_and_currentness() -> None:
     )
     assert resolution.provenance.approver_current is True
     assert factory.boundaries == [("REPEATABLE READ", True)]
+    assert factory.connection.binary_modes == [False]
 
 
 def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
@@ -557,6 +564,7 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
     assert result.config_path.read_bytes() == config
     assert result.manifest_path.read_bytes() == readiness
     assert factory.boundaries == [("REPEATABLE READ", True)]
+    assert factory.connection.binary_modes == [True]
     resolver.release(result)
     assert not result.config_path.parent.exists()
     resolver.close()
