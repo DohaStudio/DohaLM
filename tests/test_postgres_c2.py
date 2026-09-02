@@ -15,12 +15,12 @@ from src.training.dataset_training_entry import DatasetTrainingPermission
 from src.training.errors import TrainingError
 from src.training.postgres_training_adapters import (
     _CLAIM_JOURNAL_COLUMN_MAP,
+    _map_journal_error,
     _PostgresTrainingConnectionFactory,
     _PostgresTrainingConnectionSettings,
     _PostgresTrainingDecisionResolver,
     _PostgresTrainingExecutionJournal,
     _PostgresTrainingPrerequisiteResolver,
-    _map_journal_error,
 )
 from src.training.production_host_foundation import (
     ProductionTrainingHostIntent,
@@ -561,3 +561,141 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
     assert not result.config_path.parent.exists()
     resolver.close()
     assert not root.exists()
+
+
+def test_c2_prerequisite_accepts_canonical_v2_pair_payload_without_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import importlib.util
+    from types import ModuleType
+
+    import src.training.postgres_training_adapters as adapters
+    from src.data.checksums import canonical_json_bytes
+
+    fixture_path = Path(__file__).with_name("test_dataset_publication.py")
+    spec = importlib.util.spec_from_file_location(
+        "_c2_publication_fixtures", fixture_path
+    )
+    assert spec is not None and spec.loader is not None
+    fixtures = importlib.util.module_from_spec(spec)
+    assert isinstance(fixtures, ModuleType)
+    spec.loader.exec_module(fixtures)
+    published = fixtures.publish(tmp_path / "publication")
+    version = published.dataset_version
+    manifest = published.dataset_manifest
+    upstream = fixtures.upstream()
+    now = datetime.now(timezone.utc)
+    config = b"output_dir: experiments/full-pretraining-candidate-a\n"
+    readiness = b"schema_version: '1.0'\n"
+    config_fingerprint = "sha256:" + hashlib.sha256(config).hexdigest()
+    readiness_fingerprint = "sha256:" + hashlib.sha256(readiness).hexdigest()
+    intent = ProductionTrainingHostIntent(
+        action="full_pretraining",
+        execution_mode="fresh",
+        dataset_version_reference="dataset-version:11111111-1111-4111-8111-111111111111",
+        dataset_manifest_reference="dataset-manifest:22222222-2222-4222-8222-222222222222",
+        expected_dataset_pair_fingerprint=published.pair_fingerprint,
+        training_config_reference="config:33333333-3333-4333-8333-333333333333",
+        expected_config_fingerprint=config_fingerprint,
+        readiness_evidence_reference="readiness:44444444-4444-4444-8444-444444444444",
+        expected_readiness_fingerprint=readiness_fingerprint,
+        run_id="run:c2-v2-pair",
+        output_logical_root="experiments/full-pretraining-candidate-a",
+        decision_evidence_reference="decision:55555555-5555-4555-8555-555555555555",
+    )
+
+    def payload(name: str, value: bytes) -> dict[str, Any]:
+        return {
+            f"{name}_payload": value,
+            f"{name}_payload_sha256": "sha256:" + hashlib.sha256(value).hexdigest(),
+        }
+
+    pair_payload = canonical_json_bytes(
+        {
+            "artifact_references": manifest["object_file_artifact_refs"],
+            "dataset_manifest_id": manifest["object_id"],
+            "dataset_version_id": version["object_id"],
+            "evaluated_at": "2026-08-11T12:00:00Z",
+            "expected_split_id": manifest["split_id"],
+            "pair_fingerprint": published.pair_fingerprint,
+            "payload_schema": "dataset_pair_payload_v2",
+            "upstream_objects": upstream,
+        }
+    )
+    row: dict[str, Any] = {
+        "snapshot_at": now,
+        "dataset_version_authority_id": UUID("11111111-1111-4111-8111-111111111111"),
+        "dataset_version_reference": intent.dataset_version_reference,
+        "dataset_version_source_commit": "a" * 40,
+        "dataset_version_state": "current",
+        "dataset_version_state_effective_at": now,
+        "dataset_manifest_authority_id": UUID("22222222-2222-4222-8222-222222222222"),
+        "dataset_manifest_reference": intent.dataset_manifest_reference,
+        "dataset_manifest_source_commit": "a" * 40,
+        "dataset_manifest_state": "current",
+        "dataset_manifest_state_effective_at": now,
+        "dataset_pair_authority_id": UUID("88888888-8888-4888-8888-888888888888"),
+        "dataset_pair_reference": "dataset-pair-v2:c2-unit",
+        "dataset_pair_source_commit": "a" * 40,
+        "dataset_pair_fingerprint": published.pair_fingerprint,
+        "dataset_pair_publication_scenario": "internal-production-training-c3-compatible",
+        "dataset_pair_state": "current",
+        "dataset_pair_state_effective_at": now,
+        "config_authority_id": UUID("33333333-3333-4333-8333-333333333333"),
+        "config_reference": intent.training_config_reference,
+        "config_source_commit": "a" * 40,
+        "config_kind": "full_pretraining",
+        "config_schema_version": 1,
+        "config_state": "current",
+        "config_state_effective_at": now,
+        "readiness_authority_id": UUID("44444444-4444-4444-8444-444444444444"),
+        "readiness_reference": intent.readiness_evidence_reference,
+        "readiness_source_commit": "a" * 40,
+        "readiness_pair_fingerprint": published.pair_fingerprint,
+        "readiness_config_fingerprint": config_fingerprint,
+        "readiness_evaluated_at": now,
+        "readiness_valid_until": datetime(2090, 1, 1, tzinfo=timezone.utc),
+        "readiness_result": "READY",
+        "readiness_state": "current",
+        "readiness_state_effective_at": now,
+        **payload("dataset_version", canonical_json_bytes(version)),
+        **payload("dataset_manifest", canonical_json_bytes(manifest)),
+        **payload("dataset_pair", pair_payload),
+        **payload("config", config),
+        **payload("readiness", readiness),
+    }
+    request = TrainingPrerequisiteResolutionRequest(
+        intent=intent,
+        intent_fingerprint="sha256:" + "9" * 64,
+        dataset_version_authority_id="11111111-1111-4111-8111-111111111111",
+        dataset_manifest_authority_id="22222222-2222-4222-8222-222222222222",
+        config_authority_id="33333333-3333-4333-8333-333333333333",
+        readiness_authority_id="44444444-4444-4444-8444-444444444444",
+    )
+    fake_config = SimpleNamespace(
+        output_dir=intent.output_logical_root, to_dict=lambda: {"validated": True}
+    )
+    monkeypatch.setattr(
+        adapters.FullPretrainingConfig, "from_yaml", lambda _: fake_config
+    )
+    monkeypatch.setattr(
+        adapters,
+        "inspect_full_pretraining_readiness",
+        lambda *_: {
+            "execution_allowed": True,
+            "inspection_only": True,
+            "training_started": False,
+            "blocking_codes": [],
+        },
+    )
+    resolver = _PostgresTrainingPrerequisiteResolver(
+        _C2Factory("dohalm_training_resolver", [row]),
+        policy_reference="prerequisite-policy:c2",
+    )
+    try:
+        resolved = resolver.resolve(request)
+        assert resolved.dataset_permission.allowed is True
+        assert resolved.dataset_pair_fingerprint == published.pair_fingerprint
+        resolver.release(resolved)
+    finally:
+        resolver.close()

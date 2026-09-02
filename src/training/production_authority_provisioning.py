@@ -20,7 +20,6 @@ from .execution_approval import TrainingExecutionRequest
 from .execution_issuer import TrainingExecutionIssuerDecisionValue
 from .production_intent_authority import TrainingIntentSubmitterAuthorityRecord
 
-
 _REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}")
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
@@ -333,6 +332,118 @@ class DatasetAuthorityRegistrationResult:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class DatasetPairReplacementCommand:
+    previous_pair_authority_id: str
+    expected_previous_projection_version: int
+    version_authority_id: str
+    manifest_authority_id: str
+    pair_authority_id: str
+    pair_domain_key: str
+    version_payload: bytes
+    manifest_payload: bytes
+    pair_payload: bytes
+    dataset_version_id: str
+    dataset_manifest_id: str
+    pair_fingerprint: str
+    source_commit: str
+    publication_scenario: str
+    valid_until: datetime | None
+    pair_event_id: str
+    supersede_event_id: str
+    correlation_reference: str
+    evidence_reference: str
+
+    def __post_init__(self) -> None:
+        if (
+            not all(
+                _uuid(value)
+                for value in (
+                    self.previous_pair_authority_id,
+                    self.version_authority_id,
+                    self.manifest_authority_id,
+                    self.pair_authority_id,
+                    self.pair_event_id,
+                    self.supersede_event_id,
+                )
+            )
+            or len(
+                {
+                    self.previous_pair_authority_id,
+                    self.version_authority_id,
+                    self.manifest_authority_id,
+                    self.pair_authority_id,
+                }
+            )
+            != 4
+            or type(self.expected_previous_projection_version) is not int
+            or self.expected_previous_projection_version < 1
+            or not all(
+                _reference(value)
+                for value in (
+                    self.pair_domain_key,
+                    self.dataset_version_id,
+                    self.dataset_manifest_id,
+                    self.publication_scenario,
+                    self.correlation_reference,
+                    self.evidence_reference,
+                )
+            )
+            or not all(
+                type(value) is bytes and bool(value)
+                for value in (
+                    self.version_payload,
+                    self.manifest_payload,
+                    self.pair_payload,
+                )
+            )
+            or not _fingerprint(self.pair_fingerprint)
+            or _COMMIT.fullmatch(self.source_commit) is None
+        ):
+            raise _error(
+                "PRODUCTION_DATASET_PAIR_REPLACEMENT_INVALID",
+                "An exact immutable Dataset pair replacement is required.",
+            )
+        if self.valid_until is not None:
+            object.__setattr__(self, "valid_until", _utc(self.valid_until))
+
+    @property
+    def pair_payload_fingerprint(self) -> str:
+        return sha256_bytes(self.pair_payload)
+
+    def __repr__(self) -> str:
+        return "DatasetPairReplacementCommand(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class DatasetPairReplacementResult:
+    version: AuthorityProvisioningIdentity
+    manifest: AuthorityProvisioningIdentity
+    pair: AuthorityProvisioningIdentity
+    previous_pair_authority_id: str
+    previous_pair_state: str
+    previous_pair_projection_version: int
+    pair_fingerprint: str
+    pair_schema_version: int
+
+    def __post_init__(self) -> None:
+        if (
+            not _uuid(self.previous_pair_authority_id)
+            or self.previous_pair_state != "superseded"
+            or type(self.previous_pair_projection_version) is not int
+            or self.previous_pair_projection_version < 2
+            or not _fingerprint(self.pair_fingerprint)
+            or self.pair_schema_version != 2
+        ):
+            raise _error(
+                "PRODUCTION_DATASET_PAIR_REPLACEMENT_INVALID",
+                "A superseded legacy pair and current v2 replacement are required.",
+            )
+
+    def __repr__(self) -> str:
+        return "DatasetPairReplacementResult(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class DecisionAuthorityProvisionCommand:
     authority_id: str
     domain_key: str
@@ -426,6 +537,10 @@ class ProductionAuthorityProvisioningPort(Protocol):
         self, command: DatasetAuthorityRegistrationCommand
     ) -> DatasetAuthorityRegistrationResult: ...
 
+    def replace_dataset_pair(
+        self, command: DatasetPairReplacementCommand
+    ) -> DatasetPairReplacementResult: ...
+
     def create_decision(
         self, command: DecisionAuthorityProvisionCommand
     ) -> AuthorityProvisioningIdentity: ...
@@ -515,6 +630,8 @@ __all__ = [
     "ConfigAuthorityProvisionCommand",
     "DatasetAuthorityRegistrationCommand",
     "DatasetAuthorityRegistrationResult",
+    "DatasetPairReplacementCommand",
+    "DatasetPairReplacementResult",
     "DecisionAuthorityProvisionCommand",
     "PrincipalProvisionCommand",
     "ProductionAuthorityProvisioningPackage",
