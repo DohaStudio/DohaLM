@@ -7,14 +7,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from .checksums import checksum_value
+from .checksums import checksum_value, sha256_bytes
 from .dataset_governance import (
     DatasetVersionIdentity,
     DatasetVersionProposal,
     propose_dataset_version,
+    propose_manifest_reference_dataset_version,
 )
+
+if TYPE_CHECKING:
+    from .product_dataset_proposal_manifest import ManifestReferenceDatasetProposal
 
 _SAFE_REFERENCE = re.compile(r"[A-Za-z][A-Za-z0-9._:@-]{1,255}")
 
@@ -134,12 +138,23 @@ def adjudicate_dataset_version_proposal(
     authority: DatasetProposalAuthority,
     current_evidence_authority: DatasetProposalCurrentEvidenceAuthority,
     proposed_at: datetime,
+    manifest_submission: ManifestReferenceDatasetProposal | None = None,
 ) -> DatasetProposalAuthorityResult:
     """Validate, recheck current evidence, then atomically create or replay."""
 
     proposal_time = _require_proposed_at(proposed_at)
-    proposal = propose_dataset_version(payload)
+    if manifest_submission is None:
+        proposal = propose_dataset_version(payload)
+    else:
+        proposal = manifest_submission.proposal
+        if proposal.payload != payload:
+            raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "manifest")
     fingerprint = dataset_version_proposal_fingerprint(proposal)
+    if (
+        manifest_submission is not None
+        and manifest_submission.proposal_fingerprint != fingerprint
+    ):
+        raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "manifest")
     require_current_dataset_evidence(
         proposal,
         proposal_fingerprint=fingerprint,
@@ -170,6 +185,8 @@ def dataset_version_proposal_fingerprint(proposal: DatasetVersionProposal) -> st
 
     if type(proposal) is not DatasetVersionProposal or proposal.status != "draft":
         raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "fingerprint")
+    if proposal._authority_root is not None:
+        return sha256_bytes(proposal._authority_root)
     return checksum_value(proposal.payload)
 
 
@@ -219,14 +236,23 @@ def validate_dataset_proposal_authority_record(
     try:
         if type(record.proposal) is not DatasetVersionProposal:
             raise TypeError
-        proposal = propose_dataset_version(record.proposal.payload)
+        if record.proposal._authority_root is None:
+            proposal = propose_dataset_version(record.proposal.payload)
+        else:
+            proposal = propose_manifest_reference_dataset_version(
+                record.proposal.payload,
+                authority_root=record.proposal.authority_root,
+            )
         actual_fingerprint = dataset_version_proposal_fingerprint(proposal)
     except Exception:  # noqa: BLE001 - untrusted record access must fail closed
         raise DatasetProposalAuthorityError(
             "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
             "read",
         ) from None
-    if record.proposal._canonical_payload != proposal._canonical_payload:
+    if (
+        record.proposal._canonical_payload != proposal._canonical_payload
+        or record.proposal._authority_root != proposal._authority_root
+    ):
         raise DatasetProposalAuthorityError(
             "DATASET_PROPOSAL_AUTHORITY_CORRUPT",
             "read",

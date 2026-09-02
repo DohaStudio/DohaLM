@@ -136,6 +136,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0006_training_intent_authority.sql",
         "0007_production_authority_provisioning.sql",
         "0008_current_evidence_snapshot.sql",
+        "0009_large_dataset_proposal_authority.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -303,4 +304,18 @@ def test_current_evidence_migration_is_append_only_scoped_and_durable() -> None:
     assert "dohalm_current_evidence_coordinator" in sql
     assert "dohalm_current_evidence_resolver" in sql
     assert "TO dohalm_current_evidence_coordinator" in sql
+
+
+def test_large_dataset_proposal_migration_preserves_v1_and_adds_bounded_v2() -> None:
+    migration = load_c1_migrations()[8]
+    assert migration.name == "0009_large_dataset_proposal_authority.sql"
+    sql = migration.sql
+    assert "ADD COLUMN proposal_schema_version" in sql
+    assert "proposal_schema_version IN (1, 2)" in sql
+    assert "octet_length(requested_canonical_payload) NOT BETWEEN 2 AND 16777216" in sql
+    assert "dataset_version_proposal_root" in sql
+    assert "compare_and_create_dataset_version_proposal_v2" in sql
+    assert "read_dataset_version_proposal_v2" in sql
+    assert "TO dohalm_dataset_proposal_authority" in sql
+    assert "DROP" not in sql
     assert "INSERT/UPDATE/DELETE" not in sql

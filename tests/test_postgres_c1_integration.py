@@ -878,7 +878,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8, 9)]
         yield C1Fixture(
             correlation,
             container,
@@ -1370,7 +1370,7 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                 6,
             )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (7, 8)
+            assert apply_c1_migrations(connection) == (7, 8, 9)
             assert connection.execute(
                 "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
                 "has_function_privilege('public', %s, 'EXECUTE')",
@@ -2830,7 +2830,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7, 8)
+            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7, 8, 9)
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -2931,6 +2931,15 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 "0008_current_evidence_snapshot.sql",
                 hashlib.sha256(
                     (migration_root / "0008_current_evidence_snapshot.sql").read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                9,
+                "0009_large_dataset_proposal_authority.sql",
+                hashlib.sha256(
+                    (
+                        migration_root / "0009_large_dataset_proposal_authority.sql"
+                    ).read_bytes()
                 ).hexdigest(),
             ),
         ]
@@ -3372,6 +3381,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (6, "0006_training_intent_authority.sql"),
                 (7, "0007_production_authority_provisioning.sql"),
                 (8, "0008_current_evidence_snapshot.sql"),
+                (9, "0009_large_dataset_proposal_authority.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
@@ -3499,6 +3509,76 @@ def _proposal_payload(suffix: str, **updates: object) -> dict[str, object]:
     )
     payload.update(updates)
     return payload
+
+
+@pytest.mark.integration
+def test_large_dataset_manifest_reference_sql_persists_replays_and_conflicts(
+    c1_postgres: C1Fixture,
+) -> None:
+    binding = json.loads(_docker("inspect", c1_postgres.container).stdout)[0][
+        "NetworkSettings"
+    ]["Ports"]["5432/tcp"][0]
+    current_settings = replace(c1_postgres.settings, port=int(binding["HostPort"]))
+    c1_postgres = replace(
+        c1_postgres,
+        settings=current_settings,
+        factory=C1PostgresConnectionFactory(current_settings),
+    )
+    suffix = uuid.uuid4().hex
+    identity = (
+        f"dataset_version_large_{suffix}",
+        f"dataset_large_{suffix}",
+        "1.0.0",
+    )
+    root = {
+        "schema_name": "dataset_version_proposal_root",
+        "schema_version": "2.0.0",
+        "object_id": identity[0],
+        "dataset_id": identity[1],
+        "dataset_version": identity[2],
+        "status": "draft",
+        "composition": {"content_fingerprint": "sha256:" + "1" * 64},
+        "member_manifest": {"content_fingerprint": "sha256:" + "2" * 64},
+        "dataset_manifest": {"content_fingerprint": "sha256:" + "3" * 64},
+        "allocation_manifest": {"content_fingerprint": "sha256:" + "4" * 64},
+        "member_count": 97_747,
+    }
+    payload = _canonical_payload(root)
+    fingerprint = "sha256:" + hashlib.sha256(payload).hexdigest()
+
+    def compare(candidate: bytes, candidate_fingerprint: str):
+        with _C1RoleFactory(
+            c1_postgres, "dohalm_dataset_proposal_authority"
+        ).transaction(isolation="READ COMMITTED", read_only=False) as connection:
+            return connection.execute(
+                "SELECT * FROM dohalm_dataset_governance_v1."
+                "compare_and_create_dataset_version_proposal_v2"
+                "(%s,%s,%s,%s,%s,2::smallint)",
+                (*identity, candidate_fingerprint, candidate),
+            ).fetchall()
+
+    created = compare(payload, fingerprint)
+    replay = compare(payload, fingerprint)
+    competing = _canonical_payload({**root, "member_count": 97_748})
+    conflict = compare(
+        competing,
+        "sha256:" + hashlib.sha256(competing).hexdigest(),
+    )
+    with _C1RoleFactory(c1_postgres, "dohalm_dataset_proposal_authority").transaction(
+        isolation="READ COMMITTED", read_only=True
+    ) as connection:
+        read = connection.execute(
+            "SELECT * FROM dohalm_dataset_governance_v1."
+            "read_dataset_version_proposal_v2(%s,%s,%s)",
+            identity,
+        ).fetchone()
+
+    assert len(created) == 1
+    assert created[0][0] == "CREATED"
+    assert replay == []
+    assert conflict == []
+    assert read[:5] == (*identity, fingerprint, payload)
+    assert read[-1] == 2
 
 
 def _check_dataset_proposal_authority_roles_schema_and_direct_dml_denial(

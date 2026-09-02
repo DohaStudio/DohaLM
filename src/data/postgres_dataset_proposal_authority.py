@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .checksums import canonical_json_bytes
 from .dataset_governance import (
@@ -21,6 +21,9 @@ from .dataset_proposal_authority import (
     DatasetProposalOutcome,
     dataset_version_proposal_fingerprint,
 )
+
+if TYPE_CHECKING:
+    from .product_dataset_proposal_manifest import ProductDatasetManifestAuthority
 
 _ROLE = "dohalm_dataset_proposal_authority"
 _REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,255}")
@@ -86,10 +89,16 @@ class PostgresDatasetProposalAuthoritySettings:
 class PostgresDatasetProposalAuthority:
     """Open a short-lived restricted transaction for each atomic adjudication."""
 
-    def __init__(self, settings: PostgresDatasetProposalAuthoritySettings) -> None:
+    def __init__(
+        self,
+        settings: PostgresDatasetProposalAuthoritySettings,
+        *,
+        manifest_authority: ProductDatasetManifestAuthority | None = None,
+    ) -> None:
         if type(settings) is not PostgresDatasetProposalAuthoritySettings:
             raise TypeError("PostgreSQL Dataset proposal settings are required")
         self._settings = settings
+        self._manifest_authority = manifest_authority
 
     def __repr__(self) -> str:
         return "PostgresDatasetProposalAuthority(<redacted>)"
@@ -114,7 +123,7 @@ class PostgresDatasetProposalAuthority:
                 self._require_runtime_role(connection)
                 cursor = connection.execute(
                     "SELECT * FROM "
-                    "dohalm_dataset_governance_v1.read_dataset_version_proposal"
+                    "dohalm_dataset_governance_v1.read_dataset_version_proposal_v2"
                     "(%s, %s, %s)",
                     requested,
                 )
@@ -125,10 +134,10 @@ class PostgresDatasetProposalAuthority:
                         "read",
                         identity=identity,
                     )
-                return _authority_record(row)
+                return _authority_record(row, self._manifest_authority)
         except DatasetProposalAuthorityError:
             raise
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - sanitized persistence boundary
             sqlstate = getattr(error, "sqlstate", None)
             if isinstance(sqlstate, str) and sqlstate.startswith("XX"):
                 raise _corrupt() from None
@@ -146,7 +155,7 @@ class PostgresDatasetProposalAuthority:
         *,
         proposal_fingerprint: str,
     ) -> DatasetProposalAuthorityResult:
-        payload, fingerprint = _incoming(proposal, proposal_fingerprint)
+        payload, fingerprint, schema_version = _incoming(proposal, proposal_fingerprint)
         connection = None
         try:
             import psycopg
@@ -170,14 +179,15 @@ class PostgresDatasetProposalAuthority:
                 ).fetchone()
                 cursor = connection.execute(
                     "SELECT * FROM "
-                    "dohalm_dataset_governance_v1.compare_and_create_dataset_version_proposal"
-                    "(%s, %s, %s, %s, %s)",
+                    "dohalm_dataset_governance_v1.compare_and_create_dataset_version_proposal_v2"
+                    "(%s, %s, %s, %s, %s, %s)",
                     (
                         proposal.identity.object_id,
                         proposal.identity.dataset_id,
                         proposal.identity.dataset_version,
                         fingerprint,
                         payload,
+                        schema_version,
                     ),
                 )
                 inserted_rows = _named_rows(cursor)
@@ -189,7 +199,7 @@ class PostgresDatasetProposalAuthority:
                 else:
                     read_cursor = connection.execute(
                         "SELECT * FROM "
-                        "dohalm_dataset_governance_v1.read_dataset_version_proposal"
+                        "dohalm_dataset_governance_v1.read_dataset_version_proposal_v2"
                         "(%s, %s, %s)",
                         (
                             proposal.identity.object_id,
@@ -208,7 +218,6 @@ class PostgresDatasetProposalAuthority:
                         else "CONFLICT"
                     )
                     row["outcome"] = outcome
-                stored = _stored_proposal(row)
                 if outcome == "CONFLICT":
                     raise DatasetProposalAuthorityError(
                         "DATASET_VERSION_PROPOSAL_IDENTITY_CONFLICT",
@@ -217,6 +226,7 @@ class PostgresDatasetProposalAuthority:
                         existing_fingerprint=_text(row["proposal_fingerprint"]),
                         incoming_fingerprint=fingerprint,
                     )
+                stored = _stored_proposal(row, self._manifest_authority)
                 try:
                     resolved_outcome = DatasetProposalOutcome(outcome)
                 except ValueError:
@@ -231,7 +241,7 @@ class PostgresDatasetProposalAuthority:
                 )
         except DatasetProposalAuthorityError:
             raise
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - sanitized persistence boundary
             sqlstate = getattr(error, "sqlstate", None)
             if isinstance(sqlstate, str) and sqlstate.startswith("XX"):
                 raise _corrupt() from None
@@ -281,13 +291,15 @@ class PostgresDatasetProposalAuthority:
 
 def _incoming(
     proposal: DatasetVersionProposal, proposal_fingerprint: str
-) -> tuple[bytes, str]:
+) -> tuple[bytes, str, int]:
     if type(proposal) is not DatasetVersionProposal or proposal.status != "draft":
         raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "persistence")
     expected = dataset_version_proposal_fingerprint(proposal)
     if proposal_fingerprint != expected:
         raise DatasetProposalAuthorityError("PROPOSAL_INVALID", "fingerprint")
-    return canonical_json_bytes(proposal.payload), expected
+    if proposal._authority_root is None:
+        return canonical_json_bytes(proposal.payload), expected, 1
+    return proposal._authority_root, expected, 2
 
 
 def _read_identity(identity: object) -> tuple[str, str, str]:
@@ -330,7 +342,9 @@ def _optional_named_row(cursor: Any) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
-def _authority_record(row: dict[str, Any]) -> DatasetProposalAuthorityRecord:
+def _authority_record(
+    row: dict[str, Any], manifest_authority: Any = None
+) -> DatasetProposalAuthorityRecord:
     if set(row) != {
         "object_id",
         "dataset_id",
@@ -340,9 +354,10 @@ def _authority_record(row: dict[str, Any]) -> DatasetProposalAuthorityRecord:
         "authority_reference",
         "authority_version",
         "created_at",
+        "proposal_schema_version",
     }:
         raise _corrupt()
-    stored = _stored_proposal({"outcome": "REPLAYED", **row})
+    stored = _stored_proposal({"outcome": "REPLAYED", **row}, manifest_authority)
     return DatasetProposalAuthorityRecord(
         proposal=stored,
         identity=stored.identity,
@@ -352,7 +367,9 @@ def _authority_record(row: dict[str, Any]) -> DatasetProposalAuthorityRecord:
     )
 
 
-def _stored_proposal(row: dict[str, Any]) -> DatasetVersionProposal:
+def _stored_proposal(
+    row: dict[str, Any], manifest_authority: Any = None
+) -> DatasetVersionProposal:
     required = {
         "outcome",
         "object_id",
@@ -363,6 +380,7 @@ def _stored_proposal(row: dict[str, Any]) -> DatasetVersionProposal:
         "authority_reference",
         "authority_version",
         "created_at",
+        "proposal_schema_version",
     }
     if set(row) != required:
         raise _corrupt()
@@ -380,10 +398,21 @@ def _stored_proposal(row: dict[str, Any]) -> DatasetVersionProposal:
         decoded = json.loads(payload.decode("utf-8"), object_pairs_hook=unique)
         if not isinstance(decoded, dict) or canonical_json_bytes(decoded) != payload:
             raise _corrupt()
-        proposal = propose_dataset_version(decoded)
+        schema_version = _integer(row["proposal_schema_version"])
+        if schema_version == 1:
+            proposal = propose_dataset_version(decoded)
+        elif schema_version == 2:
+            resolve = getattr(manifest_authority, "resolve_root", None)
+            if not callable(resolve):
+                raise DatasetProposalAuthorityError(
+                    "DATASET_PROPOSAL_MANIFEST_AUTHORITY_MISSING", "read"
+                )
+            proposal = resolve(payload)
+        else:
+            raise _corrupt()
     except DatasetProposalAuthorityError:
         raise
-    except Exception:
+    except Exception:  # noqa: BLE001 - untrusted durable material
         raise _corrupt() from None
     fingerprint = _text(row["proposal_fingerprint"])
     if (
