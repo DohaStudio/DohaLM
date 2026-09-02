@@ -537,11 +537,22 @@ class _PostgresTrainingPrerequisiteResolver:
             "readiness": request.readiness_authority_id,
         }:
             raise ValueError("authority identity mismatch")
-        references = {
+        logical_keys = {
             "dataset_version": row["dataset_version_reference"],
             "dataset_manifest": row["dataset_manifest_reference"],
             "config": row["config_reference"],
             "readiness": row["readiness_reference"],
+        }
+        if any(
+            not isinstance(value, str) or _REFERENCE.fullmatch(value) is None
+            for value in logical_keys.values()
+        ):
+            raise ValueError("authority logical key invalid")
+        references = {
+            "dataset_version": f"dataset-version:{ids['dataset_version']}",
+            "dataset_manifest": f"dataset-manifest:{ids['dataset_manifest']}",
+            "config": f"config:{ids['config']}",
+            "readiness": f"readiness:{ids['readiness']}",
         }
         if references != {
             "dataset_version": intent.dataset_version_reference,

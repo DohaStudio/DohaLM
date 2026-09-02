@@ -470,12 +470,12 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
     row: dict[str, Any] = {
         "snapshot_at": now,
         "dataset_version_authority_id": UUID("11111111-1111-4111-8111-111111111111"),
-        "dataset_version_reference": intent.dataset_version_reference,
+        "dataset_version_reference": "dataset-version:logical-c2-unit",
         "dataset_version_source_commit": "a" * 40,
         "dataset_version_state": "current",
         "dataset_version_state_effective_at": now,
         "dataset_manifest_authority_id": UUID("22222222-2222-4222-8222-222222222222"),
-        "dataset_manifest_reference": intent.dataset_manifest_reference,
+        "dataset_manifest_reference": "dataset-manifest:logical-c2-unit",
         "dataset_manifest_source_commit": "a" * 40,
         "dataset_manifest_state": "current",
         "dataset_manifest_state_effective_at": now,
@@ -487,14 +487,14 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
         "dataset_pair_state": "current",
         "dataset_pair_state_effective_at": now,
         "config_authority_id": UUID("33333333-3333-4333-8333-333333333333"),
-        "config_reference": intent.training_config_reference,
+        "config_reference": "config:logical-c2-unit",
         "config_source_commit": "a" * 40,
         "config_kind": "full_pretraining",
         "config_schema_version": 1,
         "config_state": "current",
         "config_state_effective_at": now,
         "readiness_authority_id": UUID("44444444-4444-4444-8444-444444444444"),
-        "readiness_reference": intent.readiness_evidence_reference,
+        "readiness_reference": "readiness:logical-c2-unit",
         "readiness_source_commit": "a" * 40,
         "readiness_pair_fingerprint": intent.expected_dataset_pair_fingerprint,
         "readiness_config_fingerprint": config_fingerprint,
@@ -560,6 +560,10 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
     )
     root = resolver._materialization_root
     result = resolver.resolve(request)
+    assert result.dataset_version_reference == intent.dataset_version_reference
+    assert result.dataset_manifest_reference == intent.dataset_manifest_reference
+    assert result.training_config_reference == intent.training_config_reference
+    assert result.readiness_evidence_reference == intent.readiness_evidence_reference
     assert result.dataset_pair_authority_id == "88888888-8888-4888-8888-888888888888"
     assert result.config_path.read_bytes() == config
     assert result.manifest_path.read_bytes() == readiness
@@ -568,6 +572,38 @@ def test_c2_prerequisite_maps_named_snapshot_and_cleans_materialization(
     resolver.release(result)
     assert not result.config_path.parent.exists()
     resolver.close()
+
+    for field in (
+        "dataset_version_authority_id",
+        "dataset_manifest_authority_id",
+        "config_authority_id",
+        "readiness_authority_id",
+    ):
+        original = row[field]
+        row[field] = UUID("99999999-9999-4999-8999-999999999999")
+        mismatched = _PostgresTrainingPrerequisiteResolver(
+            _C2Factory("dohalm_training_resolver", [row]),
+            policy_reference="prerequisite-policy:c2",
+        )
+        try:
+            with pytest.raises(
+                TrainingError, match="TRAINING_HOST_PREREQUISITE_INVALID"
+            ):
+                mismatched.resolve(request)
+        finally:
+            mismatched.close()
+            row[field] = original
+
+    row["config_reference"] = "invalid logical key"
+    malformed = _PostgresTrainingPrerequisiteResolver(
+        _C2Factory("dohalm_training_resolver", [row]),
+        policy_reference="prerequisite-policy:c2",
+    )
+    try:
+        with pytest.raises(TrainingError, match="TRAINING_HOST_PREREQUISITE_INVALID"):
+            malformed.resolve(request)
+    finally:
+        malformed.close()
     assert not root.exists()
 
 
@@ -633,12 +669,12 @@ def test_c2_prerequisite_accepts_canonical_v2_pair_payload_without_fallback(
     row: dict[str, Any] = {
         "snapshot_at": now,
         "dataset_version_authority_id": UUID("11111111-1111-4111-8111-111111111111"),
-        "dataset_version_reference": intent.dataset_version_reference,
+        "dataset_version_reference": "dataset-version:logical-c2-v2",
         "dataset_version_source_commit": "a" * 40,
         "dataset_version_state": "current",
         "dataset_version_state_effective_at": now,
         "dataset_manifest_authority_id": UUID("22222222-2222-4222-8222-222222222222"),
-        "dataset_manifest_reference": intent.dataset_manifest_reference,
+        "dataset_manifest_reference": "dataset-manifest:logical-c2-v2",
         "dataset_manifest_source_commit": "a" * 40,
         "dataset_manifest_state": "current",
         "dataset_manifest_state_effective_at": now,
@@ -650,14 +686,14 @@ def test_c2_prerequisite_accepts_canonical_v2_pair_payload_without_fallback(
         "dataset_pair_state": "current",
         "dataset_pair_state_effective_at": now,
         "config_authority_id": UUID("33333333-3333-4333-8333-333333333333"),
-        "config_reference": intent.training_config_reference,
+        "config_reference": "config:logical-c2-v2",
         "config_source_commit": "a" * 40,
         "config_kind": "full_pretraining",
         "config_schema_version": 1,
         "config_state": "current",
         "config_state_effective_at": now,
         "readiness_authority_id": UUID("44444444-4444-4444-8444-444444444444"),
-        "readiness_reference": intent.readiness_evidence_reference,
+        "readiness_reference": "readiness:logical-c2-v2",
         "readiness_source_commit": "a" * 40,
         "readiness_pair_fingerprint": published.pair_fingerprint,
         "readiness_config_fingerprint": config_fingerprint,
