@@ -23,7 +23,10 @@ from src.data.dataset_proposal_authority import (
     DatasetProposalEvidenceStatus,
     dataset_version_proposal_fingerprint,
 )
-from src.data.postgres_current_evidence import PostgresCurrentRightsAuthority
+from src.data.postgres_current_evidence import (
+    AuthenticatedCurrentRightsMetadataVerifier,
+    PostgresCurrentRightsAuthority,
+)
 from src.data.product_dataset_current_evidence import (
     BoundDatasetLifecycleCurrentEvidence,
     DatasetLifecycleStage,
@@ -331,8 +334,25 @@ def test_indefinite_retention_requires_exact_current_owner_projection() -> None:
             stage=stage,
         )
     projected = project_common_rights_metadata(snapshot.rights)
+    verifier = AuthenticatedCurrentRightsMetadataVerifier(rights)
 
     assert lifecycle.verify_current_indefinite_retention(identity, projected) is True
+    assert verifier(projected) is True
+    assert verifier(projected | {"rights_status": "revoked"}) is False
+    stale_extension = dict(projected["extensions"]["doharights.current_use"])
+    stale_extension["rights_source_token_fingerprint"] = "sha256:" + "f" * 64
+    assert (
+        verifier(
+            projected | {"extensions": {"doharights.current_use": stale_extension}}
+        )
+        is False
+    )
+    wrong_subject = dict(projected["extensions"]["doharights.current_use"])
+    wrong_subject["rights_subject_id"] = "88888888-8888-4888-8888-888888888888"
+    assert (
+        verifier(projected | {"extensions": {"doharights.current_use": wrong_subject}})
+        is False
+    )
     assert (
         lifecycle.verify_current_indefinite_retention(
             identity,
@@ -341,8 +361,11 @@ def test_indefinite_retention_requires_exact_current_owner_projection() -> None:
         is False
     )
     rights.current = False
+    assert verifier(projected) is False
     with pytest.raises(CurrentEvidenceError, match="CURRENT_EVIDENCE_SNAPSHOT_STALE"):
         lifecycle.verify_current_indefinite_retention(identity, projected)
+    rights.current, rights.unavailable = True, True
+    assert verifier(projected) is False
 
 
 class _Cursor:

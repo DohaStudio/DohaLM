@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -411,7 +411,14 @@ def _validate_yaml_source(payload: bytes) -> None:
 class _PostgresTrainingPrerequisiteResolver:
     """Resolve one immutable prerequisite snapshot through the resolver function."""
 
-    def __init__(self, factory: _ConnectionFactory, *, policy_reference: str) -> None:
+    def __init__(
+        self,
+        factory: _ConnectionFactory,
+        *,
+        policy_reference: str,
+        indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool]
+        | None = None,
+    ) -> None:
         if (
             factory.role != _RESOLVER_ROLE
             or _REFERENCE.fullmatch(policy_reference) is None
@@ -422,6 +429,7 @@ class _PostgresTrainingPrerequisiteResolver:
             )
         self._factory = factory
         self._policy_reference = policy_reference
+        self._indefinite_rights_currentness = indefinite_rights_currentness
         self._materialization_root = Path(tempfile.mkdtemp(prefix="dohalm-c2-"))
         self._closed = False
 
@@ -608,6 +616,7 @@ class _PostgresTrainingPrerequisiteResolver:
             readiness_report=readiness_report,
             expected_split_id=expected_split_id,
             artifact_references=artifacts,
+            indefinite_rights_currentness=self._indefinite_rights_currentness,
         )
         if (
             permission.allowed is not True

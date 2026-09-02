@@ -74,6 +74,31 @@ def test_valid_pair_returns_immutable_non_activating_permission(tmp_path: Path):
         assert forbidden not in vars(consumer)
 
 
+def test_indefinite_rights_require_injected_authenticated_currentness(tmp_path: Path):
+    values = _inputs(tmp_path)
+    expected = set()
+    for item in values["upstream_objects"]:
+        if item.get("schema_name") == "rights_metadata":
+            item["retention_allowed"] = True
+            expected.add(item["rights_metadata_id"])
+
+    missing = evaluate_dataset_training_entry(**values)
+    seen = set()
+
+    def current(rights):
+        seen.add(rights["rights_metadata_id"])
+        return True
+
+    allowed = evaluate_dataset_training_entry(
+        **values,
+        indefinite_rights_currentness=current,
+    )
+
+    assert missing.reason_codes == ("DATASET_PUBLICATION_SCENARIO_INVALID",)
+    assert allowed.allowed is True
+    assert seen == expected
+
+
 @pytest.mark.parametrize(
     ("mutation", "code"),
     (

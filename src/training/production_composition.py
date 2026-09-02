@@ -18,6 +18,11 @@ from pathlib import Path
 from typing import Iterator
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from src.data.postgres_current_evidence import (
+    AuthenticatedCurrentRightsMetadataVerifier,
+    PostgresCurrentRightsAuthority,
+)
+
 from .errors import TrainingError
 from .full_pretraining import FullPretrainingConfig, resolve_full_pretraining_path
 from .postgres_training_adapters import (
@@ -196,6 +201,104 @@ class _RevocablePostgresTrainingConnectionFactory:
         self._delegate = None
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class _PostgresRightsCurrentnessConfiguration:
+    """Authenticated DohaRights reader settings owned by production composition."""
+
+    environment: str
+    host: str
+    port: int
+    database: str
+    reader_user: str
+    reader_password: str
+    source_authority_id: str
+    application_name: str
+    connect_timeout_seconds: int = 5
+    sslmode: str = "verify-full"
+    sslrootcert: Path | None = None
+
+    def __post_init__(self) -> None:
+        local = (
+            self.environment in {"isolated_test", "local_single_user"}
+            and self.host == "127.0.0.1"
+            and self.sslmode == "disable"
+            and self.sslrootcert is None
+        )
+        production = (
+            self.environment == "production"
+            and self.sslmode == "verify-full"
+            and isinstance(self.sslrootcert, Path)
+            and self.sslrootcert.is_absolute()
+            and self.sslrootcert.is_file()
+            and not self.sslrootcert.is_symlink()
+        )
+        if (
+            not (local or production)
+            or not self.host
+            or type(self.port) is not int
+            or not 1 <= self.port <= 65535
+            or _REFERENCE.fullmatch(self.database) is None
+            or _REFERENCE.fullmatch(self.reader_user) is None
+            or not self.reader_password
+            or not _is_uuid(self.source_authority_id)
+            or _APPLICATION_NAME.fullmatch(self.application_name) is None
+            or not 1 <= self.connect_timeout_seconds <= 60
+        ):
+            raise _configuration_error()
+
+    def __repr__(self) -> str:
+        return "_PostgresRightsCurrentnessConfiguration(<redacted>)"
+
+
+class _RevocablePostgresRightsConnectionFactory:
+    """Composition-owned authenticated DohaRights read connection boundary."""
+
+    role = "doharights_reader"
+
+    def __init__(
+        self,
+        configuration: _PostgresRightsCurrentnessConfiguration,
+        lease: _PostgresTrainingLifecycleLease,
+    ) -> None:
+        self._configuration: _PostgresRightsCurrentnessConfiguration | None = (
+            configuration
+        )
+        self._lease = lease
+
+    @contextmanager
+    def connection(self) -> Iterator[object]:
+        with self._lease.connection_operation():
+            configuration = self._configuration
+            if configuration is None:
+                raise _lifecycle_error()
+            import psycopg
+
+            values: dict[str, object] = {
+                "host": configuration.host,
+                "port": configuration.port,
+                "dbname": configuration.database,
+                "user": configuration.reader_user,
+                "password": configuration.reader_password,
+                "connect_timeout": configuration.connect_timeout_seconds,
+                "application_name": configuration.application_name,
+                "sslmode": configuration.sslmode,
+                "options": "-c timezone=UTC -c client_encoding=UTF8",
+            }
+            if configuration.sslrootcert is not None:
+                values["sslrootcert"] = str(configuration.sslrootcert)
+            with psycopg.connect(**values) as connection:
+                membership = connection.execute(
+                    "SELECT pg_has_role(current_user, %s, 'member')",
+                    (self.role,),
+                ).fetchone()
+                if membership != (True,):
+                    raise _configuration_error()
+                yield connection
+
+    def close(self) -> None:
+        self._configuration = None
+
+
 def _error(code: str, message: str) -> TrainingError:
     return TrainingError(code, message)
 
@@ -246,6 +349,7 @@ class _PostgresTrainingCompositionConfiguration:
     transaction_timeout_ms: int | None = None
     sslmode: str | None = None
     sslrootcert: Path | None = None
+    rights_currentness: _PostgresRightsCurrentnessConfiguration | None = None
 
     def __post_init__(self) -> None:
         values = tuple(
@@ -305,6 +409,14 @@ class _PostgresTrainingCompositionConfiguration:
             or type(self.transaction_timeout_ms) is not int
             or not self.statement_timeout_ms <= self.transaction_timeout_ms <= 600_000
             or not (production_tls or local_tls)
+            or (
+                self.rights_currentness is not None
+                and (
+                    type(self.rights_currentness)
+                    is not _PostgresRightsCurrentnessConfiguration
+                    or self.rights_currentness.environment != self.environment
+                )
+            )
         ):
             raise _configuration_error()
 
@@ -512,6 +624,7 @@ class _PostgresTrainingComposition:
         "_preflight_complete",
         "_prerequisite_resolver",
         "_resolver_factory",
+        "_rights_factory",
     )
 
     def __init__(
@@ -520,6 +633,7 @@ class _PostgresTrainingComposition:
         lease: _PostgresTrainingLifecycleLease,
         resolver_factory: _RevocablePostgresTrainingConnectionFactory,
         journal_factory: _RevocablePostgresTrainingConnectionFactory,
+        rights_factory: _RevocablePostgresRightsConnectionFactory | None,
         prerequisite_resolver: _PostgresTrainingPrerequisiteResolver,
         decision_resolver: _PostgresTrainingDecisionResolver,
         journal: _PostgresTrainingExecutionJournal,
@@ -528,6 +642,7 @@ class _PostgresTrainingComposition:
         self._lease = lease
         self._resolver_factory = resolver_factory
         self._journal_factory = journal_factory
+        self._rights_factory = rights_factory
         self._prerequisite_resolver = prerequisite_resolver
         self._decision_resolver = decision_resolver
         self._journal = journal
@@ -777,7 +892,11 @@ class _PostgresTrainingComposition:
         cleanup_failed = False
         host = self._host
         prerequisite = self._prerequisite_resolver
-        factories = (self._resolver_factory, self._journal_factory)
+        factories = (
+            self._resolver_factory,
+            self._journal_factory,
+            self._rights_factory,
+        )
         try:
             if host is not None:
                 try:
@@ -799,6 +918,7 @@ class _PostgresTrainingComposition:
             self._configuration = None
             self._resolver_factory = None
             self._journal_factory = None
+            self._rights_factory = None
             self._prerequisite_resolver = None
             self._decision_resolver = None
             self._journal = None
@@ -953,6 +1073,7 @@ def _compose_postgres_training_host(
     prerequisite: _PostgresTrainingPrerequisiteResolver | None = None
     resolver_factory: _RevocablePostgresTrainingConnectionFactory | None = None
     journal_factory: _RevocablePostgresTrainingConnectionFactory | None = None
+    rights_factory: _RevocablePostgresRightsConnectionFactory | None = None
     try:
         resolver_factory = _RevocablePostgresTrainingConnectionFactory(
             _PostgresTrainingConnectionFactory(
@@ -966,9 +1087,25 @@ def _compose_postgres_training_host(
             ),
             lease,
         )
+        rights_verifier = None
+        if configuration.rights_currentness is not None:
+            rights_factory = _RevocablePostgresRightsConnectionFactory(
+                configuration.rights_currentness,
+                lease,
+            )
+            rights_authority = PostgresCurrentRightsAuthority(
+                rights_factory,
+                source_authority_id=(
+                    configuration.rights_currentness.source_authority_id
+                ),
+            )
+            rights_verifier = AuthenticatedCurrentRightsMetadataVerifier(
+                rights_authority
+            )
         prerequisite = _PostgresTrainingPrerequisiteResolver(
             resolver_factory,
             policy_reference=configuration.prerequisite_policy_reference,
+            indefinite_rights_currentness=rights_verifier,
         )
         decision = _PostgresTrainingDecisionResolver(
             resolver_factory,
@@ -980,13 +1117,14 @@ def _compose_postgres_training_host(
             lease,
             resolver_factory,
             journal_factory,
+            rights_factory,
             prerequisite,
             decision,
             journal,
         )
     except BaseException as error:
         if lease.begin_shutdown(failed=True):
-            for factory in (resolver_factory, journal_factory):
+            for factory in (resolver_factory, journal_factory, rights_factory):
                 if factory is not None:
                     try:
                         factory.close()
