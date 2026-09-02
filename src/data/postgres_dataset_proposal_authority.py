@@ -134,7 +134,7 @@ class PostgresDatasetProposalAuthority:
                         "read",
                         identity=identity,
                     )
-                return _authority_record(row, self._manifest_authority)
+            return _authority_record(row, self._manifest_authority)
         except DatasetProposalAuthorityError:
             raise
         except Exception as error:  # noqa: BLE001 - sanitized persistence boundary
@@ -227,19 +227,19 @@ class PostgresDatasetProposalAuthority:
                         existing_fingerprint=_text(row["proposal_fingerprint"]),
                         incoming_fingerprint=fingerprint,
                     )
-                stored = _stored_proposal(row, self._manifest_authority)
-                try:
-                    resolved_outcome = DatasetProposalOutcome(outcome)
-                except ValueError:
-                    raise _corrupt() from None
-                return DatasetProposalAuthorityResult(
-                    outcome=resolved_outcome,
-                    proposal=stored,
-                    identity=stored.identity,
-                    proposal_fingerprint=_text(row["proposal_fingerprint"]),
-                    authority_reference=_text(row["authority_reference"]),
-                    authority_version=_integer(row["authority_version"]),
-                )
+            stored = _stored_proposal(row, self._manifest_authority)
+            try:
+                resolved_outcome = DatasetProposalOutcome(outcome)
+            except ValueError:
+                raise _corrupt() from None
+            return DatasetProposalAuthorityResult(
+                outcome=resolved_outcome,
+                proposal=stored,
+                identity=stored.identity,
+                proposal_fingerprint=_text(row["proposal_fingerprint"]),
+                authority_reference=_text(row["authority_reference"]),
+                authority_version=_integer(row["authority_version"]),
+            )
         except DatasetProposalAuthorityError:
             raise
         except Exception as error:  # noqa: BLE001 - sanitized persistence boundary

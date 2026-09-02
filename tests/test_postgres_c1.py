@@ -322,6 +322,8 @@ def test_large_dataset_proposal_migration_preserves_v1_and_adds_bounded_v2() -> 
     assert "%s::char(71)" in proposal_adapter_source
     assert "%s::smallint" in proposal_adapter_source
     assert "%s::varchar" in proposal_adapter_source
+    assert "            return _authority_record(row" in proposal_adapter_source
+    assert "            stored = _stored_proposal(row" in proposal_adapter_source
     assert "TO dohalm_dataset_proposal_authority" in sql
     assert "DROP" not in sql
     assert "INSERT/UPDATE/DELETE" not in sql
