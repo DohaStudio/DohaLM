@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Protocol
 
@@ -14,7 +15,7 @@ from .current_evidence_snapshot import (
 )
 from .dataset_governance import DatasetVersionIdentity, DatasetVersionProposal
 from .dataset_proposal_authority import DatasetProposalEvidenceDecision
-from datetime import datetime
+from .rights_metadata_projection import project_common_rights_metadata
 
 
 class DatasetLifecycleStage(str, Enum):
@@ -134,6 +135,32 @@ class BoundDatasetLifecycleCurrentEvidence:
         binding = self._bindings.read(identity, DatasetLifecycleStage.PUBLICATION)
         self._coordinator.verify(binding.snapshot_id, binding.snapshot_fingerprint)
         return binding
+
+    def verify_current_indefinite_retention(
+        self,
+        identity: DatasetVersionIdentity,
+        rights_metadata: object,
+    ) -> bool:
+        """Verify one boolean Common retention projection against Model C."""
+
+        if not isinstance(rights_metadata, dict):
+            return False
+        binding = self.require_current_publication(identity)
+        snapshot = self._snapshot(binding.proposal_fingerprint)
+        if (
+            binding.snapshot_id != snapshot.snapshot_id
+            or binding.snapshot_fingerprint != snapshot.snapshot_fingerprint
+            or snapshot.rights.metadata is None
+            or snapshot.rights.metadata.retention_mode != "indefinite_while_current"
+            or snapshot.rights.metadata.retention_scope != "training"
+            or snapshot.rights.metadata.retention_expires_at is not None
+        ):
+            return False
+        self._coordinator.verify(snapshot.snapshot_id, snapshot.snapshot_fingerprint)
+        try:
+            return project_common_rights_metadata(snapshot.rights) == rights_metadata
+        except (CurrentEvidenceError, ValueError):
+            return False
 
     def _snapshot(self, proposal_fingerprint: str) -> DatasetGovernanceSnapshot:
         key = f"proposal:{proposal_fingerprint[7:]}"

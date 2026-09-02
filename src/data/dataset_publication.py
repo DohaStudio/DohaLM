@@ -7,7 +7,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -238,6 +238,7 @@ def publish_dataset_version(
     upstream_objects: Sequence[Mapping[str, Any]],
     evaluated_at: str,
     publication_root: Path,
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None = None,
 ) -> DatasetPublicationResult:
     """Build, validate, and atomically publish one frozen/issued pair."""
 
@@ -253,7 +254,12 @@ def publish_dataset_version(
         "evaluated_at": evaluated_at,
         "objects": [*upstream, frozen, manifest],
     }
-    _validate_pair(frozen, manifest, scenario)
+    _validate_pair(
+        frozen,
+        manifest,
+        scenario,
+        indefinite_rights_currentness=indefinite_rights_currentness,
+    )
 
     storage_key = _storage_key(
         DatasetVersionIdentity(
@@ -278,6 +284,7 @@ def publish_dataset_version(
             scenario,
             storage_key,
             pair_fingerprint,
+            indefinite_rights_currentness,
         )
 
     transaction = AtomicArtifactDirectory(final_path)
@@ -286,7 +293,14 @@ def publish_dataset_version(
         with transaction as staging:
             for name, payload in expected.items():
                 _write_canonical_file(staging / name, payload)
-            _verify_directory(staging, expected, frozen, manifest, scenario)
+            _verify_directory(
+                staging,
+                expected,
+                frozen,
+                manifest,
+                scenario,
+                indefinite_rights_currentness,
+            )
             try:
                 transaction.publish()
             except DataPipelineError:
@@ -307,12 +321,20 @@ def publish_dataset_version(
                 scenario,
                 storage_key,
                 pair_fingerprint,
+                indefinite_rights_currentness,
             )
         raise DatasetPublicationError("PUBLICATION_COMMIT_FAILED", "commit") from exc
     except OSError as exc:
         raise DatasetPublicationError("PUBLICATION_IO_FAILED", "persistence") from exc
 
-    _verify_directory(final_path, expected, frozen, manifest, scenario)
+    _verify_directory(
+        final_path,
+        expected,
+        frozen,
+        manifest,
+        scenario,
+        indefinite_rights_currentness,
+    )
     return DatasetPublicationResult._create(
         frozen,
         manifest,
@@ -406,12 +428,17 @@ def _validate_pair(
     version: Mapping[str, Any],
     manifest: Mapping[str, Any],
     scenario: Mapping[str, Any],
+    *,
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None = None,
 ) -> None:
     try:
         validate_dataset_version(version)
         validate_dataset_manifest(manifest)
         _require_domain_identity(version, manifest)
-        validate_dataset_publication_scenario(scenario)
+        validate_dataset_publication_scenario(
+            scenario,
+            indefinite_rights_currentness=indefinite_rights_currentness,
+        )
     except CommonDatasetValidationError as exc:
         raise DatasetPublicationError(
             "PUBLICATION_CONTRACT_INVALID", "validation"
@@ -579,8 +606,16 @@ def _replay(
     scenario: Mapping[str, Any],
     storage_key: str,
     pair_fingerprint: str,
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None,
 ) -> DatasetPublicationResult:
-    _verify_directory(final_path, expected, version, manifest, scenario)
+    _verify_directory(
+        final_path,
+        expected,
+        version,
+        manifest,
+        scenario,
+        indefinite_rights_currentness,
+    )
     return DatasetPublicationResult._create(
         version,
         manifest,
@@ -596,6 +631,7 @@ def _verify_directory(
     version: Mapping[str, Any],
     manifest: Mapping[str, Any],
     scenario: Mapping[str, Any],
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None,
 ) -> None:
     try:
         entries = tuple(path.iterdir())
@@ -624,7 +660,12 @@ def _verify_directory(
         decoded[_VERSION_FILE],
         decoded[_MANIFEST_FILE],
     ]
-    _validate_pair(decoded[_VERSION_FILE], decoded[_MANIFEST_FILE], persisted_scenario)
+    _validate_pair(
+        decoded[_VERSION_FILE],
+        decoded[_MANIFEST_FILE],
+        persisted_scenario,
+        indefinite_rights_currentness=indefinite_rights_currentness,
+    )
 
 
 def _write_canonical_file(path: Path, payload: bytes) -> None:

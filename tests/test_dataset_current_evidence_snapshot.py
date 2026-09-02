@@ -29,6 +29,11 @@ from src.data.product_dataset_current_evidence import (
     DatasetLifecycleStage,
     InMemoryCurrentEvidenceBindingAuthority,
 )
+from src.data.rights_metadata_projection import (
+    AuthorityRightsMetadata,
+    TypedRightsEvidence,
+    project_common_rights_metadata,
+)
 from test_dataset_proposal_authority import _payload
 
 NOW = datetime(2026, 9, 1, tzinfo=timezone.utc)
@@ -88,6 +93,7 @@ class _Rights:
     def __init__(self) -> None:
         self.current = True
         self.unavailable = False
+        self.metadata: AuthorityRightsMetadata | None = None
         self.token = _token(
             RIGHTS_SOURCE,
             "rights-source-token-v1",
@@ -109,6 +115,7 @@ class _Rights:
             False,
             FP_RIGHTS,
             self.token,
+            self.metadata,
         )
 
     def verify_currentness(self, token: SourceToken) -> bool:
@@ -265,6 +272,77 @@ def test_review_approval_publication_bind_exact_snapshot_and_recheck() -> None:
     rights.current = False
     with pytest.raises(CurrentEvidenceError, match="CURRENT_EVIDENCE_SNAPSHOT_STALE"):
         lifecycle.require_current_publication(identity)
+
+
+def test_indefinite_retention_requires_exact_current_owner_projection() -> None:
+    dataset, rights = _Dataset(), _Rights()
+    rights.metadata = AuthorityRightsMetadata(
+        dataset_source_identity="AIHUB-71748",
+        subject_kind="source_dataset",
+        bound_identity="AIHUB-71748",
+        rights_status="approved_limited",
+        source_type="external",
+        user_created=False,
+        generated=False,
+        reference=False,
+        uploaded=False,
+        external=True,
+        analysis_allowed=True,
+        derivative_generation_allowed=True,
+        retention_mode="indefinite_while_current",
+        retention_scope="training",
+        retention_expires_at=None,
+        consent_evidence_references=(),
+        jurisdiction="KR",
+        reviewer_authority_id="66666666-6666-4666-8666-666666666666",
+        reviewed_at=NOW,
+        producer_authority_id="77777777-7777-4777-8777-777777777777",
+        effective_at=NOW,
+        current_use_authorized=True,
+        current_use_scope="internal_noncommercial_model_training_and_evaluation",
+        fresh_acquisition_required=False,
+        existing_material_reuse=True,
+        historical_acquisition_receipt="not_recovered",
+        provider_reacquisition_requirement_found=False,
+        typed_evidence_references=(
+            TypedRightsEvidence("evidence:current-policy", "provider_usage_policy"),
+            TypedRightsEvidence("evidence:source-integrity", "source_integrity"),
+        ),
+    )
+    coordinator = _coordinator(dataset, rights)
+    snapshot = coordinator.capture(
+        idempotency_key=f"proposal:{FP_PROPOSAL[7:]}",
+        proposal_fingerprint=FP_PROPOSAL,
+        dataset_subject_id="AIHUB-71748",
+        rights_subject_id=RIGHTS_SUBJECT,
+        captured_at=NOW,
+    )
+    lifecycle = BoundDatasetLifecycleCurrentEvidence(
+        coordinator=coordinator,
+        bindings=InMemoryCurrentEvidenceBindingAuthority(),
+        dataset_subject_id="AIHUB-71748",
+        rights_subject_id=RIGHTS_SUBJECT,
+    )
+    identity = DatasetVersionIdentity("object-1", "AIHUB-71748", "production-v1")
+    for stage in DatasetLifecycleStage:
+        lifecycle.freeze_stage(
+            identity=identity,
+            proposal_fingerprint=FP_PROPOSAL,
+            stage=stage,
+        )
+    projected = project_common_rights_metadata(snapshot.rights)
+
+    assert lifecycle.verify_current_indefinite_retention(identity, projected) is True
+    assert (
+        lifecycle.verify_current_indefinite_retention(
+            identity,
+            projected | {"rights_status": "revoked"},
+        )
+        is False
+    )
+    rights.current = False
+    with pytest.raises(CurrentEvidenceError, match="CURRENT_EVIDENCE_SNAPSHOT_STALE"):
+        lifecycle.verify_current_indefinite_retention(identity, projected)
 
 
 class _Cursor:
