@@ -880,7 +880,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
         assert sorted(results, key=len) == [
             (),
-            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+            (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12),
         ]
         yield C1Fixture(
             correlation,
@@ -1468,7 +1468,7 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                 6,
             )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (7, 8, 9, 10, 11)
+            assert apply_c1_migrations(connection) == (7, 8, 9, 10, 11, 12)
             assert connection.execute(
                 "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
                 "has_function_privilege('public', %s, 'EXECUTE')",
@@ -1638,7 +1638,7 @@ def test_dataset_pair_supersession_upgrades_production_shaped_0010_state(
             connection.commit()
 
         with factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (11,)
+            assert apply_c1_migrations(connection) == (11, 12)
             after = connection.execute(
                 f"SELECT p.authority_id,p.payload_bytes,p.payload_sha256,c.state,c.projection_version "
                 f"FROM {SCHEMA}.dataset_pair_authority p JOIN {SCHEMA}.training_authority_current c USING(authority_id) "
@@ -2311,20 +2311,20 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
             connection.execute(
                 f"INSERT INTO {SCHEMA}.dataset_version_authority "
                 "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
-                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'dataset-version-object:c1-2')",
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,'dataset-version-object:c1-2')",
                 (authority_ids["version"], *version_payload, source_commit),
             )
             connection.execute(
                 f"INSERT INTO {SCHEMA}.dataset_manifest_authority "
                 "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,common_object_id) "
-                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,'dataset-manifest-object:c1-2')",
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,'dataset-manifest-object:c1-2')",
                 (authority_ids["manifest"], *manifest_payload, source_commit),
             )
             connection.execute(
                 f"INSERT INTO {SCHEMA}.dataset_pair_authority "
                 "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,"
                 "dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
-                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,%s,%s,%s,'synthetic-contract')",
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s,%s,%s,'synthetic-contract')",
                 (
                     authority_ids["pair"],
                     *pair_payload,
@@ -2373,13 +2373,19 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
                 ("approver", authority_ids["approver"]),
                 ("decision", authority_ids["decision"]),
             ):
+                effective_at = (
+                    None
+                    if family in {"dataset_version", "dataset_manifest", "dataset_pair"}
+                    else "2090-01-01T00:00:00Z"
+                )
                 connection.execute(
                     f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,%s,0,'published',NULL,"
-                    "'2090-01-01T00:00:00Z',%s,%s)).state",
+                    "COALESCE(%s::timestamptz,transaction_timestamp()),%s,%s)).state",
                     (
                         uuid.uuid4(),
                         authority_id,
                         family,
+                        effective_at,
                         f"correlation:{family}",
                         f"evidence:{family}",
                     ),
@@ -2425,9 +2431,10 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
                 prerequisite["dataset_version_state"],
                 prerequisite["dataset_manifest_state"],
                 prerequisite["dataset_pair_state"],
-                prerequisite["config_state"],
-                prerequisite["readiness_state"],
-            } == {"scheduled"}
+            } == {"current"}
+            assert {prerequisite["config_state"], prerequisite["readiness_state"]} == {
+                "scheduled"
+            }
         with connection.transaction():
             connection.execute(
                 "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
@@ -2459,7 +2466,7 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
                 f"INSERT INTO {SCHEMA}.dataset_pair_authority "
                 "(authority_id,payload_bytes,payload_sha256,valid_from,source_commit,"
                 "dataset_version_authority_id,dataset_manifest_authority_id,pair_fingerprint,publication_scenario) "
-                "VALUES (%s,%s,%s,'2090-01-01T00:00:00Z',%s,%s,%s,%s,'synthetic-conflict')",
+                "VALUES (%s,%s,%s,transaction_timestamp(),%s,%s,%s,%s,'synthetic-conflict')",
                 (
                     conflicting_pair_id,
                     *conflicting_payload,
@@ -2471,7 +2478,7 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
             )
             connection.execute(
                 f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,'dataset_pair',0,'published',NULL,"
-                "'2090-01-01T00:00:00Z','correlation:pair-conflict','evidence:pair-conflict')).state",
+                "transaction_timestamp(),'correlation:pair-conflict','evidence:pair-conflict')).state",
                 (uuid.uuid4(), conflicting_pair_id),
             )
         with pytest.raises(Exception) as captured:
@@ -2493,6 +2500,34 @@ def test_c1_2_typed_snapshots_and_complete_journal_contract(
                     ),
                 ).fetchall()
         assert captured.value.sqlstate == "21000"
+        with connection.transaction():
+            connection.execute("SET LOCAL ROLE dohalm_training_authority_producer")
+            connection.execute(
+                f"SELECT ({SCHEMA}.write_training_authority_event(%s,%s,'dataset_pair',1,'superseded',%s,"
+                "transaction_timestamp(),'correlation:pair-superseded','evidence:pair-superseded')).state",
+                (uuid.uuid4(), authority_ids["pair"], conflicting_pair_id),
+            )
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
+            )
+            connection.execute("SET LOCAL ROLE dohalm_training_resolver")
+            current_only = named(
+                connection.execute(
+                    f"SELECT * FROM {SCHEMA}.read_c2_training_prerequisite_snapshot(%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        authority_ids["version"],
+                        authority_ids["manifest"],
+                        config_id,
+                        readiness_id,
+                        pair_fingerprint,
+                        config_fingerprint,
+                        readiness_fingerprint,
+                    ),
+                )
+            )
+            assert str(current_only["dataset_pair_authority_id"]) == conflicting_pair_id
+            assert current_only["dataset_pair_state"] == "current"
         with connection.transaction():
             connection.execute(
                 "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"
@@ -3159,6 +3194,7 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 9,
                 10,
                 11,
+                12,
             )
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
@@ -3288,6 +3324,15 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (
                         migration_root
                         / "0011_dataset_pair_append_only_supersession.sql"
+                    ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                12,
+                "0012_c2_current_dataset_pair_snapshot.sql",
+                hashlib.sha256(
+                    (
+                        migration_root / "0012_c2_current_dataset_pair_snapshot.sql"
                     ).read_bytes()
                 ).hexdigest(),
             ),
@@ -3733,6 +3778,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (9, "0009_large_dataset_proposal_authority.sql"),
                 (10, "0010_dataset_pair_c3_payload_compatibility.sql"),
                 (11, "0011_dataset_pair_append_only_supersession.sql"),
+                (12, "0012_c2_current_dataset_pair_snapshot.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
