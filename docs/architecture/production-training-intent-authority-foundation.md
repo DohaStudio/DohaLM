@@ -34,6 +34,7 @@ current dedicated submitter authority
 | `postgres_training_intent_authority.py` | producer/writer/resolver role로 제한된 PostgreSQL function adapter와 안정적인 오류 분류 |
 | migration `0006` | dedicated submitter authority, immutable submission, immutable decision binding, restricted function과 GRANT |
 | migration `0007` | issuer·approver·config·readiness·decision과 Dataset version/manifest/pair 원자 등록을 위한 family-specific `SECURITY DEFINER` 함수 및 producer-only `EXECUTE` |
+| migration `0010` | 기존 v1 pair payload를 보존하면서 C3 입력을 완결한 v2 pair authority를 발행하고, 공통 append-only lifecycle event로 v1을 supersede하는 producer-only replacement 함수 |
 | `production_authority_provisioning.py` | raw SQL 없는 typed command/result port, submitter/issuer/approver UUID 분리와 staged provisioning package |
 | `postgres_production_authority_provisioning.py` | producer role만 허용하는 restricted-function adapter; generic privileged CRUD 및 table DML 없음 |
 | `product_dataset_authority_registration.py` / `dataset_publication_authority_bridge.py` | Dataset-owned pure material builder가 frozen/issued publication과 non-commercial eligibility를 stable identity로 동결하고 Training bridge가 PostgreSQL Dataset authority 3종에 원자 등록 |
@@ -50,6 +51,7 @@ current dedicated submitter authority
 - intent writer는 restricted submit function만 실행할 수 있고 resolver는 restricted read function만 실행할 수 있다.
 - execution journal schema와 row는 이 foundation에서 변경하지 않는다.
 - provisioning adapter에는 generic CRUD가 없고 모든 쓰기는 고정 `search_path`의 family-specific 함수로만 수행한다. Dataset version/manifest/pair는 단일 함수·단일 transaction이며 동일 입력은 replay되고 다른 payload는 전체 rollback된다.
+- Dataset pair v2는 `upstream_objects`, `artifact_references`, `evaluated_at`, `expected_split_id`를 기존 authoritative publication evidence에서 동결한다. DatasetVersion·DatasetManifest canonical pair fingerprint는 content identity이므로 그대로 유지하고, v2 authority identity는 canonical payload SHA-256으로 별도 결속한다. 기존 v1 payload는 UPDATE·DELETE하지 않으며 v2 current 전환은 append-only `superseded` event로만 표현한다.
 
 ## Canonical projection
 

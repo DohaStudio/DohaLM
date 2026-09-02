@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, Iterator, Mapping, Protocol
+from typing import Any, Protocol
 
 from .errors import TrainingError
 from .production_authority_provisioning import (
@@ -11,12 +12,13 @@ from .production_authority_provisioning import (
     ConfigAuthorityProvisionCommand,
     DatasetAuthorityRegistrationCommand,
     DatasetAuthorityRegistrationResult,
+    DatasetPairReplacementCommand,
+    DatasetPairReplacementResult,
     DecisionAuthorityProvisionCommand,
     PrincipalProvisionCommand,
     ProductionAuthorityProvisioningPort,
     ReadinessAuthorityProvisionCommand,
 )
-
 
 _PRODUCER_ROLE = "dohalm_training_authority_producer"
 
@@ -265,6 +267,60 @@ class PostgresProductionAuthorityProvisioning(ProductionAuthorityProvisioningPor
                     dataset_version_id=_trim(row["dataset_version_id"]),
                     dataset_manifest_id=_trim(row["dataset_manifest_id"]),
                     pair_fingerprint=_trim(row["pair_fingerprint"]),
+                )
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                raise
+            raise _map_error(error) from None
+
+    def replace_dataset_pair(
+        self, command: DatasetPairReplacementCommand
+    ) -> DatasetPairReplacementResult:
+        if type(command) is not DatasetPairReplacementCommand:
+            raise _map_error(ValueError("invalid Dataset pair replacement command"))
+        try:
+            with self._producer.transaction(
+                isolation="READ COMMITTED", read_only=False
+            ) as connection:
+                cursor = connection.execute(
+                    "SELECT * FROM dohalm_training_v1.replace_training_dataset_pair("
+                    + ",".join(["%s"] * 20)
+                    + ")",
+                    (
+                        command.previous_pair_authority_id,
+                        command.expected_previous_projection_version,
+                        command.version_authority_id,
+                        command.manifest_authority_id,
+                        command.pair_authority_id,
+                        command.pair_domain_key,
+                        command.version_payload,
+                        command.manifest_payload,
+                        command.pair_payload,
+                        command.dataset_version_id,
+                        command.dataset_manifest_id,
+                        command.pair_fingerprint,
+                        command.source_commit,
+                        command.publication_scenario,
+                        command.valid_until,
+                        command.pair_event_id,
+                        command.supersede_event_id,
+                        command.correlation_reference,
+                        command.evidence_reference,
+                        command.pair_payload_fingerprint,
+                    ),
+                )
+                row = _row(cursor)
+                return DatasetPairReplacementResult(
+                    version=_identity(row, "version_"),
+                    manifest=_identity(row, "manifest_"),
+                    pair=_identity(row, "pair_"),
+                    previous_pair_authority_id=str(row["previous_pair_authority_id"]),
+                    previous_pair_state=row["previous_pair_state"],
+                    previous_pair_projection_version=int(
+                        row["previous_pair_projection_version"]
+                    ),
+                    pair_fingerprint=_trim(row["pair_fingerprint"]),
+                    pair_schema_version=int(row["pair_schema_version"]),
                 )
         except BaseException as error:
             if not isinstance(error, Exception):

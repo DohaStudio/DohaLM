@@ -137,6 +137,7 @@ def test_c1_2_c2_mapping_and_restricted_sql_are_complete() -> None:
         "0007_production_authority_provisioning.sql",
         "0008_current_evidence_snapshot.sql",
         "0009_large_dataset_proposal_authority.sql",
+        "0010_dataset_pair_c3_payload_compatibility.sql",
     ]
     sql = migrations[2].sql
     for function_name in (
@@ -327,3 +328,23 @@ def test_large_dataset_proposal_migration_preserves_v1_and_adds_bounded_v2() -> 
     assert "TO dohalm_dataset_proposal_authority" in sql
     assert "DROP" not in sql
     assert "INSERT/UPDATE/DELETE" not in sql
+
+
+def test_dataset_pair_c3_compatibility_migration_is_restricted_and_append_only() -> (
+    None
+):
+    migration = load_c1_migrations()[9]
+    assert migration.name == "0010_dataset_pair_c3_payload_compatibility.sql"
+    sql = migration.sql
+    assert "schema_version IN (1, 2)" in sql
+    assert "CREATE FUNCTION dohalm_training_v1.replace_training_dataset_pair" in sql
+    assert "write_training_authority_event" in sql
+    assert "'superseded'" in sql
+    assert "SECURITY DEFINER" in sql
+    assert "SET search_path = pg_catalog, pg_temp" in sql
+    assert "REVOKE ALL ON FUNCTION" in sql
+    assert "TO dohalm_training_authority_producer" in sql
+    assert "TO dohalm_training_resolver" not in sql
+    assert "TO dohalm_training_journal" not in sql
+    assert "DELETE FROM" not in sql
+    assert "UPDATE dohalm_training_v1.dataset_pair_authority" not in sql

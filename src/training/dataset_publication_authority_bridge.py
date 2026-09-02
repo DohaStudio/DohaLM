@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
+from typing import Any
 
-from src.data.checksums import sha256_bytes
+from src.data.checksums import canonical_json_bytes, sha256_bytes
 from src.data.dataset_publication import DatasetPublicationResult
 from src.data.product_dataset_authority_registration import (
     InternalProductionDatasetEligibility,
+    build_compatible_product_dataset_pair_replacement,
     build_product_dataset_authority_registration,
 )
 
@@ -15,6 +18,8 @@ from .errors import TrainingError
 from .production_authority_provisioning import (
     DatasetAuthorityRegistrationCommand,
     DatasetAuthorityRegistrationResult,
+    DatasetPairReplacementCommand,
+    DatasetPairReplacementResult,
     ProductionAuthorityProvisioningPort,
 )
 
@@ -95,6 +100,71 @@ class DatasetPublicationAuthorityBridge:
             raise _error(
                 "PRODUCTION_DATASET_REGISTRATION_MISMATCH",
                 "PostgreSQL authority registration differs from Product publication.",
+            )
+        return result
+
+    def replace_pair(
+        self,
+        publication: DatasetPublicationResult,
+        *,
+        previous_pair_authority_id: str,
+        expected_previous_projection_version: int,
+        version_authority_id: str,
+        manifest_authority_id: str,
+        eligibility: InternalProductionDatasetEligibility,
+        upstream_objects: Sequence[Mapping[str, Any]],
+        evaluated_at: str,
+        expected_split_id: str,
+        artifact_references: Sequence[Mapping[str, Any]],
+        source_commit: str,
+        valid_until: datetime | None,
+        correlation_reference: str,
+    ) -> DatasetPairReplacementResult:
+        material = build_compatible_product_dataset_pair_replacement(
+            publication,
+            previous_pair_authority_id=previous_pair_authority_id,
+            eligibility=eligibility,
+            upstream_objects=upstream_objects,
+            evaluated_at=evaluated_at,
+            expected_split_id=expected_split_id,
+            artifact_references=artifact_references,
+            source_commit=source_commit,
+            valid_until=valid_until,
+            correlation_reference=correlation_reference,
+        )
+        command = DatasetPairReplacementCommand(
+            previous_pair_authority_id=material.previous_pair_authority_id,
+            expected_previous_projection_version=expected_previous_projection_version,
+            version_authority_id=version_authority_id,
+            manifest_authority_id=manifest_authority_id,
+            pair_authority_id=material.pair_authority_id,
+            pair_domain_key=material.pair_domain_key,
+            version_payload=canonical_json_bytes(publication.dataset_version),
+            manifest_payload=canonical_json_bytes(publication.dataset_manifest),
+            pair_payload=material.pair_payload,
+            dataset_version_id=material.dataset_version_id,
+            dataset_manifest_id=material.dataset_manifest_id,
+            pair_fingerprint=material.pair_fingerprint,
+            source_commit=material.source_commit,
+            publication_scenario=material.publication_scenario,
+            valid_until=material.valid_until,
+            pair_event_id=material.pair_event_id,
+            supersede_event_id=material.supersede_event_id,
+            correlation_reference=material.correlation_reference,
+            evidence_reference=material.eligibility_reference,
+        )
+        result = self._authorities.replace_dataset_pair(command)
+        if (
+            result.previous_pair_authority_id != previous_pair_authority_id
+            or result.pair.authority_id != material.pair_authority_id
+            or result.pair.payload_fingerprint != material.pair_payload_fingerprint
+            or result.pair_fingerprint != publication.pair_fingerprint
+            or result.version.authority_id != version_authority_id
+            or result.manifest.authority_id != manifest_authority_id
+        ):
+            raise _error(
+                "PRODUCTION_DATASET_PAIR_REPLACEMENT_MISMATCH",
+                "PostgreSQL pair replacement differs from approved material.",
             )
         return result
 

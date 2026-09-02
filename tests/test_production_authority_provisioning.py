@@ -25,13 +25,13 @@ from src.training.production_authority_provisioning import (
     AuthorityProvisioningIdentity,
     ConfigAuthorityProvisionCommand,
     DatasetAuthorityRegistrationResult,
+    DatasetPairReplacementResult,
     PrincipalProvisionCommand,
     ProductionAuthorityProvisioningPackage,
 )
 from src.training.production_intent_authority import (
     TrainingIntentSubmitterAuthorityRecord,
 )
-
 
 NOW = datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc)
 SOURCE = "a" * 40
@@ -195,6 +195,26 @@ class _DatasetPort:
             pair_fingerprint=command.pair_fingerprint,
         )
 
+    def replace_dataset_pair(self, command):
+        self.command = command
+        self.commands.append(command)
+        return DatasetPairReplacementResult(
+            version=_identity(command.version_authority_id),
+            manifest=_identity(command.manifest_authority_id),
+            pair=AuthorityProvisioningIdentity(
+                command.pair_authority_id,
+                command.pair_domain_key,
+                sha256_bytes(command.pair_payload),
+                "current",
+                1,
+            ),
+            previous_pair_authority_id=command.previous_pair_authority_id,
+            previous_pair_state="superseded",
+            previous_pair_projection_version=2,
+            pair_fingerprint=command.pair_fingerprint,
+            pair_schema_version=2,
+        )
+
 
 def _publication() -> DatasetPublicationResult:
     version = {
@@ -208,6 +228,14 @@ def _publication() -> DatasetPublicationResult:
         "object_id": "dataset-manifest-test",
         "manifest_status": "issued",
         "training_allowed": True,
+        "split_id": "split:test",
+        "object_file_artifact_refs": [
+            {
+                "object_id": "artifact:test",
+                "schema_name": "dataset_artifact_manifest",
+                "schema_version": "1.0.0",
+            }
+        ],
     }
     return DatasetPublicationResult._create(
         version,
@@ -223,19 +251,19 @@ def test_dataset_bridge_registers_exact_filesystem_result_without_republication(
 ):
     port = _DatasetPort()
     bridge = DatasetPublicationAuthorityBridge(port)
-    values = dict(
-        eligibility=InternalProductionDatasetEligibility(
+    values = {
+        "eligibility": InternalProductionDatasetEligibility(
             reference="eligibility:candidate-a",
             source_lineage_reference="lineage:candidate-a",
             internal_training_allowed=True,
             commercial_usage_allowed=False,
             redistribution_allowed=False,
         ),
-        source_commit=SOURCE,
-        valid_from=NOW,
-        valid_until=NOW + timedelta(days=1),
-        correlation_reference="correlation:Dataset-bridge",
-    )
+        "source_commit": SOURCE,
+        "valid_from": NOW,
+        "valid_until": NOW + timedelta(days=1),
+        "correlation_reference": "correlation:Dataset-bridge",
+    }
     result = bridge.register(_publication(), **values)
     replay = bridge.register(_publication(), **values)
     assert result.pair_fingerprint == "sha256:" + "3" * 64
@@ -260,6 +288,42 @@ def test_dataset_bridge_rejects_commercial_or_unfrozen_material() -> None:
             commercial_usage_allowed=True,
             redistribution_allowed=False,
         )
+
+
+def test_dataset_bridge_replaces_only_pair_and_preserves_publication_identity() -> None:
+    port = _DatasetPort()
+    bridge = DatasetPublicationAuthorityBridge(port)
+    publication = _publication()
+    result = bridge.replace_pair(
+        publication,
+        previous_pair_authority_id="00000000-0000-0000-0000-000000000001",
+        expected_previous_projection_version=1,
+        version_authority_id="00000000-0000-0000-0000-000000000002",
+        manifest_authority_id="00000000-0000-0000-0000-000000000003",
+        eligibility=InternalProductionDatasetEligibility(
+            reference="eligibility:candidate-a",
+            source_lineage_reference="lineage:candidate-a",
+            internal_training_allowed=True,
+            commercial_usage_allowed=False,
+            redistribution_allowed=False,
+        ),
+        upstream_objects=[{"object_type": "rights", "status": "approved"}],
+        evaluated_at="2026-09-01T01:00:00+00:00",
+        expected_split_id="split:test",
+        artifact_references=publication.dataset_manifest["object_file_artifact_refs"],
+        source_commit=SOURCE,
+        valid_until=None,
+        correlation_reference="correlation:Dataset-pair-v2",
+    )
+    assert result.previous_pair_state == "superseded"
+    assert result.pair_schema_version == 2
+    assert result.pair_fingerprint == publication.pair_fingerprint
+    assert port.command.version_payload == canonical_json_bytes(
+        publication.dataset_version
+    )
+    assert port.command.manifest_payload == canonical_json_bytes(
+        publication.dataset_manifest
+    )
 
 
 def test_config_command_fingerprint_is_exact_canonical_bytes() -> None:

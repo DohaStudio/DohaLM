@@ -878,7 +878,7 @@ def c1_postgres() -> Iterator[C1Fixture]:
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = tuple(executor.map(lambda _: migrate(), range(2)))
-        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8, 9)]
+        assert sorted(results, key=len) == [(), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
         yield C1Fixture(
             correlation,
             container,
@@ -920,6 +920,7 @@ def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
     from src.training.production_authority_provisioning import (
         ConfigAuthorityProvisionCommand,
         DatasetAuthorityRegistrationCommand,
+        DatasetPairReplacementCommand,
         DecisionAuthorityProvisionCommand,
         PrincipalProvisionCommand,
         ReadinessAuthorityProvisionCommand,
@@ -1008,6 +1009,48 @@ def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
         adapter.register_dataset_publication(rollback_probe)
     dataset_result = adapter.register_dataset_publication(dataset)
     assert adapter.register_dataset_publication(dataset) == dataset_result
+    replacement_payload = canonical_json_bytes(
+        {
+            "artifact_references": [],
+            "dataset_manifest_id": dataset.dataset_manifest_id,
+            "dataset_version_id": dataset.dataset_version_id,
+            "evaluated_at": now.isoformat(),
+            "expected_split_id": f"split:{suffix}",
+            "pair_fingerprint": pair_fingerprint,
+            "payload_schema": "dataset_pair_payload_v2",
+            "upstream_objects": [],
+        }
+    )
+    replacement = DatasetPairReplacementCommand(
+        previous_pair_authority_id=dataset.pair_authority_id,
+        expected_previous_projection_version=1,
+        version_authority_id=dataset.version_authority_id,
+        manifest_authority_id=dataset.manifest_authority_id,
+        pair_authority_id=str(uuid.uuid4()),
+        pair_domain_key=f"dataset-pair-v2:{suffix}",
+        version_payload=version_payload,
+        manifest_payload=manifest_payload,
+        pair_payload=replacement_payload,
+        dataset_version_id=dataset.dataset_version_id,
+        dataset_manifest_id=dataset.dataset_manifest_id,
+        pair_fingerprint=pair_fingerprint,
+        source_commit=source,
+        publication_scenario="internal-production-training-c3-compatible",
+        valid_until=valid_until,
+        pair_event_id=str(uuid.uuid4()),
+        supersede_event_id=str(uuid.uuid4()),
+        correlation_reference=f"correlation:dataset-pair-v2:{suffix}",
+        evidence_reference=f"eligibility:{suffix}",
+    )
+    replacement_result = adapter.replace_dataset_pair(replacement)
+    assert adapter.replace_dataset_pair(replacement) == replacement_result
+    assert replacement_result.previous_pair_state == "superseded"
+    assert replacement_result.pair.state == "current"
+    assert replacement_result.pair_schema_version == 2
+    with pytest.raises(Exception, match="PRODUCTION_AUTHORITY_PROVISIONING_CONFLICT"):
+        adapter.replace_dataset_pair(
+            replace(replacement, pair_payload=replacement_payload + b" ")
+        )
 
     config_payload = canonical_json_bytes(
         {"execution_scope": "production_internal", "suffix": suffix}
@@ -1121,7 +1164,7 @@ def check_production_authority_adapter_is_replay_safe_atomic_and_restricted(
                 * 4
             ),
         ).fetchone()
-    assert counts == (1, 1, 1)
+    assert counts == (1, 1, 2)
     assert privileges == (False, False, False, False)
     for role in (
         "dohalm_training_resolver",
@@ -1370,7 +1413,7 @@ def test_production_authority_provisioning_upgrades_existing_0006_database(
                 6,
             )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (7, 8, 9)
+            assert apply_c1_migrations(connection) == (7, 8, 9, 10)
             assert connection.execute(
                 "SELECT has_function_privilege(%s, %s, 'EXECUTE'), "
                 "has_function_privilege('public', %s, 'EXECUTE')",
@@ -2830,7 +2873,17 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                     (uuid.uuid4(), run_id, request_fingerprint, "process:c1-1-upgrade"),
                 )
         with upgrade_factory.connection() as connection:
-            assert apply_c1_migrations(connection) == (2, 3, 4, 5, 6, 7, 8, 9)
+            assert apply_c1_migrations(connection) == (
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+            )
             migrations = connection.execute(
                 f"SELECT version, name, sha256 FROM {SCHEMA}.schema_migration ORDER BY version"
             ).fetchall()
@@ -2939,6 +2992,16 @@ def test_c1_1_upgrade_backfills_preexisting_journal(
                 hashlib.sha256(
                     (
                         migration_root / "0009_large_dataset_proposal_authority.sql"
+                    ).read_bytes()
+                ).hexdigest(),
+            ),
+            (
+                10,
+                "0010_dataset_pair_c3_payload_compatibility.sql",
+                hashlib.sha256(
+                    (
+                        migration_root
+                        / "0010_dataset_pair_c3_payload_compatibility.sql"
                     ).read_bytes()
                 ).hexdigest(),
             ),
@@ -3382,6 +3445,7 @@ def test_logical_restore_preserves_migration_contract(c1_postgres: C1Fixture) ->
                 (7, "0007_production_authority_provisioning.sql"),
                 (8, "0008_current_evidence_snapshot.sql"),
                 (9, "0009_large_dataset_proposal_authority.sql"),
+                (10, "0010_dataset_pair_c3_payload_compatibility.sql"),
             ]
             assert all(len(row[2]) == 64 for row in rows)
             assert apply_c1_migrations(connection) == ()
