@@ -73,12 +73,24 @@ def publish_product_dataset_version(
         proposal_fingerprint=request.proposal_fingerprint,
         stage=DatasetLifecycleStage.PUBLICATION,
     )
+    verify_indefinite = getattr(
+        current_evidence_authority,
+        "verify_current_indefinite_retention",
+        None,
+    )
+    currentness_verifier = None
+    if callable(verify_indefinite):
+
+        def currentness_verifier(rights: Mapping[str, Any]) -> bool:
+            return verify_indefinite(request.identity, rights) is True
+
     return publish_dataset_version(
         approved,
         metadata=metadata,
         upstream_objects=upstream_objects,
         evaluated_at=request.evaluated_at.isoformat(),
         publication_root=publication_root,
+        indefinite_rights_currentness=currentness_verifier,
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version as distribution_version
 from typing import Any
@@ -131,16 +132,78 @@ def validate_dataset_manifest(payload: Any) -> Any:
     return _validate_object(payload, "dataset_manifest")
 
 
-def validate_dataset_publication_scenario(scenario: Any) -> Any:
+def validate_dataset_publication_scenario(
+    scenario: Any,
+    *,
+    indefinite_rights_currentness: Callable[[Mapping[str, Any]], bool] | None = None,
+) -> Any:
     """Validate the frozen Version + issued Manifest boundary as one scenario."""
 
     verify_common_contract_runtime()
     try:
-        issues = validate_scenario(scenario)
+        issues = tuple(validate_scenario(scenario))
     except _RUNTIME_FAILURES as exc:
         raise CommonContractRuntimeError from exc
+    if issues and _indefinite_rights_compatible(
+        scenario,
+        issues,
+        indefinite_rights_currentness,
+    ):
+        return scenario
     _raise_for_issues("dataset_publication_scenario", issues)
     return scenario
+
+
+def _indefinite_rights_compatible(
+    scenario: Any,
+    issues: tuple[Any, ...],
+    verifier: Callable[[Mapping[str, Any]], bool] | None,
+) -> bool:
+    """Accept only package Rights failures proven current by the owner authority."""
+
+    projected = tuple(_project_issue(issue) for issue in issues)
+    if (
+        verifier is None
+        or not projected
+        or any(
+            issue.code != "RIGHTS_FAILURE" or issue.path != "$.rights_metadata_id"
+            for issue in projected
+        )
+        or not isinstance(scenario, Mapping)
+        or not isinstance(scenario.get("objects"), list)
+    ):
+        return False
+    rights_by_id: dict[str, Mapping[str, Any]] = {}
+    referenced: set[str] = set()
+    for item in scenario["objects"]:
+        if not isinstance(item, Mapping):
+            return False
+        if item.get("schema_name") == "rights_metadata":
+            identity = item.get("rights_metadata_id")
+            if not isinstance(identity, str) or identity in rights_by_id:
+                return False
+            rights_by_id[identity] = item
+        elif item.get("schema_name") == "training_eligibility":
+            identity = item.get("rights_metadata_id")
+            if isinstance(identity, str):
+                referenced.add(identity)
+    if not referenced:
+        return False
+    verified: dict[str, bool] = {}
+    for identity in referenced:
+        rights = rights_by_id.get(identity)
+        if (
+            rights is None
+            or rights.get("retention_allowed") is not True
+            or rights.get("rights_status") not in {"approved", "approved_limited"}
+            or rights.get("training_allowed") is not True
+        ):
+            return False
+        try:
+            verified[identity] = verifier(rights) is True
+        except Exception:  # noqa: BLE001 - external currentness authority boundary
+            return False
+    return all(verified.values())
 
 
 def _validate_object(payload: Any, kind: str) -> Any:

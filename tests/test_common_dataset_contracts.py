@@ -235,6 +235,69 @@ def test_valid_frozen_and_issued_pair_passes_as_one_scenario():
     assert validate_dataset_publication_scenario(scenario) is scenario
 
 
+def test_indefinite_retention_requires_owner_currentness_for_publication():
+    scenario = publication_scenario()
+    expected_ids = set()
+    for item in scenario["objects"]:
+        if item.get("schema_name") == "rights_metadata":
+            item["retention_allowed"] = True
+            expected_ids.add(item["rights_metadata_id"])
+    verified = set()
+
+    def current(rights_metadata):
+        verified.add(rights_metadata["rights_metadata_id"])
+        return True
+
+    assert (
+        validate_dataset_publication_scenario(
+            scenario,
+            indefinite_rights_currentness=current,
+        )
+        is scenario
+    )
+    assert verified == expected_ids
+
+
+def test_indefinite_retention_without_current_authority_fails_closed():
+    scenario = publication_scenario()
+    for item in scenario["objects"]:
+        if item.get("schema_name") == "rights_metadata":
+            item["retention_allowed"] = True
+    with pytest.raises(CommonDatasetValidationError, match="RIGHTS_FAILURE"):
+        validate_dataset_publication_scenario(scenario)
+    with pytest.raises(CommonDatasetValidationError, match="RIGHTS_FAILURE"):
+        validate_dataset_publication_scenario(
+            scenario,
+            indefinite_rights_currentness=lambda _rights: False,
+        )
+
+
+@pytest.mark.parametrize("status", ["revoked", "expired", "rejected"])
+def test_indefinite_retention_revoked_or_stale_status_fails_closed(status):
+    scenario = publication_scenario()
+    for item in scenario["objects"]:
+        if item.get("schema_name") == "rights_metadata":
+            item["retention_allowed"] = True
+            item["rights_status"] = status
+    with pytest.raises(CommonDatasetValidationError, match="RIGHTS_FAILURE"):
+        validate_dataset_publication_scenario(
+            scenario,
+            indefinite_rights_currentness=lambda _rights: True,
+        )
+
+
+def test_finite_expiry_is_not_bypassed_by_indefinite_currentness():
+    scenario = publication_scenario()
+    for item in scenario["objects"]:
+        if item.get("schema_name") == "rights_metadata":
+            item["retention_allowed"]["expires_at"] = "2026-08-11T11:59:59Z"
+    with pytest.raises(CommonDatasetValidationError, match="RIGHTS_FAILURE"):
+        validate_dataset_publication_scenario(
+            scenario,
+            indefinite_rights_currentness=lambda _rights: True,
+        )
+
+
 def test_invalid_object_fails_with_structured_non_payload_issue():
     invalid = dataset_version()
     invalid["dataset_id"] = "private value with spaces"
